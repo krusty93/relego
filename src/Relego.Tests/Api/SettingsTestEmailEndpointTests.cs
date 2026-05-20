@@ -68,16 +68,31 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
         Assert.Contains("SMTP delivery failed", body);
     }
 
+    [Fact]
+    public async Task PostTestEmail_WhenUnexpectedErrorOccurs_Returns500()
+    {
+        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
+        _fakeMail.ShouldThrowUnexpected = true;
+
+        var response = await _client.PostAsync("/settings/test-email", null);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+    }
+
     private sealed class FakeMailDeliveryService : IMailDeliveryService
     {
         public string? LastTestEmailAddress { get; private set; }
         public bool ShouldThrow { get; set; }
+        public bool ShouldThrowUnexpected { get; set; }
 
         public Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 
         public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
         {
+            if (ShouldThrowUnexpected)
+                throw new InvalidOperationException("Unexpected configuration error.");
+
             if (ShouldThrow)
                 throw new System.Net.Sockets.SocketException(10061);
 

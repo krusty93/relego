@@ -37,7 +37,7 @@ public sealed class SettingsScreenTests
 
         Assert.NotNull(screen.Settings);
         Assert.Equal("user@kindle.com", screen.Settings.KindleEmail);
-        Assert.Equal(5, screen.Fields.Count); // 4 editable + 1 action (schedule=daily, no delivery day, no timezone)
+        Assert.Equal(4, screen.Fields.Count); // 4 editable (schedule=daily, no delivery day, no timezone)
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class SettingsScreenTests
         var screen = new SettingsScreen(new RelegoHttpClient(httpClient), isDevelopment: true);
         await screen.InitializeAsync(CancellationToken.None);
 
-        Assert.Equal(6, screen.Fields.Count); // 4 editable + 2 actions
+        Assert.Equal(5, screen.Fields.Count); // 4 editable + 1 action (trigger-recap only)
         Assert.Contains(screen.Fields, f => f.ActionId == "trigger-recap");
     }
 
@@ -70,7 +70,7 @@ public sealed class SettingsScreenTests
         var screen = new SettingsScreen(new RelegoHttpClient(httpClient));
         await screen.InitializeAsync(CancellationToken.None);
 
-        Assert.Equal(6, screen.Fields.Count); // 5 editable (includes delivery day) + 1 action
+        Assert.Equal(5, screen.Fields.Count); // 5 editable (includes delivery day)
         Assert.Contains(screen.Fields, f => f.FieldId == "deliveryDay");
         Assert.Equal("wednesday", screen.Fields.First(f => f.FieldId == "deliveryDay").Value);
     }
@@ -335,35 +335,30 @@ public sealed class SettingsScreenTests
 
         Assert.Contains(screen.KeyHints, hint => hint is ("↑↓", "Navigate"));
         Assert.Contains(screen.KeyHints, hint => hint is ("Enter", "Edit"));
-        Assert.Contains(screen.KeyHints, hint => hint is ("T", "Test email"));
+        Assert.Contains(screen.KeyHints, hint => hint is ("T", "Test email settings"));
         Assert.Contains(screen.KeyHints, hint => hint is ("R", "Refresh"));
         Assert.Contains(screen.KeyHints, hint => hint is ("Esc", "Go Back"));
         Assert.Contains(screen.KeyHints, hint => hint is ("Q", "Quit"));
     }
 
     [Fact]
-    public async Task HandleKeyAsync_EnterOnActionField_ExecutesAction()
+    public async Task HandleKeyAsync_TestEmail_WhenKindleEmailNotConfigured_ShowsError()
     {
         var settings = CreateDefaultSettings();
+        settings.KindleEmail = string.Empty;
         using var mockHttp = new MockHttpMessageHandler();
         mockHttp.When(HttpMethod.Get, "http://localhost/settings")
             .Respond("application/json", JsonSerializer.Serialize(settings, CamelCaseOptions));
-        mockHttp.When(HttpMethod.Post, "http://localhost/settings/test-email")
-            .Respond(HttpStatusCode.OK, "application/json", "{\"message\":\"ok\"}");
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
 
         var screen = new SettingsScreen(new RelegoHttpClient(httpClient));
         await screen.InitializeAsync(CancellationToken.None);
 
-        // Navigate to the "Send test email" action (index 4 with daily schedule)
-        for (var i = 0; i < 4; i++)
-            await screen.HandleKeyAsync(Key(ConsoleKey.DownArrow), CancellationToken.None);
-
-        Assert.Equal("test-email", screen.Fields[screen.SelectedField].ActionId);
-
-        var result = await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
+        var result = await screen.HandleKeyAsync(Key(ConsoleKey.T, 't'), CancellationToken.None);
 
         Assert.Equal(ScreenAction.None, result.Action);
+        Assert.True(screen.StatusIsError);
+        Assert.NotNull(screen.StatusMessage);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Test helper; MockHttp and HttpClient outlive the helper call")]

@@ -98,12 +98,20 @@ public static partial class SettingsEndpoints
                     title: "SMTP delivery failed.",
                     statusCode: StatusCodes.Status502BadGateway);
             }
+            catch (Exception)
+            {
+                return Results.Problem(
+                    detail: null,
+                    title: "Test email failed due to an internal error.",
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
         })
         .WithSummary("Send a plain-text test email.")
         .WithDescription("Sends a simple verification email to the configured Kindle email address without generating a recap.")
         .Produces(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
-        .ProducesProblem(StatusCodes.Status502BadGateway);
+        .ProducesProblem(StatusCodes.Status502BadGateway)
+        .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         return app;
     }
