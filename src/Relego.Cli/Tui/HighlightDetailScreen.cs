@@ -20,7 +20,7 @@ public sealed class HighlightDetailScreen : IScreen
     private const int MinimumWeight = 1;
     private const int MaximumWeight = 5;
     private const int WeightColumnWidth = 8;
-    private const int MinimumStateColumnWidth = 10;
+    private const int DotColumnWidth = 1;
     private const int MinimumHighlightColumnWidth = 18;
     private const int WeightEditorWidth = 52;
     private const int WeightEditorHeight = 7;
@@ -40,7 +40,9 @@ public sealed class HighlightDetailScreen : IScreen
     private ShortcutListView? _highlightList;
     private Label? _titleLabel;
     private Label? _authorLabel;
-    private Label? _summaryLabel;
+    private Label? _summaryCountLabel;
+    private Label? _summaryBookLabel;
+    private Label? _summaryAuthorLabel;
     private Label? _headerLabel;
     private Label? _headerRuleLabel;
     private Label? _statusLabel;
@@ -59,7 +61,7 @@ public sealed class HighlightDetailScreen : IScreen
     private bool _updatingViewState;
     private TableLayout _tableLayout = CalculateTableLayout(DefaultTableWidth);
 
-    private readonly record struct TableLayout(int HighlightWidth, int WeightWidth, int StatusWidth);
+    private readonly record struct TableLayout(int HighlightWidth, int WeightWidth);
 
     public HighlightDetailScreen(BookViewModel book, RelegoHttpClient client)
     {
@@ -153,11 +155,31 @@ public sealed class HighlightDetailScreen : IScreen
         _authorLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
             TuiTheme.Palette.TextMuted, TuiTheme.Palette.Background)));
 
-        _summaryLabel = new Label
+        _summaryCountLabel = new Label
         {
             X = TableHorizontalPadding,
             Y = 2,
-            Width = Dim.Fill(TableHorizontalPadding * 2),
+            Width = Dim.Auto(),
+            Height = 1,
+            CanFocus = false
+        };
+        _summaryCountLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
+            TuiTheme.Palette.TextMuted, TuiTheme.Palette.Background)));
+
+        _summaryBookLabel = new Label
+        {
+            X = Pos.Right(_summaryCountLabel),
+            Y = 2,
+            Width = Dim.Auto(),
+            Height = 1,
+            CanFocus = false
+        };
+
+        _summaryAuthorLabel = new Label
+        {
+            X = Pos.Right(_summaryBookLabel),
+            Y = 2,
+            Width = Dim.Auto(),
             Height = 1,
             CanFocus = false
         };
@@ -332,7 +354,9 @@ public sealed class HighlightDetailScreen : IScreen
         container.Add(
             _titleLabel,
             _authorLabel,
-            _summaryLabel,
+            _summaryCountLabel,
+            _summaryBookLabel,
+            _summaryAuthorLabel,
             _headerLabel,
             _headerRuleLabel,
             _highlightList,
@@ -893,9 +917,27 @@ public sealed class HighlightDetailScreen : IScreen
                 _authorLabel.Text = $"by {_authorName}";
             }
 
-            if (_summaryLabel is not null)
+            var highlightCount = _highlights.Count == 1 ? "1 highlight" : $"{_highlights.Count.ToString(CultureInfo.InvariantCulture)} highlights";
+
+            if (_summaryCountLabel is not null)
             {
-                _summaryLabel.Text = BuildSummaryText();
+                _summaryCountLabel.Text = highlightCount;
+            }
+
+            if (_summaryBookLabel is not null)
+            {
+                _summaryBookLabel.Text = $"  |  Book: {(_isBookExcluded ? "excluded" : "included")}";
+                _summaryBookLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
+                    _isBookExcluded ? TuiTheme.Palette.Error : TuiTheme.Palette.TextMuted,
+                    TuiTheme.Palette.Background)));
+            }
+
+            if (_summaryAuthorLabel is not null)
+            {
+                _summaryAuthorLabel.Text = $"  |  Author: {(_isAuthorExcluded ? "excluded" : "included")}";
+                _summaryAuthorLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
+                    _isAuthorExcluded ? TuiTheme.Palette.Error : TuiTheme.Palette.TextMuted,
+                    TuiTheme.Palette.Background)));
             }
 
             if (_headerLabel is not null)
@@ -1036,14 +1078,6 @@ public sealed class HighlightDetailScreen : IScreen
         }
     }
 
-    private string BuildSummaryText()
-    {
-        var highlightCount = _highlights.Count == 1 ? "1 highlight" : $"{_highlights.Count.ToString(CultureInfo.InvariantCulture)} highlights";
-        var bookState = _isBookExcluded ? "excluded" : "included";
-        var authorState = _isAuthorExcluded ? "excluded" : "included";
-        return $"{highlightCount}  |  Book: {bookState}  |  Author: {authorState}";
-    }
-
     private IEnumerable<string> BuildHighlightRows()
     {
         if (_highlights.Count == 0)
@@ -1060,10 +1094,11 @@ public sealed class HighlightDetailScreen : IScreen
 
     private string FormatHighlightRow(HighlightViewModel highlight)
     {
+        var excluded = IsEffectivelyExcluded(highlight);
+        var dot = excluded ? "\u2022" : " ";
         var text = FitCell(highlight.Text.ReplaceLineEndings(" "), _tableLayout.HighlightWidth);
         var weight = (highlight.Weight ?? DefaultWeight).ToString(CultureInfo.InvariantCulture).PadLeft(_tableLayout.WeightWidth);
-        var state = IsEffectivelyExcluded(highlight) ? "Excluded" : "Included";
-        return $"{text}  {weight}  {FitCell(state, _tableLayout.StatusWidth)}";
+        return $"{weight}  {dot}  {text}".TrimEnd();
     }
 
     private string BuildWeightScale()
@@ -1126,7 +1161,7 @@ public sealed class HighlightDetailScreen : IScreen
     }
 
     private static string FormatHeader(TableLayout tableLayout)
-        => $"{FitCell("HIGHLIGHT", tableLayout.HighlightWidth)}  {FitCell("WEIGHT", tableLayout.WeightWidth)}  {FitCell("STATUS", tableLayout.StatusWidth)}";
+        => $"{FitCell("WEIGHT", tableLayout.WeightWidth)}  {" ",DotColumnWidth}  {FitCell("HIGHLIGHT", tableLayout.HighlightWidth)}";
 
     private void ApplyNavigation(ScreenResult result)
     {
@@ -1250,19 +1285,17 @@ public sealed class HighlightDetailScreen : IScreen
 
     private static TableLayout CalculateTableLayout(int availableWidth)
     {
-        const int spacingWidth = 4;
+        const int SpacingWidth = 4;
 
-        var statusWidth = MinimumStateColumnWidth;
-        var highlightWidth = availableWidth - WeightColumnWidth - statusWidth - spacingWidth;
+        var highlightWidth = availableWidth - WeightColumnWidth - DotColumnWidth - SpacingWidth;
         if (highlightWidth < MinimumHighlightColumnWidth)
         {
-            highlightWidth = Math.Max(0, availableWidth - WeightColumnWidth - statusWidth - spacingWidth);
+            highlightWidth = Math.Max(0, availableWidth - WeightColumnWidth - DotColumnWidth - SpacingWidth);
         }
 
         return new TableLayout(
             Math.Max(0, highlightWidth),
-            WeightColumnWidth,
-            statusWidth);
+            WeightColumnWidth);
     }
 
     private static string FitCell(string value, int width)
