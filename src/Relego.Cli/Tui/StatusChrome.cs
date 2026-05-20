@@ -149,8 +149,8 @@ public sealed class StatusChrome(string serverUrl, string version)
         if (_connectionLabel is not null)
         {
             _connectionLabel.Text = IsConnected
-                ? $"● Connected  {serverUrl}"
-                : $"● Disconnected  {serverUrl}";
+                ? $"● Connected to {serverUrl}"
+                : $"● Disconnected {serverUrl}";
 
             _connectionLabel.SetScheme(IsConnected
                 ? new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Success, bg))
