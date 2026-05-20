@@ -102,6 +102,18 @@ builder.Services.AddScoped<IRecapService, RecapService>();
 
 var app = builder.Build();
 
+app.UseExceptionHandler(err =>
+{
+    err.Run(async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/problem+json";
+        await context.Response.WriteAsJsonAsync(
+            new { type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.6.1", title = "An unexpected error occurred.", status = 500 },
+            cancellationToken: context.RequestAborted);
+    });
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

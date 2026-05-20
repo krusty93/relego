@@ -394,8 +394,12 @@ public sealed class SettingsScreen : IScreen
             }
             else
             {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                SetStatus($"Test email failed: {body}", isError: true);
+                var message = response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.BadGateway => "SMTP delivery failed. Check your server SMTP configuration.",
+                    _ => "Test email failed. Check server configuration."
+                };
+                SetStatus(message, isError: true);
             }
         }
         catch (HttpRequestException ex)

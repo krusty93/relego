@@ -35,9 +35,10 @@ var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
 
 Assembly assembly = typeof(SyncCommand).Assembly;
 string applicationName = "relego";
-string version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+string version = (assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
     ?? assembly.GetName().Version?.ToString()
-    ?? "unknown";
+    ?? "unknown")
+    .Split('+')[0];
 
 builder.Services.AddHttpClient<RelegoHttpClient>((sp, client) =>
 {
