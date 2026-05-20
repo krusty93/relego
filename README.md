@@ -26,6 +26,29 @@
 3. A recap document is sent to your Kindle email address via Amazon's Send-to-Kindle service
 4. Open the recap on your Kindle like any other book
 
+### What a recap looks like
+
+Each recap is an EPUB document delivered to your Kindle. Here's an example of what you'll see when you open it:
+
+> #### Relego Daily Recap (2026-05-21 18:00)
+>
+> - _"Care About Your Craft"_
+>   — **The Pragmatic Programmer** by David Thomas & Andrew Hunt
+>
+> - _"Clean code is simple and direct."_
+>   — **Clean Code** by Robert C. Martin
+>
+> - _"In a hole in the ground there lived a hobbit."_
+>   — **The Hobbit** by J.R.R. Tolkien
+>
+> - _"The only way to do great work is to love what you do."_
+>   — **Steve Jobs** by Walter Isaacson
+>
+> - _"Violence is the last refuge of the incompetent."_
+>   — **Foundation** by Isaac Asimov
+
+Each highlight includes the quote, the book title, and the author, making it easy to recall context at a glance. The number of highlights per recap is configurable (default is 5).
+
 ## Interactive mode
 
 Run `relego` without arguments to open the interactive TUI:
