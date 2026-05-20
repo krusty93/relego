@@ -1285,12 +1285,12 @@ public sealed class HighlightDetailScreen : IScreen
 
     private static TableLayout CalculateTableLayout(int availableWidth)
     {
-        const int spacingWidth = 4;
+        const int SpacingWidth = 4;
 
-        var highlightWidth = availableWidth - WeightColumnWidth - DotColumnWidth - spacingWidth;
+        var highlightWidth = availableWidth - WeightColumnWidth - DotColumnWidth - SpacingWidth;
         if (highlightWidth < MinimumHighlightColumnWidth)
         {
-            highlightWidth = Math.Max(0, availableWidth - WeightColumnWidth - DotColumnWidth - spacingWidth);
+            highlightWidth = Math.Max(0, availableWidth - WeightColumnWidth - DotColumnWidth - SpacingWidth);
         }
 
         return new TableLayout(
