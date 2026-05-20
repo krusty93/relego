@@ -20,7 +20,7 @@ public sealed class HighlightDetailScreen : IScreen
     private const int MinimumWeight = 1;
     private const int MaximumWeight = 5;
     private const int WeightColumnWidth = 8;
-    private const int MinimumStateColumnWidth = 10;
+    private const int DotColumnWidth = 1;
     private const int MinimumHighlightColumnWidth = 18;
     private const int WeightEditorWidth = 52;
     private const int WeightEditorHeight = 7;
@@ -61,7 +61,7 @@ public sealed class HighlightDetailScreen : IScreen
     private bool _updatingViewState;
     private TableLayout _tableLayout = CalculateTableLayout(DefaultTableWidth);
 
-    private readonly record struct TableLayout(int HighlightWidth, int WeightWidth, int StatusWidth);
+    private readonly record struct TableLayout(int HighlightWidth, int WeightWidth);
 
     public HighlightDetailScreen(BookViewModel book, RelegoHttpClient client)
     {
@@ -1095,15 +1095,11 @@ public sealed class HighlightDetailScreen : IScreen
     private string FormatHighlightRow(HighlightViewModel highlight)
     {
         var excluded = IsEffectivelyExcluded(highlight);
+        var dot = excluded ? "\u2022" : " ";
         var text = FitCell(highlight.Text.ReplaceLineEndings(" "), _tableLayout.HighlightWidth);
-        var displayText = excluded ? ApplyStrikethrough(text) : text;
         var weight = (highlight.Weight ?? DefaultWeight).ToString(CultureInfo.InvariantCulture).PadLeft(_tableLayout.WeightWidth);
-        var statusText = excluded ? FitCell("Excluded", _tableLayout.StatusWidth) : string.Empty;
-        return $"{weight}  {displayText}  {statusText}".TrimEnd();
+        return $"{weight}  {dot}  {text}".TrimEnd();
     }
-
-    private static string ApplyStrikethrough(string text)
-        => string.Concat(text.Select(c => $"{c}\u0336"));
 
     private string BuildWeightScale()
         => string.Join("  ", Enumerable.Range(MinimumWeight, MaximumWeight)
@@ -1165,7 +1161,7 @@ public sealed class HighlightDetailScreen : IScreen
     }
 
     private static string FormatHeader(TableLayout tableLayout)
-        => $"{FitCell("WEIGHT", tableLayout.WeightWidth)}  {FitCell("HIGHLIGHT", tableLayout.HighlightWidth)}  {FitCell("STATUS", tableLayout.StatusWidth)}";
+        => $"{FitCell("WEIGHT", tableLayout.WeightWidth)}  {" ",DotColumnWidth}  {FitCell("HIGHLIGHT", tableLayout.HighlightWidth)}";
 
     private void ApplyNavigation(ScreenResult result)
     {
@@ -1291,17 +1287,15 @@ public sealed class HighlightDetailScreen : IScreen
     {
         const int spacingWidth = 4;
 
-        var statusWidth = MinimumStateColumnWidth;
-        var highlightWidth = availableWidth - WeightColumnWidth - statusWidth - spacingWidth;
+        var highlightWidth = availableWidth - WeightColumnWidth - DotColumnWidth - spacingWidth;
         if (highlightWidth < MinimumHighlightColumnWidth)
         {
-            highlightWidth = Math.Max(0, availableWidth - WeightColumnWidth - statusWidth - spacingWidth);
+            highlightWidth = Math.Max(0, availableWidth - WeightColumnWidth - DotColumnWidth - spacingWidth);
         }
 
         return new TableLayout(
             Math.Max(0, highlightWidth),
-            WeightColumnWidth,
-            statusWidth);
+            WeightColumnWidth);
     }
 
     private static string FitCell(string value, int width)
