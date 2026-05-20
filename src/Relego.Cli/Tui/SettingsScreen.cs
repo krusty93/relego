@@ -23,7 +23,7 @@ public sealed class SettingsScreen : IScreen
     [
         ("↑↓", "Navigate"),
         ("Enter", "Edit"),
-        ("T", "Test email"),
+        ("T", "Test email settings"),
         ("R", "Refresh"),
         ("Esc", "Go Back"),
         ("Q", "Quit")
@@ -52,10 +52,13 @@ public sealed class SettingsScreen : IScreen
     private Action<ScreenResult>? _navigate;
     private bool _viewCreated;
 
-    public SettingsScreen(RelegoHttpClient client, bool isDevelopment = false)
+    private readonly Func<CancellationToken, Task>? _refreshChromeAsync;
+
+    public SettingsScreen(RelegoHttpClient client, bool isDevelopment = false, Func<CancellationToken, Task>? refreshChromeAsync = null)
     {
         _client = client;
         _isDevelopment = isDevelopment;
+        _refreshChromeAsync = refreshChromeAsync;
     }
 
     public string Title => "";
@@ -360,6 +363,9 @@ public sealed class SettingsScreen : IScreen
             RebuildFields();
             CancelEdit();
             SetStatus($"{field.Label} updated.", isError: false);
+
+            if (field.FieldId == "kindleEmail" && _refreshChromeAsync is not null)
+                _ = Task.Run(() => _refreshChromeAsync(CancellationToken.None));
         }
         catch (HttpRequestException ex)
         {
@@ -369,6 +375,12 @@ public sealed class SettingsScreen : IScreen
 
     private async Task<ScreenResult> HandleTestEmailAsync(CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(_settings?.KindleEmail))
+        {
+            SetStatus("Kindle email is not configured. Please set it first.", isError: true);
+            return ScreenResult.Stay();
+        }
+
         SetStatus("Sending test email...", isError: false);
         UpdateViewStateIfCreated();
 
@@ -493,7 +505,6 @@ public sealed class SettingsScreen : IScreen
             Hint: "HH:mm format (e.g. 09:30)", DisplaySuffix: $"({_settings.Timezone})"));
         _fields.Add(new SettingsField("Highlights per Recap", _settings.Count.ToString(CultureInfo.InvariantCulture), "count", FieldKind.Editable,
             Hint: $"A number between {MinWeight} and {MaxWeight}"));
-        _fields.Add(new SettingsField("▶ Send test email", string.Empty, "test-email", FieldKind.Action));
 
         if (_isDevelopment)
         {

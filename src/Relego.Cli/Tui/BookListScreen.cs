@@ -729,7 +729,7 @@ public sealed class BookListScreen(
                 return true;
 
             case 's':
-                navigate(ScreenResult.Push(new SettingsScreen(_client)));
+                navigate(ScreenResult.Push(new SettingsScreen(_client, refreshChromeAsync: _refreshConnectionStatusAsync)));
                 return true;
 
             case 'i':

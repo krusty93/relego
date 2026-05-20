@@ -79,21 +79,11 @@ public sealed class StatusChrome(string serverUrl, string version)
         };
         infoFrame.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Border, bg)));
 
-        var versionLabel = new Label
-        {
-            Text = $"Relego v{version}",
-            X = 1,
-            Y = 0,
-            Width = Dim.Fill(1),
-            TextAlignment = Alignment.End
-        };
-        versionLabel.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.TextMuted, bg)));
-
         _connectionLabel = new Label
         {
             Text = $"⟳ Checking...  {serverUrl}",
             X = 1,
-            Y = 1,
+            Y = 0,
             Width = Dim.Fill(1),
             TextAlignment = Alignment.End
         };
@@ -102,12 +92,22 @@ public sealed class StatusChrome(string serverUrl, string version)
         {
             Text = string.Empty,
             X = 1,
-            Y = 2,
+            Y = 1,
             Width = Dim.Fill(1),
             TextAlignment = Alignment.End
         };
 
-        infoFrame.Add(versionLabel, _connectionLabel, _warningLabel);
+        var versionLabel = new Label
+        {
+            Text = $"relego v{version}",
+            X = 1,
+            Y = 2,
+            Width = Dim.Fill(1),
+            TextAlignment = Alignment.End
+        };
+        versionLabel.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.TextMuted, bg)));
+
+        infoFrame.Add(_connectionLabel, _warningLabel, versionLabel);
         container.Add(infoFrame);
 
         return container;
