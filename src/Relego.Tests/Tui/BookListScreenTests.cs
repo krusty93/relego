@@ -299,7 +299,7 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureSupplementaryEndpoints(mockHttp);
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsSyncWorkflow(releClient, NullLogger<ClippingsSyncWorkflow>.Instance);
+        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
         return screen;

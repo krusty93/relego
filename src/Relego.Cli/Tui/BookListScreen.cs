@@ -6,7 +6,7 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using Relego.Cli.Infrastructure;
-using Relego.Cli.Sync;
+using Relego.Cli.Import;
 using Relego.Cli.Tui.ViewModels;
 using Relego.Core.Contracts;
 
@@ -14,7 +14,7 @@ namespace Relego.Cli.Tui;
 
 public sealed class BookListScreen(
     RelegoHttpClient client,
-    ClippingsSyncWorkflow syncWorkflow,
+    ClippingsImportWorkflow syncWorkflow,
     Action? onConnectionFailure = null,
     Func<CancellationToken, Task>? refreshConnectionStatusAsync = null) : IScreen
 {
@@ -28,12 +28,12 @@ public sealed class BookListScreen(
     private const string SectionTitle = "Books";
     private const string SearchPlaceholderIdle = "type / to search";
     private const string SearchPlaceholderFocused = "Press Esc to return to the list";
-    private const string SyncPlaceholderDetected = "Press Enter to sync or edit the path";
+    private const string SyncPlaceholderDetected = "Press Enter to import or edit the path";
     private const string SyncPlaceholderManual = "Enter the path to My Clippings.txt";
     private const string RenamePlaceholder = "Enter new title, press Enter to confirm or Esc to cancel";
 
     private readonly RelegoHttpClient _client = client;
-    private readonly ClippingsSyncWorkflow _syncWorkflow = syncWorkflow;
+    private readonly ClippingsImportWorkflow _syncWorkflow = syncWorkflow;
     private readonly Action? _onConnectionFailure = onConnectionFailure;
     private readonly Func<CancellationToken, Task>? _refreshConnectionStatusAsync = refreshConnectionStatusAsync;
     private List<BookViewModel> _books = [];
@@ -67,13 +67,13 @@ public sealed class BookListScreen(
 
     public bool IsSearchActive => _isSearchActive;
 
-    public bool IsSyncPromptActive => _toolbarMode == ToolbarMode.SyncPath;
+    public bool IsImportPromptActive => _toolbarMode == ToolbarMode.SyncPath;
 
     public bool IsRenamePromptActive => _toolbarMode == ToolbarMode.Rename;
 
     public string SearchQuery => _searchQuery;
 
-    public string SyncPathInput => _syncPathInput;
+    public string ImportPathInput => _syncPathInput;
 
     public string? FeedbackMessage => _feedbackMessage;
 
@@ -283,7 +283,7 @@ public sealed class BookListScreen(
             }
 
             _refreshVisibleBooks = RefreshEmpty;
-            SetupContainerKeyBindings(container, null, navigate, RefreshEmpty, BeginSearchInput, () => BeginSyncPrompt());
+            SetupContainerKeyBindings(container, null, navigate, RefreshEmpty, BeginSearchInput, () => BeginImportPrompt());
             return container;
         }
 
@@ -401,7 +401,7 @@ public sealed class BookListScreen(
         container.Add(titleLabel, headerLabel, headerRuleLabel, listView);
         _listView = listView;
         _refreshVisibleBooks = RefreshVisibleBooks;
-        SetupContainerKeyBindings(container, listView, navigate, RefreshVisibleBooks, BeginSearchInput, () => BeginSyncPrompt());
+        SetupContainerKeyBindings(container, listView, navigate, RefreshVisibleBooks, BeginSearchInput, () => BeginImportPrompt());
 
         // Save/restore selection around SetFocus: Terminal.Gui may fire ValueChanged
         // with SelectedItem = 0 when the ListView gains focus, overwriting _selectedIndex.
@@ -456,7 +456,7 @@ public sealed class BookListScreen(
         UpdateToolbarChrome();
     }
 
-    public void BeginSyncPrompt(string? detectedPath = null)
+    public void BeginImportPrompt(string? detectedPath = null)
     {
         _toolbarMode = ToolbarMode.SyncPath;
         _isSearchActive = false;
@@ -476,7 +476,7 @@ public sealed class BookListScreen(
         UpdateToolbarChrome();
     }
 
-    public void CancelSyncPrompt()
+    public void CancelImportPrompt()
     {
         _toolbarMode = ToolbarMode.Search;
         _detectedSyncPath = null;
@@ -488,10 +488,10 @@ public sealed class BookListScreen(
             return;
         }
 
-        RestoreToolbarAfterSyncPrompt();
+        RestoreToolbarAfterImportPrompt();
     }
 
-    private void RestoreToolbarAfterSyncPrompt()
+    private void RestoreToolbarAfterImportPrompt()
     {
         ArgumentNullException.ThrowIfNull(_searchField);
 
@@ -599,47 +599,47 @@ public sealed class BookListScreen(
         _refreshVisibleBooks?.Invoke();
     }
 
-    public async Task<ClippingsSyncOutcome> SubmitSyncAsync(string? filePath = null, CancellationToken cancellationToken = default)
+    public async Task<ClippingsImportOutcome> SubmitImportAsync(string? filePath = null, CancellationToken cancellationToken = default)
     {
         var resolvedPath = filePath ?? _syncPathInput;
         if (string.IsNullOrWhiteSpace(resolvedPath))
         {
             SetFeedback("Enter a path to My Clippings.txt or press Esc to cancel.", isError: true);
-            return ClippingsSyncOutcome.Cancelled();
+            return ClippingsImportOutcome.Cancelled();
         }
 
         var hadBooksView = _viewHasBooksList;
-        var outcome = await _syncWorkflow.ExecuteAsync(new ClippingsSyncOptions
+        var outcome = await _syncWorkflow.ExecuteAsync(new ClippingsImportOptions
         {
             FilePath = resolvedPath
         }, cancellationToken).ConfigureAwait(false);
 
         switch (outcome.Status)
         {
-            case ClippingsSyncStatus.FileNotFound:
+            case ClippingsImportStatus.FileNotFound:
                 SetFeedback($"File not found: {outcome.FilePath}", isError: true);
                 return outcome;
 
-            case ClippingsSyncStatus.ParseFailed:
+            case ClippingsImportStatus.ParseFailed:
                 SetFeedback($"Error parsing clippings file: {outcome.Message}", isError: true);
                 return outcome;
 
-            case ClippingsSyncStatus.ServerError:
+            case ClippingsImportStatus.ServerError:
                 _onConnectionFailure?.Invoke();
-                SetFeedback($"Sync failed: {outcome.Message}", isError: true);
+                SetFeedback($"Import failed: {outcome.Message}", isError: true);
                 return outcome;
 
-            case ClippingsSyncStatus.NoHighlightsFound:
+            case ClippingsImportStatus.NoHighlightsFound:
                 SetFeedback("No highlights found in the clippings file.", isError: false);
-                CancelSyncPrompt();
+                CancelImportPrompt();
                 return outcome;
 
-            case ClippingsSyncStatus.Succeeded:
+            case ClippingsImportStatus.Succeeded:
                 await InitializeAsync(cancellationToken).ConfigureAwait(false);
                 SetFeedback(
-                    $"Sync complete. {outcome.TotalHighlightsParsed} parsed, {outcome.Response!.NewHighlights} new, {outcome.Response.DuplicateHighlights} duplicates, {outcome.Response.NewBooks} books, {outcome.Response.NewAuthors} authors.",
+                    $"Import complete. {outcome.TotalHighlightsParsed} parsed, {outcome.Response!.NewHighlights} new, {outcome.Response.DuplicateHighlights} duplicates, {outcome.Response.NewBooks} books, {outcome.Response.NewAuthors} authors.",
                     isError: false);
-                CancelSyncPrompt();
+                CancelImportPrompt();
 
                 if (_navigate is not null)
                 {
@@ -993,7 +993,7 @@ public sealed class BookListScreen(
         {
             if (key.KeyCode == KeyCode.Esc)
             {
-                CancelSyncPrompt();
+                CancelImportPrompt();
                 key.Handled = true;
             }
 
@@ -1032,7 +1032,7 @@ public sealed class BookListScreen(
             return;
         }
 
-        await SubmitSyncAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+        await SubmitImportAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
     }
 
     private string GetToolbarText() => _toolbarMode switch

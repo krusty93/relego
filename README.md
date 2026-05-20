@@ -21,7 +21,7 @@
 
 ## How it works
 
-1. Connect your Kindle via USB and run `relego sync` — highlights are imported from `My Clippings.txt`
+1. Connect your Kindle via USB and run `relego import` — highlights are imported from `My Clippings.txt`
 2. The server selects a daily or weekly subset of highlights using spaced repetition (weighted by your preferences)
 3. A recap document is sent to your Kindle email address via Amazon's Send-to-Kindle service
 4. Open the recap on your Kindle like any other book
@@ -68,7 +68,7 @@ Replace the `SMTP_*` values with those for your provider.
 >
 > Use a free SMTP relay like [Resend](https://resend.com/docs/send-with-smtp), [MailerSend](https://www.mailersend.com/help/smtp-relay) or [Mailgun](https://www.mailgun.com/features/smtp-server/) instead. They offer a free tier with a generous limit of free emails. Otherwise, you can use your own SMPT relay server.
 
-### 3. Sync the Kindle highlights
+### 3. Import the Kindle highlights
 
 Upload highlights to the server using the CLI. It automatically detects the path to your Kindle:
 
@@ -83,7 +83,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
     --network relego `
     -e RELEGO_SERVER="http://relego-server:8080" `
     ghcr.io/krusty93/relego.cli:latest `
-    sync "/kindle/My Clippings.txt"
+    import "/kindle/My Clippings.txt"
   ```
 
   > NB: Follow the [WSL documentation](https://learn.microsoft.com/en-us/windows/wsl/connect-usb) to allow WSL to access the Kindle device. Another simpler option is to copy the `My Clippings.txt` file to your PC (e.g. local path) and mounting the volume:
@@ -94,7 +94,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
     --network relego `
     -e RELEGO_SERVER="http://relego-server:8080" `
     ghcr.io/krusty93/relego.cli:latest `
-    sync "/kindle/My Clippings.txt"
+    import "/kindle/My Clippings.txt"
   ```
 
   **macOS** (Kindle mounts at `/Volumes/Kindle`):
@@ -104,7 +104,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
     -v "/Volumes/Kindle/documents:/kindle:ro" \
     -e RELEGO_SERVER="http://relego-server:8080" \
     ghcr.io/krusty93/relego.cli:latest \
-    sync "/kindle/My Clippings.txt"
+    import "/kindle/My Clippings.txt"
   ```
 
   **Linux** (Kindle mounts at `/media/$USER/Kindle`):
@@ -114,7 +114,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
     -v "/media/$USER/Kindle/documents:/kindle:ro" \
     -e RELEGO_SERVER="http://relego-server:8080" \
     ghcr.io/krusty93/relego.cli:latest \
-    sync "/kindle/My Clippings.txt"
+    import "/kindle/My Clippings.txt"
   ```
 
 </details>
@@ -126,7 +126,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
 
   ```sh
   winget install Krusty93.Relego
-  relego sync
+  relego import
   ```
 
 #### Binary
@@ -135,7 +135,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
 
   ```powershell
   curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-win-x64 -o ./relego.exe
-  ./relego.exe sync
+  ./relego.exe import
   ```
 
 </details>
@@ -150,7 +150,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
   ```sh
   curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-osx-arm64 -o /usr/local/bin/relego
   chmod +x /usr/local/bin/relego
-  relego sync
+  relego import
   ```
 
 #### Intel
@@ -158,7 +158,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
   ```sh
   curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-osx-amd64 -o /usr/local/bin/relego
   chmod +x /usr/local/bin/relego
-  relego sync
+  relego import
   ```
 
 </details>
@@ -171,7 +171,7 @@ Upload highlights to the server using the CLI. It automatically detects the path
   ```sh
   curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-linux-x64 -o /usr/local/bin/relego
   chmod +x /usr/local/bin/relego
-  relego sync
+  relego import
   ```
 
 </details>
@@ -181,12 +181,12 @@ The client automatically connects to `http://localhost:8080`. If you ran the ser
 ```sh
 # binary
 export RELEGO_SERVER=http://192.168.1.10:8080
-relego sync
+relego import
 
 # Docker
 docker run \
   -e RELEGO_SERVER=http://192.168.1.10:8080 \
-  ghcr.io/krusty93/relego.cli:latest sync
+  ghcr.io/krusty93/relego.cli:latest import
 ```
 
 That's it. Your first recap will arrive on the next scheduled delivery (default: every day at 18:00).
@@ -194,7 +194,7 @@ That's it. Your first recap will arrive on the next scheduled delivery (default:
 > **My Clippings.txt on a different path?** Override the default location using:
 >
 > ```sh
-> relego sync <path>
+> relego import <path>
 > ```
 >
 
@@ -209,7 +209,7 @@ Running `relego` with no arguments in an interactive terminal opens a full-scree
 |                   Command                        |              Description                  |
 |--------------------------------------------------|-------------------------------------------|
 | `relego`                                         | Open interactive TUI                      |
-| `relego sync [path]`                             | Import highlights from `My Clippings.txt` |
+| `relego import [path]`                           | Import highlights from `My Clippings.txt` |
 | `relego status`                                  | Show server status and next recap         |
 | `relego config schedule <daily\|weekly> [HH:MM]` | Set recap schedule                        |
 | `relego config schedule show`                    | Show current schedule                     |

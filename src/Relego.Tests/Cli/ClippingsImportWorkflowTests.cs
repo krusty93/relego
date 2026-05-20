@@ -3,18 +3,18 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Relego.Cli.Infrastructure;
-using Relego.Cli.Sync;
+using Relego.Cli.Import;
 using Relego.Core.Contracts;
 
 namespace Relego.Tests.Cli;
 
-public sealed class ClippingsSyncWorkflowTests : IDisposable
+public sealed class ClippingsImportWorkflowTests : IDisposable
 {
     private readonly string _tempDir;
 
-    public ClippingsSyncWorkflowTests()
+    public ClippingsImportWorkflowTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"relego-sync-workflow-{Guid.NewGuid():N}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"relego-import-workflow-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -35,12 +35,12 @@ public sealed class ClippingsSyncWorkflowTests : IDisposable
             """));
         using var harness = CreateWorkflowHarness(handler);
 
-        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsSyncOptions
+        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsImportOptions
         {
             FilePath = filePath
         }, CancellationToken.None);
 
-        Assert.Equal(ClippingsSyncStatus.Succeeded, outcome.Status);
+        Assert.Equal(ClippingsImportStatus.Succeeded, outcome.Status);
         Assert.NotNull(outcome.ParseResult);
         Assert.NotNull(outcome.Response);
         Assert.Equal(5, outcome.Response!.NewHighlights);
@@ -80,12 +80,12 @@ public sealed class ClippingsSyncWorkflowTests : IDisposable
         using var handler = new CapturingHandler(_ => throw new Xunit.Sdk.XunitException("Upload should not be attempted for an empty clippings file."));
         using var harness = CreateWorkflowHarness(handler);
 
-        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsSyncOptions
+        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsImportOptions
         {
             FilePath = filePath
         }, CancellationToken.None);
 
-        Assert.Equal(ClippingsSyncStatus.NoHighlightsFound, outcome.Status);
+        Assert.Equal(ClippingsImportStatus.NoHighlightsFound, outcome.Status);
         Assert.Equal(0, handler.RequestCount);
     }
 
@@ -95,12 +95,12 @@ public sealed class ClippingsSyncWorkflowTests : IDisposable
         using var handler = new CapturingHandler(_ => throw new Xunit.Sdk.XunitException("Upload should not be attempted for a missing clippings file."));
         using var harness = CreateWorkflowHarness(handler);
 
-        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsSyncOptions
+        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsImportOptions
         {
             ResolvePathAsync = (_, _) => ValueTask.FromResult<string?>("/missing/My Clippings.txt")
         }, CancellationToken.None);
 
-        Assert.Equal(ClippingsSyncStatus.FileNotFound, outcome.Status);
+        Assert.Equal(ClippingsImportStatus.FileNotFound, outcome.Status);
         Assert.Equal(0, handler.RequestCount);
     }
 
@@ -111,13 +111,13 @@ public sealed class ClippingsSyncWorkflowTests : IDisposable
         using var handler = new CapturingHandler(_ => throw new Xunit.Sdk.XunitException("Upload should not be attempted when parsing fails."));
         using var harness = CreateWorkflowHarness(handler);
 
-        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsSyncOptions
+        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsImportOptions
         {
             FilePath = filePath,
             ParseAsync = static (_, _) => throw new InvalidDataException("boom")
         }, CancellationToken.None);
 
-        Assert.Equal(ClippingsSyncStatus.ParseFailed, outcome.Status);
+        Assert.Equal(ClippingsImportStatus.ParseFailed, outcome.Status);
         Assert.Equal("boom", outcome.Message);
         Assert.IsType<InvalidDataException>(outcome.Error);
         Assert.Equal(0, handler.RequestCount);
@@ -130,12 +130,12 @@ public sealed class ClippingsSyncWorkflowTests : IDisposable
         using var handler = new CapturingHandler(_ => throw new HttpRequestException("Connection refused"));
         using var harness = CreateWorkflowHarness(handler);
 
-        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsSyncOptions
+        var outcome = await harness.Workflow.ExecuteAsync(new ClippingsImportOptions
         {
             FilePath = filePath
         }, CancellationToken.None);
 
-        Assert.Equal(ClippingsSyncStatus.ServerError, outcome.Status);
+        Assert.Equal(ClippingsImportStatus.ServerError, outcome.Status);
         Assert.Equal("Connection refused", outcome.Message);
         Assert.IsType<HttpRequestException>(outcome.Error);
         Assert.Equal(1, handler.RequestCount);
@@ -148,7 +148,7 @@ public sealed class ClippingsSyncWorkflowTests : IDisposable
             BaseAddress = new Uri("http://localhost:5000")
         };
 
-        return new WorkflowHarness(httpClient, new ClippingsSyncWorkflow(new RelegoHttpClient(httpClient), NullLogger<ClippingsSyncWorkflow>.Instance));
+        return new WorkflowHarness(httpClient, new ClippingsImportWorkflow(new RelegoHttpClient(httpClient), NullLogger<ClippingsImportWorkflow>.Instance));
     }
 
     private string CreateClippingsFile(string content)
@@ -180,9 +180,9 @@ public sealed class ClippingsSyncWorkflowTests : IDisposable
         }
     }
 
-    private sealed class WorkflowHarness(HttpClient httpClient, ClippingsSyncWorkflow workflow) : IDisposable
+    private sealed class WorkflowHarness(HttpClient httpClient, ClippingsImportWorkflow workflow) : IDisposable
     {
-        public ClippingsSyncWorkflow Workflow { get; } = workflow;
+        public ClippingsImportWorkflow Workflow { get; } = workflow;
 
         public void Dispose()
         {

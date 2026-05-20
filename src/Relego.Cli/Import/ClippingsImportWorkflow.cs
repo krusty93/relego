@@ -3,18 +3,18 @@ using Relego.Cli.Infrastructure;
 using Relego.Cli.Parsing;
 using Relego.Core.Contracts;
 
-namespace Relego.Cli.Sync;
+namespace Relego.Cli.Import;
 
-public sealed class ClippingsSyncWorkflow(RelegoHttpClient client, ILogger<ClippingsSyncWorkflow> logger)
+public sealed class ClippingsImportWorkflow(RelegoHttpClient client, ILogger<ClippingsImportWorkflow> logger)
 {
-    public async Task<ClippingsSyncOutcome> ExecuteAsync(ClippingsSyncOptions options, CancellationToken cancellationToken = default)
+    public async Task<ClippingsImportOutcome> ExecuteAsync(ClippingsImportOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         var filePath = await ResolveFilePathAsync(options, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(filePath))
         {
-            return ClippingsSyncOutcome.Cancelled();
+            return ClippingsImportOutcome.Cancelled();
         }
 
         filePath = filePath.Trim();
@@ -22,7 +22,7 @@ public sealed class ClippingsSyncWorkflow(RelegoHttpClient client, ILogger<Clipp
 
         if (!File.Exists(filePath))
         {
-            return ClippingsSyncOutcome.FileNotFound(filePath);
+            return ClippingsImportOutcome.FileNotFound(filePath);
         }
 
         ParseResult parseResult;
@@ -37,12 +37,12 @@ public sealed class ClippingsSyncWorkflow(RelegoHttpClient client, ILogger<Clipp
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to parse clippings file {FilePath}", filePath);
-            return ClippingsSyncOutcome.ParseFailed(filePath, ex);
+            return ClippingsImportOutcome.ParseFailed(filePath, ex);
         }
 
         if (parseResult.Books.Count == 0)
         {
-            return ClippingsSyncOutcome.NoHighlightsFound(filePath, parseResult);
+            return ClippingsImportOutcome.NoHighlightsFound(filePath, parseResult);
         }
 
         var request = CreateSyncRequest(parseResult);
@@ -54,16 +54,16 @@ public sealed class ClippingsSyncWorkflow(RelegoHttpClient client, ILogger<Clipp
         try
         {
             var response = await client.PostSyncAsync(request, cancellationToken).ConfigureAwait(false);
-            return ClippingsSyncOutcome.Succeeded(filePath, parseResult, response);
+            return ClippingsImportOutcome.Succeeded(filePath, parseResult, response);
         }
         catch (HttpRequestException ex)
         {
-            logger.LogWarning(ex, "Failed to sync clippings from {FilePath}", filePath);
-            return ClippingsSyncOutcome.ServerError(filePath, parseResult, ex);
+            logger.LogWarning(ex, "Failed to import clippings from {FilePath}", filePath);
+            return ClippingsImportOutcome.ServerError(filePath, parseResult, ex);
         }
     }
 
-    private static async Task<string?> ResolveFilePathAsync(ClippingsSyncOptions options, CancellationToken cancellationToken)
+    private static async Task<string?> ResolveFilePathAsync(ClippingsImportOptions options, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(options.FilePath))
         {
@@ -73,7 +73,7 @@ public sealed class ClippingsSyncWorkflow(RelegoHttpClient client, ILogger<Clipp
         var detectedPath = KindleDetector.DetectClippingsPath();
         if (options.ResolvePathAsync is not null)
         {
-            return await options.ResolvePathAsync(new ClippingsPathPromptRequest(detectedPath), cancellationToken).ConfigureAwait(false);
+            return await options.ResolvePathAsync(new ClippingsImportPathPromptRequest(detectedPath), cancellationToken).ConfigureAwait(false);
         }
 
         return detectedPath;
@@ -99,20 +99,20 @@ public sealed class ClippingsSyncWorkflow(RelegoHttpClient client, ILogger<Clipp
     }
 }
 
-public sealed record ClippingsSyncOptions
+public sealed record ClippingsImportOptions
 {
     public string? FilePath { get; init; }
 
-    public Func<ClippingsPathPromptRequest, CancellationToken, ValueTask<string?>>? ResolvePathAsync { get; init; }
+    public Func<ClippingsImportPathPromptRequest, CancellationToken, ValueTask<string?>>? ResolvePathAsync { get; init; }
 
     public Func<string, ILogger?, Task<ParseResult>>? ParseAsync { get; init; }
 
     public ILogger? ParserLogger { get; init; }
 }
 
-public sealed record ClippingsPathPromptRequest(string? DetectedPath);
+public sealed record ClippingsImportPathPromptRequest(string? DetectedPath);
 
-public enum ClippingsSyncStatus
+public enum ClippingsImportStatus
 {
     Cancelled,
     FileNotFound,
@@ -122,9 +122,9 @@ public enum ClippingsSyncStatus
     Succeeded
 }
 
-public sealed record ClippingsSyncOutcome
+public sealed record ClippingsImportOutcome
 {
-    public required ClippingsSyncStatus Status { get; init; }
+    public required ClippingsImportStatus Status { get; init; }
 
     public string? FilePath { get; init; }
 
@@ -138,49 +138,49 @@ public sealed record ClippingsSyncOutcome
 
     public int TotalHighlightsParsed => ParseResult?.Books.Sum(book => book.Highlights.Count) ?? 0;
 
-    public bool IsSuccessful => Status is ClippingsSyncStatus.NoHighlightsFound or ClippingsSyncStatus.Succeeded;
+    public bool IsSuccessful => Status is ClippingsImportStatus.NoHighlightsFound or ClippingsImportStatus.Succeeded;
 
-    public static ClippingsSyncOutcome Cancelled() => new()
+    public static ClippingsImportOutcome Cancelled() => new()
     {
-        Status = ClippingsSyncStatus.Cancelled,
-        Message = "Sync cancelled."
+        Status = ClippingsImportStatus.Cancelled,
+        Message = "Import cancelled."
     };
 
-    public static ClippingsSyncOutcome FileNotFound(string filePath) => new()
+    public static ClippingsImportOutcome FileNotFound(string filePath) => new()
     {
-        Status = ClippingsSyncStatus.FileNotFound,
+        Status = ClippingsImportStatus.FileNotFound,
         FilePath = filePath,
         Message = $"File not found: {filePath}"
     };
 
-    public static ClippingsSyncOutcome ParseFailed(string filePath, Exception error) => new()
+    public static ClippingsImportOutcome ParseFailed(string filePath, Exception error) => new()
     {
-        Status = ClippingsSyncStatus.ParseFailed,
+        Status = ClippingsImportStatus.ParseFailed,
         FilePath = filePath,
         Message = error.Message,
         Error = error
     };
 
-    public static ClippingsSyncOutcome NoHighlightsFound(string filePath, ParseResult parseResult) => new()
+    public static ClippingsImportOutcome NoHighlightsFound(string filePath, ParseResult parseResult) => new()
     {
-        Status = ClippingsSyncStatus.NoHighlightsFound,
+        Status = ClippingsImportStatus.NoHighlightsFound,
         FilePath = filePath,
         Message = "No highlights found in the clippings file.",
         ParseResult = parseResult
     };
 
-    public static ClippingsSyncOutcome ServerError(string filePath, ParseResult parseResult, HttpRequestException error) => new()
+    public static ClippingsImportOutcome ServerError(string filePath, ParseResult parseResult, HttpRequestException error) => new()
     {
-        Status = ClippingsSyncStatus.ServerError,
+        Status = ClippingsImportStatus.ServerError,
         FilePath = filePath,
         Message = error.Message,
         ParseResult = parseResult,
         Error = error
     };
 
-    public static ClippingsSyncOutcome Succeeded(string filePath, ParseResult parseResult, SyncResponse response) => new()
+    public static ClippingsImportOutcome Succeeded(string filePath, ParseResult parseResult, SyncResponse response) => new()
     {
-        Status = ClippingsSyncStatus.Succeeded,
+        Status = ClippingsImportStatus.Succeeded,
         FilePath = filePath,
         ParseResult = parseResult,
         Response = response
