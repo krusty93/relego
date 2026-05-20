@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using RichardSzalay.MockHttp;
 using Relego.Cli.Infrastructure;
-using Relego.Cli.Sync;
+using Relego.Cli.Import;
 using Relego.Cli.Tui;
 
 namespace Relego.Tests.Tui;
@@ -112,15 +112,15 @@ public sealed class BookListScreenTests : IDisposable
     }
 
     [Fact]
-    public async Task TryHandleShortcutKey_I_FocusesSyncField()
+    public async Task TryHandleShortcutKey_I_FocusesImportField()
     {
         var screen = await CreateScreenAsync();
-        var focusedSyncField = false;
+        var focusedImportField = false;
 
-        var handled = screen.TryHandleShortcutKey('i', _ => { }, null, null, () => focusedSyncField = true);
+        var handled = screen.TryHandleShortcutKey('i', _ => { }, null, null, () => focusedImportField = true);
 
         Assert.True(handled);
-        Assert.True(focusedSyncField);
+        Assert.True(focusedImportField);
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureSupplementaryEndpoints(mockHttp);
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsSyncWorkflow(releClient, NullLogger<ClippingsSyncWorkflow>.Instance);
+        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
 
@@ -176,32 +176,32 @@ public sealed class BookListScreenTests : IDisposable
     }
 
     [Fact]
-    public async Task CancelSyncPrompt_LeavesScreenStable()
+    public async Task CancelImportPrompt_LeavesScreenStable()
     {
         var screen = await CreateScreenAsync();
 
         SetSyncPromptState(screen, syncPathInput: "/tmp/My Clippings.txt");
-        screen.CancelSyncPrompt();
+        screen.CancelImportPrompt();
 
-        Assert.False(screen.IsSyncPromptActive);
+        Assert.False(screen.IsImportPromptActive);
     }
 
     [Fact]
-    public async Task SubmitSyncAsync_WithBlankPath_SetsValidationFeedback()
+    public async Task SubmitImportAsync_WithBlankPath_SetsValidationFeedback()
     {
         var screen = await CreateScreenAsync();
 
         SetSyncPromptState(screen, syncPathInput: string.Empty);
-        var outcome = await screen.SubmitSyncAsync(string.Empty);
+        var outcome = await screen.SubmitImportAsync(string.Empty);
 
-        Assert.Equal(ClippingsSyncStatus.Cancelled, outcome.Status);
+        Assert.Equal(ClippingsImportStatus.Cancelled, outcome.Status);
         Assert.Equal("Enter a path to My Clippings.txt or press Esc to cancel.", screen.FeedbackMessage);
         Assert.True(screen.FeedbackIsError);
-        Assert.True(screen.IsSyncPromptActive);
+        Assert.True(screen.IsImportPromptActive);
     }
 
     [Fact]
-    public async Task SubmitSyncAsync_OnSuccess_RefreshesBooksAndClosesPrompt()
+    public async Task SubmitImportAsync_OnSuccess_RefreshesBooksAndClosesPrompt()
     {
         using var mockHttp = new MockHttpMessageHandler(BackendDefinitionBehavior.Always);
 
@@ -247,24 +247,24 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureSupplementaryEndpoints(mockHttp);
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsSyncWorkflow(releClient, NullLogger<ClippingsSyncWorkflow>.Instance);
+        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
 
         var filePath = CreateClippingsFile();
         SetSyncPromptState(screen, detectedPath: filePath, syncPathInput: filePath);
-        var outcome = await screen.SubmitSyncAsync(filePath);
+        var outcome = await screen.SubmitImportAsync(filePath);
 
-        Assert.Equal(ClippingsSyncStatus.Succeeded, outcome.Status);
+        Assert.Equal(ClippingsImportStatus.Succeeded, outcome.Status);
         Assert.Single(screen.Books);
-        Assert.False(screen.IsSyncPromptActive);
+        Assert.False(screen.IsImportPromptActive);
         Assert.False(screen.FeedbackIsError);
-        Assert.Contains("Sync complete.", screen.FeedbackMessage);
+        Assert.Contains("Import complete.", screen.FeedbackMessage);
         mockHttp.VerifyNoOutstandingExpectation();
     }
 
     [Fact]
-    public async Task SubmitSyncAsync_OnServerError_ShowsRetryableFeedback()
+    public async Task SubmitImportAsync_OnServerError_ShowsRetryableFeedback()
     {
         using var mockHttp = new MockHttpMessageHandler(BackendDefinitionBehavior.Always);
         ConfigureHighlightEndpoints(mockHttp);
@@ -274,18 +274,18 @@ public sealed class BookListScreenTests : IDisposable
             .Throw(new HttpRequestException("Connection refused"));
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsSyncWorkflow(releClient, NullLogger<ClippingsSyncWorkflow>.Instance);
+        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
 
         var filePath = CreateClippingsFile();
         SetSyncPromptState(screen, detectedPath: filePath, syncPathInput: filePath);
-        var outcome = await screen.SubmitSyncAsync(filePath);
+        var outcome = await screen.SubmitImportAsync(filePath);
 
-        Assert.Equal(ClippingsSyncStatus.ServerError, outcome.Status);
-        Assert.True(screen.IsSyncPromptActive);
+        Assert.Equal(ClippingsImportStatus.ServerError, outcome.Status);
+        Assert.True(screen.IsImportPromptActive);
         Assert.True(screen.FeedbackIsError);
-        Assert.Equal("Sync failed: Connection refused", screen.FeedbackMessage);
+        Assert.Equal("Import failed: Connection refused", screen.FeedbackMessage);
     }
 
     private async Task<BookListScreen> CreateScreenAsync(int total = 3, string? itemsJson = null)

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Parsing;
 using Relego.Core.Contracts;
