@@ -26,7 +26,7 @@ public sealed class HighlightDetailScreen : IScreen
     private const int DetailPopupWidth = 78;
     private const int DetailPopupHeight = 18;
     private const int DetailLeftPaneWidth = 44;
-    private const int DetailRightPaneWidth = 28;
+    private const int DetailRightPaneWidth = 30;
     private const int DetailPaneSeparator = 2;
     private readonly RelegoHttpClient _client;
     private readonly List<HighlightViewModel> _highlights;
@@ -54,9 +54,11 @@ public sealed class HighlightDetailScreen : IScreen
     private FrameView? _detailFrame;
     private FrameView? _detailTextFrame;
     private TextView? _detailTextView;
+    private FrameView? _detailActionFrame;
     private ObservableCollection<string>? _detailActionRows;
     private ListView? _detailActionList;
     private Label? _detailTabHintLabel;
+    private int _detailScrollOffset;
     private bool _detailFocusOnActions = true;
     private Action<ScreenResult>? _navigate;
     private string? _previewText;
@@ -245,9 +247,9 @@ public sealed class HighlightDetailScreen : IScreen
         {
             X = 0,
             Y = 0,
-            Width = DetailLeftPaneWidth + 2,
+            Width = DetailLeftPaneWidth,
             Height = Dim.Fill(),
-            Title = "",
+            Title = string.Empty,
             CanFocus = false
         };
         _detailTextFrame.Add(_detailTextView);
@@ -284,16 +286,16 @@ public sealed class HighlightDetailScreen : IScreen
         _detailTabHintLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
             TuiTheme.Palette.TextMuted, TuiTheme.Palette.Background)));
 
-        var detailActionFrame = new FrameView
+        _detailActionFrame = new FrameView
         {
-            X = DetailLeftPaneWidth + DetailPaneSeparator + 2,
+            X = DetailLeftPaneWidth + DetailPaneSeparator,
             Y = 0,
-            Width = DetailRightPaneWidth + 2,
+            Width = DetailRightPaneWidth,
             Height = Dim.Fill(),
-            Title = "",
+            Title = string.Empty,
             CanFocus = false
         };
-        detailActionFrame.Add(_detailActionList, _detailTabHintLabel);
+        _detailActionFrame.Add(_detailActionList, _detailTabHintLabel);
 
         _detailFrame = new FrameView
         {
@@ -305,7 +307,7 @@ public sealed class HighlightDetailScreen : IScreen
             CanFocus = true,
             Visible = false
         };
-        _detailFrame.Add(_detailTextFrame, detailActionFrame);
+        _detailFrame.Add(_detailTextFrame, _detailActionFrame);
 
         _weightScaleLabel = new Label
         {
@@ -815,8 +817,8 @@ public sealed class HighlightDetailScreen : IScreen
     {
         if (_detailTextView is not null)
         {
-            var currentRow = _detailTextView.CurrentRow;
-            _detailTextView.ScrollTo(new System.Drawing.Point(0, Math.Max(0, currentRow + delta)));
+            _detailScrollOffset = Math.Max(0, _detailScrollOffset + delta);
+            _detailTextView.ScrollTo(new System.Drawing.Point(0, _detailScrollOffset));
         }
 
         return ScreenResult.Stay();
@@ -851,6 +853,7 @@ public sealed class HighlightDetailScreen : IScreen
         _previewText = currentHighlight.Text;
         DetailOpen = true;
         ActionMenuIndex = 0;
+        _detailScrollOffset = 0;
         _detailFocusOnActions = true;
         WeightEditorOpen = false;
         DeleteConfirmationOpen = false;
@@ -883,6 +886,7 @@ public sealed class HighlightDetailScreen : IScreen
     private ScreenResult CloseDetail()
     {
         DetailOpen = false;
+        _detailScrollOffset = 0;
         _previewText = null;
         return ScreenResult.Stay();
     }
@@ -984,6 +988,16 @@ public sealed class HighlightDetailScreen : IScreen
                 _detailFrame.Visible = DetailOpen;
             }
 
+            if (_detailTextFrame is not null)
+            {
+                _detailTextFrame.SetScheme(CreateDetailPaneFrameScheme(DetailOpen && !_detailFocusOnActions));
+            }
+
+            if (_detailActionFrame is not null)
+            {
+                _detailActionFrame.SetScheme(CreateDetailPaneFrameScheme(DetailOpen && _detailFocusOnActions));
+            }
+
             if (_detailActionList is not null && _detailActionRows is { Count: > 0 })
             {
                 _detailActionList.SelectedItem = Math.Clamp(ActionMenuIndex, 0, _detailActionRows.Count - 1);
@@ -992,13 +1006,7 @@ public sealed class HighlightDetailScreen : IScreen
             if (_detailTextView is not null)
             {
                 _detailTextView.Text = DetailOpen ? _previewText ?? string.Empty : string.Empty;
-            }
-
-            if (_detailTextFrame is not null && DetailOpen)
-            {
-                var borderColor = _detailFocusOnActions ? TuiTheme.Palette.Border : TuiTheme.Palette.BorderFocus;
-                _detailTextFrame.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
-                    borderColor, TuiTheme.Palette.Background)));
+                _detailTextView.ScrollTo(new System.Drawing.Point(0, _detailScrollOffset));
             }
 
             if (_weightEditorFrame is not null)
@@ -1271,6 +1279,24 @@ public sealed class HighlightDetailScreen : IScreen
         return new TableLayout(
             Math.Max(0, highlightWidth),
             WeightColumnWidth);
+    }
+
+    private static Terminal.Gui.Drawing.Scheme CreateDetailPaneFrameScheme(bool isFocused)
+    {
+        var palette = TuiTheme.Palette;
+        var borderColor = isFocused ? palette.BorderFocus : palette.Border;
+        var attribute = new Terminal.Gui.Drawing.Attribute(borderColor, palette.Background);
+
+        return new Terminal.Gui.Drawing.Scheme(attribute)
+        {
+            Normal = attribute,
+            Focus = attribute,
+            Active = attribute,
+            HotNormal = attribute,
+            HotFocus = attribute,
+            HotActive = attribute,
+            Disabled = attribute
+        };
     }
 
     private static string FitCell(string value, int width)
