@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Serilog;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -14,12 +15,20 @@ using Relego.Cli.Import;
 using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .CreateLogger();
+
+bool isTuiMode = TuiModeDetector.Detect(args, Console.IsInputRedirected) == StartupMode.Tui;
+
+Log.Logger = isTuiMode
+    ? new LoggerConfiguration()
+        .MinimumLevel.Fatal()
+        .CreateLogger()
+    : new LoggerConfiguration()
+        .ReadFrom.Configuration(builder.Configuration)
+        .CreateLogger();
 
 builder.Services.AddLogging(loggingBuilder =>
 {
+    loggingBuilder.ClearProviders();
     loggingBuilder.AddSerilog(Log.Logger, dispose: true);
 });
 
@@ -52,7 +61,7 @@ builder.Services.AddTransient<ClippingsImportWorkflow>();
 
 using IHost host = builder.Build();
 
-if (TuiModeDetector.Detect(args, Console.IsInputRedirected) == StartupMode.Tui)
+if (isTuiMode)
 {
     var client = host.Services.GetRequiredService<RelegoHttpClient>();
     var syncWorkflow = host.Services.GetRequiredService<ClippingsImportWorkflow>();
