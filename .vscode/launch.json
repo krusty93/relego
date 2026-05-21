@@ -10,7 +10,10 @@
             "args": [],
             "cwd": "${workspaceFolder}/src/Relego.Cli",
             "console": "integratedTerminal",
-            "stopAtEntry": false
+            "stopAtEntry": false,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
         },
         {
             "name": "Relego.Server",
@@ -23,8 +26,7 @@
             "console": "integratedTerminal",
             "stopAtEntry": false,
             "env": {
-                "ASPNETCORE_ENVIRONMENT": "${input:serverEnvironment}",
-                "ASPNETCORE_HTTP_PORTS": "8080"
+                "ASPNETCORE_ENVIRONMENT": "Development"
             },
             "serverReadyAction": {
                 "action": "openExternally",
@@ -40,18 +42,6 @@
                 "Relego.Cli"
             ],
             "stopAll": true
-        }
-    ],
-    "inputs": [
-        {
-            "id": "serverEnvironment",
-            "type": "pickString",
-            "description": "Pick the environment for Relego.Server",
-            "options": [
-                "Development",
-                "Production"
-            ],
-            "default": "Development"
         }
     ]
 }
