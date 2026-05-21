@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Net;
+using System.Reflection;
 using Microsoft.Extensions.Logging.Abstractions;
 using RichardSzalay.MockHttp;
 using Relego.Cli.Infrastructure;
@@ -121,6 +122,45 @@ public sealed class BookListScreenTests : IDisposable
 
         Assert.True(handled);
         Assert.True(focusedImportField);
+    }
+
+    [Fact]
+    public async Task TryHandleShortcutKey_N_OpensRenamePopupAndUpdatesHints()
+    {
+        var screen = await CreateScreenAsync();
+
+        var handled = screen.TryHandleShortcutKey('n', _ => { }, null, null, null);
+
+        Assert.True(handled);
+        Assert.True(screen.IsRenamePromptActive);
+        Assert.Equal([("Enter", "Save"), ("Esc", "Cancel")], screen.KeyHints);
+    }
+
+    [Fact]
+    public async Task RegisterUiStateObserver_NotifiesOnRenamePopupTransitions()
+    {
+        var screen = await CreateScreenAsync();
+        var notifications = 0;
+
+        screen.RegisterUiStateObserver(() => notifications++);
+        screen.BeginRenamePrompt(screen.GetSelectedBook()!);
+        screen.CancelRenamePrompt();
+
+        Assert.Equal(2, notifications);
+    }
+
+    [Fact]
+    public async Task TryHandleShortcutKey_Q_WhenRenamePopupOpen_DoesNotRequestQuit()
+    {
+        var screen = await CreateScreenAsync();
+        ScreenResult? result = null;
+
+        screen.BeginRenamePrompt(screen.GetSelectedBook()!);
+        var handled = screen.TryHandleShortcutKey('q', navigate => result = navigate, null, null, null);
+
+        Assert.False(handled);
+        Assert.Null(result);
+        Assert.True(screen.IsRenamePromptActive);
     }
 
     [Fact]
@@ -286,6 +326,114 @@ public sealed class BookListScreenTests : IDisposable
         Assert.True(screen.IsImportPromptActive);
         Assert.True(screen.FeedbackIsError);
         Assert.Equal("Import failed: Connection refused", screen.FeedbackMessage);
+    }
+
+    [Fact]
+    public async Task SubmitRenameAsync_WithBlankTitle_StaysOpenAndShowsValidationFeedback()
+    {
+        var screen = await CreateScreenAsync();
+
+        screen.BeginRenamePrompt(screen.GetSelectedBook()!);
+        await screen.SubmitRenameAsync("   ");
+
+        Assert.True(screen.IsRenamePromptActive);
+        Assert.True(screen.FeedbackIsError);
+        Assert.Equal("Enter a title or press Esc to cancel.", screen.FeedbackMessage);
+    }
+
+    [Fact]
+    public async Task SubmitRenameAsync_OnSuccess_ClosesPromptAndReloadsBooks()
+    {
+        using var mockHttp = new MockHttpMessageHandler(BackendDefinitionBehavior.Always);
+
+        mockHttp.Expect(HttpMethod.Get, "http://localhost:5000/highlights?page=1&pageSize=100")
+            .Respond("application/json", """
+                {
+                  "total": 3,
+                  "page": 1,
+                  "pageSize": 100,
+                  "items": [
+                    {
+                      "id": 1,
+                      "bookId": 10,
+                      "authorId": 7,
+                      "text": "Psychohistory is built on large numbers.",
+                      "bookTitle": "Foundation",
+                      "authorName": "Isaac Asimov"
+                    },
+                    {
+                      "id": 2,
+                      "bookId": 10,
+                      "authorId": 7,
+                      "text": "Violence is the last refuge of the incompetent.",
+                      "bookTitle": "Foundation",
+                      "authorName": "Isaac Asimov"
+                    },
+                    {
+                      "id": 3,
+                      "bookId": 20,
+                      "authorId": 8,
+                      "text": "In a hole in the ground there lived a hobbit.",
+                      "bookTitle": "The Hobbit",
+                      "authorName": "J.R.R. Tolkien"
+                    }
+                  ]
+                }
+                """);
+
+        mockHttp.Expect(HttpMethod.Put, "http://localhost:5000/books/10/title")
+            .Respond(HttpStatusCode.NoContent);
+
+        mockHttp.Expect(HttpMethod.Get, "http://localhost:5000/highlights?page=1&pageSize=100")
+            .Respond("application/json", """
+                {
+                  "total": 3,
+                  "page": 1,
+                  "pageSize": 100,
+                  "items": [
+                    {
+                      "id": 1,
+                      "bookId": 10,
+                      "authorId": 7,
+                      "text": "Psychohistory is built on large numbers.",
+                      "bookTitle": "Foundation and Empire",
+                      "authorName": "Isaac Asimov"
+                    },
+                    {
+                      "id": 2,
+                      "bookId": 10,
+                      "authorId": 7,
+                      "text": "Violence is the last refuge of the incompetent.",
+                      "bookTitle": "Foundation and Empire",
+                      "authorName": "Isaac Asimov"
+                    },
+                    {
+                      "id": 3,
+                      "bookId": 20,
+                      "authorId": 8,
+                      "text": "In a hole in the ground there lived a hobbit.",
+                      "bookTitle": "The Hobbit",
+                      "authorName": "J.R.R. Tolkien"
+                    }
+                  ]
+                }
+                """);
+
+        ConfigureSupplementaryEndpoints(mockHttp);
+
+        var releClient = CreateRelegoClient(mockHttp);
+        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
+        var screen = new BookListScreen(releClient, workflow);
+        await screen.InitializeAsync(CancellationToken.None);
+
+        screen.BeginRenamePrompt(screen.GetSelectedBook()!);
+        await screen.SubmitRenameAsync("Foundation and Empire");
+
+        Assert.False(screen.IsRenamePromptActive);
+        Assert.False(screen.FeedbackIsError);
+        Assert.Equal("Book renamed to \"Foundation and Empire\".", screen.FeedbackMessage);
+        Assert.Contains(screen.Books, book => book.Title == "Foundation and Empire");
+        mockHttp.VerifyNoOutstandingExpectation();
     }
 
     private async Task<BookListScreen> CreateScreenAsync(int total = 3, string? itemsJson = null)
