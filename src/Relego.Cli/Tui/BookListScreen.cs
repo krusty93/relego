@@ -18,6 +18,24 @@ public sealed class BookListScreen(
     Action? onConnectionFailure = null,
     Func<CancellationToken, Task>? refreshConnectionStatusAsync = null) : IScreen
 {
+    private static readonly IReadOnlyList<(string Key, string Label)> DefaultKeyHints =
+    [
+        ("↑↓", "Navigate"),
+        ("Enter", "View"),
+        ("I", "Import"),
+        ("N", "Rename book title"),
+        ("S", "Settings"),
+        ("/", "Search"),
+        ("R", "Refresh"),
+        ("Q", "Quit")
+    ];
+
+    private static readonly IReadOnlyList<(string Key, string Label)> RenamePromptKeyHints =
+    [
+        ("Enter", "Save"),
+        ("Esc", "Cancel")
+    ];
+
     private const int PageSize = 100;
     private const int DefaultTableWidth = 80;
     private const int HighlightsColumnWidth = 10;
@@ -26,11 +44,12 @@ public sealed class BookListScreen(
     private const int PreferredAuthorColumnWidth = 30;
     private const int TableHorizontalPadding = 2;
     private const string SectionTitle = "Books";
+    private const int RenamePopupWidth = 68;
+    private const int RenamePopupHeight = 7;
     private const string SearchPlaceholderIdle = "type / to search";
     private const string SearchPlaceholderFocused = "Press Esc to return to the list";
     private const string SyncPlaceholderDetected = "Press Enter to import or edit the path";
     private const string SyncPlaceholderManual = "Enter the path to My Clippings.txt";
-    private const string RenamePlaceholder = "Enter new title, press Enter to confirm or Esc to cancel";
 
     private readonly RelegoHttpClient _client = client;
     private readonly ClippingsImportWorkflow _syncWorkflow = syncWorkflow;
@@ -40,6 +59,7 @@ public sealed class BookListScreen(
     private List<BookViewModel> _filteredBooks = [];
     private int _selectedIndex;
     private bool _isSearchActive;
+    private bool _isRenamePromptActive;
     private string _searchQuery = string.Empty;
     private string _syncPathInput = string.Empty;
     private string _renameInput = string.Empty;
@@ -52,10 +72,15 @@ public sealed class BookListScreen(
     private Label? _errorLabel;
     private Label? _feedbackLabel;
     private bool _viewHasBooksList;
+    private bool _hasRenamePromptView;
     private string? _feedbackMessage;
     private bool _feedbackIsError;
+    private Label? _renameBackdrop;
+    private FrameView? _renameFrame;
+    private SearchTextField? _renameField;
     private Action<ScreenResult>? _navigate;
     private Action? _refreshVisibleBooks;
+    private Action? _uiStateObserver;
     private ShortcutListView? _listView;
     private ToolbarMode _toolbarMode;
 
@@ -69,7 +94,7 @@ public sealed class BookListScreen(
 
     public bool IsImportPromptActive => _toolbarMode == ToolbarMode.SyncPath;
 
-    public bool IsRenamePromptActive => _toolbarMode == ToolbarMode.Rename;
+    public bool IsRenamePromptActive => _isRenamePromptActive;
 
     public string SearchQuery => _searchQuery;
 
@@ -81,28 +106,22 @@ public sealed class BookListScreen(
 
     public string Title => string.Empty;
 
-    public IReadOnlyList<(string Key, string Label)> KeyHints =>
-    [
-        ("↑↓", "Navigate"),
-        ("Enter", "View"),
-        ("I", "Import"),
-        ("N", "Rename"),
-        ("S", "Settings"),
-        ("/", "Search"),
-        ("R", "Refresh"),
-        ("Q", "Quit")
-    ];
+    public IReadOnlyList<(string Key, string Label)> KeyHints => _isRenamePromptActive ? RenamePromptKeyHints : DefaultKeyHints;
 
     private readonly record struct TableLayout(int TitleWidth, int AuthorWidth, int HighlightsWidth);
 
     private enum ToolbarMode
     {
         Search,
-        SyncPath,
-        Rename
+        SyncPath
     }
 
     public int ToolbarHeight => 4;
+
+    public void RegisterUiStateObserver(Action? onStateChanged)
+    {
+        _uiStateObserver = onStateChanged;
+    }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Views are owned by the window hierarchy")]
     public View? CreateToolbarView(Action<ScreenResult> navigate)
@@ -395,10 +414,46 @@ public sealed class BookListScreen(
 
         UpdateTableLayout();
 
+        _renameBackdrop = ModalChrome.CreateBackdrop();
+
+        var palette = TuiTheme.Palette;
+        var fieldAttribute = new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background);
+
+        _renameField = new SearchTextField
+        {
+            X = 2,
+            Y = 2,
+            Width = Dim.Fill(4),
+            Height = 1,
+            CanFocus = true,
+            Text = _renameInput
+        };
+        _renameField.SetScheme(CreateSearchFieldScheme(fieldAttribute));
+        _renameField.TextChanged += (_, _) => _renameInput = _renameField.Text ?? string.Empty;
+        _renameField.HasFocusChanged += (_, _) => UpdateRenamePromptState();
+        _renameField.Accepting += async (_, _) => await SubmitRenameAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+        _renameField.KeyDown += (_, key) => HandleRenamePromptKeyDown(key);
+
+        var renameHelpLabel = new Label
+        {
+            X = 2,
+            Y = 4,
+            Width = Dim.Fill(4),
+            Height = 1,
+            Text = "Press Enter to save or Esc to cancel.",
+            CanFocus = false
+        };
+        renameHelpLabel.SetScheme(ModalChrome.CreateMutedTextScheme());
+
+        _renameFrame = ModalChrome.CreateFrame(RenamePopupWidth, RenamePopupHeight);
+        _renameFrame.KeyDown += (_, key) => HandleRenamePromptKeyDown(key);
+        _renameFrame.Add(_renameField, renameHelpLabel);
+        _hasRenamePromptView = true;
+
         container.SubViewsLaidOut += (_, _) => UpdateTableLayout();
         listView.ViewportChanged += (_, _) => UpdateTableLayout();
 
-        container.Add(titleLabel, headerLabel, headerRuleLabel, listView);
+        container.Add(titleLabel, headerLabel, headerRuleLabel, listView, _renameBackdrop, _renameFrame);
         _listView = listView;
         _refreshVisibleBooks = RefreshVisibleBooks;
         SetupContainerKeyBindings(container, listView, navigate, RefreshVisibleBooks, BeginSearchInput, () => BeginImportPrompt());
@@ -410,6 +465,8 @@ public sealed class BookListScreen(
         _selectedIndex = savedIndex;
         if (_filteredBooks.Count > 0)
             listView.SelectedItem = Math.Min(savedIndex, _filteredBooks.Count - 1);
+
+        UpdateRenamePromptState();
 
         return container;
     }
@@ -511,38 +568,28 @@ public sealed class BookListScreen(
 
     public void BeginRenamePrompt(BookViewModel book)
     {
-        _toolbarMode = ToolbarMode.Rename;
-        _isSearchActive = false;
+        _isRenamePromptActive = true;
         _renameInput = book.Title;
 
-        if (_searchField is not null)
+        if (_hasRenamePromptView)
         {
-            _searchField.Text = _renameInput;
-            _searchField.SetFocus();
-            _searchField.MoveEnd();
+            ShowRenamePromptView();
         }
 
-        UpdateToolbarChrome();
+        NotifyUiStateChanged();
     }
 
     public void CancelRenamePrompt()
     {
-        _toolbarMode = ToolbarMode.Search;
+        _isRenamePromptActive = false;
         _renameInput = string.Empty;
 
-        if (_searchField is null)
+        if (_hasRenamePromptView)
         {
-            return;
+            HideRenamePromptView();
         }
 
-        _searchField.Text = _searchQuery;
-
-        if (_listView is not null)
-            _listView.SetFocus();
-        else
-            _searchField.SetFocus();
-
-        UpdateToolbarChrome();
+        NotifyUiStateChanged();
     }
 
     public async Task SubmitRenameAsync(string? newTitle = null, CancellationToken cancellationToken = default)
@@ -722,6 +769,11 @@ public sealed class BookListScreen(
         Action? focusSearchField,
         Action? focusSyncField)
     {
+        if (_isRenamePromptActive)
+        {
+            return false;
+        }
+
         switch (char.ToLowerInvariant(shortcutKey))
         {
             case 'q':
@@ -973,10 +1025,6 @@ public sealed class BookListScreen(
         {
             _syncPathInput = _searchField.Text ?? string.Empty;
         }
-        else if (_toolbarMode == ToolbarMode.Rename)
-        {
-            _renameInput = _searchField.Text ?? string.Empty;
-        }
         else
         {
             _searchQuery = _searchField.Text ?? string.Empty;
@@ -1000,17 +1048,6 @@ public sealed class BookListScreen(
             return;
         }
 
-        if (_toolbarMode == ToolbarMode.Rename)
-        {
-            if (key.KeyCode == KeyCode.Esc)
-            {
-                CancelRenamePrompt();
-                key.Handled = true;
-            }
-
-            return;
-        }
-
         if (key.KeyCode is KeyCode.Esc or KeyCode.CursorDown)
         {
             LeaveSearchInput(_refreshVisibleBooks);
@@ -1021,12 +1058,6 @@ public sealed class BookListScreen(
 
     private async Task HandleToolbarSubmitAsync()
     {
-        if (_toolbarMode == ToolbarMode.Rename)
-        {
-            await SubmitRenameAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-            return;
-        }
-
         if (_toolbarMode != ToolbarMode.SyncPath)
         {
             return;
@@ -1035,10 +1066,24 @@ public sealed class BookListScreen(
         await SubmitImportAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
     }
 
+    private void HandleRenamePromptKeyDown(Key key)
+    {
+        if (key.KeyCode == KeyCode.Esc)
+        {
+            CancelRenamePrompt();
+            key.Handled = true;
+            return;
+        }
+
+        if (key.KeyCode == KeyCode.Tab)
+        {
+            key.Handled = true;
+        }
+    }
+
     private string GetToolbarText() => _toolbarMode switch
     {
         ToolbarMode.SyncPath => _syncPathInput,
-        ToolbarMode.Rename => _renameInput,
         _ => _searchQuery
     };
 
@@ -1050,9 +1095,6 @@ public sealed class BookListScreen(
                 ? SyncPlaceholderDetected
                 : SyncPlaceholderManual;
         }
-
-        if (_toolbarMode == ToolbarMode.Rename)
-            return RenamePlaceholder;
 
         return hasFocus ? SearchPlaceholderFocused : SearchPlaceholderIdle;
     }
@@ -1074,12 +1116,72 @@ public sealed class BookListScreen(
         _searchFrame.Title = _toolbarMode switch
         {
             ToolbarMode.SyncPath => " Import ",
-            ToolbarMode.Rename => " Rename ",
             _ => string.Empty
         };
         _searchPlaceholder.Visible = string.IsNullOrEmpty(_searchField.Text);
         _searchPlaceholder.Text = GetToolbarPlaceholder(_searchField.HasFocus);
+        _searchField.CanFocus = !_isRenamePromptActive;
+        _searchFrame.CanFocus = !_isRenamePromptActive;
         _searchFrame.SetScheme(CreateSearchFrameScheme(_searchField.HasFocus));
+    }
+
+    private void UpdateRenamePromptState()
+    {
+        ModalChrome.SetBackdropVisible(_renameBackdrop, _isRenamePromptActive);
+
+        if (_renameFrame is not null)
+        {
+            var isFocused = _isRenamePromptActive && ((_renameField?.HasFocus ?? false) || _renameFrame.HasFocus);
+            _renameFrame.Visible = _isRenamePromptActive;
+            _renameFrame.SetScheme(ModalChrome.CreateFrameScheme(isFocused));
+        }
+
+        if (_listView is not null)
+        {
+            _listView.CanFocus = !_isRenamePromptActive;
+        }
+
+        UpdateToolbarChrome();
+
+        if (_isRenamePromptActive)
+        {
+            _renameFrame?.SetFocus();
+            _renameField?.SetFocus();
+            _renameField?.MoveEnd();
+        }
+        else if (_listView is not null)
+        {
+            _listView.SetFocus();
+        }
+        else
+        {
+            _searchField?.SetFocus();
+        }
+    }
+
+    private void ShowRenamePromptView()
+    {
+        if (_renameField is not null)
+        {
+            _renameField.Text = _renameInput;
+        }
+
+        UpdateRenamePromptState();
+    }
+
+    private void HideRenamePromptView()
+    {
+        if (_renameField is not null)
+        {
+            _renameField.Text = string.Empty;
+        }
+
+        UpdateRenamePromptState();
+    }
+
+    private void NotifyUiStateChanged()
+    {
+        _uiStateObserver?.Invoke();
     }
 
     private Label CreateToolbarFeedbackLabel()
