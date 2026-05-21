@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -12,6 +13,45 @@ namespace Relego.Cli.Tui;
 
 public sealed class HighlightDetailScreen : IScreen
 {
+    private static readonly IReadOnlyList<(string Key, string Label)> DefaultKeyHints =
+    [
+        ("↑↓", "Navigate"),
+        ("Enter", "Open details and actions"),
+        ("R", "Refresh"),
+        ("Esc", "Go Back"),
+        ("Q", "Quit")
+    ];
+
+    private static readonly IReadOnlyList<(string Key, string Label)> DetailActionKeyHints =
+    [
+        ("↑↓", "Navigate"),
+        ("Enter", "Use action"),
+        ("Tab", "Switch panel"),
+        ("Esc", "Close")
+    ];
+
+    private static readonly IReadOnlyList<(string Key, string Label)> DetailTextKeyHints =
+    [
+        ("↑↓", "Scroll"),
+        ("Tab", "Switch panel"),
+        ("Esc", "Close")
+    ];
+
+    private static readonly IReadOnlyList<(string Key, string Label)> WeightEditorKeyHints =
+    [
+        ("↑↓", "Adjust"),
+        ("1-5", "Set"),
+        ("Enter", "Save"),
+        ("Esc", "Cancel")
+    ];
+
+    private static readonly IReadOnlyList<(string Key, string Label)> DeleteConfirmationKeyHints =
+    [
+        ("Y", "Confirm"),
+        ("N", "Cancel"),
+        ("Esc", "Cancel")
+    ];
+
     private const int DetailPageSize = 200;
     private const int DefaultTableWidth = 80;
     private const int TableHorizontalPadding = 2;
@@ -21,13 +61,16 @@ public sealed class HighlightDetailScreen : IScreen
     private const int WeightColumnWidth = 8;
     private const int DotColumnWidth = 1;
     private const int MinimumHighlightColumnWidth = 18;
-    private const int WeightEditorWidth = 52;
-    private const int WeightEditorHeight = 7;
+    private const int WeightEditorWidth = 60;
+    private const int WeightEditorHeight = 8;
     private const int DetailPopupWidth = 78;
     private const int DetailPopupHeight = 18;
     private const int DetailLeftPaneWidth = 44;
     private const int DetailRightPaneWidth = 30;
     private const int DetailPaneSeparator = 2;
+    private const int DeleteConfirmationWidth = 60;
+    private const int DeleteConfirmationHeight = 6;
+    private const int DetailTextFallbackWidth = DetailLeftPaneWidth - 2;
     private readonly RelegoHttpClient _client;
     private readonly List<HighlightViewModel> _highlights;
     private readonly int _bookId;
@@ -47,6 +90,7 @@ public sealed class HighlightDetailScreen : IScreen
     private Label? _headerLabel;
     private Label? _headerRuleLabel;
     private Label? _statusLabel;
+    private Label? _modalBackdrop;
     private FrameView? _weightEditorFrame;
     private Label? _weightScaleLabel;
     private Label? _weightHelpLabel;
@@ -57,10 +101,9 @@ public sealed class HighlightDetailScreen : IScreen
     private FrameView? _detailActionFrame;
     private ObservableCollection<string>? _detailActionRows;
     private ListView? _detailActionList;
-    private Label? _detailTabHintKeyLabel;
-    private Label? _detailTabHintDescriptionLabel;
     private int _detailScrollOffset;
     private bool _detailFocusOnActions = true;
+    private Action? _uiStateObserver;
     private Action<ScreenResult>? _navigate;
     private string? _previewText;
     private bool _viewCreated;
@@ -110,13 +153,18 @@ public sealed class HighlightDetailScreen : IScreen
     public string Title => string.Empty;
 
     public IReadOnlyList<(string Key, string Label)> KeyHints =>
-    [
-        ("↑↓", "Navigate"),
-        ("Enter", "Open details and actions"),
-        ("R", "Refresh"),
-        ("Esc", "Go Back"),
-        ("Q", "Quit")
-    ];
+        DeleteConfirmationOpen
+            ? DeleteConfirmationKeyHints
+            : WeightEditorOpen
+                ? WeightEditorKeyHints
+                : DetailOpen
+                    ? _detailFocusOnActions ? DetailActionKeyHints : DetailTextKeyHints
+                    : DefaultKeyHints;
+
+    public void RegisterUiStateObserver(Action? onStateChanged)
+    {
+        _uiStateObserver = onStateChanged;
+    }
 
     public Task InitializeAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -135,6 +183,8 @@ public sealed class HighlightDetailScreen : IScreen
             Height = Dim.Fill(),
             CanFocus = true
         };
+
+        _modalBackdrop = ModalChrome.CreateBackdrop();
 
         _titleLabel = new Label
         {
@@ -241,10 +291,10 @@ public sealed class HighlightDetailScreen : IScreen
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             ReadOnly = true,
-            WordWrap = true,
+            WordWrap = false,
             CanFocus = true
         };
-        _detailTextView.SetScheme(CreateDetailTextViewScheme());
+        _detailTextView.SetScheme(ModalChrome.CreateBodyTextScheme());
         _detailTextView.KeyDown += async (_, key) => await HandleDetailTextKeyDownAsync(key).ConfigureAwait(false);
 
         _detailTextFrame = new FrameView
@@ -254,6 +304,7 @@ public sealed class HighlightDetailScreen : IScreen
             Width = DetailLeftPaneWidth,
             Height = Dim.Fill(),
             Title = string.Empty,
+            BorderStyle = LineStyle.Rounded,
             CanFocus = true
         };
         _detailTextFrame.KeyDown += async (_, key) => await HandleDetailTextKeyDownAsync(key).ConfigureAwait(false);
@@ -280,30 +331,6 @@ public sealed class HighlightDetailScreen : IScreen
         _detailActionList.Accepting += async (_, _) => await HandleDetailActionEnterAsync().ConfigureAwait(false);
         _detailActionList.KeyDown += async (_, key) => await HandleDetailKeyDownAsync(key).ConfigureAwait(false);
 
-        _detailTabHintKeyLabel = new Label
-        {
-            X = 0,
-            Y = Pos.AnchorEnd(1),
-            Width = 5,
-            Height = 1,
-            Text = "<Tab>",
-            CanFocus = false
-        };
-        _detailTabHintKeyLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
-            TuiTheme.Palette.AccentText, TuiTheme.Palette.Background)));
-
-        _detailTabHintDescriptionLabel = new Label
-        {
-            X = Pos.Right(_detailTabHintKeyLabel),
-            Y = Pos.AnchorEnd(1),
-            Width = Dim.Fill(),
-            Height = 1,
-            Text = " Switch panel",
-            CanFocus = false
-        };
-        _detailTabHintDescriptionLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
-            TuiTheme.Palette.TextMuted, TuiTheme.Palette.Background)));
-
         _detailActionFrame = new FrameView
         {
             X = DetailLeftPaneWidth + DetailPaneSeparator,
@@ -311,21 +338,13 @@ public sealed class HighlightDetailScreen : IScreen
             Width = DetailRightPaneWidth,
             Height = Dim.Fill(),
             Title = string.Empty,
+            BorderStyle = LineStyle.Rounded,
             CanFocus = true
         };
         _detailActionFrame.KeyDown += async (_, key) => await HandleDetailKeyDownAsync(key).ConfigureAwait(false);
-        _detailActionFrame.Add(_detailActionList, _detailTabHintKeyLabel, _detailTabHintDescriptionLabel);
+        _detailActionFrame.Add(_detailActionList);
 
-        _detailFrame = new FrameView
-        {
-            X = Pos.Center(),
-            Y = Pos.Center(),
-            Width = DetailPopupWidth,
-            Height = DetailPopupHeight,
-            Title = "",
-            CanFocus = true,
-            Visible = false
-        };
+        _detailFrame = ModalChrome.CreateFrame(DetailPopupWidth, DetailPopupHeight);
         _detailFrame.Add(_detailTextFrame, _detailActionFrame);
 
         _weightScaleLabel = new Label
@@ -336,6 +355,7 @@ public sealed class HighlightDetailScreen : IScreen
             Height = 1,
             CanFocus = false
         };
+        _weightScaleLabel.SetScheme(ModalChrome.CreateBodyTextScheme());
 
         _weightHelpLabel = new Label
         {
@@ -346,31 +366,14 @@ public sealed class HighlightDetailScreen : IScreen
             Text = "Use ← → or 1-5, Enter to save, Esc to cancel.",
             CanFocus = false
         };
+        _weightHelpLabel.SetScheme(ModalChrome.CreateMutedTextScheme());
 
-        _weightEditorFrame = new FrameView
-        {
-            X = Pos.Center() - (WeightEditorWidth / 2),
-            Y = Pos.Center() - 3,
-            Width = WeightEditorWidth,
-            Height = WeightEditorHeight,
-            Title = "Set Weight",
-            CanFocus = true,
-            Visible = false
-        };
+        _weightEditorFrame = ModalChrome.CreateFrame(WeightEditorWidth, WeightEditorHeight, "Set Weight");
         _weightEditorFrame.Add(_weightScaleLabel, _weightHelpLabel);
         _weightEditorFrame.KeyDown += async (_, key) => await HandleWeightEditorKeyDownAsync(key).ConfigureAwait(false);
 
-        _deleteConfirmationFrame = new FrameView
-        {
-            X = Pos.Center() - 24,
-            Y = Pos.Center() - 2,
-            Width = 48,
-            Height = 5,
-            Title = "Confirm Delete",
-            CanFocus = true,
-            Visible = false
-        };
-        _deleteConfirmationFrame.Add(new Label
+        _deleteConfirmationFrame = ModalChrome.CreateFrame(DeleteConfirmationWidth, DeleteConfirmationHeight, "Confirm Delete");
+        var deleteMessage = new Label
         {
             X = 1,
             Y = 1,
@@ -378,7 +381,9 @@ public sealed class HighlightDetailScreen : IScreen
             Height = 2,
             Text = "Delete this highlight? Press Y to confirm or N/Esc to cancel.",
             CanFocus = false
-        });
+        };
+        deleteMessage.SetScheme(ModalChrome.CreateBodyTextScheme());
+        _deleteConfirmationFrame.Add(deleteMessage);
         _deleteConfirmationFrame.KeyDown += async (_, key) => await HandleDeleteConfirmationKeyDownAsync(key).ConfigureAwait(false);
 
         _statusLabel = new Label
@@ -406,6 +411,7 @@ public sealed class HighlightDetailScreen : IScreen
             _headerRuleLabel,
             _highlightList,
             _statusLabel,
+            _modalBackdrop,
             _detailFrame,
             _weightEditorFrame,
             _deleteConfirmationFrame);
@@ -556,8 +562,6 @@ public sealed class HighlightDetailScreen : IScreen
                 ConsoleKey.Escape => CloseDetail(),
                 ConsoleKey.Enter => await ExecuteSelectedActionAsync(cancellationToken).ConfigureAwait(false),
                 ConsoleKey.Tab => SwitchDetailFocus(focusActions: false),
-                ConsoleKey.Q => ScreenResult.ConfirmQuit(),
-                ConsoleKey.C when key.Modifiers.HasFlag(ConsoleModifiers.Control) => ScreenResult.Quit(),
                 _ => ScreenResult.Stay()
             };
         }
@@ -568,8 +572,6 @@ public sealed class HighlightDetailScreen : IScreen
             ConsoleKey.DownArrow => ScrollDetailText(1),
             ConsoleKey.Escape => CloseDetail(),
             ConsoleKey.Tab => SwitchDetailFocus(focusActions: true),
-            ConsoleKey.Q => ScreenResult.ConfirmQuit(),
-            ConsoleKey.C when key.Modifiers.HasFlag(ConsoleModifiers.Control) => ScreenResult.Quit(),
             _ => ScreenResult.Stay()
         };
     }
@@ -604,10 +606,6 @@ public sealed class HighlightDetailScreen : IScreen
             case ConsoleKey.D5:
             case ConsoleKey.NumPad5:
                 return SelectPendingWeight(5);
-            case ConsoleKey.Q:
-                return ScreenResult.ConfirmQuit();
-            case ConsoleKey.C when key.Modifiers.HasFlag(ConsoleModifiers.Control):
-                return ScreenResult.Quit();
             default:
                 return ScreenResult.Stay();
         }
@@ -625,10 +623,6 @@ public sealed class HighlightDetailScreen : IScreen
             case ConsoleKey.Y:
                 await DeleteSelectedHighlightAsync(cancellationToken).ConfigureAwait(false);
                 return ScreenResult.Stay();
-            case ConsoleKey.Q:
-                return ScreenResult.ConfirmQuit();
-            case ConsoleKey.C when key.Modifiers.HasFlag(ConsoleModifiers.Control):
-                return ScreenResult.Quit();
             default:
                 return ScreenResult.Stay();
         }
@@ -702,8 +696,10 @@ public sealed class HighlightDetailScreen : IScreen
             DetailOpen = false;
             WeightEditorOpen = false;
             DeleteConfirmationOpen = false;
+            _detailScrollOffset = 0;
             _previewText = null;
             _statusMessage = $"Reloaded {_highlights.Count.ToString(CultureInfo.InvariantCulture)} highlight(s).";
+            NotifyUiStateChanged();
         }
         catch (HttpRequestException)
         {
@@ -731,6 +727,7 @@ public sealed class HighlightDetailScreen : IScreen
         _highlights[SelectedIndex] = currentHighlight with { Weight = PendingWeight };
         WeightEditorOpen = false;
         _statusMessage = $"Weight updated to {PendingWeight.ToString(CultureInfo.InvariantCulture)}.";
+        NotifyUiStateChanged();
     }
 
     private async Task ToggleHighlightExclusionAsync(CancellationToken cancellationToken)
@@ -793,6 +790,7 @@ public sealed class HighlightDetailScreen : IScreen
         if (currentHighlight is null)
         {
             DeleteConfirmationOpen = false;
+            NotifyUiStateChanged();
             return;
         }
 
@@ -801,6 +799,7 @@ public sealed class HighlightDetailScreen : IScreen
         {
             _statusMessage = $"Delete failed: {(int)response.StatusCode} {response.ReasonPhrase}";
             DeleteConfirmationOpen = false;
+            NotifyUiStateChanged();
             return;
         }
 
@@ -809,8 +808,10 @@ public sealed class HighlightDetailScreen : IScreen
         DeleteConfirmationOpen = false;
         DetailOpen = false;
         WeightEditorOpen = false;
+        _detailScrollOffset = 0;
         _previewText = null;
         _statusMessage = "Highlight deleted.";
+        NotifyUiStateChanged();
     }
 
     private ScreenResult MoveSelection(int delta)
@@ -846,6 +847,7 @@ public sealed class HighlightDetailScreen : IScreen
     private ScreenResult SwitchDetailFocus(bool focusActions)
     {
         _detailFocusOnActions = focusActions;
+        NotifyUiStateChanged();
         return ScreenResult.Stay();
     }
 
@@ -877,6 +879,7 @@ public sealed class HighlightDetailScreen : IScreen
         WeightEditorOpen = false;
         DeleteConfirmationOpen = false;
         _statusMessage = null;
+        NotifyUiStateChanged();
         return ScreenResult.Stay();
     }
 
@@ -892,6 +895,7 @@ public sealed class HighlightDetailScreen : IScreen
         DetailOpen = false;
         WeightEditorOpen = true;
         _statusMessage = null;
+        NotifyUiStateChanged();
         return ScreenResult.Stay();
     }
 
@@ -899,6 +903,7 @@ public sealed class HighlightDetailScreen : IScreen
     {
         WeightEditorOpen = false;
         _statusMessage = null;
+        NotifyUiStateChanged();
         return ScreenResult.Stay();
     }
 
@@ -907,6 +912,7 @@ public sealed class HighlightDetailScreen : IScreen
         DetailOpen = false;
         _detailScrollOffset = 0;
         _previewText = null;
+        NotifyUiStateChanged();
         return ScreenResult.Stay();
     }
 
@@ -1008,14 +1014,16 @@ public sealed class HighlightDetailScreen : IScreen
                 _detailFrame.Visible = DetailOpen;
             }
 
+            ModalChrome.SetBackdropVisible(_modalBackdrop, DetailOpen || WeightEditorOpen || DeleteConfirmationOpen);
+
             if (_detailTextFrame is not null)
             {
-                _detailTextFrame.SetScheme(CreateDetailPaneFrameScheme(DetailOpen && !_detailFocusOnActions));
+                _detailTextFrame.SetScheme(ModalChrome.CreateFrameScheme(DetailOpen && !_detailFocusOnActions));
             }
 
             if (_detailActionFrame is not null)
             {
-                _detailActionFrame.SetScheme(CreateDetailPaneFrameScheme(DetailOpen && _detailFocusOnActions));
+                _detailActionFrame.SetScheme(ModalChrome.CreateFrameScheme(DetailOpen && _detailFocusOnActions));
             }
 
             if (_detailActionList is not null && _detailActionRows is { Count: > 0 })
@@ -1026,9 +1034,14 @@ public sealed class HighlightDetailScreen : IScreen
 
             if (_detailTextView is not null)
             {
-                _detailTextView.SetScheme(CreateDetailTextViewScheme());
-                _detailTextView.Text = DetailOpen ? _previewText ?? string.Empty : string.Empty;
+                _detailTextView.SetScheme(ModalChrome.CreateBodyTextScheme());
+                _detailTextView.Text = DetailOpen ? BuildJustifiedPreviewText(_previewText ?? string.Empty, GetDetailTextWidth()) : string.Empty;
                 _detailTextView.ScrollTo(new System.Drawing.Point(0, _detailScrollOffset));
+            }
+
+            if (_weightEditorFrame is not null)
+            {
+                _weightEditorFrame.SetScheme(ModalChrome.CreateFrameScheme(WeightEditorOpen));
             }
 
             if (_weightEditorFrame is not null)
@@ -1048,6 +1061,7 @@ public sealed class HighlightDetailScreen : IScreen
 
             if (_deleteConfirmationFrame is not null)
             {
+                _deleteConfirmationFrame.SetScheme(ModalChrome.CreateFrameScheme(DeleteConfirmationOpen));
                 _deleteConfirmationFrame.Visible = DeleteConfirmationOpen;
             }
 
@@ -1148,6 +1162,96 @@ public sealed class HighlightDetailScreen : IScreen
     private string BuildWeightScale()
         => string.Join("  ", Enumerable.Range(MinimumWeight, MaximumWeight)
             .Select(weight => weight == PendingWeight ? $"[{weight}]" : $" {weight} "));
+
+    private int GetDetailTextWidth()
+        => Math.Max(24, _detailTextView?.Viewport.Width ?? DetailTextFallbackWidth);
+
+    private static string BuildJustifiedPreviewText(string text, int width)
+    {
+        if (width <= 1 || string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
+
+        var paragraphs = text.ReplaceLineEndings("\n").Split('\n');
+        var lines = new List<string>();
+
+        foreach (var paragraph in paragraphs)
+        {
+            if (string.IsNullOrWhiteSpace(paragraph))
+            {
+                lines.Add(string.Empty);
+                continue;
+            }
+
+            var words = paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var currentLine = new List<string>();
+            var currentLength = 0;
+
+            foreach (var word in words)
+            {
+                if (currentLine.Count == 0)
+                {
+                    currentLine.Add(word);
+                    currentLength = word.Length;
+                    continue;
+                }
+
+                if (currentLength + currentLine.Count + word.Length <= width)
+                {
+                    currentLine.Add(word);
+                    currentLength += word.Length;
+                    continue;
+                }
+
+                lines.Add(JustifyPreviewLine(currentLine, currentLength, width, isLastLine: false));
+                currentLine.Clear();
+                currentLine.Add(word);
+                currentLength = word.Length;
+            }
+
+            if (currentLine.Count > 0)
+            {
+                lines.Add(JustifyPreviewLine(currentLine, currentLength, width, isLastLine: true));
+            }
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    private static string JustifyPreviewLine(IReadOnlyList<string> words, int wordsLength, int width, bool isLastLine)
+    {
+        if (words.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (words.Count == 1 || isLastLine)
+        {
+            return string.Join(' ', words);
+        }
+
+        var gapCount = words.Count - 1;
+        var spacesToDistribute = Math.Max(gapCount, width - wordsLength);
+        var baseSpaces = spacesToDistribute / gapCount;
+        var extraSpaces = spacesToDistribute % gapCount;
+        var builder = new System.Text.StringBuilder(width + gapCount);
+
+        for (var index = 0; index < words.Count; index++)
+        {
+            builder.Append(words[index]);
+
+            if (index == gapCount)
+            {
+                continue;
+            }
+
+            var spaces = baseSpaces + (index < extraSpaces ? 1 : 0);
+            builder.Append(' ', Math.Max(1, spaces));
+        }
+
+        return builder.ToString();
+    }
 
     private static string FormatHeader(TableLayout tableLayout)
         => $"{FitCell("WEIGHT", tableLayout.WeightWidth)}  {" ",DotColumnWidth}  {FitCell("HIGHLIGHT", tableLayout.HighlightWidth)}";
@@ -1305,46 +1409,6 @@ public sealed class HighlightDetailScreen : IScreen
             WeightColumnWidth);
     }
 
-    private static Terminal.Gui.Drawing.Scheme CreateDetailPaneFrameScheme(bool isFocused)
-    {
-        var palette = TuiTheme.Palette;
-        var borderColor = isFocused ? palette.BorderFocus : palette.Border;
-        var attribute = new Terminal.Gui.Drawing.Attribute(borderColor, palette.Background);
-
-        return new Terminal.Gui.Drawing.Scheme(attribute)
-        {
-            Normal = attribute,
-            Focus = attribute,
-            Active = attribute,
-            HotNormal = attribute,
-            HotFocus = attribute,
-            HotActive = attribute,
-            Disabled = attribute
-        };
-    }
-
-    private static Terminal.Gui.Drawing.Scheme CreateDetailTextViewScheme()
-    {
-        var palette = TuiTheme.Palette;
-        var text = new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background);
-        var muted = new Terminal.Gui.Drawing.Attribute(palette.TextMuted, palette.Background);
-
-        return new Terminal.Gui.Drawing.Scheme(text)
-        {
-            Normal = text,
-            Focus = text,
-            Active = text,
-            Code = text,
-            Editable = text,
-            Highlight = text,
-            HotActive = text,
-            HotFocus = text,
-            HotNormal = text,
-            ReadOnly = text,
-            Disabled = muted
-        };
-    }
-
     private static Terminal.Gui.Drawing.Scheme CreateDetailActionListScheme(bool isFocused)
     {
         var palette = TuiTheme.Palette;
@@ -1368,6 +1432,11 @@ public sealed class HighlightDetailScreen : IScreen
             HotActive = selected,
             Disabled = muted
         };
+    }
+
+    private void NotifyUiStateChanged()
+    {
+        _uiStateObserver?.Invoke();
     }
 
     private static string FitCell(string value, int width)

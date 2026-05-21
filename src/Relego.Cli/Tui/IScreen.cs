@@ -15,6 +15,10 @@ public interface IScreen
     string Title { get; }
 
     IReadOnlyList<(string Key, string Label)> KeyHints { get; }
+
+    void RegisterUiStateObserver(Action? onStateChanged)
+    {
+    }
 }
 
 public enum ScreenAction

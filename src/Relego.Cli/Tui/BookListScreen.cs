@@ -58,6 +58,30 @@ public sealed class BookListScreen(
     private Action? _refreshVisibleBooks;
     private ShortcutListView? _listView;
     private ToolbarMode _toolbarMode;
+    private bool _renameOpen;
+    private BookViewModel? _renameBook;
+    private FrameView? _renameFrame;
+    private TextField? _renameInputField;
+    private Label? _modalBackdrop;
+    private Action? _uiStateObserver;
+
+    private static readonly IReadOnlyList<(string Key, string Label)> RenamePopupKeyHints =
+    [
+        ("Enter", "Save"),
+        ("Esc", "Cancel")
+    ];
+
+    private static readonly IReadOnlyList<(string Key, string Label)> DefaultKeyHints =
+    [
+        ("↑↓", "Navigate"),
+        ("Enter", "View"),
+        ("I", "Import"),
+        ("N", "Rename"),
+        ("S", "Settings"),
+        ("/", "Search"),
+        ("R", "Refresh"),
+        ("Q", "Quit")
+    ];
 
     public IReadOnlyList<BookViewModel> Books => _books;
 
@@ -71,6 +95,10 @@ public sealed class BookListScreen(
 
     public bool IsRenamePromptActive => _toolbarMode == ToolbarMode.Rename;
 
+    public bool RenameOpen => _renameOpen;
+
+    public BookViewModel? RenameBook => _renameBook;
+
     public string SearchQuery => _searchQuery;
 
     public string ImportPathInput => _syncPathInput;
@@ -82,16 +110,12 @@ public sealed class BookListScreen(
     public string Title => string.Empty;
 
     public IReadOnlyList<(string Key, string Label)> KeyHints =>
-    [
-        ("↑↓", "Navigate"),
-        ("Enter", "View"),
-        ("I", "Import"),
-        ("N", "Rename"),
-        ("S", "Settings"),
-        ("/", "Search"),
-        ("R", "Refresh"),
-        ("Q", "Quit")
-    ];
+        _renameOpen ? RenamePopupKeyHints : DefaultKeyHints;
+
+    public void RegisterUiStateObserver(Action? onStateChanged)
+    {
+        _uiStateObserver = onStateChanged;
+    }
 
     private readonly record struct TableLayout(int TitleWidth, int AuthorWidth, int HighlightsWidth);
 
@@ -398,6 +422,39 @@ public sealed class BookListScreen(
         container.SubViewsLaidOut += (_, _) => UpdateTableLayout();
         listView.ViewportChanged += (_, _) => UpdateTableLayout();
 
+        _modalBackdrop = ModalChrome.CreateBackdrop();
+
+        const int RenamePopupWidth = 68;
+        const int RenamePopupHeight = 6;
+
+        _renameFrame = ModalChrome.CreateFrame(RenamePopupWidth, RenamePopupHeight, "Rename Book");
+
+        var renameLabel = new Label
+        {
+            X = 1,
+            Y = 1,
+            Width = Dim.Fill(2),
+            Height = 1,
+            Text = "Enter new title:",
+            CanFocus = false
+        };
+        renameLabel.SetScheme(ModalChrome.CreateBodyTextScheme());
+
+        _renameInputField = new TextField
+        {
+            X = 1,
+            Y = 2,
+            Width = Dim.Fill(2),
+            Height = 1,
+            CanFocus = true,
+            Visible = false
+        };
+        _renameInputField.SetScheme(ModalChrome.CreateBodyTextScheme());
+        _renameInputField.KeyDown += async (_, key) => await HandleRenameKeyDownAsync(key).ConfigureAwait(false);
+
+        _renameFrame.Add(renameLabel, _renameInputField);
+        container.Add(_modalBackdrop, _renameFrame);
+
         container.Add(titleLabel, headerLabel, headerRuleLabel, listView);
         _listView = listView;
         _refreshVisibleBooks = RefreshVisibleBooks;
@@ -511,18 +568,77 @@ public sealed class BookListScreen(
 
     public void BeginRenamePrompt(BookViewModel book)
     {
-        _toolbarMode = ToolbarMode.Rename;
-        _isSearchActive = false;
+        OpenRenamePopup(book);
+    }
+
+    private void OpenRenamePopup(BookViewModel book)
+    {
+        _renameOpen = true;
+        _renameBook = book;
         _renameInput = book.Title;
 
-        if (_searchField is not null)
+        if (_renameInputField is not null)
         {
-            _searchField.Text = _renameInput;
-            _searchField.SetFocus();
-            _searchField.MoveEnd();
+            _renameInputField.Text = _renameInput;
+            _renameInputField.Visible = true;
+            _renameInputField.SetFocus();
+            _renameInputField.MoveEnd();
         }
 
-        UpdateToolbarChrome();
+        ModalChrome.SetBackdropVisible(_modalBackdrop, visible: true);
+        _renameFrame?.SetFocus();
+        NotifyUiStateChanged();
+    }
+
+    private void CloseRenamePopup()
+    {
+        _renameOpen = false;
+        _renameBook = null;
+        _renameInput = string.Empty;
+
+        if (_renameInputField is not null)
+        {
+            _renameInputField.Visible = false;
+            _renameInputField.Text = string.Empty;
+        }
+
+        if (_renameFrame is not null)
+        {
+            _renameFrame.Visible = false;
+        }
+
+        ModalChrome.SetBackdropVisible(_modalBackdrop, visible: false);
+
+        if (_listView is not null)
+        {
+            _listView.SetFocus();
+        }
+
+        NotifyUiStateChanged();
+    }
+
+    private async Task HandleRenameKeyDownAsync(Key key)
+    {
+        if (!_renameOpen || _renameBook is null)
+        {
+            return;
+        }
+
+        switch (key.KeyCode)
+        {
+            case KeyCode.Enter:
+                await SubmitRenameAsync(_renameInputField?.Text, CancellationToken.None).ConfigureAwait(false);
+                return;
+
+            case KeyCode.Esc:
+                CloseRenamePopup();
+                return;
+        }
+    }
+
+    private void NotifyUiStateChanged()
+    {
+        _uiStateObserver?.Invoke();
     }
 
     public void CancelRenamePrompt()
@@ -552,13 +668,14 @@ public sealed class BookListScreen(
         if (string.IsNullOrWhiteSpace(resolvedTitle))
         {
             SetFeedback("Enter a title or press Esc to cancel.", isError: true);
+            CloseRenamePopup();
             return;
         }
 
         var book = GetSelectedBook();
         if (book is null)
         {
-            CancelRenamePrompt();
+            CloseRenamePopup();
             return;
         }
 
@@ -571,27 +688,27 @@ public sealed class BookListScreen(
         catch (HttpRequestException)
         {
             SetFeedback("Cannot reach server.", isError: true);
-            CancelRenamePrompt();
+            CloseRenamePopup();
             return;
         }
 
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             SetFeedback($"Book {book.BookId} not found.", isError: true);
-            CancelRenamePrompt();
+            CloseRenamePopup();
             return;
         }
 
         if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
         {
             SetFeedback($"A book titled \"{resolvedTitle}\" by the same author already exists.", isError: true);
-            CancelRenamePrompt();
+            CloseRenamePopup();
             return;
         }
 
         response.EnsureSuccessStatusCode();
 
-        CancelRenamePrompt();
+        CloseRenamePopup();
         SetFeedback($"Book renamed to \"{resolvedTitle}\".", isError: false);
 
         // Reload so the list reflects the new title

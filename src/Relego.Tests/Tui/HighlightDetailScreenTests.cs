@@ -22,6 +22,41 @@ public sealed class HighlightDetailScreenTests
     }
 
     [Fact]
+    public async Task KeyHints_ChangeWithModalState()
+    {
+        using var mockHttp = new MockHttpMessageHandler();
+        using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
+        var screen = CreateScreen(new RelegoHttpClient(httpClient));
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
+        Assert.Equal([("↑↓", "Navigate"), ("Enter", "Use action"), ("Tab", "Switch panel"), ("Esc", "Close")], screen.KeyHints);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Tab, '\t'), CancellationToken.None);
+        Assert.Equal([("↑↓", "Scroll"), ("Tab", "Switch panel"), ("Esc", "Close")], screen.KeyHints);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Tab, '\t'), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
+        Assert.Equal([("↑↓", "Adjust"), ("1-5", "Set"), ("Enter", "Save"), ("Esc", "Cancel")], screen.KeyHints);
+    }
+
+    [Fact]
+    public async Task RegisterUiStateObserver_NotifiesOnModalTransitions()
+    {
+        using var mockHttp = new MockHttpMessageHandler();
+        using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
+        var screen = CreateScreen(new RelegoHttpClient(httpClient));
+        var notifications = 0;
+
+        screen.RegisterUiStateObserver(() => notifications++);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Tab, '\t'), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Escape), CancellationToken.None);
+
+        Assert.Equal(3, notifications);
+    }
+
+    [Fact]
     public async Task HandleKeyAsync_NavigatesWithinBounds()
     {
         using var mockHttp = new MockHttpMessageHandler();
@@ -152,6 +187,21 @@ public sealed class HighlightDetailScreenTests
         Assert.Equal(ScreenAction.None, result.Action);
         Assert.False(screen.WeightEditorOpen);
         Assert.Null(screen.Highlights[0].Weight);
+    }
+
+    [Fact]
+    public async Task HandleKeyAsync_QWhileModalOpen_DoesNotEscapeModal()
+    {
+        using var mockHttp = new MockHttpMessageHandler();
+        using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
+        var screen = CreateScreen(new RelegoHttpClient(httpClient));
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
+
+        var result = await screen.HandleKeyAsync(Key(ConsoleKey.Q, 'q'), CancellationToken.None);
+
+        Assert.Equal(ScreenAction.None, result.Action);
+        Assert.True(screen.DetailOpen);
     }
 
     [Fact]

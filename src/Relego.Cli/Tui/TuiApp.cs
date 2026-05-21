@@ -12,8 +12,8 @@ namespace Relego.Cli.Tui;
 public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow syncWorkflow, string serverUrl, string version)
 {
     private const int SplashTopPadding = 1;
-    private const int ExitConfirmationWidth = 56;
-    private const int ExitConfirmationHeight = 5;
+    private const int ExitConfirmationWidth = 60;
+    private const int ExitConfirmationHeight = 6;
 
     private static readonly IReadOnlyList<(string Key, string Label)> ExitConfirmationHints =
     [
@@ -41,6 +41,7 @@ public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow sync
     private View? _toolbarView;
     private View? _statusBar;
     private Window? _window;
+    private Label? _exitConfirmationBackdrop;
     private FrameView? _exitConfirmationFrame;
     private bool _isExitConfirmationOpen;
     private IReadOnlyList<(string Key, string Label)> _currentHints = [];
@@ -353,10 +354,17 @@ public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow sync
         _contentFrame.RemoveAll();
         _contentFrame.Title = screen.Title;
 
+        screen.RegisterUiStateObserver(() => _app?.Invoke(() => RefreshCurrentHints(screen)));
+
         var view = screen.CreateView(Navigate);
         _contentFrame.Add(view);
         view.SetFocus();
 
+        RefreshCurrentHints(screen);
+    }
+
+    private void RefreshCurrentHints(IScreen screen)
+    {
         _currentHints = screen.KeyHints;
         UpdateStatusBar(_isExitConfirmationOpen ? ExitConfirmationHints : _currentHints);
     }
@@ -369,31 +377,23 @@ public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow sync
             return;
         }
 
-        var palette = TuiTheme.Palette;
-        _exitConfirmationFrame = new FrameView
-        {
-            X = Pos.Center() - (ExitConfirmationWidth / 2),
-            Y = Pos.Center() - (ExitConfirmationHeight / 2),
-            Width = ExitConfirmationWidth,
-            Height = ExitConfirmationHeight,
-            Title = "Confirm Exit",
-            CanFocus = true,
-            Visible = false
-        };
-        _exitConfirmationFrame.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.BorderFocus, palette.Background)));
+        _exitConfirmationBackdrop = ModalChrome.CreateBackdrop();
+
+        _exitConfirmationFrame = ModalChrome.CreateFrame(ExitConfirmationWidth, ExitConfirmationHeight, "Confirm Exit");
 
         var message = new Label
         {
             X = 1,
             Y = 1,
             Width = Dim.Fill(2),
-            Height = 1,
+            Height = 2,
             Text = "Exit Relego? Press Y to confirm or N/Esc to cancel.",
             CanFocus = false
         };
-        message.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background)));
+        message.SetScheme(ModalChrome.CreateBodyTextScheme());
 
         _exitConfirmationFrame.Add(message);
+        _window.Add(_exitConfirmationBackdrop);
         _window.Add(_exitConfirmationFrame);
     }
 
@@ -411,6 +411,7 @@ public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow sync
         }
 
         _isExitConfirmationOpen = true;
+        ModalChrome.SetBackdropVisible(_exitConfirmationBackdrop, visible: true);
         _exitConfirmationFrame.Visible = true;
         _exitConfirmationFrame.SetFocus();
         UpdateStatusBar(ExitConfirmationHints);
@@ -424,6 +425,7 @@ public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow sync
         }
 
         _isExitConfirmationOpen = false;
+        ModalChrome.SetBackdropVisible(_exitConfirmationBackdrop, visible: false);
         if (_exitConfirmationFrame is not null)
         {
             _exitConfirmationFrame.Visible = false;
