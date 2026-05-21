@@ -49,17 +49,6 @@ Each recap is an EPUB document delivered to your Kindle. Here's an example of wh
 
 Each highlight includes the quote, the book title, and the author, making it easy to recall context at a glance. The number of highlights per recap is configurable (default is 5).
 
-## Interactive mode
-
-Run `relego` without arguments to open the interactive TUI:
-
-Use the TUI to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
-
-Theme selection for TUI:
-
-- `RELEGO_THEME=dark` (default)
-- `RELEGO_THEME=light`
-
 ## Getting started
 
 ### 1. Connect your Kindle device
@@ -87,47 +76,49 @@ docker run -d \
 
 Replace the `SMTP_*` values with those for your provider.
 
-> Gmail and Outlook personal accounts do not support SMTP with password authentication anymore.
+> Amazon Send-to-Kindle only accepts emails from approved senders. Add the email address you are going to use in your Amazon "Approved Personal Document E-mail List" before testing delivery.
 >
-> Use a free SMTP relay like [AWS Ses](https://aws.amazon.com/ses/), [Resend](https://resend.com/docs/send-with-smtp), [MailerSend](https://www.mailersend.com/help/smtp-relay) or [Mailgun](https://www.mailgun.com/features/smtp-server/) instead. They offer free tiers with generous limits. Otherwise, you can use your own SMPT relay server.
+> Gmail and Outlook personal accounts do not support SMTP with password authentication. Use instead a free SMTP relay like [Resend](https://resend.com/docs/send-with-smtp), [MailerSend](https://www.mailersend.com/help/smtp-relay) or [Mailgun](https://www.mailgun.com/features/smtp-server/) instead. They offer a free tier with a generous limit of free emails. Otherwise, you can use your own SMTP relay server.
 
 ### 3. Import the Kindle highlights
 
-Upload highlights to the server using the CLI. It automatically detects the path to your Kindle:
+Import Kindle highlights using the TUI. It automatically detects the path to your Kindle:
 
 <details>
-  <summary>Docker (suggested - no install)</summary>
-
+  <summary>Docker (no install)</summary>
   **Windows** (Kindle mounts as drive `D:`):
+
+  Replace `D` with the actual Kindle drive letter on your machine.
 
   ```powershell
   docker run `
+    -it `
     -v "D:\documents:/kindle:ro" `
     --network relego `
     -e RELEGO_SERVER="http://relego-server:8080" `
-    ghcr.io/krusty93/relego.cli:latest `
-    import "/kindle/My Clippings.txt"
+    ghcr.io/krusty93/relego.cli:latest
   ```
 
-  > NB: Follow the [WSL documentation](https://learn.microsoft.com/en-us/windows/wsl/connect-usb) to allow WSL to access the Kindle device. Another simpler option is to copy the `My Clippings.txt` file to your PC (e.g. local path) and mounting the volume:
-
-  ```powershell
-  docker run `
-    -v "$(PWD):/kindle:ro" `
-    --network relego `
-    -e RELEGO_SERVER="http://relego-server:8080" `
-    ghcr.io/krusty93/relego.cli:latest `
-    import "/kindle/My Clippings.txt"
-  ```
+  > NB: Follow the [WSL documentation](https://learn.microsoft.com/en-us/windows/wsl/connect-usb) to allow WSL to access the Kindle device. The simpler option is to copy `My Clippings.txt` to a local folder and run the image from there:
+  >
+  >```powershell
+  >docker run `
+  >  -it `
+  >  -v "$(Get-Location):/kindle:ro" `
+  >  --network relego `
+  >  -e RELEGO_SERVER="http://relego-server:8080" `
+  >  ghcr.io/krusty93/relego.cli:latest
+  >```
 
   **macOS** (Kindle mounts at `/Volumes/Kindle`):
 
   ```sh
   docker run \
+    -it \
     -v "/Volumes/Kindle/documents:/kindle:ro" \
+    --network relego \
     -e RELEGO_SERVER="http://relego-server:8080" \
-    ghcr.io/krusty93/relego.cli:latest \
-    import "/kindle/My Clippings.txt"
+    ghcr.io/krusty93/relego.cli:latest
   ```
 
   **Linux** (Kindle mounts at `/media/$USER/Kindle`):
@@ -135,9 +126,9 @@ Upload highlights to the server using the CLI. It automatically detects the path
   ```sh
   docker run \
     -v "/media/$USER/Kindle/documents:/kindle:ro" \
+    --network relego \
     -e RELEGO_SERVER="http://relego-server:8080" \
-    ghcr.io/krusty93/relego.cli:latest \
-    import "/kindle/My Clippings.txt"
+    ghcr.io/krusty93/relego.cli:latest
   ```
 
 </details>
@@ -147,41 +138,42 @@ Upload highlights to the server using the CLI. It automatically detects the path
 
 #### winget
 
-  ```sh
+  ```powershell
   winget install Krusty93.Relego
-  relego import
+  relego
   ```
 
 #### Binary
 
-  Replace `<version>` with the actual version number (e.g. `1.0.0`).
-
   ```powershell
-  curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-win-x64 -o ./relego.exe
-  ./relego.exe import
+  $version = ((Invoke-RestMethod https://api.github.com/repos/Krusty93/relego/releases) | Where-Object tag_name -like 'cli/v*' | Select-Object -First 1).tag_name -replace '^cli/v', ''
+  curl.exe -L "https://github.com/Krusty93/relego/releases/download/cli%2Fv$version/relego-$version-win-x64.exe" -o .\relego.exe
+  .\relego.exe
   ```
 
 </details>
 
 <details>
-  <summary>MacOS</summary>
-
-  Replace `<version>` with the actual version number (e.g. `1.0.0`).
+  <summary>macOS</summary>
 
 #### Apple Silicon
 
   ```sh
-  curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-osx-arm64 -o /usr/local/bin/relego
-  chmod +x /usr/local/bin/relego
-  relego import
+  VERSION="$(curl -fsSL https://api.github.com/repos/Krusty93/relego/releases | grep -m1 -E '"tag_name":[[:space:]]*"cli/v' | sed -E 's/.*"tag_name":[[:space:]]*"cli\/v([^"]+)".*/\1/')"
+  curl -fL "https://github.com/Krusty93/relego/releases/download/cli%2Fv${VERSION}/relego-${VERSION}-osx-arm64" -o /tmp/relego
+  chmod +x /tmp/relego
+  sudo install -m 0755 /tmp/relego /usr/local/bin/relego
+  relego
   ```
 
 #### Intel
 
   ```sh
-  curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-osx-amd64 -o /usr/local/bin/relego
-  chmod +x /usr/local/bin/relego
-  relego import
+  VERSION="$(curl -fsSL https://api.github.com/repos/Krusty93/relego/releases | grep -m1 -E '"tag_name":[[:space:]]*"cli/v' | sed -E 's/.*"tag_name":[[:space:]]*"cli\/v([^"]+)".*/\1/')"
+  curl -fL "https://github.com/Krusty93/relego/releases/download/cli%2Fv${VERSION}/relego-${VERSION}-osx-x64" -o /tmp/relego
+  chmod +x /tmp/relego
+  sudo install -m 0755 /tmp/relego /usr/local/bin/relego
+  relego
   ```
 
 </details>
@@ -189,43 +181,60 @@ Upload highlights to the server using the CLI. It automatically detects the path
 <details>
   <summary>Linux</summary>
 
-  Replace `<version>` with the actual version number (e.g. `1.0.0`).
-
   ```sh
-  curl -L https://github.com/Krusty93/relego/releases/download/cli%2Fv<version>/relego-<version>-linux-x64 -o /usr/local/bin/relego
-  chmod +x /usr/local/bin/relego
-  relego import
+  VERSION="$(curl -fsSL https://api.github.com/repos/Krusty93/relego/releases | grep -m1 -E '"tag_name":[[:space:]]*"cli/v' | sed -E 's/.*"tag_name":[[:space:]]*"cli\/v([^"]+)".*/\1/')"
+  curl -fL "https://github.com/Krusty93/relego/releases/download/cli%2Fv${VERSION}/relego-${VERSION}-linux-x64" -o /tmp/relego
+  chmod +x /tmp/relego
+  sudo install -m 0755 /tmp/relego /usr/local/bin/relego
+  relego
   ```
 
 </details>
 
-The client automatically connects to `http://localhost:8080`. If you ran the server on a different host machine or port, you can override the default URL exporting the variable `RELEGO_SERVER`:
+The native client automatically connects to `http://localhost:8080`. If you ran the server on a different host machine or port, override `RELEGO_SERVER` before starting the TUI:
 
-```sh
-# binary
-export RELEGO_SERVER=http://192.168.1.10:8080
-relego import
-
-# Docker
-docker run \
-  -e RELEGO_SERVER=http://192.168.1.10:8080 \
-  ghcr.io/krusty93/relego.cli:latest import
+```powershell
+# PowerShell
+$env:RELEGO_SERVER = "http://192.168.1.10:8080"
+relego
 ```
 
-That's it. Your first recap will arrive on the next scheduled delivery (default: every day at 18:00).
+```sh
+# macOS / Linux
+export RELEGO_SERVER=http://192.168.1.10:8080
+relego
+```
 
-> **My Clippings.txt on a different path?** Override the default location using:
->
-> ```sh
-> relego import <path>
-> ```
->
+For Docker, keep the same commands shown above and replace `http://relego-server:8080` with your server URL.
 
-### 4. (Optional) Open the TUI
+### 4. Complete the first sync in the TUI
 
-Running `relego` with no arguments in an interactive terminal opens a full-screen TUI to browse your books and manage settings without leaving the terminal.
+Once the TUI is open:
+
+1. Press `S` to open Settings, set your Kindle email, and press `T` to send a test email.
+2. Press `Esc` to go back to the books screen.
+3. Press `I` to import highlights. Relego auto-detects `My Clippings.txt` when you used one of the standard paths above; otherwise enter the path manually and press `Enter`.
+
+Prefer automation or scripting? The raw CLI is still available:
+
+```sh
+relego import <path>
+```
+
+That's it. After the first import completes, your first recap will arrive on the next scheduled delivery (default: every day at 18:00).
 
 ---
+
+## Interactive mode
+
+Run `relego` without arguments to open the interactive TUI:
+
+Use the TUI to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
+
+Theme selection for TUI:
+
+- `RELEGO_THEME=dark` (default)
+- `RELEGO_THEME=light`
 
 ## CLI reference
 
