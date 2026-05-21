@@ -244,6 +244,7 @@ public sealed class HighlightDetailScreen : IScreen
             WordWrap = true,
             CanFocus = true
         };
+        _detailTextView.SetScheme(CreateDetailTextViewScheme());
         _detailTextView.KeyDown += async (_, key) => await HandleDetailTextKeyDownAsync(key).ConfigureAwait(false);
 
         _detailTextFrame = new FrameView
@@ -268,6 +269,7 @@ public sealed class HighlightDetailScreen : IScreen
             CanFocus = true
         };
         _detailActionList.SetSource(_detailActionRows);
+        _detailActionList.SetScheme(CreateDetailActionListScheme(isFocused: true));
         _detailActionList.ValueChanged += (_, _) =>
         {
             if (!_updatingViewState && _detailActionList.SelectedItem is int selectedItem)
@@ -1018,11 +1020,13 @@ public sealed class HighlightDetailScreen : IScreen
 
             if (_detailActionList is not null && _detailActionRows is { Count: > 0 })
             {
+                _detailActionList.SetScheme(CreateDetailActionListScheme(DetailOpen && _detailFocusOnActions));
                 _detailActionList.SelectedItem = Math.Clamp(ActionMenuIndex, 0, _detailActionRows.Count - 1);
             }
 
             if (_detailTextView is not null)
             {
+                _detailTextView.SetScheme(CreateDetailTextViewScheme());
                 _detailTextView.Text = DetailOpen ? _previewText ?? string.Empty : string.Empty;
                 _detailTextView.ScrollTo(new System.Drawing.Point(0, _detailScrollOffset));
             }
@@ -1316,6 +1320,53 @@ public sealed class HighlightDetailScreen : IScreen
             HotFocus = attribute,
             HotActive = attribute,
             Disabled = attribute
+        };
+    }
+
+    private static Terminal.Gui.Drawing.Scheme CreateDetailTextViewScheme()
+    {
+        var palette = TuiTheme.Palette;
+        var text = new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background);
+        var muted = new Terminal.Gui.Drawing.Attribute(palette.TextMuted, palette.Background);
+
+        return new Terminal.Gui.Drawing.Scheme(text)
+        {
+            Normal = text,
+            Focus = text,
+            Active = text,
+            Code = text,
+            Editable = text,
+            Highlight = text,
+            HotActive = text,
+            HotFocus = text,
+            HotNormal = text,
+            ReadOnly = text,
+            Disabled = muted
+        };
+    }
+
+    private static Terminal.Gui.Drawing.Scheme CreateDetailActionListScheme(bool isFocused)
+    {
+        var palette = TuiTheme.Palette;
+        var normal = new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background);
+        var selectedBackground = isFocused ? palette.AccentText : palette.Border;
+        var selectedForeground = TuiTheme.ContrastRatio(palette.Background, selectedBackground)
+            >= TuiTheme.ContrastRatio(palette.Text, selectedBackground)
+            ? palette.Background
+            : palette.Text;
+        var selected = new Terminal.Gui.Drawing.Attribute(selectedForeground, selectedBackground);
+        var muted = new Terminal.Gui.Drawing.Attribute(palette.TextMuted, palette.Background);
+
+        return new Terminal.Gui.Drawing.Scheme(normal)
+        {
+            Normal = normal,
+            Focus = selected,
+            Active = selected,
+            Highlight = selected,
+            HotNormal = normal,
+            HotFocus = selected,
+            HotActive = selected,
+            Disabled = muted
         };
     }
 
