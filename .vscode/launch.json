@@ -24,7 +24,7 @@
             "stopAtEntry": false,
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "${input:serverEnvironment}",
-                "ASPNETCORE_URLS": "http://+:8080"
+                "ASPNETCORE_HTTP_PORTS": "8080"
             },
             "serverReadyAction": {
                 "action": "openExternally",
