@@ -10,7 +10,7 @@ using Relego.Cli.Commands.Config;
 using Relego.Cli.Commands.Exclude;
 using Relego.Cli.Commands.Weight;
 using Relego.Cli.Infrastructure;
-using Relego.Cli.Sync;
+using Relego.Cli.Import;
 using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -33,7 +33,7 @@ if (validationResult == ServerUrlValidator.ValidationResult.Malformed)
 
 var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
 
-Assembly assembly = typeof(SyncCommand).Assembly;
+Assembly assembly = typeof(ImportCommand).Assembly;
 string applicationName = "relego";
 string version = (assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
     ?? assembly.GetName().Version?.ToString()
@@ -48,14 +48,14 @@ builder.Services.AddHttpClient<RelegoHttpClient>((sp, client) =>
     client.BaseAddress = new Uri(serverUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
 }).AddRelegoResilience();
-builder.Services.AddTransient<ClippingsSyncWorkflow>();
+builder.Services.AddTransient<ClippingsImportWorkflow>();
 
 using IHost host = builder.Build();
 
 if (TuiModeDetector.Detect(args, Console.IsInputRedirected) == StartupMode.Tui)
 {
     var client = host.Services.GetRequiredService<RelegoHttpClient>();
-    var syncWorkflow = host.Services.GetRequiredService<ClippingsSyncWorkflow>();
+    var syncWorkflow = host.Services.GetRequiredService<ClippingsImportWorkflow>();
     var tuiApp = new TuiApp(client, syncWorkflow, normalizedServerUrl, version);
     await tuiApp.RunAsync(CancellationToken.None);
     return 0;
@@ -70,8 +70,8 @@ app.Configure(config =>
     config.SetApplicationName(applicationName);
     config.SetApplicationVersion(version);
 
-    config.AddCommand<SyncCommand>("sync")
-        .WithDescription("Parse and sync highlights from My Clippings.txt to the server.");
+    config.AddCommand<ImportCommand>("import")
+        .WithDescription("Parse and import highlights from My Clippings.txt to the server.");
 
     config.AddCommand<StatusCommand>("status")
         .WithDescription("Display server health and aggregate state.");

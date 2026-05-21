@@ -3,15 +3,15 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Relego.Cli.Parsing;
-using Relego.Cli.Sync;
+using Relego.Cli.Import;
 using Relego.Core.Contracts;
 
 namespace Relego.Cli.Commands;
 
 /// <summary>
-/// Parses a Kindle clippings file and syncs highlights to the server.
+/// Parses a Kindle clippings file and imports highlights to the server.
 /// </summary>
-public sealed class SyncCommand(ClippingsSyncWorkflow workflow, ILogger<SyncCommand> logger) : ServerCommand<SyncCommand.Settings>
+public sealed class ImportCommand(ClippingsImportWorkflow workflow, ILogger<ImportCommand> logger) : ServerCommand<ImportCommand.Settings>
 {
     protected override ILogger Logger => logger;
 
@@ -24,7 +24,7 @@ public sealed class SyncCommand(ClippingsSyncWorkflow workflow, ILogger<SyncComm
 
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellation)
     {
-        var outcome = await workflow.ExecuteAsync(new ClippingsSyncOptions
+        var outcome = await workflow.ExecuteAsync(new ClippingsImportOptions
         {
             FilePath = settings.Path,
             ResolvePathAsync = settings.Path is null ? ResolvePathAsync : null
@@ -32,17 +32,17 @@ public sealed class SyncCommand(ClippingsSyncWorkflow workflow, ILogger<SyncComm
 
         return outcome.Status switch
         {
-            ClippingsSyncStatus.Cancelled => HandleCancelled(),
-            ClippingsSyncStatus.FileNotFound => HandleMissingFile(outcome),
-            ClippingsSyncStatus.ParseFailed => HandleParseFailure(outcome),
-            ClippingsSyncStatus.NoHighlightsFound => HandleNoHighlights(),
-            ClippingsSyncStatus.ServerError => HandleConnectivityFailure(outcome),
-            ClippingsSyncStatus.Succeeded => HandleSuccess(outcome),
+            ClippingsImportStatus.Cancelled => HandleCancelled(),
+            ClippingsImportStatus.FileNotFound => HandleMissingFile(outcome),
+            ClippingsImportStatus.ParseFailed => HandleParseFailure(outcome),
+            ClippingsImportStatus.NoHighlightsFound => HandleNoHighlights(),
+            ClippingsImportStatus.ServerError => HandleConnectivityFailure(outcome),
+            ClippingsImportStatus.Succeeded => HandleSuccess(outcome),
             _ => throw new ArgumentOutOfRangeException(nameof(outcome.Status), outcome.Status, null)
         };
     }
 
-    private static ValueTask<string?> ResolvePathAsync(ClippingsPathPromptRequest request, CancellationToken cancellationToken)
+    private static ValueTask<string?> ResolvePathAsync(ClippingsImportPathPromptRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(!string.IsNullOrWhiteSpace(request.DetectedPath) ? request.DetectedPath : PromptForPath());
@@ -60,17 +60,17 @@ public sealed class SyncCommand(ClippingsSyncWorkflow workflow, ILogger<SyncComm
 
     private static int HandleCancelled()
     {
-        AnsiConsole.MarkupLine("[yellow]Sync cancelled.[/]");
+        AnsiConsole.MarkupLine("[yellow]Import cancelled.[/]");
         return 1;
     }
 
-    private static int HandleMissingFile(ClippingsSyncOutcome outcome)
+    private static int HandleMissingFile(ClippingsImportOutcome outcome)
     {
         AnsiConsole.MarkupLine($"[red]Error:[/] File not found: [yellow]{outcome.FilePath}[/]");
         return 1;
     }
 
-    private static int HandleParseFailure(ClippingsSyncOutcome outcome)
+    private static int HandleParseFailure(ClippingsImportOutcome outcome)
     {
         AnsiConsole.MarkupLine($"[red]Error parsing clippings file:[/] {outcome.Message}");
         return 1;
@@ -82,12 +82,12 @@ public sealed class SyncCommand(ClippingsSyncWorkflow workflow, ILogger<SyncComm
         return 0;
     }
 
-    private int HandleConnectivityFailure(ClippingsSyncOutcome outcome)
+    private int HandleConnectivityFailure(ClippingsImportOutcome outcome)
     {
         return HandleServerError(outcome.Error as HttpRequestException ?? new HttpRequestException(outcome.Message));
     }
 
-    private static int HandleSuccess(ClippingsSyncOutcome outcome)
+    private static int HandleSuccess(ClippingsImportOutcome outcome)
     {
         DisplaySummary(outcome.ParseResult!, outcome.Response!);
         return 0;
@@ -104,7 +104,7 @@ public sealed class SyncCommand(ClippingsSyncWorkflow workflow, ILogger<SyncComm
                 new Markup($"[green]✓[/] [bold]{response.NewHighlights}[/] new highlights imported ([grey]{response.DuplicateHighlights} duplicates skipped[/])"),
                 new Markup($"[green]✓[/] [bold]{response.NewBooks}[/] new books, [bold]{response.NewAuthors}[/] new authors")
             ))
-            .Header("[green]Sync Complete[/]")
+            .Header("[green]Import Complete[/]")
             .Border(BoxBorder.Rounded));
     }
 }

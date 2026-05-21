@@ -3,16 +3,16 @@ using RichardSzalay.MockHttp;
 using Spectre.Console.Cli;
 using Relego.Cli.Commands;
 using Relego.Cli.Infrastructure;
-using Relego.Cli.Sync;
+using Relego.Cli.Import;
 
 namespace Relego.Tests.Cli;
 
-public sealed class SyncCommandTests : IDisposable
+public sealed class ImportCommandTests : IDisposable
 {
     private readonly MockHttpMessageHandler _mockHttp = new();
     private readonly string _tempDir;
 
-    public SyncCommandTests()
+    public ImportCommandTests()
     {
         _tempDir = Path.Combine(Path.GetTempPath(), $"relego-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
@@ -26,7 +26,7 @@ public sealed class SyncCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Sync_WithValidFile_ReturnsZero()
+    public async Task Import_WithValidFile_ReturnsZero()
     {
         var filePath = CreateClippingsFile(SampleClippings);
 
@@ -35,43 +35,43 @@ public sealed class SyncCommandTests : IDisposable
                 {"newHighlights":5,"duplicateHighlights":2,"newBooks":3,"newAuthors":2}
                 """);
 
-        var exitCode = await RunSyncCommand(filePath);
+        var exitCode = await RunImportCommand(filePath);
 
         Assert.Equal(0, exitCode);
     }
 
     [Fact]
-    public async Task Sync_WithEmptyFile_ReturnsZero()
+    public async Task Import_WithEmptyFile_ReturnsZero()
     {
         var filePath = CreateClippingsFile("");
 
-        var exitCode = await RunSyncCommand(filePath);
+        var exitCode = await RunImportCommand(filePath);
 
         Assert.Equal(0, exitCode);
     }
 
     [Fact]
-    public async Task Sync_FileNotFound_ReturnsOne()
+    public async Task Import_FileNotFound_ReturnsOne()
     {
-        var exitCode = await RunSyncCommand("/nonexistent/path/My Clippings.txt");
+        var exitCode = await RunImportCommand("/nonexistent/path/My Clippings.txt");
 
         Assert.Equal(1, exitCode);
     }
 
     [Fact]
-    public async Task Sync_ServerUnreachable_ReturnsOne()
+    public async Task Import_ServerUnreachable_ReturnsOne()
     {
         var filePath = CreateClippingsFile(SampleClippings);
 
         _mockHttp.When(HttpMethod.Post, "http://localhost:5000/sync")
             .Throw(new HttpRequestException("Connection refused"));
 
-        var exitCode = await RunSyncCommand(filePath);
+        var exitCode = await RunImportCommand(filePath);
 
         Assert.Equal(1, exitCode);
     }
 
-    private async Task<int> RunSyncCommand(string filePath)
+    private async Task<int> RunImportCommand(string filePath)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -82,7 +82,7 @@ public sealed class SyncCommandTests : IDisposable
             httpClient.BaseAddress = new Uri("http://localhost:5000");
             return new RelegoHttpClient(httpClient);
         });
-        services.AddTransient<ClippingsSyncWorkflow>();
+        services.AddTransient<ClippingsImportWorkflow>();
 
         var registrar = new TypeRegistrar(services.BuildServiceProvider());
         var app = new CommandApp(registrar);
@@ -90,10 +90,10 @@ public sealed class SyncCommandTests : IDisposable
         app.Configure(config =>
         {
             config.SetApplicationName("relego");
-            config.AddCommand<SyncCommand>("sync");
+            config.AddCommand<ImportCommand>("import");
         });
 
-        return await app.RunAsync(["sync", filePath]);
+        return await app.RunAsync(["import", filePath]);
     }
 
     private string CreateClippingsFile(string content)

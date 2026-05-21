@@ -5,11 +5,11 @@ using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using Relego.Cli.Infrastructure;
-using Relego.Cli.Sync;
+using Relego.Cli.Import;
 
 namespace Relego.Cli.Tui;
 
-public sealed class TuiApp(RelegoHttpClient client, ClippingsSyncWorkflow syncWorkflow, string serverUrl, string version)
+public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow syncWorkflow, string serverUrl, string version)
 {
     private const int SplashTopPadding = 1;
     private const int ExitConfirmationWidth = 56;
@@ -33,7 +33,7 @@ public sealed class TuiApp(RelegoHttpClient client, ClippingsSyncWorkflow syncWo
     ];
 
     private readonly RelegoHttpClient _client = client;
-    private readonly ClippingsSyncWorkflow _syncWorkflow = syncWorkflow;
+    private readonly ClippingsImportWorkflow _syncWorkflow = syncWorkflow;
     private readonly StatusChrome _chrome = new(serverUrl, version);
     private readonly Stack<IScreen> _screens = new();
     private IApplication? _app;
