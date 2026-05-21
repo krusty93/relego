@@ -87,9 +87,9 @@ docker run -d \
 
 Replace the `SMTP_*` values with those for your provider.
 
-> Gmail and Outlook personal accounts do not support SMTP with password authentication.
+> Gmail and Outlook personal accounts do not support SMTP with password authentication anymore.
 >
-> Use a free SMTP relay like [Resend](https://resend.com/docs/send-with-smtp), [MailerSend](https://www.mailersend.com/help/smtp-relay) or [Mailgun](https://www.mailgun.com/features/smtp-server/) instead. They offer a free tier with a generous limit of free emails. Otherwise, you can use your own SMPT relay server.
+> Use a free SMTP relay like [AWS Ses](https://aws.amazon.com/ses/), [Resend](https://resend.com/docs/send-with-smtp), [MailerSend](https://www.mailersend.com/help/smtp-relay) or [Mailgun](https://www.mailgun.com/features/smtp-server/) instead. They offer free tiers with generous limits. Otherwise, you can use your own SMPT relay server.
 
 ### 3. Import the Kindle highlights
 
