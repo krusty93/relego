@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Content Sections', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/relego/');
 	});
 
 	test('sections appear in correct order', async ({ page }) => {
