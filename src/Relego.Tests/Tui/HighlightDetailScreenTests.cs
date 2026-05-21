@@ -9,14 +9,14 @@ namespace Relego.Tests.Tui;
 public sealed class HighlightDetailScreenTests
 {
     [Fact]
-    public void KeyHints_ExposeShowAndQuitWithoutCtrlC()
+    public void KeyHints_ExposeDetailAndQuitWithoutCtrlC()
     {
         using var mockHttp = new MockHttpMessageHandler();
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
 
-        Assert.Contains(screen.KeyHints, hint => hint is ("Enter", "Show"));
-        Assert.Contains(screen.KeyHints, hint => hint is ("A", "Actions"));
+        Assert.Contains(screen.KeyHints, hint => hint is ("Enter", "Open details and actions"));
+        Assert.DoesNotContain(screen.KeyHints, hint => hint is ("A", "Actions"));
         Assert.Contains(screen.KeyHints, hint => hint is ("Q", "Quit"));
         Assert.DoesNotContain(screen.KeyHints, hint => string.Equals(hint.Key, "Ctrl+C", StringComparison.OrdinalIgnoreCase));
     }
@@ -41,42 +41,61 @@ public sealed class HighlightDetailScreenTests
     }
 
     [Fact]
-    public async Task HandleKeyAsync_EnterOpensActionMenu()
+    public async Task HandleKeyAsync_EnterOpensDetailModal()
     {
         using var mockHttp = new MockHttpMessageHandler();
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
 
-        var result = await screen.HandleKeyAsync(Key(ConsoleKey.A, 'a'), CancellationToken.None);
+        var result = await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
 
         Assert.Equal(ScreenAction.None, result.Action);
-        Assert.True(screen.ActionMenuOpen);
+        Assert.True(screen.DetailOpen);
         Assert.Equal(0, screen.ActionMenuIndex);
+        Assert.True(screen.DetailFocusOnActions);
+        Assert.Equal("First highlight", screen.PreviewText);
     }
 
     [Fact]
-    public async Task HandleKeyAsync_EscapeClosesActionMenuBeforePopping()
+    public async Task HandleKeyAsync_TabSwitchesFocusBetweenDetailPanes()
     {
         using var mockHttp = new MockHttpMessageHandler();
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
-        await screen.HandleKeyAsync(Key(ConsoleKey.A, 'a'), CancellationToken.None);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
+        Assert.True(screen.DetailFocusOnActions);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Tab, '\t'), CancellationToken.None);
+        Assert.False(screen.DetailFocusOnActions);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Tab, '\t'), CancellationToken.None);
+        Assert.True(screen.DetailFocusOnActions);
+    }
+
+    [Fact]
+    public async Task HandleKeyAsync_EscapeClosesDetailBeforePopping()
+    {
+        using var mockHttp = new MockHttpMessageHandler();
+        using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
+        var screen = CreateScreen(new RelegoHttpClient(httpClient));
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
 
         var firstEscape = await screen.HandleKeyAsync(Key(ConsoleKey.Escape), CancellationToken.None);
         var secondEscape = await screen.HandleKeyAsync(Key(ConsoleKey.Escape), CancellationToken.None);
 
         Assert.Equal(ScreenAction.None, firstEscape.Action);
-        Assert.False(screen.ActionMenuOpen);
+        Assert.False(screen.DetailOpen);
         Assert.Equal(ScreenAction.Pop, secondEscape.Action);
     }
 
     [Fact]
-    public async Task HandleKeyAsync_ActionMenuNavigationStaysWithinBounds()
+    public async Task HandleKeyAsync_DetailActionNavigationStaysWithinBounds()
     {
         using var mockHttp = new MockHttpMessageHandler();
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
-        await screen.HandleKeyAsync(Key(ConsoleKey.A, 'a'), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
 
         for (var index = 0; index < 10; index++)
         {
@@ -103,14 +122,14 @@ public sealed class HighlightDetailScreenTests
 
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
 
-        await screen.HandleKeyAsync(Key(ConsoleKey.A, 'a'), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
         await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
         Assert.True(screen.WeightEditorOpen);
 
         await screen.HandleKeyAsync(Key(ConsoleKey.D5, '5'), CancellationToken.None);
         await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
 
-        Assert.False(screen.ActionMenuOpen);
+        Assert.False(screen.DetailOpen);
         Assert.False(screen.WeightEditorOpen);
         Assert.Equal(5, screen.Highlights[0].Weight);
         mockHttp.VerifyNoOutstandingExpectation();
@@ -124,7 +143,7 @@ public sealed class HighlightDetailScreenTests
 
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
 
-        await screen.HandleKeyAsync(Key(ConsoleKey.A, 'a'), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
         await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
         await screen.HandleKeyAsync(Key(ConsoleKey.D5, '5'), CancellationToken.None);
 
@@ -136,20 +155,23 @@ public sealed class HighlightDetailScreenTests
     }
 
     [Fact]
-    public async Task HandleKeyAsync_SShowOpensPreviewAndEscapeClosesItBeforePopping()
+    public async Task HandleKeyAsync_EnterOpensDetailAndEscapeClosesItBeforePopping()
     {
         using var mockHttp = new MockHttpMessageHandler();
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
 
         var showResult = await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
-        var firstEscape = await screen.HandleKeyAsync(Key(ConsoleKey.Escape), CancellationToken.None);
-        var secondEscape = await screen.HandleKeyAsync(Key(ConsoleKey.Escape), CancellationToken.None);
-
         Assert.Equal(ScreenAction.None, showResult.Action);
-        Assert.True(screen.PreviewText is null);
+        Assert.True(screen.DetailOpen);
+        Assert.Equal("First highlight", screen.PreviewText);
+
+        var firstEscape = await screen.HandleKeyAsync(Key(ConsoleKey.Escape), CancellationToken.None);
         Assert.Equal(ScreenAction.None, firstEscape.Action);
-        Assert.False(screen.HighlightPreviewOpen);
+        Assert.False(screen.DetailOpen);
+        Assert.Null(screen.PreviewText);
+
+        var secondEscape = await screen.HandleKeyAsync(Key(ConsoleKey.Escape), CancellationToken.None);
         Assert.Equal(ScreenAction.Pop, secondEscape.Action);
     }
 
@@ -187,11 +209,10 @@ public sealed class HighlightDetailScreenTests
 
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
 
-        await screen.HandleKeyAsync(Key(ConsoleKey.A, 'a'), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
         await screen.HandleKeyAsync(Key(ConsoleKey.DownArrow), CancellationToken.None);
         await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
 
-        Assert.False(screen.ActionMenuOpen);
         Assert.True(screen.Highlights[0].IsExcluded);
         mockHttp.VerifyNoOutstandingExpectation();
     }
@@ -206,7 +227,7 @@ public sealed class HighlightDetailScreenTests
 
         var screen = CreateScreen(new RelegoHttpClient(httpClient));
 
-        await screen.HandleKeyAsync(Key(ConsoleKey.A, 'a'), CancellationToken.None);
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
         for (var index = 0; index < 4; index++)
         {
             await screen.HandleKeyAsync(Key(ConsoleKey.DownArrow), CancellationToken.None);

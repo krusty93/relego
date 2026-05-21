@@ -1,6 +1,5 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Text;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -24,9 +23,11 @@ public sealed class HighlightDetailScreen : IScreen
     private const int MinimumHighlightColumnWidth = 18;
     private const int WeightEditorWidth = 52;
     private const int WeightEditorHeight = 7;
-    private const int PreviewPopupWidth = 68;
-    private const int PreviewPopupHeight = 14;
-    private const int PreviewContentWidth = PreviewPopupWidth - 6;
+    private const int DetailPopupWidth = 78;
+    private const int DetailPopupHeight = 18;
+    private const int DetailLeftPaneWidth = 44;
+    private const int DetailRightPaneWidth = 30;
+    private const int DetailPaneSeparator = 2;
     private readonly RelegoHttpClient _client;
     private readonly List<HighlightViewModel> _highlights;
     private readonly int _bookId;
@@ -46,15 +47,20 @@ public sealed class HighlightDetailScreen : IScreen
     private Label? _headerLabel;
     private Label? _headerRuleLabel;
     private Label? _statusLabel;
-    private FrameView? _actionMenuFrame;
-    private ObservableCollection<string>? _actionRows;
-    private ListView? _actionList;
     private FrameView? _weightEditorFrame;
     private Label? _weightScaleLabel;
     private Label? _weightHelpLabel;
     private FrameView? _deleteConfirmationFrame;
-    private FrameView? _highlightPreviewFrame;
-    private Label? _previewLabel;
+    private FrameView? _detailFrame;
+    private FrameView? _detailTextFrame;
+    private TextView? _detailTextView;
+    private FrameView? _detailActionFrame;
+    private ObservableCollection<string>? _detailActionRows;
+    private ListView? _detailActionList;
+    private Label? _detailTabHintKeyLabel;
+    private Label? _detailTabHintDescriptionLabel;
+    private int _detailScrollOffset;
+    private bool _detailFocusOnActions = true;
     private Action<ScreenResult>? _navigate;
     private string? _previewText;
     private bool _viewCreated;
@@ -83,7 +89,7 @@ public sealed class HighlightDetailScreen : IScreen
 
     public int SelectedIndex { get; private set; }
 
-    public bool ActionMenuOpen { get; private set; }
+    public bool DetailOpen { get; private set; }
 
     public int ActionMenuIndex { get; private set; }
 
@@ -93,7 +99,7 @@ public sealed class HighlightDetailScreen : IScreen
 
     public bool DeleteConfirmationOpen { get; private set; }
 
-    public bool HighlightPreviewOpen { get; private set; }
+    public bool DetailFocusOnActions => _detailFocusOnActions;
 
     public string? PreviewText => _previewText;
 
@@ -106,8 +112,7 @@ public sealed class HighlightDetailScreen : IScreen
     public IReadOnlyList<(string Key, string Label)> KeyHints =>
     [
         ("↑↓", "Navigate"),
-        ("Enter", "Show"),
-        ("A", "Actions"),
+        ("Enter", "Open details and actions"),
         ("R", "Refresh"),
         ("Esc", "Go Back"),
         ("Q", "Quit")
@@ -229,37 +234,99 @@ public sealed class HighlightDetailScreen : IScreen
         _highlightList.KeyDown += async (_, key) => await HandleListKeyDownAsync(key).ConfigureAwait(false);
         _highlightList.ShortcutKeyPressed += async (_, key) => await HandleListKeyDownAsync(key).ConfigureAwait(false);
 
-        _actionRows = new ObservableCollection<string>();
-        _actionList = new ListView
+        _detailTextView = new TextView
         {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
+            ReadOnly = true,
+            WordWrap = true,
             CanFocus = true
         };
-        _actionList.SetSource(_actionRows);
-        _actionList.ValueChanged += (_, _) =>
+        _detailTextView.SetScheme(CreateDetailTextViewScheme());
+        _detailTextView.KeyDown += async (_, key) => await HandleDetailTextKeyDownAsync(key).ConfigureAwait(false);
+
+        _detailTextFrame = new FrameView
         {
-            if (_actionList.SelectedItem is int selectedItem)
+            X = 0,
+            Y = 0,
+            Width = DetailLeftPaneWidth,
+            Height = Dim.Fill(),
+            Title = string.Empty,
+            CanFocus = true
+        };
+        _detailTextFrame.KeyDown += async (_, key) => await HandleDetailTextKeyDownAsync(key).ConfigureAwait(false);
+        _detailTextFrame.Add(_detailTextView);
+
+        _detailActionRows = new ObservableCollection<string>();
+        _detailActionList = new ListView
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(1),
+            CanFocus = true
+        };
+        _detailActionList.SetSource(_detailActionRows);
+        _detailActionList.SetScheme(CreateDetailActionListScheme(isFocused: true));
+        _detailActionList.ValueChanged += (_, _) =>
+        {
+            if (!_updatingViewState && _detailActionList.SelectedItem is int selectedItem)
             {
                 ActionMenuIndex = Math.Clamp(selectedItem, 0, Math.Max(0, GetActionLabels().Count - 1));
             }
         };
-        _actionList.Accepting += async (_, _) => await HandleActionMenuEnterAsync().ConfigureAwait(false);
-        _actionList.KeyDown += async (_, key) => await HandleActionMenuKeyDownAsync(key).ConfigureAwait(false);
+        _detailActionList.Accepting += async (_, _) => await HandleDetailActionEnterAsync().ConfigureAwait(false);
+        _detailActionList.KeyDown += async (_, key) => await HandleDetailKeyDownAsync(key).ConfigureAwait(false);
 
-        _actionMenuFrame = new FrameView
+        _detailTabHintKeyLabel = new Label
         {
-            X = Pos.AnchorEnd(36),
-            Y = 6,
-            Width = 34,
-            Height = 8,
-            Title = "Actions",
+            X = 0,
+            Y = Pos.AnchorEnd(1),
+            Width = 5,
+            Height = 1,
+            Text = "<Tab>",
+            CanFocus = false
+        };
+        _detailTabHintKeyLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
+            TuiTheme.Palette.AccentText, TuiTheme.Palette.Background)));
+
+        _detailTabHintDescriptionLabel = new Label
+        {
+            X = Pos.Right(_detailTabHintKeyLabel),
+            Y = Pos.AnchorEnd(1),
+            Width = Dim.Fill(),
+            Height = 1,
+            Text = " Switch panel",
+            CanFocus = false
+        };
+        _detailTabHintDescriptionLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
+            TuiTheme.Palette.TextMuted, TuiTheme.Palette.Background)));
+
+        _detailActionFrame = new FrameView
+        {
+            X = DetailLeftPaneWidth + DetailPaneSeparator,
+            Y = 0,
+            Width = DetailRightPaneWidth,
+            Height = Dim.Fill(),
+            Title = string.Empty,
+            CanFocus = true
+        };
+        _detailActionFrame.KeyDown += async (_, key) => await HandleDetailKeyDownAsync(key).ConfigureAwait(false);
+        _detailActionFrame.Add(_detailActionList, _detailTabHintKeyLabel, _detailTabHintDescriptionLabel);
+
+        _detailFrame = new FrameView
+        {
+            X = Pos.Center(),
+            Y = Pos.Center(),
+            Width = DetailPopupWidth,
+            Height = DetailPopupHeight,
+            Title = "",
             CanFocus = true,
             Visible = false
         };
-        _actionMenuFrame.Add(_actionList);
+        _detailFrame.Add(_detailTextFrame, _detailActionFrame);
 
         _weightScaleLabel = new Label
         {
@@ -314,28 +381,6 @@ public sealed class HighlightDetailScreen : IScreen
         });
         _deleteConfirmationFrame.KeyDown += async (_, key) => await HandleDeleteConfirmationKeyDownAsync(key).ConfigureAwait(false);
 
-        _previewLabel = new Label
-        {
-            X = 1,
-            Y = 0,
-            Width = Dim.Fill(2),
-            Height = Dim.Fill(),
-            CanFocus = false
-        };
-
-        _highlightPreviewFrame = new FrameView
-        {
-            X = Pos.Center() - (PreviewPopupWidth / 2),
-            Y = Pos.Center() - (PreviewPopupHeight / 2),
-            Width = PreviewPopupWidth,
-            Height = PreviewPopupHeight,
-            Title = "Highlight",
-            CanFocus = true,
-            Visible = false
-        };
-        _highlightPreviewFrame.Add(_previewLabel);
-        _highlightPreviewFrame.KeyDown += async (_, key) => await HandleHighlightPreviewKeyDownAsync(key).ConfigureAwait(false);
-
         _statusLabel = new Label
         {
             X = TableHorizontalPadding,
@@ -361,10 +406,9 @@ public sealed class HighlightDetailScreen : IScreen
             _headerRuleLabel,
             _highlightList,
             _statusLabel,
-            _actionMenuFrame,
+            _detailFrame,
             _weightEditorFrame,
-            _deleteConfirmationFrame,
-            _highlightPreviewFrame);
+            _deleteConfirmationFrame);
 
         _viewCreated = true;
         UpdateTableLayout();
@@ -389,26 +433,18 @@ public sealed class HighlightDetailScreen : IScreen
             return weightResult;
         }
 
-        if (HighlightPreviewOpen)
+        if (DetailOpen)
         {
-            var previewResult = HandleHighlightPreview(key);
+            var detailResult = await HandleDetailAsync(key, cancellationToken).ConfigureAwait(false);
             UpdateViewStateIfCreated();
-            return previewResult;
-        }
-
-        if (ActionMenuOpen)
-        {
-            var actionResult = await HandleActionMenuAsync(key, cancellationToken).ConfigureAwait(false);
-            UpdateViewStateIfCreated();
-            return actionResult;
+            return detailResult;
         }
 
         ScreenResult result = key.Key switch
         {
             ConsoleKey.UpArrow => MoveSelection(-1),
             ConsoleKey.DownArrow => MoveSelection(1),
-            ConsoleKey.Enter => OpenHighlightPreview(),
-            ConsoleKey.A => OpenActionMenu(),
+            ConsoleKey.Enter => OpenDetail(),
             ConsoleKey.R => await RefreshAsync(cancellationToken).ConfigureAwait(false),
             ConsoleKey.Q => ScreenResult.ConfirmQuit(),
             ConsoleKey.Escape => ScreenResult.Pop(),
@@ -422,7 +458,7 @@ public sealed class HighlightDetailScreen : IScreen
 
     private async Task HandleContainerKeyDownAsync(Key key)
     {
-        if (_highlights.Count > 0 || ActionMenuOpen || DeleteConfirmationOpen || WeightEditorOpen || HighlightPreviewOpen)
+        if (_highlights.Count > 0 || DetailOpen || DeleteConfirmationOpen || WeightEditorOpen)
         {
             return;
         }
@@ -449,9 +485,21 @@ public sealed class HighlightDetailScreen : IScreen
         ApplyNavigation(result);
     }
 
-    private async Task HandleActionMenuKeyDownAsync(Key key)
+    private async Task HandleDetailKeyDownAsync(Key key)
     {
-        if (!TryMapGlobalKey(key, out var mappedKey))
+        if (!TryMapDetailKey(key, out var mappedKey))
+        {
+            return;
+        }
+
+        key.Handled = true;
+        var result = await HandleKeyAsync(mappedKey, CancellationToken.None).ConfigureAwait(false);
+        ApplyNavigation(result);
+    }
+
+    private async Task HandleDetailTextKeyDownAsync(Key key)
+    {
+        if (!TryMapDetailKey(key, out var mappedKey))
         {
             return;
         }
@@ -485,38 +533,41 @@ public sealed class HighlightDetailScreen : IScreen
         ApplyNavigation(result);
     }
 
-    private async Task HandleHighlightPreviewKeyDownAsync(Key key)
-    {
-        if (!TryMapHighlightPreviewKey(key, out var mappedKey))
-        {
-            return;
-        }
-
-        key.Handled = true;
-        var result = await HandleKeyAsync(mappedKey, CancellationToken.None).ConfigureAwait(false);
-        ApplyNavigation(result);
-    }
-
     private async Task HandleEnterFromHighlightsAsync()
     {
         var result = await HandleKeyAsync(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false), CancellationToken.None).ConfigureAwait(false);
         ApplyNavigation(result);
     }
 
-    private async Task HandleActionMenuEnterAsync()
+    private async Task HandleDetailActionEnterAsync()
     {
         var result = await HandleKeyAsync(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false), CancellationToken.None).ConfigureAwait(false);
         ApplyNavigation(result);
     }
 
-    private async Task<ScreenResult> HandleActionMenuAsync(ConsoleKeyInfo key, CancellationToken cancellationToken)
+    private async Task<ScreenResult> HandleDetailAsync(ConsoleKeyInfo key, CancellationToken cancellationToken)
     {
+        if (_detailFocusOnActions)
+        {
+            return key.Key switch
+            {
+                ConsoleKey.UpArrow => MoveActionSelection(-1),
+                ConsoleKey.DownArrow => MoveActionSelection(1),
+                ConsoleKey.Escape => CloseDetail(),
+                ConsoleKey.Enter => await ExecuteSelectedActionAsync(cancellationToken).ConfigureAwait(false),
+                ConsoleKey.Tab => SwitchDetailFocus(focusActions: false),
+                ConsoleKey.Q => ScreenResult.ConfirmQuit(),
+                ConsoleKey.C when key.Modifiers.HasFlag(ConsoleModifiers.Control) => ScreenResult.Quit(),
+                _ => ScreenResult.Stay()
+            };
+        }
+
         return key.Key switch
         {
-            ConsoleKey.UpArrow => MoveActionSelection(-1),
-            ConsoleKey.DownArrow => MoveActionSelection(1),
-            ConsoleKey.Escape => CloseActionMenu(),
-            ConsoleKey.Enter => await ExecuteSelectedActionAsync(cancellationToken).ConfigureAwait(false),
+            ConsoleKey.UpArrow => ScrollDetailText(-1),
+            ConsoleKey.DownArrow => ScrollDetailText(1),
+            ConsoleKey.Escape => CloseDetail(),
+            ConsoleKey.Tab => SwitchDetailFocus(focusActions: true),
             ConsoleKey.Q => ScreenResult.ConfirmQuit(),
             ConsoleKey.C when key.Modifiers.HasFlag(ConsoleModifiers.Control) => ScreenResult.Quit(),
             _ => ScreenResult.Stay()
@@ -562,19 +613,6 @@ public sealed class HighlightDetailScreen : IScreen
         }
     }
 
-    private ScreenResult HandleHighlightPreview(ConsoleKeyInfo key)
-    {
-        return key.Key switch
-        {
-            ConsoleKey.Escape => CloseHighlightPreview(),
-            ConsoleKey.Enter => CloseHighlightPreview(),
-            ConsoleKey.A => CloseHighlightPreview(),
-            ConsoleKey.Q => ScreenResult.ConfirmQuit(),
-            ConsoleKey.C when key.Modifiers.HasFlag(ConsoleModifiers.Control) => ScreenResult.Quit(),
-            _ => ScreenResult.Stay()
-        };
-    }
-
     private async Task<ScreenResult> HandleDeleteConfirmationAsync(ConsoleKeyInfo key, CancellationToken cancellationToken)
     {
         switch (key.Key)
@@ -613,7 +651,7 @@ public sealed class HighlightDetailScreen : IScreen
                 return ScreenResult.Stay();
             case 4:
                 DeleteConfirmationOpen = true;
-                ActionMenuOpen = false;
+                DetailOpen = false;
                 _statusMessage = null;
                 return ScreenResult.Stay();
             default:
@@ -661,10 +699,9 @@ public sealed class HighlightDetailScreen : IScreen
             _isAuthorExcluded = exclusions.Authors.Any(author => author.Id == _authorId);
             SelectedIndex = Math.Clamp(SelectedIndex, 0, Math.Max(0, _highlights.Count - 1));
             ActionMenuIndex = Math.Clamp(ActionMenuIndex, 0, Math.Max(0, GetActionLabels().Count - 1));
-            ActionMenuOpen = false;
+            DetailOpen = false;
             WeightEditorOpen = false;
             DeleteConfirmationOpen = false;
-            HighlightPreviewOpen = false;
             _previewText = null;
             _statusMessage = $"Reloaded {_highlights.Count.ToString(CultureInfo.InvariantCulture)} highlight(s).";
         }
@@ -715,7 +752,6 @@ public sealed class HighlightDetailScreen : IScreen
         }
 
         _highlights[SelectedIndex] = currentHighlight with { IsExcluded = !currentHighlight.IsExcluded };
-        ActionMenuOpen = false;
         _statusMessage = currentHighlight.IsExcluded ? "Highlight included." : "Highlight excluded.";
     }
 
@@ -732,7 +768,6 @@ public sealed class HighlightDetailScreen : IScreen
         }
 
         _isBookExcluded = !_isBookExcluded;
-        ActionMenuOpen = false;
         _statusMessage = _isBookExcluded ? "Book excluded." : "Book included.";
     }
 
@@ -749,7 +784,6 @@ public sealed class HighlightDetailScreen : IScreen
         }
 
         _isAuthorExcluded = !_isAuthorExcluded;
-        ActionMenuOpen = false;
         _statusMessage = _isAuthorExcluded ? "Author excluded." : "Author included.";
     }
 
@@ -773,9 +807,8 @@ public sealed class HighlightDetailScreen : IScreen
         _highlights.RemoveAt(SelectedIndex);
         SelectedIndex = Math.Clamp(SelectedIndex, 0, Math.Max(0, _highlights.Count - 1));
         DeleteConfirmationOpen = false;
-        ActionMenuOpen = false;
+        DetailOpen = false;
         WeightEditorOpen = false;
-        HighlightPreviewOpen = false;
         _previewText = null;
         _statusMessage = "Highlight deleted.";
     }
@@ -799,6 +832,23 @@ public sealed class HighlightDetailScreen : IScreen
         return ScreenResult.Stay();
     }
 
+    private ScreenResult ScrollDetailText(int delta)
+    {
+        if (_detailTextView is not null)
+        {
+            _detailScrollOffset = Math.Max(0, _detailScrollOffset + delta);
+            _detailTextView.ScrollTo(new System.Drawing.Point(0, _detailScrollOffset));
+        }
+
+        return ScreenResult.Stay();
+    }
+
+    private ScreenResult SwitchDetailFocus(bool focusActions)
+    {
+        _detailFocusOnActions = focusActions;
+        return ScreenResult.Stay();
+    }
+
     private ScreenResult AdjustPendingWeight(int delta)
     {
         PendingWeight = Math.Clamp(PendingWeight + delta, MinimumWeight, MaximumWeight);
@@ -811,15 +861,21 @@ public sealed class HighlightDetailScreen : IScreen
         return ScreenResult.Stay();
     }
 
-    private ScreenResult OpenActionMenu()
+    private ScreenResult OpenDetail()
     {
-        if (_highlights.Count == 0)
+        var currentHighlight = GetSelectedHighlight();
+        if (currentHighlight is null)
         {
             return ScreenResult.Stay();
         }
 
-        ActionMenuOpen = true;
+        _previewText = currentHighlight.Text;
+        DetailOpen = true;
         ActionMenuIndex = 0;
+        _detailScrollOffset = 0;
+        _detailFocusOnActions = true;
+        WeightEditorOpen = false;
+        DeleteConfirmationOpen = false;
         _statusMessage = null;
         return ScreenResult.Stay();
     }
@@ -833,9 +889,8 @@ public sealed class HighlightDetailScreen : IScreen
         }
 
         PendingWeight = currentHighlight.Weight ?? DefaultWeight;
-        ActionMenuOpen = false;
+        DetailOpen = false;
         WeightEditorOpen = true;
-        HighlightPreviewOpen = false;
         _statusMessage = null;
         return ScreenResult.Stay();
     }
@@ -847,34 +902,11 @@ public sealed class HighlightDetailScreen : IScreen
         return ScreenResult.Stay();
     }
 
-    private ScreenResult OpenHighlightPreview()
+    private ScreenResult CloseDetail()
     {
-        var currentHighlight = GetSelectedHighlight();
-        if (currentHighlight is null)
-        {
-            return ScreenResult.Stay();
-        }
-
-        _previewText = currentHighlight.Text;
-        HighlightPreviewOpen = true;
-        ActionMenuOpen = false;
-        WeightEditorOpen = false;
-        DeleteConfirmationOpen = false;
-        _statusMessage = null;
-        return ScreenResult.Stay();
-    }
-
-    private ScreenResult CloseHighlightPreview()
-    {
-        HighlightPreviewOpen = false;
+        DetailOpen = false;
+        _detailScrollOffset = 0;
         _previewText = null;
-        return ScreenResult.Stay();
-    }
-
-    private ScreenResult CloseActionMenu()
-    {
-        ActionMenuOpen = false;
-        _statusMessage = null;
         return ScreenResult.Stay();
     }
 
@@ -956,28 +988,47 @@ public sealed class HighlightDetailScreen : IScreen
 
             if (_highlightList is not null)
             {
+                _highlightList.CanFocus = !DetailOpen && !DeleteConfirmationOpen && !WeightEditorOpen;
                 _highlightList.SelectedItem = _highlightRows is { Count: > 0 }
                     ? Math.Clamp(SelectedIndex, 0, _highlightRows.Count - 1)
                     : 0;
             }
 
-            if (_actionRows is not null)
+            if (_detailActionRows is not null)
             {
-                _actionRows.Clear();
+                _detailActionRows.Clear();
                 foreach (var action in GetActionLabels())
                 {
-                    _actionRows.Add(action);
+                    _detailActionRows.Add(action);
                 }
             }
 
-            if (_actionMenuFrame is not null)
+            if (_detailFrame is not null)
             {
-                _actionMenuFrame.Visible = ActionMenuOpen;
+                _detailFrame.Visible = DetailOpen;
             }
 
-            if (_actionList is not null && _actionRows is { Count: > 0 })
+            if (_detailTextFrame is not null)
             {
-                _actionList.SelectedItem = Math.Clamp(ActionMenuIndex, 0, _actionRows.Count - 1);
+                _detailTextFrame.SetScheme(CreateDetailPaneFrameScheme(DetailOpen && !_detailFocusOnActions));
+            }
+
+            if (_detailActionFrame is not null)
+            {
+                _detailActionFrame.SetScheme(CreateDetailPaneFrameScheme(DetailOpen && _detailFocusOnActions));
+            }
+
+            if (_detailActionList is not null && _detailActionRows is { Count: > 0 })
+            {
+                _detailActionList.SetScheme(CreateDetailActionListScheme(DetailOpen && _detailFocusOnActions));
+                _detailActionList.SelectedItem = Math.Clamp(ActionMenuIndex, 0, _detailActionRows.Count - 1);
+            }
+
+            if (_detailTextView is not null)
+            {
+                _detailTextView.SetScheme(CreateDetailTextViewScheme());
+                _detailTextView.Text = DetailOpen ? _previewText ?? string.Empty : string.Empty;
+                _detailTextView.ScrollTo(new System.Drawing.Point(0, _detailScrollOffset));
             }
 
             if (_weightEditorFrame is not null)
@@ -1000,18 +1051,6 @@ public sealed class HighlightDetailScreen : IScreen
                 _deleteConfirmationFrame.Visible = DeleteConfirmationOpen;
             }
 
-            if (_highlightPreviewFrame is not null)
-            {
-                _highlightPreviewFrame.Visible = HighlightPreviewOpen;
-            }
-
-            if (_previewLabel is not null)
-            {
-                _previewLabel.Text = HighlightPreviewOpen
-                    ? string.Join("\n", WrapPreviewText(_previewText ?? string.Empty, PreviewContentWidth))
-                    : string.Empty;
-            }
-
             if (_statusLabel is not null)
             {
                 _statusLabel.Text = _statusMessage ?? string.Empty;
@@ -1026,13 +1065,18 @@ public sealed class HighlightDetailScreen : IScreen
             {
                 _weightEditorFrame?.SetFocus();
             }
-            else if (HighlightPreviewOpen)
+            else if (DetailOpen)
             {
-                _highlightPreviewFrame?.SetFocus();
-            }
-            else if (ActionMenuOpen)
-            {
-                _actionList?.SetFocus();
+                if (_detailFocusOnActions)
+                {
+                    _detailActionFrame?.SetFocus();
+                    _detailActionList?.SetFocus();
+                }
+                else
+                {
+                    _detailTextFrame?.SetFocus();
+                    _detailTextView?.SetFocus();
+                }
             }
             else if (_highlights.Count > 0)
             {
@@ -1105,61 +1149,6 @@ public sealed class HighlightDetailScreen : IScreen
         => string.Join("  ", Enumerable.Range(MinimumWeight, MaximumWeight)
             .Select(weight => weight == PendingWeight ? $"[{weight}]" : $" {weight} "));
 
-    private static IEnumerable<string> WrapPreviewText(string text, int width)
-    {
-        if (width <= 0)
-        {
-            yield return text;
-            yield break;
-        }
-
-        foreach (var paragraph in text.ReplaceLineEndings("\n").Split('\n'))
-        {
-            if (string.IsNullOrEmpty(paragraph))
-            {
-                yield return string.Empty;
-                continue;
-            }
-
-            var lineBuilder = new StringBuilder();
-            foreach (var segment in paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            {
-                var word = segment;
-                while (word.Length > width)
-                {
-                    if (lineBuilder.Length > 0)
-                    {
-                        yield return lineBuilder.ToString();
-                        lineBuilder.Clear();
-                    }
-
-                    yield return word[..width];
-                    word = word[width..];
-                }
-
-                if (lineBuilder.Length == 0)
-                {
-                    lineBuilder.Append(word);
-                }
-                else if (lineBuilder.Length + 1 + word.Length <= width)
-                {
-                    lineBuilder.Append(' ').Append(word);
-                }
-                else
-                {
-                    yield return lineBuilder.ToString();
-                    lineBuilder.Clear();
-                    lineBuilder.Append(word);
-                }
-            }
-
-            if (lineBuilder.Length > 0)
-            {
-                yield return lineBuilder.ToString();
-            }
-        }
-    }
-
     private static string FormatHeader(TableLayout tableLayout)
         => $"{FitCell("WEIGHT", tableLayout.WeightWidth)}  {" ",DotColumnWidth}  {FitCell("HIGHLIGHT", tableLayout.HighlightWidth)}";
 
@@ -1196,12 +1185,6 @@ public sealed class HighlightDetailScreen : IScreen
         if (rune is 'r' or 'R')
         {
             mappedKey = new ConsoleKeyInfo((char)rune, ConsoleKey.R, char.IsUpper((char)rune), false, false);
-            return true;
-        }
-
-        if (rune is 'a' or 'A')
-        {
-            mappedKey = new ConsoleKeyInfo((char)rune, ConsoleKey.A, char.IsUpper((char)rune), false, false);
             return true;
         }
 
@@ -1248,15 +1231,39 @@ public sealed class HighlightDetailScreen : IScreen
         return mappedKey.Key != 0;
     }
 
-    private static bool TryMapHighlightPreviewKey(Key key, out ConsoleKeyInfo mappedKey)
+    private static bool TryMapDetailKey(Key key, out ConsoleKeyInfo mappedKey)
     {
-        if (key.KeyCode == KeyCode.Enter)
+        switch (key.KeyCode)
         {
-            mappedKey = new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false);
+            case KeyCode.CursorUp:
+                mappedKey = new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false);
+                return true;
+            case KeyCode.CursorDown:
+                mappedKey = new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false);
+                return true;
+            case KeyCode.Enter:
+                mappedKey = new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false);
+                return true;
+            case KeyCode.Tab:
+                mappedKey = new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false);
+                return true;
+            case KeyCode.Esc:
+                mappedKey = new ConsoleKeyInfo('\u001b', ConsoleKey.Escape, false, false, false);
+                return true;
+            case var keyCode when keyCode == (KeyCode.C | KeyCode.CtrlMask):
+                mappedKey = new ConsoleKeyInfo('c', ConsoleKey.C, false, false, true);
+                return true;
+        }
+
+        var rune = key.AsRune.Value;
+        if (rune is 'q' or 'Q')
+        {
+            mappedKey = new ConsoleKeyInfo((char)rune, ConsoleKey.Q, char.IsUpper((char)rune), false, false);
             return true;
         }
 
-        return TryMapGlobalKey(key, out mappedKey);
+        mappedKey = default;
+        return false;
     }
 
     private static bool TryMapDeleteConfirmationKey(Key key, out ConsoleKeyInfo mappedKey)
@@ -1296,6 +1303,71 @@ public sealed class HighlightDetailScreen : IScreen
         return new TableLayout(
             Math.Max(0, highlightWidth),
             WeightColumnWidth);
+    }
+
+    private static Terminal.Gui.Drawing.Scheme CreateDetailPaneFrameScheme(bool isFocused)
+    {
+        var palette = TuiTheme.Palette;
+        var borderColor = isFocused ? palette.BorderFocus : palette.Border;
+        var attribute = new Terminal.Gui.Drawing.Attribute(borderColor, palette.Background);
+
+        return new Terminal.Gui.Drawing.Scheme(attribute)
+        {
+            Normal = attribute,
+            Focus = attribute,
+            Active = attribute,
+            HotNormal = attribute,
+            HotFocus = attribute,
+            HotActive = attribute,
+            Disabled = attribute
+        };
+    }
+
+    private static Terminal.Gui.Drawing.Scheme CreateDetailTextViewScheme()
+    {
+        var palette = TuiTheme.Palette;
+        var text = new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background);
+        var muted = new Terminal.Gui.Drawing.Attribute(palette.TextMuted, palette.Background);
+
+        return new Terminal.Gui.Drawing.Scheme(text)
+        {
+            Normal = text,
+            Focus = text,
+            Active = text,
+            Code = text,
+            Editable = text,
+            Highlight = text,
+            HotActive = text,
+            HotFocus = text,
+            HotNormal = text,
+            ReadOnly = text,
+            Disabled = muted
+        };
+    }
+
+    private static Terminal.Gui.Drawing.Scheme CreateDetailActionListScheme(bool isFocused)
+    {
+        var palette = TuiTheme.Palette;
+        var normal = new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background);
+        var selectedBackground = isFocused ? palette.AccentText : palette.Border;
+        var selectedForeground = TuiTheme.ContrastRatio(palette.Background, selectedBackground)
+            >= TuiTheme.ContrastRatio(palette.Text, selectedBackground)
+            ? palette.Background
+            : palette.Text;
+        var selected = new Terminal.Gui.Drawing.Attribute(selectedForeground, selectedBackground);
+        var muted = new Terminal.Gui.Drawing.Attribute(palette.TextMuted, palette.Background);
+
+        return new Terminal.Gui.Drawing.Scheme(normal)
+        {
+            Normal = normal,
+            Focus = selected,
+            Active = selected,
+            Highlight = selected,
+            HotNormal = normal,
+            HotFocus = selected,
+            HotActive = selected,
+            Disabled = muted
+        };
     }
 
     private static string FitCell(string value, int width)
