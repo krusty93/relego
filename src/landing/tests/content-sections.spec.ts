@@ -36,7 +36,7 @@ test.describe('Content Sections', () => {
 		const section = page.locator('#getting-started');
 		const tabs = section.locator('[data-step-tab]');
 		await expect(tabs).toHaveCount(3);
-		await expect(tabs.nth(0).locator('h3')).toHaveText('Sync your highlights');
+		await expect(tabs.nth(0).locator('h3')).toHaveText('Import your highlights');
 		await expect(tabs.nth(1).locator('h3')).toHaveText('Let the server schedule');
 		await expect(tabs.nth(2).locator('h3')).toHaveText('Read on your Kindle');
 	});
