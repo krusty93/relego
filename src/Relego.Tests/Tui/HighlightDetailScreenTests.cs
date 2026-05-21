@@ -52,7 +52,25 @@ public sealed class HighlightDetailScreenTests
         Assert.Equal(ScreenAction.None, result.Action);
         Assert.True(screen.DetailOpen);
         Assert.Equal(0, screen.ActionMenuIndex);
+        Assert.True(screen.DetailFocusOnActions);
         Assert.Equal("First highlight", screen.PreviewText);
+    }
+
+    [Fact]
+    public async Task HandleKeyAsync_TabSwitchesFocusBetweenDetailPanes()
+    {
+        using var mockHttp = new MockHttpMessageHandler();
+        using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
+        var screen = CreateScreen(new RelegoHttpClient(httpClient));
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Enter), CancellationToken.None);
+        Assert.True(screen.DetailFocusOnActions);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Tab, '\t'), CancellationToken.None);
+        Assert.False(screen.DetailFocusOnActions);
+
+        await screen.HandleKeyAsync(Key(ConsoleKey.Tab, '\t'), CancellationToken.None);
+        Assert.True(screen.DetailFocusOnActions);
     }
 
     [Fact]

@@ -57,7 +57,8 @@ public sealed class HighlightDetailScreen : IScreen
     private FrameView? _detailActionFrame;
     private ObservableCollection<string>? _detailActionRows;
     private ListView? _detailActionList;
-    private Label? _detailTabHintLabel;
+    private Label? _detailTabHintKeyLabel;
+    private Label? _detailTabHintDescriptionLabel;
     private int _detailScrollOffset;
     private bool _detailFocusOnActions = true;
     private Action<ScreenResult>? _navigate;
@@ -97,6 +98,8 @@ public sealed class HighlightDetailScreen : IScreen
     public int PendingWeight { get; private set; } = DefaultWeight;
 
     public bool DeleteConfirmationOpen { get; private set; }
+
+    public bool DetailFocusOnActions => _detailFocusOnActions;
 
     public string? PreviewText => _previewText;
 
@@ -250,8 +253,9 @@ public sealed class HighlightDetailScreen : IScreen
             Width = DetailLeftPaneWidth,
             Height = Dim.Fill(),
             Title = string.Empty,
-            CanFocus = false
+            CanFocus = true
         };
+        _detailTextFrame.KeyDown += async (_, key) => await HandleDetailTextKeyDownAsync(key).ConfigureAwait(false);
         _detailTextFrame.Add(_detailTextView);
 
         _detailActionRows = new ObservableCollection<string>();
@@ -274,16 +278,28 @@ public sealed class HighlightDetailScreen : IScreen
         _detailActionList.Accepting += async (_, _) => await HandleDetailActionEnterAsync().ConfigureAwait(false);
         _detailActionList.KeyDown += async (_, key) => await HandleDetailKeyDownAsync(key).ConfigureAwait(false);
 
-        _detailTabHintLabel = new Label
+        _detailTabHintKeyLabel = new Label
         {
             X = 0,
             Y = Pos.AnchorEnd(1),
-            Width = Dim.Fill(),
+            Width = 5,
             Height = 1,
-            Text = "<Tab> Switch panel",
+            Text = "<Tab>",
             CanFocus = false
         };
-        _detailTabHintLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
+        _detailTabHintKeyLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
+            TuiTheme.Palette.AccentText, TuiTheme.Palette.Background)));
+
+        _detailTabHintDescriptionLabel = new Label
+        {
+            X = Pos.Right(_detailTabHintKeyLabel),
+            Y = Pos.AnchorEnd(1),
+            Width = Dim.Fill(),
+            Height = 1,
+            Text = " Switch panel",
+            CanFocus = false
+        };
+        _detailTabHintDescriptionLabel.SetScheme(new Terminal.Gui.Drawing.Scheme(new Terminal.Gui.Drawing.Attribute(
             TuiTheme.Palette.TextMuted, TuiTheme.Palette.Background)));
 
         _detailActionFrame = new FrameView
@@ -293,9 +309,10 @@ public sealed class HighlightDetailScreen : IScreen
             Width = DetailRightPaneWidth,
             Height = Dim.Fill(),
             Title = string.Empty,
-            CanFocus = false
+            CanFocus = true
         };
-        _detailActionFrame.Add(_detailActionList, _detailTabHintLabel);
+        _detailActionFrame.KeyDown += async (_, key) => await HandleDetailKeyDownAsync(key).ConfigureAwait(false);
+        _detailActionFrame.Add(_detailActionList, _detailTabHintKeyLabel, _detailTabHintDescriptionLabel);
 
         _detailFrame = new FrameView
         {
@@ -969,6 +986,7 @@ public sealed class HighlightDetailScreen : IScreen
 
             if (_highlightList is not null)
             {
+                _highlightList.CanFocus = !DetailOpen && !DeleteConfirmationOpen && !WeightEditorOpen;
                 _highlightList.SelectedItem = _highlightRows is { Count: > 0 }
                     ? Math.Clamp(SelectedIndex, 0, _highlightRows.Count - 1)
                     : 0;
@@ -1047,10 +1065,12 @@ public sealed class HighlightDetailScreen : IScreen
             {
                 if (_detailFocusOnActions)
                 {
+                    _detailActionFrame?.SetFocus();
                     _detailActionList?.SetFocus();
                 }
                 else
                 {
+                    _detailTextFrame?.SetFocus();
                     _detailTextView?.SetFocus();
                 }
             }
