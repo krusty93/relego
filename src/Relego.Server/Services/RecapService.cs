@@ -54,7 +54,7 @@ public sealed class RecapService : IRecapService
         }
 
         var epubContent = EpubComposer.Compose(candidates, scheduledFor, settings.Schedule);
-        var fileName = $"recap-{scheduledFor:yyyyMMdd-HHmmss}.epub";
+        var fileName = $"Relego Recap - {scheduledFor:yyy-MM-dd HH:mm}.epub";
 
         var attemptCount = 0;
 
