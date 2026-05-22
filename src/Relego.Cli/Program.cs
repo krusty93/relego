@@ -9,6 +9,7 @@ using Spectre.Console.Cli;
 using Relego.Cli.Commands;
 using Relego.Cli.Commands.Config;
 using Relego.Cli.Commands.Exclude;
+using Relego.Cli.Commands.Recap;
 using Relego.Cli.Commands.Weight;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
@@ -125,6 +126,13 @@ app.Configure(config =>
             .WithDescription("Set the recap weight for a highlight (1–5).");
         wgt.AddCommand<WeightListCommand>("list")
             .WithDescription("List all highlights with custom weights.");
+    });
+
+    config.AddBranch("recap", r =>
+    {
+        r.SetDescription("Manage recaps.");
+        r.AddCommand<RecapTriggerCommand>("trigger")
+            .WithDescription("Trigger a recap immediately.");
     });
 
     config.AddCommand<RenameBookCommand>("rename-book")

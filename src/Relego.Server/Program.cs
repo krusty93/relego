@@ -117,9 +117,9 @@ if (app.Environment.IsDevelopment())
     {
         options.DisplayRequestDuration();
     });
-    app.MapDevEndpoints();
 }
 
+app.MapRecapEndpoints();
 app.MapProbeEndpoints();
 app.MapSyncEndpoints();
 app.MapSettingsEndpoints();

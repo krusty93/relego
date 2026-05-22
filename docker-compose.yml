@@ -1,0 +1,52 @@
+services:
+  relego-cli:
+    image: ghcr.io/krusty93/relego.cli:latest
+    restart: "no"
+    tty: true
+    environment:
+      RELEGO_SERVER: http://relego-server:8080
+    networks:
+      - relego
+    profiles: [client]
+
+  relego-server:
+    image: ghcr.io/krusty93/relego.server:latest
+    restart: unless-stopped
+    environment:
+      SMTP_FROM_ADDRESS: noreply@example.com
+      KINDLE_EMAIL: your-address@kindle.com
+
+      SMTP_USER: user@example.com
+      SMTP_PASSWORD: yourpassword
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: "587"
+
+      # smtp4dev demo mode: replace the four lines above with these
+      # SMTP_PASSWORD: ""
+      # ASPNETCORE_ENVIRONMENT: Development
+      # SMTP_HOST: smtp4dev
+      # SMTP_PORT: "2525"
+    ports:
+      - "8080:8080"
+    volumes:
+      - relego-data:/data
+    networks:
+      - relego
+    profiles: [server, demo]
+
+  smtp4dev:
+    image: rnwood/smtp4dev:latest
+    restart: unless-stopped
+    environment:
+      ServerOptions__SmtpPort: "2525"
+    ports:
+      - "5000:80"
+    networks:
+      - relego
+    profiles: [demo]
+
+volumes:
+  relego-data:
+
+networks:
+  relego:

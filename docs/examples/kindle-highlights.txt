@@ -1,0 +1,65 @@
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on page 14 | Location 182-184 | Added on Monday, January 10, 2022 9:15:00 AM
+
+Care About Your Craft. Why spend your life developing software unless you care about doing it well?
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on page 36 | Location 472-474 | Added on Tuesday, January 11, 2022 8:40:00 AM
+
+Provide Options, Don't Make Lame Excuses. Instead of excuses, provide options. Don't say it can't be done; explain what can be done.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on page 62 | Location 800-802 | Added on Wednesday, January 12, 2022 7:55:00 AM
+
+It's Both What You Say and the Way You Say It. There's no point in having great ideas if you don't communicate them effectively.
+==========
+Clean Code (Robert C. Martin)
+- Your Highlight on page 11 | Location 121-123 | Added on Friday, February 4, 2022 10:20:00 AM
+
+Clean code is simple and direct. Clean code reads like well-written prose. Clean code never obscures the designer's intent but rather is full of crisp abstractions and straightforward lines of control.
+==========
+Clean Code (Robert C. Martin)
+- Your Highlight on page 48 | Location 614-616 | Added on Saturday, February 5, 2022 9:05:00 AM
+
+The name of a variable, function, or class, should answer all the big questions. It should tell you why it exists, what it does, and how it is used.
+==========
+Clean Code (Robert C. Martin)
+- Your Highlight on page 76 | Location 987-989 | Added on Sunday, February 6, 2022 11:30:00 AM
+
+Functions should do one thing. They should do it well. They should do it only.
+==========
+The Hobbit (J.R.R. Tolkien)
+- Your Highlight on page 1 | Location 3-4 | Added on Thursday, March 3, 2022 8:00:00 PM
+
+In a hole in the ground there lived a hobbit. Not a nasty, dirty, wet hole, filled with the ends of worms and an oozy smell, nor yet a dry, bare, sandy hole with nothing in it to sit down on or to eat.
+==========
+The Hobbit (J.R.R. Tolkien)
+- Your Highlight on page 284 | Location 4321-4323 | Added on Sunday, March 6, 2022 9:45:00 PM
+
+Go back? No good at all! Go sideways? Impossible! Go forward? Only thing to do! On we go!
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Highlight on page 20 | Location 257-259 | Added on Monday, April 4, 2022 7:10:00 AM
+
+The confidence that individuals have in their beliefs depends mostly on the quality of the story they can tell about what they see, even if they see little.
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Highlight on page 85 | Location 1092-1094 | Added on Tuesday, April 5, 2022 6:55:00 AM
+
+Nothing in life is as important as you think it is, while you are thinking about it.
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Highlight on page 217 | Location 2791-2793 | Added on Wednesday, April 6, 2022 7:30:00 AM
+
+This is the essence of intuitive heuristics: when faced with a difficult question, we often answer an easier one instead, without noticing the substitution.
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 73 | Location 945-947 | Added on Saturday, May 21, 2022 8:30:00 AM
+
+Violence is the last refuge of the incompetent.
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 195 | Location 2510-2512 | Added on Sunday, May 22, 2022 9:00:00 AM
+
+The fall of Empire, gentlemen, is a massive thing, however, and not easily fought. It is dictated by a rising bureaucracy, a receding initiative, a freezing of caste, a damming of curiosity — a hundred other factors.
+==========

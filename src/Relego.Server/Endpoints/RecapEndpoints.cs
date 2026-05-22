@@ -4,14 +4,11 @@ using Relego.Server.Services;
 
 namespace Relego.Server.Endpoints;
 
-/// <summary>
-/// Development-only endpoints. Registered exclusively when the host environment is Development.
-/// </summary>
-public static class DevEndpoints
+public static class RecapEndpoints
 {
-    public static WebApplication MapDevEndpoints(this WebApplication app)
+    public static WebApplication MapRecapEndpoints(this WebApplication app)
     {
-        app.MapPost("/dev/recap/trigger", async (
+        app.MapPost("/recap/trigger", async (
             [FromServices] UserRepository userRepo,
             [FromServices] IRecapService recapService,
             CancellationToken ct) =>
@@ -29,8 +26,8 @@ public static class DevEndpoints
                 return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status500InternalServerError);
             }
         })
-        .WithSummary("Trigger a recap immediately (Development only).")
-        .WithDescription("Executes the full recap pipeline synchronously for the implicit user. Only available in the Development environment.")
+        .WithSummary("Trigger a recap immediately.")
+        .WithDescription("Executes the full recap pipeline synchronously for the implicit user.")
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status500InternalServerError);
 

@@ -440,12 +440,8 @@ public sealed class SettingsScreen : IScreen
 
             try
             {
-                using var response = await _client.PostTestRecapAsync(cancellationToken).ConfigureAwait(false);
-
-                if (response.IsSuccessStatusCode)
-                    SetStatus("Recap triggered.", isError: false);
-                else
-                    SetStatus("Recap trigger failed.", isError: true);
+                await _client.TriggerRecapAsync(cancellationToken).ConfigureAwait(false);
+                SetStatus("Recap triggered.", isError: false);
             }
             catch (HttpRequestException ex)
             {
