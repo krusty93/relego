@@ -285,3 +285,32 @@ Errors are actionable — they tell the user exactly what to do.
 
 - `relego sync` auto-detects the Kindle mount path on macOS, Linux, and Windows. If not found, it prompts the user to enter the path interactively.
 - Server authentication is not required — the server is assumed to be on a trusted local network.
+
+---
+
+## Local development (VS Code)
+
+### Configuration philosophy
+
+All application settings live in `appsettings.*.json` — never in `.vscode/launch.json`. The launch configuration contains only the **minimum bootstrapping** needed by the .NET hosting framework:
+
+| File | Purpose |
+|------|---------|
+| `launch.json` | Sets `ASPNETCORE_ENVIRONMENT` / `DOTNET_ENVIRONMENT` to `Development` (selects which config files to load) |
+| `appsettings.json` | Base settings shared across all environments |
+| `appsettings.Development.json` | Dev-only overrides: URLs, ports, logging levels, local SMTP, etc. |
+| `Properties/launchSettings.json` | Used by `dotnet run` (not the debugger); keep in sync with appsettings for consistency |
+
+### Changing a setting
+
+Edit `appsettings.Development.json` in the relevant project — no need to touch `.vscode/`.
+
+**Examples:**
+
+- Change the server port → `src/Relego.Server/appsettings.Development.json` → `"Urls": "http://localhost:9090"`
+- Change SMTP settings → same file, `"Smtp"` section
+- Change CLI log level → `src/Relego.Cli/appsettings.Development.json` → `"Serilog"` section
+
+### Running in debug
+
+Press **F5** and select `Relego.Server` or `Relego.Cli`. Both configurations automatically load `appsettings.Development.json` thanks to the environment variable set in `launch.json`.

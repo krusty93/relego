@@ -6,8 +6,15 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build: Relego.Cli",
-            "program": "${workspaceFolder}/src/Relego.Cli/bin/Debug/net10.0/Relego.Cli.dll",
-            "args": [],
+            "program": "dotnet",
+            "args": [
+                "run",
+                "--no-build",
+                "--project",
+                "${workspaceFolder}/src/Relego.Cli/Relego.Cli.csproj",
+                "--launch-profile",
+                "default"
+            ],
             "cwd": "${workspaceFolder}/src/Relego.Cli",
             "console": "integratedTerminal",
             "stopAtEntry": false
@@ -17,19 +24,18 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build: Relego.Server",
-            "program": "${workspaceFolder}/src/Relego.Server/bin/Debug/net10.0/Relego.Server.dll",
-            "args": [],
+            "program": "dotnet",
+            "args": [
+                "run",
+                "--no-build",
+                "--project",
+                "${workspaceFolder}/src/Relego.Server/Relego.Server.csproj",
+                "--launch-profile",
+                "${input:serverLaunchProfile}"
+            ],
             "cwd": "${workspaceFolder}/src/Relego.Server",
             "console": "integratedTerminal",
-            "stopAtEntry": false,
-            "env": {
-                "ASPNETCORE_ENVIRONMENT": "${input:serverEnvironment}",
-                "ASPNETCORE_HTTP_PORTS": "8080"
-            },
-            "serverReadyAction": {
-                "action": "openExternally",
-                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
-            }
+            "stopAtEntry": false
         }
     ],
     "compounds": [
@@ -44,14 +50,14 @@
     ],
     "inputs": [
         {
-            "id": "serverEnvironment",
+            "id": "serverLaunchProfile",
             "type": "pickString",
-            "description": "Pick the environment for Relego.Server",
+            "description": "Pick the server launch profile",
             "options": [
-                "Development",
-                "Production"
+                "http",
+                "https"
             ],
-            "default": "Development"
+            "default": "http"
         }
     ]
 }
