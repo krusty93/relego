@@ -75,6 +75,57 @@ public sealed class EpubComposerTests
         Assert.NotNull(archive.GetEntry("OEBPS/content.opf"));
         Assert.NotNull(archive.GetEntry("OEBPS/toc.ncx"));
         Assert.NotNull(archive.GetEntry("OEBPS/highlights.xhtml"));
+        Assert.NotNull(archive.GetEntry("OEBPS/cover.svg"));
+        Assert.NotNull(archive.GetEntry("OEBPS/cover.xhtml"));
+    }
+
+    [Fact]
+    public void Compose_CoverSvg_ContainsLogoPath()
+    {
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        var svg = ReadEntry(archive, "OEBPS/cover.svg");
+        Assert.Contains("<svg", svg);
+        Assert.Contains("<path", svg);
+    }
+
+    [Fact]
+    public void Compose_CoverXhtml_ReferencesCoversImage()
+    {
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        var coverXhtml = ReadEntry(archive, "OEBPS/cover.xhtml");
+        Assert.Contains("cover.svg", coverXhtml);
+    }
+
+    [Fact]
+    public void Compose_ContentOpf_HasCoverImageManifestItem()
+    {
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        var opf = ReadEntry(archive, "OEBPS/content.opf");
+        Assert.Contains("id=\"cover-image\" href=\"cover.svg\" media-type=\"image/svg+xml\"", opf);
+    }
+
+    [Fact]
+    public void Compose_ContentOpf_HasCoverMetaTag()
+    {
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        var opf = ReadEntry(archive, "OEBPS/content.opf");
+        Assert.Contains("<meta name=\"cover\" content=\"cover-image\"/>", opf);
     }
 
     [Fact]
