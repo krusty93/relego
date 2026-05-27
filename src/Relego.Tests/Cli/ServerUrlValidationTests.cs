@@ -5,6 +5,36 @@ namespace Relego.Tests.Cli;
 public sealed class ServerUrlValidationTests
 {
     [Fact]
+    public void GetConfiguredOrDefault_MissingValue_ReturnsLocalhostDefault()
+    {
+        var value = ServerUrlValidator.GetConfiguredOrDefault(null);
+
+        Assert.Equal(ServerUrlValidator.DefaultServerUrl, value);
+    }
+
+    [Fact]
+    public void Resolve_MissingValue_ReturnsValidDefaultUri()
+    {
+        var result = ServerUrlValidator.Resolve(null, out var uri, out var resolvedValue);
+
+        Assert.Equal(ServerUrlValidator.ValidationResult.Valid, result);
+        Assert.NotNull(uri);
+        Assert.Equal(ServerUrlValidator.DefaultServerUrl, resolvedValue);
+        Assert.Equal(ServerUrlValidator.DefaultServerUrl, uri.ToString().TrimEnd('/'));
+    }
+
+    [Fact]
+    public void Resolve_ConfiguredValue_TrimsAndPreservesUrl()
+    {
+        var result = ServerUrlValidator.Resolve("  https://relego.example.com/base/  ", out var uri, out var resolvedValue);
+
+        Assert.Equal(ServerUrlValidator.ValidationResult.Valid, result);
+        Assert.NotNull(uri);
+        Assert.Equal("https://relego.example.com/base/", resolvedValue);
+        Assert.Equal("https://relego.example.com/base", uri.ToString().TrimEnd('/'));
+    }
+
+    [Fact]
     public void Validate_NullValue_ReturnsMissing()
     {
         var result = ServerUrlValidator.Validate(null, out var uri);

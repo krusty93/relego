@@ -16,6 +16,20 @@ using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+var validationResult = ServerUrlValidator.Resolve(builder.Configuration["relego_server"], out Uri? serverUri, out string resolvedServerUrl);
+if (validationResult == ServerUrlValidator.ValidationResult.Malformed)
+{
+    AnsiConsole.MarkupLine($"[red]Error:[/] RELEGO_SERVER value is not a valid HTTP URL: [yellow]{resolvedServerUrl}[/]");
+    return 1;
+}
+
+var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["relego_server"] = normalizedServerUrl
+});
+Environment.SetEnvironmentVariable("RELEGO_SERVER", normalizedServerUrl);
+
 bool isTuiMode = TuiModeDetector.Detect(args, Console.IsInputRedirected) == StartupMode.Tui;
 
 Log.Logger = isTuiMode
@@ -31,16 +45,6 @@ builder.Services.AddLogging(loggingBuilder =>
     loggingBuilder.ClearProviders();
     loggingBuilder.AddSerilog(Log.Logger, dispose: true);
 });
-
-string? serverUrl = builder.Configuration["relego_server"];
-var validationResult = ServerUrlValidator.Validate(serverUrl, out Uri? serverUri);
-if (validationResult == ServerUrlValidator.ValidationResult.Malformed)
-{
-    AnsiConsole.MarkupLine($"[red]Error:[/] RELEGO_SERVER value is not a valid HTTP URL: [yellow]{serverUrl}[/]");
-    return 1;
-}
-
-var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
 
 Assembly assembly = typeof(ImportCommand).Assembly;
 string applicationName = "relego";

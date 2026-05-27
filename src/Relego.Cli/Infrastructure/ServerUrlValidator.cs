@@ -5,11 +5,32 @@
 /// </summary>
 public static class ServerUrlValidator
 {
+    public const string DefaultServerUrl = "http://localhost:8080";
+
     public enum ValidationResult
     {
         Valid,
         Missing,
         Malformed,
+    }
+
+    /// <summary>
+    /// Returns the configured server URL, or the documented localhost default when no value is configured.
+    /// </summary>
+    public static string GetConfiguredOrDefault(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? DefaultServerUrl
+            : value.Trim();
+    }
+
+    /// <summary>
+    /// Resolves the configured server URL to a usable value and validates it.
+    /// </summary>
+    public static ValidationResult Resolve(string? value, out Uri? uri, out string resolvedValue)
+    {
+        resolvedValue = GetConfiguredOrDefault(value);
+        return Validate(resolvedValue, out uri);
     }
 
     /// <summary>
