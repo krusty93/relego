@@ -167,7 +167,7 @@ The installer detects your OS and architecture automatically and prints the path
 
 </details>
 
-The native client automatically connects to `http://localhost:8080`. That default is stored as `Server:Url`; override it at runtime with `SERVER_URL` before starting the TUI:
+The native client automatically connects to `http://localhost:8080`. If you ran the server on a different host machine or port, override `SERVER_URL` before starting the TUI:
 
 ```powershell
 # PowerShell

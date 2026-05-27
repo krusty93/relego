@@ -16,24 +16,6 @@ using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-var validationResult = ServerUrlValidator.Resolve(
-    builder.Configuration[ServerUrlValidator.ConfigKey],
-    Environment.GetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName),
-    out Uri? serverUri,
-    out string resolvedServerUrl);
-if (validationResult == ServerUrlValidator.ValidationResult.Malformed)
-{
-    AnsiConsole.MarkupLine($"[red]Error:[/] {ServerUrlValidator.EnvironmentVariableName} or {ServerUrlValidator.ConfigKey} must be a valid HTTP URL: [yellow]{Markup.Escape(resolvedServerUrl)}[/]");
-    return 1;
-}
-
-var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
-builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-{
-    [ServerUrlValidator.ConfigKey] = normalizedServerUrl
-});
-Environment.SetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName, normalizedServerUrl);
-
 bool isTuiMode = TuiModeDetector.Detect(args, Console.IsInputRedirected) == StartupMode.Tui;
 
 Log.Logger = isTuiMode
@@ -49,6 +31,25 @@ builder.Services.AddLogging(loggingBuilder =>
     loggingBuilder.ClearProviders();
     loggingBuilder.AddSerilog(Log.Logger, dispose: true);
 });
+
+var validationResult = ServerUrlValidator.Resolve(
+    builder.Configuration[ServerUrlValidator.ConfigKey],
+    Environment.GetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName),
+    out Uri? serverUri,
+    out string resolvedServerUrl);
+
+if (validationResult == ServerUrlValidator.ValidationResult.Malformed)
+{
+    AnsiConsole.MarkupLine($"[red]Error:[/] {ServerUrlValidator.EnvironmentVariableName} or {ServerUrlValidator.ConfigKey} must be a valid HTTP URL: [yellow]{Markup.Escape(resolvedServerUrl)}[/]");
+    return 1;
+}
+
+var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    [ServerUrlValidator.ConfigKey] = normalizedServerUrl
+});
+Environment.SetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName, normalizedServerUrl);
 
 Assembly assembly = typeof(ImportCommand).Assembly;
 string applicationName = "relego";
