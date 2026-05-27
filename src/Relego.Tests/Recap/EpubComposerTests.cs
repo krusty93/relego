@@ -91,13 +91,14 @@ public sealed class EpubComposerTests
         Assert.Contains("<svg", svg);
         Assert.Contains("<path", svg);
         Assert.Contains("viewBox=\"0 0 1200 1600\"", svg);
+        Assert.Contains("preserveAspectRatio=\"xMidYMid slice\"", svg);
         Assert.Contains("fill=\"#b56b39\"", svg);
         Assert.Contains("fill=\"#ffffff\"", svg);
         Assert.DoesNotContain("#16110f", svg);
     }
 
     [Fact]
-    public void Compose_CoverXhtml_ReferencesCoversImage()
+    public void Compose_CoverXhtml_RendersInlineFullBleedSvg()
     {
         var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
 
@@ -105,9 +106,14 @@ public sealed class EpubComposerTests
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
         var coverXhtml = ReadEntry(archive, "OEBPS/cover.xhtml");
-        Assert.Contains("cover.svg", coverXhtml);
+        Assert.Contains("@page", coverXhtml);
+        Assert.Contains("overflow: hidden;", coverXhtml);
+        Assert.Contains("background: #b56b39;", coverXhtml);
+        Assert.Contains("<svg", coverXhtml);
+        Assert.Contains("preserveAspectRatio=\"xMidYMid slice\"", coverXhtml);
         Assert.Contains("height: 100%;", coverXhtml);
         Assert.Contains("width: 100%;", coverXhtml);
+        Assert.DoesNotContain("<img", coverXhtml);
     }
 
     [Fact]

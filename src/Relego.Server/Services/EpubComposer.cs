@@ -47,46 +47,54 @@ public static class EpubComposer
         </container>
         """;
 
-    private static string BuildCoverXhtml() => """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-        <html xmlns="http://www.w3.org/1999/xhtml">
-        <head>
-        <title>Cover</title>
-        <style type="text/css">
-          html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-          }
-          body {
-            width: 100%;
-          }
-          div {
-            height: 100%;
-            width: 100%;
-          }
-          img {
-            display: block;
-            height: 100%;
-            width: 100%;
-          }
-        </style>
-        </head>
-        <body>
-        <div>
-          <img src="cover.svg" alt="Relego cover"/>
-        </div>
-        </body>
-        </html>
-        """;
+    private static string BuildCoverXhtml()
+    {
+        var accentColor = ToHex(BrandColors.Light.Accent);
+        var inlineCoverSvg = BuildCoverSvgMarkup("100%", "100%");
 
-    private static string BuildCoverSvg()
+        return $$"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+            <html xmlns="http://www.w3.org/1999/xhtml">
+            <head>
+            <title>Cover</title>
+            <style type="text/css">
+              @page {
+                margin: 0;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                background: {{accentColor}};
+              }
+              body {
+                line-height: 0;
+              }
+              svg {
+                display: block;
+                width: 100%;
+                height: 100%;
+              }
+            </style>
+            </head>
+            <body>
+            {{inlineCoverSvg}}
+            </body>
+            </html>
+            """;
+    }
+
+    private static string BuildCoverSvg() => BuildCoverSvgMarkup("1200", "1600");
+
+    private static string BuildCoverSvgMarkup(string width, string height)
     {
         var accentColor = ToHex(BrandColors.Light.Accent);
 
         return $$"""
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" role="img" aria-label="Relego cover">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" width="{{width}}" height="{{height}}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Relego cover">
               <rect width="1200" height="1600" fill="{{accentColor}}" />
               <path fill="#ffffff" transform="translate(600 800) scale(22) translate(-32 -32)" d="{{CoverGlyphPath}}" />
             </svg>
