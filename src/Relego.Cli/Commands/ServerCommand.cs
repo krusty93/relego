@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Relego.Cli.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -15,11 +16,12 @@ public abstract class ServerCommand<TSettings> : AsyncCommand<TSettings>
 
     protected int HandleServerError(HttpRequestException ex)
     {
-        var serverUrl = Environment.GetEnvironmentVariable("RELEGO_SERVER");
+        var serverUrl = Environment.GetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName)
+            ?? ServerUrlValidator.DefaultServerUrl;
         Logger.LogError(ex, "Failed to reach server at {ServerUrl}", serverUrl);
-        AnsiConsole.MarkupLine($"[red]Error:[/] Cannot reach server at [yellow]{serverUrl}[/]");
-        AnsiConsole.MarkupLine($"[grey]{ex.Message}[/]");
-        AnsiConsole.MarkupLine("[grey]Check that the server is running and RELEGO_SERVER is correct.[/]");
+        AnsiConsole.MarkupLine($"[red]Error:[/] Cannot reach server at [yellow]{Markup.Escape(serverUrl)}[/]");
+        AnsiConsole.MarkupLine($"[grey]{Markup.Escape(ex.Message)}[/]");
+        AnsiConsole.MarkupLine($"[grey]Check that the server is running and {ServerUrlValidator.EnvironmentVariableName} is correct.[/]");
         return 1;
     }
 }

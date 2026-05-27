@@ -44,7 +44,7 @@ That's it. The server is running and will start sending recaps on the default sc
 
 **Option A — Docker (no install required):**
 ```sh
-docker run --rm -e RELEGO_SERVER=http://192.168.1.10:8080 ghcr.io/krusty93/relego.cli:latest <command>
+docker run --rm -e SERVER_URL=http://192.168.1.10:8080 ghcr.io/krusty93/relego.cli:latest <command>
 ```
 
 **Option B — Download binary:**
@@ -69,7 +69,7 @@ winget install Krusty93.Relego
 
 ## Configuration
 
-All configuration is passed as environment variables to the server container. The client reads `RELEGO_SERVER` from the environment to locate the server.
+All configuration is passed as environment variables to the server container. The client keeps its default server address in `Server:Url` and allows a runtime override via `SERVER_URL`.
 
 ```sh
 docker run -d \
@@ -81,14 +81,14 @@ docker run -d \
   ghcr.io/krusty93/relego.server:latest
 ```
 
-The client automatically connects to `http://localhost:8080`. If your server runs on a different host or port, set `RELEGO_SERVER` on the client side:
+The client automatically connects to `http://localhost:8080`. If your server runs on a different host or port, set `SERVER_URL` on the client side:
 
 ```sh
 # ~/.zshrc or ~/.bashrc (macOS/Linux)
-export RELEGO_SERVER=http://192.168.1.10:8080
+export SERVER_URL=http://192.168.1.10:8080
 
 # Windows (PowerShell profile)
-$env:RELEGO_SERVER = "http://192.168.1.10:8080"
+$env:SERVER_URL = "http://192.168.1.10:8080"
 ```
 
 No other configuration is required to get started.
@@ -99,7 +99,7 @@ No other configuration is required to get started.
 
 ```
 Step 1 — Deploy server (see above)
-Step 2 — Set RELEGO_SERVER in your shell profile
+Step 2 — Set SERVER_URL in your shell profile if the server is not on localhost:8080
 Step 3 — Connect Kindle via USB
 Step 4 — Sync highlights
 ```
@@ -227,7 +227,7 @@ Errors are actionable — they tell the user exactly what to do.
 ```
 ✗ Cannot connect to server at http://192.168.1.10:8080
   Is the server running? Check with: docker ps | grep relego-server
-  Is RELEGO_SERVER set correctly? Current value: http://192.168.1.10:8080
+  Is SERVER_URL set correctly? Current value: http://192.168.1.10:8080
 ```
 
 ### File not found

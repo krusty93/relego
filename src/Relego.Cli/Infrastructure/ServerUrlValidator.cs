@@ -5,7 +5,9 @@
 /// </summary>
 public static class ServerUrlValidator
 {
+    public const string ConfigKey = "Server:Url";
     public const string DefaultServerUrl = "http://localhost:8080";
+    public const string EnvironmentVariableName = "SERVER_URL";
 
     public enum ValidationResult
     {
@@ -15,21 +17,33 @@ public static class ServerUrlValidator
     }
 
     /// <summary>
-    /// Returns the configured server URL, or the documented localhost default when no value is configured.
+    /// Returns the configured server URL, preferring the environment override and falling back to the documented localhost default.
     /// </summary>
-    public static string GetConfiguredOrDefault(string? value)
+    public static string GetConfiguredOrDefault(string? configuredValue, string? environmentValue = null)
     {
-        return string.IsNullOrWhiteSpace(value)
+        if (!string.IsNullOrWhiteSpace(environmentValue))
+            return environmentValue.Trim();
+
+        return string.IsNullOrWhiteSpace(configuredValue)
             ? DefaultServerUrl
-            : value.Trim();
+            : configuredValue.Trim();
     }
 
     /// <summary>
     /// Resolves the configured server URL to a usable value and validates it.
     /// </summary>
-    public static ValidationResult Resolve(string? value, out Uri? uri, out string resolvedValue)
+    public static ValidationResult Resolve(string? configuredValue, string? environmentValue, out Uri? uri, out string resolvedValue)
     {
-        resolvedValue = GetConfiguredOrDefault(value);
+        resolvedValue = GetConfiguredOrDefault(configuredValue, environmentValue);
+        return Validate(resolvedValue, out uri);
+    }
+
+    /// <summary>
+    /// Resolves the configured server URL to a usable value and validates it.
+    /// </summary>
+    public static ValidationResult Resolve(string? configuredValue, out Uri? uri, out string resolvedValue)
+    {
+        resolvedValue = GetConfiguredOrDefault(configuredValue);
         return Validate(resolvedValue, out uri);
     }
 

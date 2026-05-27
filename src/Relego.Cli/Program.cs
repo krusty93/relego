@@ -16,19 +16,23 @@ using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-var validationResult = ServerUrlValidator.Resolve(builder.Configuration["relego_server"], out Uri? serverUri, out string resolvedServerUrl);
+var validationResult = ServerUrlValidator.Resolve(
+    builder.Configuration[ServerUrlValidator.ConfigKey],
+    Environment.GetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName),
+    out Uri? serverUri,
+    out string resolvedServerUrl);
 if (validationResult == ServerUrlValidator.ValidationResult.Malformed)
 {
-    AnsiConsole.MarkupLine($"[red]Error:[/] RELEGO_SERVER value is not a valid HTTP URL: [yellow]{resolvedServerUrl}[/]");
+    AnsiConsole.MarkupLine($"[red]Error:[/] {ServerUrlValidator.EnvironmentVariableName} or {ServerUrlValidator.ConfigKey} must be a valid HTTP URL: [yellow]{Markup.Escape(resolvedServerUrl)}[/]");
     return 1;
 }
 
 var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
-    ["relego_server"] = normalizedServerUrl
+    [ServerUrlValidator.ConfigKey] = normalizedServerUrl
 });
-Environment.SetEnvironmentVariable("RELEGO_SERVER", normalizedServerUrl);
+Environment.SetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName, normalizedServerUrl);
 
 bool isTuiMode = TuiModeDetector.Detect(args, Console.IsInputRedirected) == StartupMode.Tui;
 
@@ -56,7 +60,7 @@ string version = (assembly.GetCustomAttribute<AssemblyInformationalVersionAttrib
 builder.Services.AddHttpClient<RelegoHttpClient>((sp, client) =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
-    var serverUrl = config["relego_server"]
+    var serverUrl = config[ServerUrlValidator.ConfigKey]
         ?? throw new InvalidOperationException("Missing Relego server URL configuration.");
     client.BaseAddress = new Uri(serverUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
