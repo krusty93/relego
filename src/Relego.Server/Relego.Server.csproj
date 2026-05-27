@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <Version>0.14.4</Version>
+    <Version>0.14.5</Version>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -34,5 +34,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Infrastructure\Database\quartz-sqlite.sql" />
+    <EmbeddedResource Include="Assets\epub-cover.png" />
   </ItemGroup>
 </Project>

@@ -1,10 +1,15 @@
 ﻿using System.IO.Compression;
+using System.Reflection;
 using System.Text;
+using Relego.Core.Branding;
 
 namespace Relego.Server.Services;
 
 public static class EpubComposer
 {
+    private const string CoverImageResourceName = "Relego.Server.Assets.epub-cover.png";
+    private static readonly byte[] CoverImageBytes = ReadEmbeddedBinary(CoverImageResourceName);
+
     public static byte[] Compose(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string cadence)
     {
         using var stream = new MemoryStream();
@@ -18,6 +23,8 @@ public static class EpubComposer
             }
 
             AddEntry(archive, "META-INF/container.xml", BuildContainerXml());
+            AddBinaryEntry(archive, "OEBPS/cover.png", CoverImageBytes);
+            AddEntry(archive, "OEBPS/cover.xhtml", BuildCoverXhtml());
             AddEntry(archive, "OEBPS/content.opf", BuildContentOpf(recapDate));
             AddEntry(archive, "OEBPS/toc.ncx", BuildTocNcx());
             AddEntry(archive, "OEBPS/highlights.xhtml", BuildHighlightsXhtml(highlights, recapDate, cadence));
@@ -33,6 +40,13 @@ public static class EpubComposer
         writer.Write(content);
     }
 
+    private static void AddBinaryEntry(ZipArchive archive, string path, byte[] content)
+    {
+        var entry = archive.CreateEntry(path, CompressionLevel.Optimal);
+        using var stream = entry.Open();
+        stream.Write(content, 0, content.Length);
+    }
+
     private static string BuildContainerXml() => """
         <?xml version="1.0" encoding="UTF-8"?>
         <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -41,6 +55,46 @@ public static class EpubComposer
           </rootfiles>
         </container>
         """;
+
+    private static string BuildCoverXhtml()
+    {
+        var accentColor = ToHex(BrandColors.Light.Accent);
+
+        return $$"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+            <html xmlns="http://www.w3.org/1999/xhtml">
+            <head>
+            <title>Cover</title>
+            <style type="text/css">
+              @page {
+                margin: 0;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                background: {{accentColor}};
+              }
+              body {
+                line-height: 0;
+              }
+              img {
+                display: block;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+              }
+            </style>
+            </head>
+            <body>
+            <img src="cover.png" alt="Relego cover"/>
+            </body>
+            </html>
+            """;
+    }
 
     private static string BuildContentOpf(DateTimeOffset recapDate) => $"""
         <?xml version="1.0" encoding="UTF-8"?>
@@ -51,14 +105,21 @@ public static class EpubComposer
             <dc:subject>relego.io</dc:subject>
             <dc:identifier id="BookId">relego-recap-{recapDate:yyyyMMdd-HHmmss}</dc:identifier>
             <dc:language>en</dc:language>
+            <meta name="cover" content="cover-image"/>
           </metadata>
           <manifest>
+            <item id="cover-image" href="cover.png" media-type="image/png"/>
+            <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>
             <item id="highlights" href="highlights.xhtml" media-type="application/xhtml+xml"/>
             <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
           </manifest>
           <spine toc="ncx">
+            <itemref idref="cover" linear="no"/>
             <itemref idref="highlights"/>
           </spine>
+          <guide>
+            <reference type="cover" title="Cover" href="cover.xhtml"/>
+          </guide>
         </package>
         """;
 
@@ -102,4 +163,16 @@ public static class EpubComposer
 
     private static string EscapeXml(string text) =>
         text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+
+    private static byte[] ReadEmbeddedBinary(string resourceName)
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"Embedded resource '{resourceName}' not found.");
+        using var memoryStream = new MemoryStream();
+        stream.CopyTo(memoryStream);
+        return memoryStream.ToArray();
+    }
+
+    private static string ToHex(BrandRgb color) =>
+        $"#{color.R:x2}{color.G:x2}{color.B:x2}";
 }
