@@ -38,7 +38,13 @@ jobs:
         include:
           - rid: win-x64
             ext: .exe
+          - rid: win-arm64
+            ext: .exe
           - rid: linux-x64
+            ext: ""
+          - rid: linux-arm
+            ext: ""
+          - rid: linux-arm64
             ext: ""
           - rid: osx-x64
             ext: ""
