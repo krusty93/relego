@@ -32,15 +32,24 @@ builder.Services.AddLogging(loggingBuilder =>
     loggingBuilder.AddSerilog(Log.Logger, dispose: true);
 });
 
-string? serverUrl = builder.Configuration["relego_server"];
-var validationResult = ServerUrlValidator.Validate(serverUrl, out Uri? serverUri);
+var validationResult = ServerUrlValidator.Resolve(
+    builder.Configuration[ServerUrlValidator.ConfigKey],
+    Environment.GetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName),
+    out Uri? serverUri,
+    out string resolvedServerUrl);
+
 if (validationResult == ServerUrlValidator.ValidationResult.Malformed)
 {
-    AnsiConsole.MarkupLine($"[red]Error:[/] RELEGO_SERVER value is not a valid HTTP URL: [yellow]{serverUrl}[/]");
+    AnsiConsole.MarkupLine($"[red]Error:[/] {ServerUrlValidator.EnvironmentVariableName} or {ServerUrlValidator.ConfigKey} must be a valid HTTP URL: [yellow]{Markup.Escape(resolvedServerUrl)}[/]");
     return 1;
 }
 
 var normalizedServerUrl = serverUri!.ToString().TrimEnd('/');
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    [ServerUrlValidator.ConfigKey] = normalizedServerUrl
+});
+Environment.SetEnvironmentVariable(ServerUrlValidator.EnvironmentVariableName, normalizedServerUrl);
 
 Assembly assembly = typeof(ImportCommand).Assembly;
 string applicationName = "relego";
@@ -52,7 +61,7 @@ string version = (assembly.GetCustomAttribute<AssemblyInformationalVersionAttrib
 builder.Services.AddHttpClient<RelegoHttpClient>((sp, client) =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
-    var serverUrl = config["relego_server"]
+    var serverUrl = config[ServerUrlValidator.ConfigKey]
         ?? throw new InvalidOperationException("Missing Relego server URL configuration.");
     client.BaseAddress = new Uri(serverUrl);
     client.Timeout = TimeSpan.FromSeconds(30);

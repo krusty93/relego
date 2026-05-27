@@ -95,7 +95,7 @@ Import Kindle highlights using the TUI. It automatically detects the path to you
     -it `
     -v "D:\documents:/kindle:ro" `
     --network relego `
-    -e RELEGO_SERVER="http://relego-server:8080" `
+    -e SERVER_URL="http://relego-server:8080" `
     ghcr.io/krusty93/relego.cli:latest
   ```
 
@@ -106,7 +106,7 @@ Import Kindle highlights using the TUI. It automatically detects the path to you
   >  -it `
   >  -v "$(Get-Location):/kindle:ro" `
   >  --network relego `
-  >  -e RELEGO_SERVER="http://relego-server:8080" `
+  >  -e SERVER_URL="http://relego-server:8080" `
   >  ghcr.io/krusty93/relego.cli:latest
   >```
 
@@ -117,7 +117,7 @@ Import Kindle highlights using the TUI. It automatically detects the path to you
     -it \
     -v "/Volumes/Kindle/documents:/kindle:ro" \
     --network relego \
-    -e RELEGO_SERVER="http://relego-server:8080" \
+    -e SERVER_URL="http://relego-server:8080" \
     ghcr.io/krusty93/relego.cli:latest
   ```
 
@@ -128,7 +128,7 @@ Import Kindle highlights using the TUI. It automatically detects the path to you
     -it \
     -v "/media/$USER/Kindle/documents:/kindle:ro" \
     --network relego \
-    -e RELEGO_SERVER="http://relego-server:8080" \
+    -e SERVER_URL="http://relego-server:8080" \
     ghcr.io/krusty93/relego.cli:latest
   ```
 
@@ -167,17 +167,17 @@ The installer detects your OS and architecture automatically and prints the path
 
 </details>
 
-The native client automatically connects to `http://localhost:8080`. If you ran the server on a different host machine or port, override `RELEGO_SERVER` before starting the TUI:
+The native client automatically connects to `http://localhost:8080`. If you ran the server on a different host machine or port, override `SERVER_URL` before starting the TUI:
 
 ```powershell
 # PowerShell
-$env:RELEGO_SERVER = "http://192.168.1.10:8080"
+$env:SERVER_URL = "http://192.168.1.10:8080"
 relego
 ```
 
 ```sh
 # macOS / Linux
-export RELEGO_SERVER=http://192.168.1.10:8080
+export SERVER_URL=http://192.168.1.10:8080
 relego
 ```
 

@@ -18,7 +18,8 @@ Distribute the server exclusively as a **Docker image** published to GitHub Cont
 Configuration is passed entirely via environment variables:
 - `KINDLE_EMAIL` — the user's Send-to-Kindle email address
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` — outbound email credentials
-- `RELEGO_SERVER` — server address (used by the client; also set here for reference)
+
+The client keeps its default server address in `Server:Url` and allows a `SERVER_URL` environment override.
 
 Data is persisted in a named Docker volume (`relego-data`).
 

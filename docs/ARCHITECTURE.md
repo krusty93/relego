@@ -34,7 +34,7 @@ Kindle / My Clippings.txt                              │
 
 - Distributed as a self-contained binary (macOS/Linux/Windows) or runnable via Docker
 - Optional Docker image for no-install usage: `ghcr.io/krusty93/relego.cli`
-- Connects to the server via `RELEGO_SERVER` environment variable (no authentication — local network trusted)
+- Reads the server URL from client configuration (`Server:Url`) with runtime override via `SERVER_URL` (no authentication — local network trusted)
 - Responsibilities:
   - Parse and sync highlights from `My Clippings.txt` to the server
   - Manage user settings via CLI commands (schedule, count, weights, exclusions)
