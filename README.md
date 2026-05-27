@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Release](https://github.com/Krusty93/relego/actions/workflows/release.yaml/badge.svg)](https://github.com/Krusty93/relego/actions/workflows/release.yaml)
-![GitHub Release](https://img.shields.io/github/v/release/krusty93/relego)
+[![GitHub Release](https://img.shields.io/github/v/release/krusty93/relego)](https://github.com/krusty93/relego/releases)
 
 ## Why Relego
 
@@ -144,51 +144,26 @@ Import Kindle highlights using the TUI. It automatically detects the path to you
   relego
   ```
 
-#### Binary
+#### Installer script
 
   ```powershell
-  $version = ((Invoke-RestMethod https://api.github.com/repos/Krusty93/relego/releases) | Where-Object tag_name -like 'cli/v*' | Select-Object -First 1).tag_name -replace '^cli/v', ''
-  curl.exe -L "https://github.com/Krusty93/relego/releases/download/cli%2Fv$version/relego-$version-win-x64.exe" -o .\relego.exe
-  .\relego.exe
+  irm https://raw.githubusercontent.com/Krusty93/relego/main/install.ps1 | iex
+  relego
   ```
+
+The installer detects your Windows architecture automatically and prints the path where `relego.exe` was saved.
 
 </details>
 
 <details>
-  <summary>macOS</summary>
-
-#### Apple Silicon
+  <summary>macOS / Linux</summary>
 
   ```sh
-  VERSION="$(curl -fsSL https://api.github.com/repos/Krusty93/relego/releases | grep -m1 -E '"tag_name":[[:space:]]*"cli/v' | sed -E 's/.*"tag_name":[[:space:]]*"cli\/v([^"]+)".*/\1/')"
-  curl -fL "https://github.com/Krusty93/relego/releases/download/cli%2Fv${VERSION}/relego-${VERSION}-osx-arm64" -o /tmp/relego
-  chmod +x /tmp/relego
-  sudo install -m 0755 /tmp/relego /usr/local/bin/relego
-  relego
+  curl -fsSL https://raw.githubusercontent.com/Krusty93/relego/main/install.sh | sh
+  ~/.local/bin/relego
   ```
 
-#### Intel
-
-  ```sh
-  VERSION="$(curl -fsSL https://api.github.com/repos/Krusty93/relego/releases | grep -m1 -E '"tag_name":[[:space:]]*"cli/v' | sed -E 's/.*"tag_name":[[:space:]]*"cli\/v([^"]+)".*/\1/')"
-  curl -fL "https://github.com/Krusty93/relego/releases/download/cli%2Fv${VERSION}/relego-${VERSION}-osx-x64" -o /tmp/relego
-  chmod +x /tmp/relego
-  sudo install -m 0755 /tmp/relego /usr/local/bin/relego
-  relego
-  ```
-
-</details>
-
-<details>
-  <summary>Linux</summary>
-
-  ```sh
-  VERSION="$(curl -fsSL https://api.github.com/repos/Krusty93/relego/releases | grep -m1 -E '"tag_name":[[:space:]]*"cli/v' | sed -E 's/.*"tag_name":[[:space:]]*"cli\/v([^"]+)".*/\1/')"
-  curl -fL "https://github.com/Krusty93/relego/releases/download/cli%2Fv${VERSION}/relego-${VERSION}-linux-x64" -o /tmp/relego
-  chmod +x /tmp/relego
-  sudo install -m 0755 /tmp/relego /usr/local/bin/relego
-  relego
-  ```
+The installer detects your OS and architecture automatically and prints the path where `relego` was saved. If `~/.local/bin` is not already on your `PATH`, add `export PATH="$HOME/.local/bin:$PATH"` to your shell profile (`~/.zshrc`, `~/.bashrc`, or `~/.profile`), then open a new terminal.
 
 </details>
 
