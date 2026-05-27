@@ -125,6 +125,7 @@ Import Kindle highlights using the TUI. It automatically detects the path to you
 
   ```sh
   docker run \
+    -it \
     -v "/media/$USER/Kindle/documents:/kindle:ro" \
     --network relego \
     -e RELEGO_SERVER="http://relego-server:8080" \
