@@ -90,6 +90,10 @@ public sealed class EpubComposerTests
         var svg = ReadEntry(archive, "OEBPS/cover.svg");
         Assert.Contains("<svg", svg);
         Assert.Contains("<path", svg);
+        Assert.Contains("viewBox=\"0 0 1200 1600\"", svg);
+        Assert.Contains("fill=\"#b56b39\"", svg);
+        Assert.Contains("fill=\"#ffffff\"", svg);
+        Assert.DoesNotContain("#16110f", svg);
     }
 
     [Fact]
@@ -102,6 +106,8 @@ public sealed class EpubComposerTests
 
         var coverXhtml = ReadEntry(archive, "OEBPS/cover.xhtml");
         Assert.Contains("cover.svg", coverXhtml);
+        Assert.Contains("height: 100%;", coverXhtml);
+        Assert.Contains("width: 100%;", coverXhtml);
     }
 
     [Fact]
