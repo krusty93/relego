@@ -75,30 +75,25 @@ public sealed class EpubComposerTests
         Assert.NotNull(archive.GetEntry("OEBPS/content.opf"));
         Assert.NotNull(archive.GetEntry("OEBPS/toc.ncx"));
         Assert.NotNull(archive.GetEntry("OEBPS/highlights.xhtml"));
-        Assert.NotNull(archive.GetEntry("OEBPS/cover.svg"));
+        Assert.NotNull(archive.GetEntry("OEBPS/cover.png"));
         Assert.NotNull(archive.GetEntry("OEBPS/cover.xhtml"));
     }
 
     [Fact]
-    public void Compose_CoverSvg_ContainsLogoPath()
+    public void Compose_CoverPng_IsValidRasterImage()
     {
         var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
 
         using var stream = new MemoryStream(epub);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
-        var svg = ReadEntry(archive, "OEBPS/cover.svg");
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<path", svg);
-        Assert.Contains("viewBox=\"0 0 1200 1600\"", svg);
-        Assert.Contains("preserveAspectRatio=\"xMidYMid slice\"", svg);
-        Assert.Contains("fill=\"#b56b39\"", svg);
-        Assert.Contains("fill=\"#ffffff\"", svg);
-        Assert.DoesNotContain("#16110f", svg);
+        var coverBytes = ReadEntryBytes(archive, "OEBPS/cover.png");
+        Assert.Equal([137, 80, 78, 71, 13, 10, 26, 10], coverBytes.Take(8).ToArray());
+        Assert.True(coverBytes.Length > 4096);
     }
 
     [Fact]
-    public void Compose_CoverXhtml_RendersInlineFullBleedSvg()
+    public void Compose_CoverXhtml_ReferencesRasterCoverImage()
     {
         var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
 
@@ -109,11 +104,11 @@ public sealed class EpubComposerTests
         Assert.Contains("@page", coverXhtml);
         Assert.Contains("overflow: hidden;", coverXhtml);
         Assert.Contains("background: #b56b39;", coverXhtml);
-        Assert.Contains("<svg", coverXhtml);
-        Assert.Contains("preserveAspectRatio=\"xMidYMid slice\"", coverXhtml);
+        Assert.Contains("cover.png", coverXhtml);
+        Assert.Contains("object-fit: cover;", coverXhtml);
         Assert.Contains("height: 100%;", coverXhtml);
         Assert.Contains("width: 100%;", coverXhtml);
-        Assert.DoesNotContain("<img", coverXhtml);
+        Assert.DoesNotContain("<svg", coverXhtml);
     }
 
     [Fact]
@@ -125,7 +120,7 @@ public sealed class EpubComposerTests
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
         var opf = ReadEntry(archive, "OEBPS/content.opf");
-        Assert.Contains("id=\"cover-image\" href=\"cover.svg\" media-type=\"image/svg+xml\"", opf);
+        Assert.Contains("id=\"cover-image\" href=\"cover.png\" media-type=\"image/png\"", opf);
     }
 
     [Fact]
@@ -138,6 +133,18 @@ public sealed class EpubComposerTests
 
         var opf = ReadEntry(archive, "OEBPS/content.opf");
         Assert.Contains("<meta name=\"cover\" content=\"cover-image\"/>", opf);
+    }
+
+    [Fact]
+    public void Compose_ContentOpf_HasCoverGuideReference()
+    {
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        var opf = ReadEntry(archive, "OEBPS/content.opf");
+        Assert.Contains("<reference type=\"cover\" title=\"Cover\" href=\"cover.xhtml\"/>", opf);
     }
 
     [Fact]
@@ -291,5 +298,15 @@ public sealed class EpubComposerTests
         Assert.NotNull(entry);
         using var reader = new StreamReader(entry!.Open(), Encoding.UTF8);
         return reader.ReadToEnd();
+    }
+
+    private static byte[] ReadEntryBytes(ZipArchive archive, string path)
+    {
+        var entry = archive.GetEntry(path);
+        Assert.NotNull(entry);
+        using var stream = entry!.Open();
+        using var memoryStream = new MemoryStream();
+        stream.CopyTo(memoryStream);
+        return memoryStream.ToArray();
     }
 }

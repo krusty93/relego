@@ -34,5 +34,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Infrastructure\Database\quartz-sqlite.sql" />
+    <EmbeddedResource Include="Assets\epub-cover.png" />
   </ItemGroup>
 </Project>
