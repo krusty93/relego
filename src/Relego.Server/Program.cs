@@ -23,14 +23,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 SerilogConfiguration.ConfigureLogging(builder);
 
-builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-{
-    ["Smtp:Host"] = Environment.GetEnvironmentVariable("SMTP_HOST"),
-    ["Smtp:Port"] = Environment.GetEnvironmentVariable("SMTP_PORT"),
-    ["Smtp:FromAddress"] = Environment.GetEnvironmentVariable("SMTP_FROM_ADDRESS"),
-    ["Smtp:Username"] = Environment.GetEnvironmentVariable("SMTP_USER"),
-    ["Smtp:Password"] = Environment.GetEnvironmentVariable("SMTP_PASSWORD"),
-});
+var smtpEnvironmentOverrides = GetLegacySmtpEnvironmentOverrides();
+if (smtpEnvironmentOverrides.Count > 0)
+    builder.Configuration.AddInMemoryCollection(smtpEnvironmentOverrides);
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
@@ -163,6 +158,19 @@ Log.Information("Relego server started. Database: {DbPath}", dbPath);
 
 await app.RunAsync();
 
+static Dictionary<string, string?> GetLegacySmtpEnvironmentOverrides()
+{
+    var overrides = new Dictionary<string, string?>();
+
+    AddOverride(overrides, "Smtp:Host", "SMTP_HOST");
+    AddOverride(overrides, "Smtp:Port", "SMTP_PORT");
+    AddOverride(overrides, "Smtp:FromAddress", "SMTP_FROM_ADDRESS");
+    AddOverride(overrides, "Smtp:Username", "SMTP_USER");
+    AddOverride(overrides, "Smtp:Password", "SMTP_PASSWORD");
+
+    return overrides;
+}
+
 static void IncludeXmlCommentsIfPresent(Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions options, Assembly assembly)
 {
     var xmlFile = $"{assembly.GetName().Name}.xml";
@@ -170,4 +178,14 @@ static void IncludeXmlCommentsIfPresent(Swashbuckle.AspNetCore.SwaggerGen.Swagge
 
     if (File.Exists(xmlPath))
         options.IncludeXmlComments(xmlPath);
+}
+
+static void AddOverride(Dictionary<string, string?> overrides, string configurationKey, string environmentVariableName)
+{
+    var value = Environment.GetEnvironmentVariable(environmentVariableName);
+    if (!string.IsNullOrWhiteSpace(value))
+    {
+        overrides[configurationKey] = value;
+        return;
+    }
 }
