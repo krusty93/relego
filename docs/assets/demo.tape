@@ -12,13 +12,12 @@ Output docs/assets/tui-demo.gif
 Set FontSize 16
 Set Width 1400
 Set Height 700
-Set Theme "Catppuccin Mocha"
+Set Theme "Catppuccin Mocha" # "Catppuccin Macchiato" # "Adventure" # "Jackie Brown"
 Set TypingSpeed 60ms
 Set WindowBar Colorful
-Set WindowBarSize 40
 Set Padding 20
 Set Margin 20
-Set MarginFill "#b56b39"
+Set MarginFill "#d4a05e"
 Set BorderRadius 10
 
 # --- Launch the TUI ---
@@ -29,30 +28,15 @@ Sleep 5s
 
 # --- Import highlights ---
 Type "i"
+Sleep 2s
+Backspace 45
+Sleep 500ms
+Type "/kindle/docs/examples/kindle-highlights.txt"
 Sleep 1s
-
-# Type the path to the clippings file
-Type "/kindle/kindle-highlights.txt"
-Sleep 500ms
 Enter
-Sleep 4s
-
-# --- Go to Settings ---
-Type "s"
-Sleep 2s
-
-# Select Kindle Email field (first field) and edit it
-Enter
-Sleep 500ms
-# Clear existing value and type new email
-Ctrl+A
-Type "mykindleemail@kindle.com"
-Enter
-Sleep 2s
-
-# Go back to book list
-Escape
-Sleep 2s
+Sleep 1s
+Type "r"
+Sleep 5s
 
 # --- View a highlight ---
 # Navigate to the first book and open it
@@ -62,10 +46,6 @@ Sleep 2s
 # Open the first highlight detail
 Enter
 Sleep 2s
-
-# Switch to action menu (Tab to actions pane)
-Tab
-Sleep 1s
 
 # Select "Set weight" (first action)
 Enter
@@ -77,16 +57,32 @@ Sleep 1s
 Enter
 Sleep 2s
 
-# Close detail viewer
+# Open second item
+Down 1
+Sleep 1s
+Enter
+Sleep 1s
+
+# Exclude highlight
+Down
+Enter
+
+# Go back
 Escape
 Sleep 1s
 
-# Go back to book list
-Escape
-Sleep 2s
-
-# --- Quit ---
-Type "q"
+# Exclude second item
+Down
 Sleep 1s
-Type "y"
-Sleep 2s
+Enter
+Sleep 1s
+
+# Delete last item
+Down 4
+Sleep 1s
+Enter
+Sleep 1s
+Type "Y"
+
+# Pause
+Sleep 3s
