@@ -57,6 +57,8 @@ Each highlight includes the quote, the book title, and the author, making it eas
 
 Run `relego` without arguments to open the interactive TUI:
 
+![tui demo](docs/assets/tui-demo.gif)
+
 Use the TUI to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
 
 Theme selection for TUI:
