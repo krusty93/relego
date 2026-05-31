@@ -58,8 +58,12 @@ public sealed class RelegoHttpClient(HttpClient http)
     public Task<HttpResponseMessage> PostTestEmailAsync(CancellationToken ct = default)
         => http.PostAsync("/settings/test-email", null, ct);
 
-    public Task<HttpResponseMessage> PostTestRecapAsync(CancellationToken ct = default)
-        => http.PostAsync("/dev/recap/trigger", null, ct);
+    public async Task<RecapTriggerResponse> TriggerRecapAsync(CancellationToken ct = default)
+    {
+        var response = await http.PostAsync("/recap/trigger", null, ct).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync(RelegoJsonContext.Default.RecapTriggerResponse, ct).ConfigureAwait(false))!;
+    }
 
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
