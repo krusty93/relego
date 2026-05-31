@@ -4,7 +4,7 @@ services:
     restart: "no"
     tty: true
     environment:
-      RELEGO_SERVER: http://relego-server:8080
+      SERVER_URL: http://relego-server:8080
     networks:
       - relego
     profiles: [client]
