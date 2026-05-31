@@ -8,16 +8,18 @@ test.describe('Content Sections', () => {
 	test('sections appear in correct order', async ({ page }) => {
 		const sections = page.locator('section[id]');
 		const ids = await sections.evaluateAll((els) => els.map((el) => el.id));
-		const expected = ['hero', 'getting-started', 'why-relego', 'features', 'faq', 'explore'];
+		const expected = ['hero', 'getting-started', 'tui-demo', 'why-relego', 'features', 'faq', 'explore'];
 		expect(ids).toEqual(expect.arrayContaining(expected));
 		const heroIdx = ids.indexOf('hero');
 		const gsIdx = ids.indexOf('getting-started');
+		const tuiIdx = ids.indexOf('tui-demo');
 		const wrIdx = ids.indexOf('why-relego');
 		const featIdx = ids.indexOf('features');
 		const faqIdx = ids.indexOf('faq');
 		const exploreIdx = ids.indexOf('explore');
 		expect(heroIdx).toBeLessThan(gsIdx);
-		expect(gsIdx).toBeLessThan(wrIdx);
+		expect(gsIdx).toBeLessThan(tuiIdx);
+		expect(tuiIdx).toBeLessThan(wrIdx);
 		expect(wrIdx).toBeLessThan(featIdx);
 		expect(featIdx).toBeLessThan(faqIdx);
 		expect(faqIdx).toBeLessThan(exploreIdx);
