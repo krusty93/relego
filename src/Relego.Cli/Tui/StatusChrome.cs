@@ -22,10 +22,12 @@ public sealed class StatusChrome(string serverUrl, string version)
     public const int LogoHeight = 7; // 6 logo + separator
 
     private Label? _connectionLabel;
+    private Label? _nextRecapLabel;
     private Label? _warningLabel;
 
     public bool IsConnected { get; private set; }
     public bool KindleEmailConfigured { get; private set; }
+    public string? NextRecap { get; private set; }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Views are owned by the parent container hierarchy")]
     public View CreateView()
@@ -72,9 +74,9 @@ public sealed class StatusChrome(string serverUrl, string version)
         {
             Title = string.Empty,
             X = Pos.AnchorEnd(frameContentWidth),
-            Y = 1,
+            Y = 0,
             Width = frameContentWidth,
-            Height = 5,
+            Height = 6,
             BorderStyle = LineStyle.Rounded
         };
         infoFrame.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Border, bg)));
@@ -88,7 +90,7 @@ public sealed class StatusChrome(string serverUrl, string version)
             TextAlignment = Alignment.End
         };
 
-        _warningLabel = new Label
+        _nextRecapLabel = new Label
         {
             Text = string.Empty,
             X = 1,
@@ -97,17 +99,26 @@ public sealed class StatusChrome(string serverUrl, string version)
             TextAlignment = Alignment.End
         };
 
-        var versionLabel = new Label
+        _warningLabel = new Label
         {
-            Text = $"relego v{version}",
+            Text = string.Empty,
             X = 1,
             Y = 2,
             Width = Dim.Fill(1),
             TextAlignment = Alignment.End
         };
+
+        var versionLabel = new Label
+        {
+            Text = $"relego v{version}",
+            X = 1,
+            Y = 3,
+            Width = Dim.Fill(1),
+            TextAlignment = Alignment.End
+        };
         versionLabel.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.TextMuted, bg)));
 
-        infoFrame.Add(_connectionLabel, _warningLabel, versionLabel);
+        infoFrame.Add(_connectionLabel, _nextRecapLabel, _warningLabel, versionLabel);
         container.Add(infoFrame);
 
         return container;
@@ -126,18 +137,21 @@ public sealed class StatusChrome(string serverUrl, string version)
             IsConnected = await client.PingAsync(ct).ConfigureAwait(false);
             if (IsConnected)
             {
-                var settings = await client.GetSettingsAsync(ct).ConfigureAwait(false);
-                KindleEmailConfigured = !string.IsNullOrWhiteSpace(settings.KindleEmail);
+                var status = await client.GetStatusAsync(ct).ConfigureAwait(false);
+                KindleEmailConfigured = status.KindleEmailConfigured;
+                NextRecap = status.NextRecap;
             }
             else
             {
                 KindleEmailConfigured = false;
+                NextRecap = null;
             }
         }
         catch (HttpRequestException)
         {
             IsConnected = false;
             KindleEmailConfigured = false;
+            NextRecap = null;
         }
     }
 
@@ -155,6 +169,20 @@ public sealed class StatusChrome(string serverUrl, string version)
             _connectionLabel.SetScheme(IsConnected
                 ? new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Success, bg))
                 : new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Error, bg)));
+        }
+
+        if (_nextRecapLabel is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(NextRecap) && DateTimeOffset.TryParse(NextRecap, out var nextFireUtc))
+            {
+                var local = nextFireUtc.ToLocalTime();
+                _nextRecapLabel.Text = $"⏱ Next recap: {local:g}";
+                _nextRecapLabel.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.TextMuted, bg)));
+            }
+            else
+            {
+                _nextRecapLabel.Text = string.Empty;
+            }
         }
 
         if (_warningLabel is not null)
