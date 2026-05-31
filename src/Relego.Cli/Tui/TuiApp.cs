@@ -75,6 +75,7 @@ public sealed class TuiApp(RelegoHttpClient client, ClippingsImportWorkflow sync
                 Title = "Relego",
                 BorderStyle = LineStyle.None
             };
+            _window.Padding.Thickness = new Thickness(1);
             var palette = TuiTheme.Palette;
             _window.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Text, palette.Background)));
 
