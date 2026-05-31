@@ -41,7 +41,7 @@ After the merge:
 
 - `post-merge.yml` discovers projects under `src/` that declare an explicit `<Version>` in their `.csproj` and creates a git tag for each component whose bumped version does not yet have a matching tag (format: `<component>/v<version>`)
 - The tag push triggers `release.yml`, which creates a GitHub Release with auto-generated notes. For CLI releases, the release is created as a **draft** to allow binary assets to be attached first
-- For CLI tags, `build-cli-binaries.yml` builds platform-specific binaries (win-x64, linux-x64, osx-x64, osx-arm64), uploads them to the draft release, then publishes it. A WinGet manifest update is submitted automatically to `microsoft/winget-pkgs`
+- For CLI tags, `build-cli-binaries.yml` builds platform-specific binaries, uploads them to the draft release, then publishes it. A WinGet manifest update is submitted automatically to `microsoft/winget-pkgs`
 - The published GitHub Release triggers `deploy-cli.yml` (Docker image) and `deploy-server.yml` (Docker image)
 
 `core` is version-tagged for dependency tracking but is excluded from GitHub release notes and release pages.
