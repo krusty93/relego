@@ -73,7 +73,7 @@ public sealed class ConfigCountCommand(RelegoHttpClient client, ILogger<ConfigCo
         SettingsResponse response;
         try
         {
-            response = await client.PutSettingsAsync(request, cancellation);
+            response = await client.PatchSettingsAsync(request, cancellation);
         }
         catch (HttpRequestException ex)
         {

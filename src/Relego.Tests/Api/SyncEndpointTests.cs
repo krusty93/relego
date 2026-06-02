@@ -26,7 +26,7 @@ public sealed class SyncEndpointTests : IDisposable
     {
         var request = BuildRequest(bookCount: 5, highlightsPerBook: 10);
 
-        var response = await _client.PostAsJsonAsync("/sync", request);
+        var response = await _client.PostAsJsonAsync("/highlights/import", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<SyncResponse>();
@@ -40,9 +40,9 @@ public sealed class SyncEndpointTests : IDisposable
     public async Task PostSync_ReImportSamePayload_ReturnsDuplicates()
     {
         var request = BuildRequest(bookCount: 5, highlightsPerBook: 10);
-        await _client.PostAsJsonAsync("/sync", request);
+        await _client.PostAsJsonAsync("/highlights/import", request);
 
-        var response = await _client.PostAsJsonAsync("/sync", request);
+        var response = await _client.PostAsJsonAsync("/highlights/import", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<SyncResponse>();
@@ -66,7 +66,7 @@ public sealed class SyncEndpointTests : IDisposable
                 }
             ]
         };
-        await _client.PostAsJsonAsync("/sync", firstRequest);
+        await _client.PostAsJsonAsync("/highlights/import", firstRequest);
 
         var secondRequest = new SyncRequest
         {
@@ -80,7 +80,7 @@ public sealed class SyncEndpointTests : IDisposable
                 }
             ]
         };
-        var response = await _client.PostAsJsonAsync("/sync", secondRequest);
+        var response = await _client.PostAsJsonAsync("/highlights/import", secondRequest);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<SyncResponse>();
@@ -95,7 +95,7 @@ public sealed class SyncEndpointTests : IDisposable
     {
         var request = new SyncRequest { Books = [] };
 
-        var response = await _client.PostAsJsonAsync("/sync", request);
+        var response = await _client.PostAsJsonAsync("/highlights/import", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<SyncResponse>();
@@ -122,7 +122,7 @@ public sealed class SyncEndpointTests : IDisposable
             ]
         };
 
-        var response = await _client.PostAsJsonAsync("/sync", request);
+        var response = await _client.PostAsJsonAsync("/highlights/import", request);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -145,7 +145,7 @@ public sealed class SyncEndpointTests : IDisposable
             ]
         };
 
-        var response = await _client.PostAsJsonAsync("/sync", request);
+        var response = await _client.PostAsJsonAsync("/highlights/import", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<SyncResponse>();

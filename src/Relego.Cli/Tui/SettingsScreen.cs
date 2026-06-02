@@ -87,7 +87,7 @@ public sealed class SettingsScreen : IScreen
         if (!string.Equals(_settings.Timezone, localTimezone, StringComparison.Ordinal))
         {
             var request = new UpdateSettingsRequest { Timezone = localTimezone };
-            _settings = await _client.PutSettingsAsync(request, cancellationToken).ConfigureAwait(false);
+            _settings = await _client.PatchSettingsAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
         RebuildFields();
@@ -359,7 +359,7 @@ public sealed class SettingsScreen : IScreen
 
         try
         {
-            _settings = await _client.PutSettingsAsync(request).ConfigureAwait(false);
+            _settings = await _client.PatchSettingsAsync(request).ConfigureAwait(false);
             RebuildFields();
             CancelEdit();
             SetStatus($"{field.Label} updated.", isError: false);

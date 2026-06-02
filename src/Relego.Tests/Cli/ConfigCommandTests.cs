@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RichardSzalay.MockHttp;
 using Spectre.Console.Cli;
 using Relego.Cli.Commands.Config;
@@ -15,7 +15,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigSchedule_DailyWithValidTime_SendsPutWithTimezone()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", """
                 {"schedule":"daily","deliveryDay":null,"deliveryTime":"08:00","count":5,"kindleEmail":"test@kindle.com","timezone":"Europe/Rome"}
                 """);
@@ -29,7 +29,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigSchedule_WeeklyWithValidTime_SendsPutWithTimezone()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", """
                 {"schedule":"weekly","deliveryDay":"monday","deliveryTime":"09:00","count":5,"kindleEmail":"test@kindle.com","timezone":"Europe/Rome"}
                 """);
@@ -43,7 +43,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigSchedule_InvalidTime_ReturnsOneWithoutHttpCall()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
         var exitCode = await RunConfigScheduleCommand("daily", "25:00");
@@ -55,7 +55,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigSchedule_InvalidCadence_ReturnsOneWithoutHttpCall()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
         var exitCode = await RunConfigScheduleCommand("monthly", "08:00");
@@ -81,7 +81,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigSchedule_ServerUnreachable_ReturnsOne()
     {
-        _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Throw(new HttpRequestException("Connection refused"));
 
         var exitCode = await RunConfigScheduleCommand("daily", "08:00");
@@ -120,7 +120,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigCount_ValidCount_SendsPut()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", """
                 {"schedule":"daily","deliveryDay":null,"deliveryTime":"08:00","count":10,"kindleEmail":"test@kindle.com","timezone":"Europe/Rome"}
                 """);
@@ -134,7 +134,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigCount_Zero_ReturnsOneWithoutHttpCall()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
         var exitCode = await RunConfigCountCommand("0");
@@ -146,7 +146,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigCount_TwentyExceedsMax_ReturnsOneWithoutHttpCall()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
         var exitCode = await RunConfigCountCommand("20");
@@ -172,7 +172,7 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task ConfigCount_ServerUnreachable_ReturnsOne()
     {
-        _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Throw(new HttpRequestException("Connection refused"));
 
         var exitCode = await RunConfigCountCommand("10");
@@ -270,7 +270,7 @@ public sealed class ConfigKindleEmailCommandTests : IDisposable
     [Fact]
     public async Task KindleEmail_ValidAddress_SendsPutAndPrintsConfirmation()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", """
                 {"schedule":"daily","deliveryDay":null,"deliveryTime":"18:00","count":5,"kindleEmail":"user_abc123@kindle.com","timezone":"UTC"}
                 """);
@@ -284,7 +284,7 @@ public sealed class ConfigKindleEmailCommandTests : IDisposable
     [Fact]
     public async Task KindleEmail_InvalidAddress_ReturnsOneWithoutHttpCall()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
         var exitCode = await RunKindleEmailCommand("not-an-email");
@@ -296,7 +296,7 @@ public sealed class ConfigKindleEmailCommandTests : IDisposable
     [Fact]
     public async Task KindleEmail_EmptyString_ReturnsOneWithoutHttpCall()
     {
-        var handler = _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
         var exitCode = await RunKindleEmailCommand("   ");
@@ -308,7 +308,7 @@ public sealed class ConfigKindleEmailCommandTests : IDisposable
     [Fact]
     public async Task KindleEmail_ServerUnreachable_ReturnsOne()
     {
-        _mockHttp.When(HttpMethod.Put, "http://localhost:5000/settings")
+        _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Throw(new HttpRequestException("Connection refused"));
 
         var exitCode = await RunKindleEmailCommand("user@kindle.com");

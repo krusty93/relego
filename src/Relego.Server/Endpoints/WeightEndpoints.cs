@@ -31,6 +31,7 @@ public static class WeightEndpoints
                 ? Results.NoContent()
                 : Results.Problem(detail: $"Highlight {id} not found.", statusCode: StatusCodes.Status404NotFound);
         })
+        .WithTags("Weights")
         .WithSummary("Set a highlight weight.")
         .WithDescription("Applies a custom recap weight from 1 to 5 to a specific highlight.")
         .Accepts<SetWeightRequest>("application/json")
@@ -44,6 +45,7 @@ public static class WeightEndpoints
             var weights = await weightRepo.GetWeightedHighlightsAsync(userId);
             return Results.Ok(weights);
         })
+        .WithTags("Weights")
         .WithSummary("List weighted highlights.")
         .WithDescription("Returns highlights whose recap weight differs from the default value of 3.")
         .Produces<List<WeightedHighlightDto>>(StatusCodes.Status200OK);

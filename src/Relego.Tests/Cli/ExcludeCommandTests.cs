@@ -16,7 +16,7 @@ public sealed class ExcludeCommandTests : IDisposable
     [Fact]
     public async Task ExcludeAdd_Highlight_SendsPost()
     {
-        var handler = _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/5/exclude")
+        var handler = _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/5/exclusions")
             .Respond(HttpStatusCode.OK);
 
         var exitCode = await RunExcludeCommand("add", "highlight", "5");
@@ -40,7 +40,7 @@ public sealed class ExcludeCommandTests : IDisposable
     [Fact]
     public async Task ExcludeAdd_NotFound_ReturnsOne()
     {
-        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/999/exclude")
+        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/999/exclusions")
             .Respond(HttpStatusCode.NotFound);
 
         var exitCode = await RunExcludeCommand("add", "highlight", "999");
@@ -51,7 +51,7 @@ public sealed class ExcludeCommandTests : IDisposable
     [Fact]
     public async Task ExcludeRemove_Book_SendsDelete()
     {
-        var handler = _mockHttp.When(HttpMethod.Delete, "http://localhost:5000/books/3/exclude")
+        var handler = _mockHttp.When(HttpMethod.Delete, "http://localhost:5000/books/3/exclusions")
             .Respond(HttpStatusCode.OK);
 
         var exitCode = await RunExcludeCommand("remove", "book", "3");
@@ -63,7 +63,7 @@ public sealed class ExcludeCommandTests : IDisposable
     [Fact]
     public async Task ExcludeRemove_NotFound_ReturnsOne()
     {
-        _mockHttp.When(HttpMethod.Delete, "http://localhost:5000/authors/99/exclude")
+        _mockHttp.When(HttpMethod.Delete, "http://localhost:5000/authors/99/exclusions")
             .Respond(HttpStatusCode.NotFound);
 
         var exitCode = await RunExcludeCommand("remove", "author", "99");
@@ -103,7 +103,7 @@ public sealed class ExcludeCommandTests : IDisposable
     [Fact]
     public async Task ExcludeAdd_ServerUnreachable_ReturnsOne()
     {
-        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/5/exclude")
+        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/5/exclusions")
             .Throw(new HttpRequestException("Connection refused"));
 
         var exitCode = await RunExcludeCommand("add", "highlight", "5");

@@ -30,7 +30,7 @@ public sealed class ExclusionEndpointTests : IDisposable
         await SeedLibraryAsync();
         var highlightId = await GetHighlightIdAsync("Alpha highlight 1");
 
-        var excludeResponse = await _client.PostAsync($"/highlights/{highlightId}/exclude", null);
+        var excludeResponse = await _client.PostAsync($"/highlights/{highlightId}/exclusions", null);
 
         Assert.Equal(HttpStatusCode.NoContent, excludeResponse.StatusCode);
 
@@ -48,9 +48,9 @@ public sealed class ExclusionEndpointTests : IDisposable
     {
         await SeedLibraryAsync();
         var highlightId = await GetHighlightIdAsync("Alpha highlight 1");
-        await _client.PostAsync($"/highlights/{highlightId}/exclude", null);
+        await _client.PostAsync($"/highlights/{highlightId}/exclusions", null);
 
-        var includeResponse = await _client.DeleteAsync($"/highlights/{highlightId}/exclude");
+        var includeResponse = await _client.DeleteAsync($"/highlights/{highlightId}/exclusions");
 
         Assert.Equal(HttpStatusCode.NoContent, includeResponse.StatusCode);
 
@@ -66,7 +66,7 @@ public sealed class ExclusionEndpointTests : IDisposable
         await SeedLibraryAsync();
         var bookId = await GetBookIdAsync("Beta");
 
-        var excludeResponse = await _client.PostAsync($"/books/{bookId}/exclude", null);
+        var excludeResponse = await _client.PostAsync($"/books/{bookId}/exclusions", null);
 
         Assert.Equal(HttpStatusCode.NoContent, excludeResponse.StatusCode);
 
@@ -85,9 +85,9 @@ public sealed class ExclusionEndpointTests : IDisposable
     {
         await SeedLibraryAsync();
         var bookId = await GetBookIdAsync("Beta");
-        await _client.PostAsync($"/books/{bookId}/exclude", null);
+        await _client.PostAsync($"/books/{bookId}/exclusions", null);
 
-        var includeResponse = await _client.DeleteAsync($"/books/{bookId}/exclude");
+        var includeResponse = await _client.DeleteAsync($"/books/{bookId}/exclusions");
 
         Assert.Equal(HttpStatusCode.NoContent, includeResponse.StatusCode);
 
@@ -103,7 +103,7 @@ public sealed class ExclusionEndpointTests : IDisposable
         await SeedLibraryAsync();
         var authorId = await GetAuthorIdAsync("Shared Author");
 
-        var excludeResponse = await _client.PostAsync($"/authors/{authorId}/exclude", null);
+        var excludeResponse = await _client.PostAsync($"/authors/{authorId}/exclusions", null);
 
         Assert.Equal(HttpStatusCode.NoContent, excludeResponse.StatusCode);
 
@@ -119,7 +119,7 @@ public sealed class ExclusionEndpointTests : IDisposable
     [Fact]
     public async Task PostHighlightExclude_ForMissingHighlight_Returns404()
     {
-        var response = await _client.PostAsync("/highlights/999/exclude", null);
+        var response = await _client.PostAsync("/highlights/999/exclusions", null);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -129,7 +129,7 @@ public sealed class ExclusionEndpointTests : IDisposable
     [Fact]
     public async Task PostBookExclude_ForMissingBook_Returns404()
     {
-        var response = await _client.PostAsync("/books/999/exclude", null);
+        var response = await _client.PostAsync("/books/999/exclusions", null);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -144,9 +144,9 @@ public sealed class ExclusionEndpointTests : IDisposable
         var bookId = await GetBookIdAsync("Beta");
         var authorId = await GetAuthorIdAsync("Shared Author");
 
-        await _client.PostAsync($"/highlights/{highlightId}/exclude", null);
-        await _client.PostAsync($"/books/{bookId}/exclude", null);
-        await _client.PostAsync($"/authors/{authorId}/exclude", null);
+        await _client.PostAsync($"/highlights/{highlightId}/exclusions", null);
+        await _client.PostAsync($"/books/{bookId}/exclusions", null);
+        await _client.PostAsync($"/authors/{authorId}/exclusions", null);
 
         var exclusions = await _client.GetFromJsonAsync<ExclusionsResponse>("/exclusions");
 
@@ -158,7 +158,7 @@ public sealed class ExclusionEndpointTests : IDisposable
 
     private async Task SeedLibraryAsync()
     {
-        var response = await _client.PostAsJsonAsync("/sync", new SyncRequest
+        var response = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
         {
             Books =
             [

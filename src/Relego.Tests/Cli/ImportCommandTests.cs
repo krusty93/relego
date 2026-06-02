@@ -30,7 +30,7 @@ public sealed class ImportCommandTests : IDisposable
     {
         var filePath = CreateClippingsFile(SampleClippings);
 
-        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/sync")
+        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/import")
             .Respond("application/json", """
                 {"newHighlights":5,"duplicateHighlights":2,"newBooks":3,"newAuthors":2}
                 """);
@@ -63,7 +63,7 @@ public sealed class ImportCommandTests : IDisposable
     {
         var filePath = CreateClippingsFile(SampleClippings);
 
-        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/sync")
+        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/import")
             .Throw(new HttpRequestException("Connection refused"));
 
         var exitCode = await RunImportCommand(filePath);

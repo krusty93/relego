@@ -83,7 +83,7 @@ public sealed class WeightEndpointTests : IDisposable
 
     private async Task SeedHighlightsAsync()
     {
-        var response = await _client.PostAsJsonAsync("/sync", new SyncRequest
+        var response = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
         {
             Books =
             [

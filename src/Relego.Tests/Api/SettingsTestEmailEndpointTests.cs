@@ -37,7 +37,7 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
     [Fact]
     public async Task PostTestEmail_WithKindleEmail_SendsSuccessfully()
     {
-        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
 
         var response = await _client.PostAsync("/settings/test-email", null);
 
@@ -58,7 +58,7 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
     [Fact]
     public async Task PostTestEmail_WhenSmtpFails_Returns502()
     {
-        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
         _fakeMail.ShouldThrow = true;
 
         var response = await _client.PostAsync("/settings/test-email", null);
@@ -71,7 +71,7 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
     [Fact]
     public async Task PostTestEmail_WhenUnexpectedErrorOccurs_Returns500()
     {
-        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
         _fakeMail.ShouldThrowUnexpected = true;
 
         var response = await _client.PostAsync("/settings/test-email", null);

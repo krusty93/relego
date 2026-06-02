@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Relego.Core.Contracts;
 using Relego.Server.Data;
 
@@ -31,6 +31,7 @@ public static class BookEndpoints
                 null => Results.Problem(detail: $"A book titled \"{request.Title.Trim()}\" by the same author already exists.", statusCode: StatusCodes.Status409Conflict),
             };
         })
+        .WithTags("Books")
         .WithSummary("Rename a book.")
         .WithDescription("Updates the title of a book. Returns 409 Conflict when a book by the same author already has the requested title.")
         .Produces(StatusCodes.Status204NoContent)

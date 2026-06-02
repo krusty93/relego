@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Net;
 using System.Net.Http.Json;
 using Dapper;
@@ -139,7 +139,7 @@ public sealed class BookEndpointTests : IDisposable
 
     private async Task SeedLibraryAsync()
     {
-        var response = await _client.PostAsJsonAsync("/sync", new SyncRequest
+        var response = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
         {
             Books =
             [

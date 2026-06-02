@@ -33,6 +33,7 @@ public static class HighlightEndpoints
             var result = await highlightRepo.GetHighlightsAsync(userId, page, pageSize, q);
             return Results.Ok(result);
         })
+        .WithTags("Highlights")
         .WithSummary("List highlights.")
         .WithDescription("Returns a paginated, optionally filtered list of highlights stored in the database.")
         .Produces<HighlightsResponse>(StatusCodes.Status200OK)
@@ -50,6 +51,7 @@ public static class HighlightEndpoints
                 ? Results.NoContent()
                 : Results.Problem(detail: $"Highlight {id} not found.", statusCode: StatusCodes.Status404NotFound);
         })
+        .WithTags("Highlights")
         .WithSummary("Delete a highlight.")
         .WithDescription("Deletes a stored highlight for the implicit MVP user.")
         .Produces(StatusCodes.Status204NoContent)

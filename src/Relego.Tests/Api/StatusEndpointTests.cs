@@ -25,7 +25,7 @@ public sealed class StatusEndpointTests : IDisposable
     public async Task GetStatus_AfterSeedingData_ReturnsCorrectCounts()
     {
         var syncRequest = BuildRequest(bookCount: 10, highlightsPerBook: 10, authorCount: 5);
-        var syncResponse = await _client.PostAsJsonAsync("/sync", syncRequest);
+        var syncResponse = await _client.PostAsJsonAsync("/highlights/import", syncRequest);
         Assert.Equal(HttpStatusCode.OK, syncResponse.StatusCode);
 
         var response = await _client.GetAsync("/status");
@@ -90,12 +90,12 @@ public sealed class StatusEndpointTests : IDisposable
     public async Task GetStatus_AfterTimezoneChange_NextRecapReflectsNewTimezone()
     {
         // Set timezone to UTC first
-        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "UTC" });
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "UTC" });
         var statusUtc = await _client.GetFromJsonAsync<StatusResponse>("/status");
         Assert.NotNull(statusUtc?.NextRecap);
 
         // Change timezone
-        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "Asia/Tokyo" });
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "Asia/Tokyo" });
         var statusTokyo = await _client.GetFromJsonAsync<StatusResponse>("/status");
         Assert.NotNull(statusTokyo?.NextRecap);
 

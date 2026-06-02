@@ -8,7 +8,7 @@ public static class SyncEndpoints
 {
     public static WebApplication MapSyncEndpoints(this WebApplication app)
     {
-        app.MapPost("/sync", async (SyncRequest? request, [FromServices] UserRepository userRepo, [FromServices] SyncRepository syncRepo) =>
+        app.MapPost("/highlights/import", async (SyncRequest? request, [FromServices] UserRepository userRepo, [FromServices] SyncRepository syncRepo) =>
         {
             if (request is null || request.Books is null)
                 return Results.ValidationProblem(
@@ -45,7 +45,8 @@ public static class SyncEndpoints
             var response = await syncRepo.ImportAsync(userId, request);
             return Results.Ok(response);
         })
-        .WithSummary("Import parsed Kindle highlights.")
+        .WithTags("Sync")
+        .WithSummary("Import parsed Kindle highlights from a client.")
         .WithDescription("Accepts a parsed clippings payload, persists authors, books, and highlights, deduplicates existing highlights, and returns an import summary for the implicit MVP user.")
         .Accepts<SyncRequest>("application/json")
         .Produces<SyncResponse>(StatusCodes.Status200OK)
