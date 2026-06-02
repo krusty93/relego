@@ -14,7 +14,7 @@
 
 Relego comes from the Latin *relegere*: to read again, go over carefully, review. That is the core idea of the project: bring your highlights back to Kindle so they can be revisited, not forgotten.
 
-Capabilties:
+Capabilities:
 
 - **E-ink first**: recaps delivered as native Kindle documents, not push notifications on your phone
 - **Free and self-hosted**: no subscription, no data leaving your infrastructure
@@ -157,7 +157,6 @@ The installer detects your Windows architecture automatically and prints the pat
 
 <details>
   <summary>macOS / Linux</summary>
-  <summary>macOS / Linux</summary>
 
   ```sh
   curl -fsSL https://raw.githubusercontent.com/Krusty93/relego/main/install.sh | sh
@@ -180,7 +179,7 @@ docker compose run --rm relego-cli config kindle-email "email@kindle.com"
 relego config kindle-email "email@kindle.com"
 ```
 
-### 5. (Optional) Interact with highlights using the TUI
+### 5. Explore the TUI
 
 The TUI lets you sync highlights from `My Clippings.txt`, browse your library, manage exclusions, and adjust settings, all without leaving the terminal. To open it, launch the CLI without any argument:
 
@@ -198,7 +197,7 @@ If you prefer the CLI over the TUI, see the [CLI reference](#cli-reference) belo
 
 That's it. The server is now running and will send recaps on the default schedule (every day at 18:00 in the server's local time zone).
 
-### 6. (Optional) Your first daily recap
+### 6. Your first daily recap
 
 If you don't want to wait for the scheduled send, use the following command to force the send:
 
@@ -249,9 +248,8 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 
 ## Known Limitations
 
-The current MVP is Kindle-only on both ends: it imports highlights from Kindle's `My Clippings.txt` and sends recaps back to Kindle via Send-to-Kindle email.
-
-Additional input and output integrations are planned, and the current TUI is intended as a temporary interface until a local web app replaces it as the primary UI.
+The current version imports highlights from Kindle's `My Clippings.txt` only and delivers recaps to Kindle via Send-to-Kindle email.
+Additional import sources and delivery targets are planned.
 
 ## Supply chain verification
 
