@@ -100,7 +100,7 @@ public sealed class SettingsScreenTests
         using var mockHttp = new MockHttpMessageHandler();
         mockHttp.When(HttpMethod.Get, "http://localhost/settings")
             .Respond("application/json", JsonSerializer.Serialize(settings, CamelCaseOptions));
-        mockHttp.When(HttpMethod.Put, "http://localhost/settings")
+        mockHttp.When(HttpMethod.Patch, "http://localhost/settings")
             .Respond("application/json", JsonSerializer.Serialize(updatedSettings, CamelCaseOptions));
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
 

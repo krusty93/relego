@@ -104,7 +104,7 @@ public sealed partial class ConfigScheduleCommand(RelegoHttpClient client, ILogg
         SettingsResponse response;
         try
         {
-            response = await client.PutSettingsAsync(request, cancellation);
+            response = await client.PatchSettingsAsync(request, cancellation);
         }
         catch (HttpRequestException ex)
         {

@@ -1,7 +1,7 @@
 # Architecture — Relego
 
-**Version:** 0.1 — Draft
-**Date:** 2026-03-31
+**Version:** 0.2 — Draft
+**Date:** 2026-06-02
 **Status:** Draft
 
 ---
@@ -86,10 +86,13 @@ The application registers a scoped `IDbConnection` backed by `Microsoft.Data.Sql
 
 Endpoint groups currently implemented:
 
-- Sync: bulk import via `POST /sync`
-- Settings: `GET /settings`, `PUT /settings`
+- Sync: bulk import via `POST /highlights/import`
+- Settings: `GET /settings`, `PATCH /settings`, `POST /settings/test-email`
 - Status: `GET /status`
-- Exclusions: highlight/book/author include-exclude operations plus `GET /exclusions`
+- Recap: `POST /recaps`
+- Highlights: `GET /highlights`, `DELETE /highlights/{id}`
+- Books: `PUT /books/{id}/title`
+- Exclusions: `*/{id}/exclusions` plus `GET /exclusions`
 - Weights: `PUT /highlights/{id}/weight`, `GET /highlights/weights`
 
 ---
@@ -108,18 +111,18 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 
 ## Technology Stack
 
-| Component | Technology | Rationale |
-|---|---|---|
-| Language / runtime | .NET 10 (C#) | Cross-platform, self-contained binaries, rich ecosystem |
-| Client distribution | Single-file binary / Docker | Zero runtime dependency for end users |
-| Server distribution | Docker container | Self-hosted, single command to deploy |
-| Storage | SQLite (file in Docker volume) | Zero config, single file, no extra container |
-| Client/server protocol | REST HTTP | Simple, debuggable, universally supported |
-| Email delivery | MailKit + SMTP | Industry standard, supports Send-to-Kindle |
-| Logging | Serilog (file + SQLite sink) | Structured logging, persistent, queryable |
-| Scheduling | Quartz.NET | Mature .NET scheduler, cron-style expressions |
-| CLI UX | Spectre.Console | Rich terminal output, tables, progress bars |
-| Landing page | Astro + Tailwind CSS | Static site generation, minimal JS, fast build |
+| Component                | Technology                     | Rationale                                               |
+|--------------------------|--------------------------------|---------------------------------------------------------|
+| Language / runtime       | .NET 10 (C#)                   | Cross-platform, self-contained binaries, rich ecosystem |
+| Client distribution      | Single-file binary / Docker    | Zero runtime dependency for end users                   |
+| Server distribution      | Docker container               | Self-hosted, single command to deploy                   |
+| Storage                  | SQLite (file in Docker volume) | Zero config, single file, no extra container            |
+| Client/server protocol   | REST HTTP                      | Simple, debuggable, universally supported               |
+| Email delivery           | MailKit + SMTP                 | Industry standard, supports Send-to-Kindle              |
+| Logging                  | Serilog (file + SQLite sink)   | Structured logging, persistent, queryable               |
+| Scheduling               | Quartz.NET                     | Mature .NET scheduler, cron-style expressions           |
+| CLI UX                   | Spectre.Console                | Rich terminal output, tables, progress bars             |
+| Landing page             | Astro + Tailwind CSS           | Static site generation, minimal JS, fast build          |
 
 ---
 
@@ -162,22 +165,26 @@ LIMIT @count
 
 ## REST API Surface
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/sync` | Bulk import highlights from client |
-| `GET` | `/status` | Server status, next recap, highlight stats |
-| `GET` | `/settings` | Read current settings |
-| `PUT` | `/settings` | Update settings |
-| `POST` | `/settings/test-email` | Send a plain-text test email to the configured Kindle address |
-| `POST` | `/highlights/{id}/exclude` | Exclude a highlight |
-| `DELETE` | `/highlights/{id}/exclude` | Re-include a highlight |
-| `POST` | `/books/{id}/exclude` | Exclude a book |
-| `DELETE` | `/books/{id}/exclude` | Re-include a book |
-| `POST` | `/authors/{id}/exclude` | Exclude an author |
-| `DELETE` | `/authors/{id}/exclude` | Re-include an author |
-| `GET` | `/exclusions` | List all exclusions |
-| `PUT` | `/highlights/{id}/weight` | Set highlight weight |
-| `GET` | `/highlights/weights` | List weighted highlights |
+| Method   | Path                              | Description                                                   | Tag        |
+|----------|-----------------------------------|---------------------------------------------------------------|------------|
+| `POST`   | `/highlights/import`              | Bulk import highlights from client                            | Sync       |
+| `GET`    | `/status`                         | Server status, next recap, highlight stats                    | Status     |
+| `GET`    | `/settings`                       | Read current settings                                         | Settings   |
+| `PATCH`  | `/settings`                       | Partially update settings                                     | Settings   |
+| `POST`   | `/settings/test-email`            | Send a plain-text test email to the configured Kindle address | Settings   |
+| `POST`   | `/recaps`                         | Execute a recap immediately                                   | Recap      |
+| `GET`    | `/highlights`                     | List/paginate/search highlights                               | Highlights |
+| `DELETE` | `/highlights/{id}`                | Delete a highlight                                            | Highlights |
+| `PUT`    | `/highlights/{id}/weight`         | Set highlight recap weight                                    | Weights    |
+| `GET`    | `/highlights/weights`             | List weighted highlights                                      | Weights    |
+| `PUT`    | `/books/{id}/title`               | Rename a book                                                 | Books      |
+| `POST`   | `/highlights/{id}/exclusions`     | Exclude a highlight                                           | Exclusions |
+| `DELETE` | `/highlights/{id}/exclusions`     | Re-include a highlight                                        | Exclusions |
+| `POST`   | `/books/{id}/exclusions`          | Exclude a book                                                | Exclusions |
+| `DELETE` | `/books/{id}/exclusions`          | Re-include a book                                             | Exclusions |
+| `POST`   | `/authors/{id}/exclusions`        | Exclude an author                                             | Exclusions |
+| `DELETE` | `/authors/{id}/exclusions`        | Re-include an author                                          | Exclusions |
+| `GET`    | `/exclusions`                     | List all exclusions                                           | Exclusions |
 
 ### Data access pattern
 
@@ -208,9 +215,19 @@ The API returns JSON-only responses.
 
 This keeps the client protocol small, explicit, and aligned with the quickstart `curl` flows.
 
+### Contract naming conventions
+
+Transport objects in `Relego.Core/Contracts/` follow these suffixes:
+
+| Suffix      | Usage                                                                                                          |
+|-------------|----------------------------------------------------------------------------------------------------------------|
+| `*Request`  | Inbound root-level request bodies (e.g. `SyncRequest`, `UpdateSettingsRequest`)                                |
+| `*Response` | Outbound root-level response bodies (e.g. `StatusResponse`, `HighlightsResponse`)                              |
+| `*Dto`      | Nested data-transfer objects used as list items or sub-objects within a response (e.g. `WeightedHighlightDto`) |
+
 ## Project structure
 
-```
+```tree
 src/Relego.Core/
 └── Contracts/          # Shared request/response DTOs for CLI and server
 
@@ -250,11 +267,11 @@ src/landing/                # Static marketing landing page (independent from .N
 
 ## ADR Index
 
-| ADR | Decision |
-|---|---|
-| [ADR-001](adr/001-client-server-architecture.md) | Client/server architecture |
-| [ADR-002](adr/002-dotnet-core-runtime.md) | .NET Core as language/runtime |
-| [ADR-003](adr/003-sqlite-storage.md) | SQLite as storage engine |
-| [ADR-004](adr/004-rest-http-protocol.md) | REST HTTP as client/server protocol |
+| ADR                                                     | Decision                                   |
+|---------------------------------------------------------|--------------------------------------------|
+| [ADR-001](adr/001-client-server-architecture.md)        | Client/server architecture                 |
+| [ADR-002](adr/002-dotnet-core-runtime.md)               | .NET Core as language/runtime              |
+| [ADR-003](adr/003-sqlite-storage.md)                    | SQLite as storage engine                   |
+| [ADR-004](adr/004-rest-http-protocol.md)                | REST HTTP as client/server protocol        |
 | [ADR-005](adr/005-my-clippings-txt-highlight-source.md) | `My Clippings.txt` as MVP highlight source |
-| [ADR-006](adr/006-docker-only-distribution.md) | Docker-only server distribution |
+| [ADR-006](adr/006-docker-only-distribution.md)          | Docker-only server distribution            |

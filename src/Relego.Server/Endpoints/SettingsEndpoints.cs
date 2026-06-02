@@ -19,11 +19,12 @@ public static partial class SettingsEndpoints
             var settings = await settingsRepo.GetByUserIdAsync(userId);
             return Results.Ok(ToSettingsResponse(user, settings));
         })
+        .WithTags("Settings")
         .WithSummary("Read current user settings.")
         .WithDescription("Returns stored settings for the implicit MVP user, or default values when no settings row exists yet.")
         .Produces<SettingsResponse>(StatusCodes.Status200OK);
 
-        app.MapPut("/settings", async (UpdateSettingsRequest? request, [FromServices] UserRepository userRepo, [FromServices] SettingsRepository settingsRepo, [FromServices] ISchedulerService schedulerService) =>
+        app.MapPatch("/settings", async (UpdateSettingsRequest? request, [FromServices] UserRepository userRepo, [FromServices] SettingsRepository settingsRepo, [FromServices] ISchedulerService schedulerService) =>
         {
             if (request is null)
             {
@@ -68,8 +69,9 @@ public static partial class SettingsEndpoints
 
             return Results.Ok(ToSettingsResponse(user, settings));
         })
-        .WithSummary("Update current user settings.")
-        .WithDescription("Applies a partial update to the implicit MVP user and returns the fully resolved settings payload.")
+        .WithTags("Settings")
+        .WithSummary("Partially update user settings.")
+        .WithDescription("Applies a partial update to the implicit MVP user settings. Only provided fields are changed.")
         .Accepts<UpdateSettingsRequest>("application/json")
         .Produces<SettingsResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
@@ -106,6 +108,7 @@ public static partial class SettingsEndpoints
                     statusCode: StatusCodes.Status500InternalServerError);
             }
         })
+        .WithTags("Settings")
         .WithSummary("Send a plain-text test email.")
         .WithDescription("Sends a simple verification email to the configured Kindle email address without generating a recap.")
         .Produces(StatusCodes.Status200OK)

@@ -253,7 +253,7 @@ public sealed class HighlightDetailScreenTests
     public async Task HandleKeyAsync_ToggleHighlightExclusionCallsApi()
     {
         using var mockHttp = new MockHttpMessageHandler();
-        mockHttp.Expect(HttpMethod.Post, "http://localhost/highlights/11/exclude")
+        mockHttp.Expect(HttpMethod.Post, "http://localhost/highlights/11/exclusions")
             .Respond(HttpStatusCode.NoContent);
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
 

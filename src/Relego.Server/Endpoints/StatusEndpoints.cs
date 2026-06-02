@@ -21,6 +21,7 @@ public static class StatusEndpoints
 
             return Results.Ok(status);
         })
+        .WithTags("Status")
         .WithSummary("Get server status.")
         .WithDescription("Returns aggregate counts for highlights, books, authors, and exclusions for the implicit MVP user, along with the next scheduled recap time.")
         .Produces<StatusResponse>(StatusCodes.Status200OK);

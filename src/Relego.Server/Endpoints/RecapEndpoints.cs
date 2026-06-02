@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Relego.Server.Data;
 using Relego.Server.Services;
 
@@ -8,7 +8,7 @@ public static class RecapEndpoints
 {
     public static WebApplication MapRecapEndpoints(this WebApplication app)
     {
-        app.MapPost("/recap/trigger", async (
+        app.MapPost("/recaps", async (
             [FromServices] UserRepository userRepo,
             [FromServices] IRecapService recapService,
             CancellationToken ct) =>
@@ -26,8 +26,9 @@ public static class RecapEndpoints
                 return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status500InternalServerError);
             }
         })
-        .WithSummary("Trigger a recap immediately.")
-        .WithDescription("Executes the full recap pipeline synchronously for the implicit user.")
+        .WithTags("Recap")
+        .WithSummary("Execute a recap immediately.")
+        .WithDescription("Creates and executes a recap on demand for the implicit user.")
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status500InternalServerError);
 

@@ -39,7 +39,7 @@ public sealed class SettingsEndpointTests : IDisposable
     [Fact]
     public async Task PutSettings_UpdatesSchedule_AndPreservesOtherFields()
     {
-        var response = await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Schedule = "weekly" });
+        var response = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Schedule = "weekly" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -57,7 +57,7 @@ public sealed class SettingsEndpointTests : IDisposable
     [Fact]
     public async Task PutSettings_CountZero_Returns422WithFieldError()
     {
-        var response = await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Count = 0 });
+        var response = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Count = 0 });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -67,7 +67,7 @@ public sealed class SettingsEndpointTests : IDisposable
     [Fact]
     public async Task PutSettings_CountSixteen_Returns422WithFieldError()
     {
-        var response = await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Count = 16 });
+        var response = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Count = 16 });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -77,7 +77,7 @@ public sealed class SettingsEndpointTests : IDisposable
     [Fact]
     public async Task PutSettings_ValidKindleEmail_IsPersisted()
     {
-        var putResponse = await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user+recap@kindle.com" });
+        var putResponse = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user+recap@kindle.com" });
 
         Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
 
@@ -91,7 +91,7 @@ public sealed class SettingsEndpointTests : IDisposable
     [Fact]
     public async Task PutSettings_InvalidKindleEmail_Returns422WithFieldError()
     {
-        var response = await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "invalid" });
+        var response = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "invalid" });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -112,7 +112,7 @@ public sealed class SettingsEndpointTests : IDisposable
     [Fact]
     public async Task PutSettings_ValidTimezone_IsPersisted()
     {
-        var putResponse = await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "Europe/Rome" });
+        var putResponse = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "Europe/Rome" });
 
         Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
 
@@ -126,7 +126,7 @@ public sealed class SettingsEndpointTests : IDisposable
     [Fact]
     public async Task PutSettings_InvalidTimezone_Returns422WithFieldError()
     {
-        var response = await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "Invalid/Timezone" });
+        var response = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "Invalid/Timezone" });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -137,14 +137,14 @@ public sealed class SettingsEndpointTests : IDisposable
     public async Task PutSettings_TimezoneUpdate_ReschedulesRecap()
     {
         // Set initial timezone
-        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "UTC" });
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "UTC" });
 
         // Get status to capture initial NextRecap
         var statusBefore = await _client.GetFromJsonAsync<StatusResponse>("/status");
         Assert.NotNull(statusBefore);
 
         // Change timezone
-        await _client.PutAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "America/New_York" });
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { Timezone = "America/New_York" });
 
         // Get status after rescheduling
         var statusAfter = await _client.GetFromJsonAsync<StatusResponse>("/status");

@@ -255,7 +255,7 @@ public sealed class BookListScreenTests : IDisposable
                 }
                 """);
 
-        mockHttp.Expect(HttpMethod.Post, "http://localhost:5000/sync")
+        mockHttp.Expect(HttpMethod.Post, "http://localhost:5000/highlights/import")
             .Respond("application/json", """
                 {
                   "newHighlights": 1,
@@ -310,7 +310,7 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureHighlightEndpoints(mockHttp);
         ConfigureSupplementaryEndpoints(mockHttp);
 
-        mockHttp.When(HttpMethod.Post, "http://localhost:5000/sync")
+        mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/import")
             .Throw(new HttpRequestException("Connection refused"));
 
         var releClient = CreateRelegoClient(mockHttp);

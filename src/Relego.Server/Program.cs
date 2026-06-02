@@ -46,6 +46,8 @@ builder.Services.AddSwaggerGen(options =>
         }
     );
 
+    options.OrderActionsBy(d => d.GroupName);
+
     IncludeXmlCommentsIfPresent(options, Assembly.GetExecutingAssembly());
     IncludeXmlCommentsIfPresent(options, typeof(SettingsResponse).Assembly);
 });

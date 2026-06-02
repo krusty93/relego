@@ -22,7 +22,7 @@ public sealed class RelegoHttpClient(HttpClient http)
 
     public async Task<SyncResponse> PostSyncAsync(SyncRequest request, CancellationToken ct = default)
     {
-        var response = await http.PostAsJsonAsync("/sync", request, RelegoJsonContext.Default.SyncRequest, ct).ConfigureAwait(false);
+        var response = await http.PostAsJsonAsync("/highlights/import", request, RelegoJsonContext.Default.SyncRequest, ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync(RelegoJsonContext.Default.SyncResponse, ct).ConfigureAwait(false))!;
     }
@@ -30,9 +30,9 @@ public sealed class RelegoHttpClient(HttpClient http)
     public async Task<SettingsResponse> GetSettingsAsync(CancellationToken ct = default)
         => (await http.GetFromJsonAsync("/settings", RelegoJsonContext.Default.SettingsResponse, ct).ConfigureAwait(false))!;
 
-    public async Task<SettingsResponse> PutSettingsAsync(UpdateSettingsRequest request, CancellationToken ct = default)
+    public async Task<SettingsResponse> PatchSettingsAsync(UpdateSettingsRequest request, CancellationToken ct = default)
     {
-        var response = await http.PutAsJsonAsync("/settings", request, RelegoJsonContext.Default.UpdateSettingsRequest, ct).ConfigureAwait(false);
+        var response = await http.PatchAsJsonAsync("/settings", request, RelegoJsonContext.Default.UpdateSettingsRequest, ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync(RelegoJsonContext.Default.SettingsResponse, ct).ConfigureAwait(false))!;
     }
@@ -42,13 +42,13 @@ public sealed class RelegoHttpClient(HttpClient http)
 
     public async Task<HttpResponseMessage> PostExcludeAsync(string type, int id, CancellationToken ct = default)
     {
-        var response = await http.PostAsync($"/{type}s/{id}/exclude", null, ct).ConfigureAwait(false);
+        var response = await http.PostAsync($"/{type}s/{id}/exclusions", null, ct).ConfigureAwait(false);
         return response;
     }
 
     public async Task<HttpResponseMessage> DeleteExcludeAsync(string type, int id, CancellationToken ct = default)
     {
-        var response = await http.DeleteAsync($"/{type}s/{id}/exclude", ct).ConfigureAwait(false);
+        var response = await http.DeleteAsync($"/{type}s/{id}/exclusions", ct).ConfigureAwait(false);
         return response;
     }
 
@@ -60,7 +60,7 @@ public sealed class RelegoHttpClient(HttpClient http)
 
     public async Task<RecapTriggerResponse> TriggerRecapAsync(CancellationToken ct = default)
     {
-        var response = await http.PostAsync("/recap/trigger", null, ct).ConfigureAwait(false);
+        var response = await http.PostAsync("/recaps", null, ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync(RelegoJsonContext.Default.RecapTriggerResponse, ct).ConfigureAwait(false))!;
     }
