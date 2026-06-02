@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/test';
 
-const outputPath = '../../docs/assets/landing-hero-dark.jpg';
-
 test('capture dark hero section for README', async ({ page }) => {
 	await page.addInitScript(() => {
 		window.localStorage.setItem('theme', 'dark');
@@ -26,7 +24,7 @@ test('capture dark hero section for README', async ({ page }) => {
 	const hero = page.locator('#hero');
 	await expect(hero).toBeVisible();
 	await hero.screenshot({
-		path: outputPath,
+		path: test.info().outputPath('landing-hero-dark.jpg'),
 		type: 'jpeg',
 		quality: 88,
 		animations: 'disabled',

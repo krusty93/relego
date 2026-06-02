@@ -10,6 +10,7 @@ import GettingStarted from '../components/GettingStarted.astro';
 import FeatureCard from '../components/FeatureCard.astro';
 import Accordion from '../components/Accordion.astro';
 import heroImage from '../assets/hero-kindle.jpg';
+import tuiDemo from '../assets/tui-demo.gif';
 
 const steps = [
 	{
@@ -67,6 +68,18 @@ const steps = [
 		<!-- Getting Started -->
 		<Section id="getting-started" title="Get started quickly" titleAccent="in just 3 steps" subtitle="A fast and frustration-free way to set up Relego and start revisiting your highlights.">
 			<GettingStarted steps={steps} />
+			<div class="mt-10 text-center">
+				<Button href="https://github.com/Krusty93/relego#getting-started" variant="outline" target="_blank" rel="noopener noreferrer">
+					Full setup guide on GitHub
+				</Button>
+			</div>
+		</Section>
+
+		<!-- TUI Demo -->
+		<Section id="tui-demo" title="Interactive" titleAccent="terminal UI" subtitle="Run relego without arguments to open the TUI. Configure, browse, and manage everything from your terminal.">
+			<div class="mx-auto max-w-4xl overflow-hidden rounded-xl border border-[var(--color-border)] shadow-lg">
+				<Image src={tuiDemo} alt="Relego interactive TUI demo showing navigation between highlights, settings, and exclusions" class="w-full" loading="lazy" />
+			</div>
 		</Section>
 
 		<!-- Why Relego -->
@@ -128,7 +141,7 @@ const steps = [
 				/>
 				<Accordion
 					question="Which SMTP providers are supported?"
-					answer="Any provider that supports standard username and password authentication works: Fastmail, Amazon SES, Mailgun, or your own mail server. Providers that require OAuth only, such as Gmail, are not supported."
+					answer="Any provider that supports standard SMTP with username and password authentication works: AWS SES, Resend, MailerSend, Mailgun, or your own mail server. Providers that require OAuth only, such as Gmail and Outlook, are not supported."
 				/>
 				<Accordion
 					question="How often are recaps delivered?"
