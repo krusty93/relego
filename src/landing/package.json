@@ -2,7 +2,7 @@
   "name": "@relego/landing",
   "private": true,
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "scripts": {
     "dev": "astro dev --host 0.0.0.0 --port 4321 --base /",
     "build": "astro build",
