@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Navigation', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/relego/');
+		await page.goto('/');
 	});
 
 	test('navbar renders with "relego." logotype text', async ({ page }) => {

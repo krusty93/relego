@@ -7,7 +7,7 @@ test('capture dark hero section for README', async ({ page }) => {
 	await page.emulateMedia({ colorScheme: 'dark' });
 	await page.setViewportSize({ width: 1600, height: 1000 });
 
-	await page.goto('/relego/');
+	await page.goto('/');
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
 	// Ensure the hero background image has finished loading.

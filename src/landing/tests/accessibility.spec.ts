@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 test.describe('Accessibility', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/relego/');
+		await page.goto('/');
 	});
 
 	test('full page has no critical or serious axe violations', async ({ page }) => {

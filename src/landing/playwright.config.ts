@@ -4,7 +4,7 @@ export default defineConfig({
 	testDir: './tests',
 	retries: process.env.CI ? 2 : 0,
 	use: {
-		baseURL: 'http://localhost:4321/relego/',
+		baseURL: 'http://localhost:4321/',
 		screenshot: 'only-on-failure',
 	},
 	projects: [
@@ -16,8 +16,8 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: 'npm run dev -- --host 0.0.0.0 --port 4321 --base /relego/',
-		url: 'http://localhost:4321/relego/',
+		command: 'npm run dev -- --host 0.0.0.0 --port 4321 --base /',
+		url: 'http://localhost:4321/',
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000,
 	},
