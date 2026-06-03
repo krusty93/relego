@@ -13,6 +13,9 @@
     "ghcr.io/devcontainers-extra/features/uv:1": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "lts"
+    },
+    "ghcr.io/devcontainers-extra/features/vercel-cli:1": {
+      "version": "latest"
     }
 	},
   "postCreateCommand": "uv tool install specify-cli --from git+https://github.com/github/spec-kit.git && dotnet tool install -g Rnwood.Smtp4dev",

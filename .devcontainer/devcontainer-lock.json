@@ -5,6 +5,11 @@
       "resolved": "ghcr.io/devcontainers-extra/features/uv@sha256:1ac5b9f17a9e9e745933d0ac2ecf758e06ed3da4423cd22c94cce4d482fd2dd8",
       "integrity": "sha256:1ac5b9f17a9e9e745933d0ac2ecf758e06ed3da4423cd22c94cce4d482fd2dd8"
     },
+    "ghcr.io/devcontainers-extra/features/vercel-cli:1": {
+      "version": "1.0.4",
+      "resolved": "ghcr.io/devcontainers-extra/features/vercel-cli@sha256:f1c31c2ed23f59ad08b6aecef382e2bb4510e6452956f618fdcb40f28a50c2bf",
+      "integrity": "sha256:f1c31c2ed23f59ad08b6aecef382e2bb4510e6452956f618fdcb40f28a50c2bf"
+    },
     "ghcr.io/devcontainers/features/copilot-cli:1": {
       "version": "1.1.2",
       "resolved": "ghcr.io/devcontainers/features/copilot-cli@sha256:757c6c2899dc902c44a9f6164c1f7392832ced13c6bb632d8d60a880f2e92456",
