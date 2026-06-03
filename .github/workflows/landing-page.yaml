@@ -29,6 +29,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
       # - name: Setup Node.js
       #   uses: actions/setup-node@v6
       #   with:
@@ -42,12 +45,6 @@ jobs:
       # - name: Build
       #   run: npm run build
 
-      # - name: Install Playwright browsers
-      #   run: npx playwright install --with-deps chromium
-
-      # - name: Run Playwright tests
-      #   run: npx playwright test
-
       # - name: Upload Playwright report
       #   if: failure()
       #   uses: actions/upload-artifact@v7
@@ -57,14 +54,20 @@ jobs:
       #     if-no-files-found: warn
       #     retention-days: 7
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+      - name: Disable Vercel Telemetry
+        run: vercel telemetry disable
 
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Artifacts
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test
 
       - name: Deploy Artifacts to Vercel
         run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
