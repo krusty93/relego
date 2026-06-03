@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('FAQ Section', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/relego/');
+		await page.goto('/');
 	});
 
 	test('renders 6 FAQ accordion items with visible questions', async ({ page }) => {
