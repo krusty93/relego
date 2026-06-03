@@ -489,3 +489,5 @@ $RECYCLE.BIN/
 
 # Local development data directory
 .data/
+.vercel
+.env*
