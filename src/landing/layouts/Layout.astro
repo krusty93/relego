@@ -1,5 +1,6 @@
 ---
 import Analytics from '@vercel/analytics/astro';
+import SpeedInsights from '@vercel/speed-insights/astro';
 import '../styles/global.css';
 import { siteConfig } from '../config/site';
 
@@ -53,5 +54,6 @@ const faviconHref = `${import.meta.env.BASE_URL}favicon.svg`;
 	</head>
 	<body class="landing">
 		<slot />
+		<SpeedInsights />
 	</body>
 </html>
