@@ -161,6 +161,10 @@
   - `PATCH /settings` with invalid `deliveryEmail` format (e.g., `"not-an-email"`) → 422 with `{"errors": {"deliveryEmail": ["Invalid email format."]}}`.
   - `PATCH /settings` with empty string `""` → clears `deliveryEmail`; subsequent `GET /settings` returns `deliveryEmail: null`.
   - `PATCH /settings` with `deliveryEmail: null` (JSON `null` or field absent) → existing value unchanged.
+  - `POST /settings/test-email` with `{"channel": "delivery"}` → calls delivery path; 200 with message containing delivery email.
+  - `POST /settings/test-email` with `{"channel": "both"}` → 200 with `results.kindle` and `results.delivery` objects.
+  - `POST /settings/test-email` with `{"channel": "delivery"}` when `deliveryEmail` not configured → 422 with actionable error.
+  - `POST /settings/test-email` with `{"channel": "invalid"}` → 422 with validation error.
   - `GET /status` returns `deliveryEmailConfigured: true` when `deliveryEmail` is set; `false` when null/empty.
 
 **Checkpoint**: `PATCH /settings` validates and persists `deliveryEmail`. `GET /settings` returns it. `POST /settings/test-email` supports channel selection with proper error handling. `GET /status` exposes `deliveryEmailConfigured`. All API tests pass.
