@@ -1,4 +1,4 @@
-namespace Relego.Server.Models;
+﻿namespace Relego.Server.Models;
 
 public class User
 {

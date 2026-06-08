@@ -1,4 +1,4 @@
-namespace Relego.Core.Contracts;
+﻿namespace Relego.Core.Contracts;
 
 /// <summary>
 /// Optional request body for POST /settings/test-email.
