@@ -65,7 +65,19 @@ public sealed class HtmlEmailComposerTests
 
         // Footer
         Assert.Contains("Sent by Relego", html);
-        Assert.Contains("https://relego.app", html);
+        Assert.Contains("https://relego.io", html);
+
+        // Email-safe: no rgba() - Outlook doesn't support it
+        Assert.DoesNotContain("rgba(", html);
+
+        // Email-safe: no border-radius - Outlook doesn't support it
+        Assert.DoesNotContain("border-radius", html);
+
+        // Email-safe: no letter-spacing - Outlook doesn't support it
+        Assert.DoesNotContain("letter-spacing", html);
+
+        // Should contain MSO conditionals for Outlook
+        Assert.Contains("[if mso]", html);
     }
 
     [Fact]
