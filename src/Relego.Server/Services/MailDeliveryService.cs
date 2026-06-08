@@ -8,10 +8,12 @@ namespace Relego.Server.Services;
 public sealed class MailDeliveryService : IMailDeliveryService
 {
     private readonly SmtpSettings _settings;
+    private readonly ILogger<MailDeliveryService> _logger;
 
-    public MailDeliveryService(IOptions<SmtpSettings> settings)
+    public MailDeliveryService(IOptions<SmtpSettings> settings, ILogger<MailDeliveryService> logger)
     {
         _settings = settings.Value;
+        _logger = logger;
     }
 
     public async Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default)
@@ -52,6 +54,15 @@ public sealed class MailDeliveryService : IMailDeliveryService
         };
 
         await SendEmailAsync(message!, cancellationToken);
+    }
+
+    public async Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)
+    {
+        var toAddress = message.To.Mailboxes.FirstOrDefault()?.Address ?? "unknown";
+
+        await SendEmailAsync(message, cancellationToken);
+
+        _logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
     }
 
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)

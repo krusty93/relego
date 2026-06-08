@@ -71,14 +71,14 @@
 
 ### HtmlEmailComposer
 
-- [ ] T011 [US7] Create `src/Relego.Server/Services/HtmlEmailComposer.cs`: static class (pattern-matches existing `EpubComposer`) with method `static MimeMessage Compose(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string cadence, string toAddress, string fromAddress)`. Produces a `MimeMessage` with:
+- [X] T011 [US7] Create `src/Relego.Server/Services/HtmlEmailComposer.cs`: static class (pattern-matches existing `EpubComposer`) with method `static MimeMessage Compose(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string cadence, string toAddress, string fromAddress)`. Produces a `MimeMessage` with:
   - **MIME structure**: `multipart/alternative` via MimeKit `BodyBuilder` containing `text/html` and `text/plain` parts.
   - **HTML part**: email-safe inline CSS using `<table>` layout, `max-width: 600px`, system font stack, `viewport` meta tag. Branded header with "Relego" logotype (text-based, using `BrandColors.Light.Accent` hex), recap date, highlights grouped by book (title + author + highlight text with left-border visual treatment), footer with "Sent by Relego" and project URL. No external stylesheets, no JavaScript, no CSS Grid/Flexbox, no `<style>` blocks.
   - **Plain-text part**: text-only formatting — book title underlined with `===`, author on separate line, highlight text indented with `>` prefix.
   - **Edge cases**: empty highlight list produces graceful "No highlights this recap" message; Unicode/emoji characters encoded in UTF-8; very long highlights (2000+ chars) fully included in HTML, truncated at 2000 chars with `[...]` in plain-text part.
   - Reuses `Relego.Core.Branding.BrandColors` for color scheme consistency with EPUB composer.
 
-- [ ] T012 [US7] Write `src/Relego.Tests/Services/HtmlEmailComposerTests.cs`: unit tests for `HtmlEmailComposer.Compose()`. Verify:
+- [X] T012 [US7] Write `src/Relego.Tests/Services/HtmlEmailComposerTests.cs`: unit tests for `HtmlEmailComposer.Compose()`. Verify:
   - MIME structure is `multipart/alternative` with exactly two parts.
   - HTML part contains required elements (brand header text "Relego", recap date, book title, author name, highlight text, footer with project URL).
   - Plain-text part is non-empty and contains book/author/highlight text.
@@ -90,15 +90,15 @@
 
 ### MailDeliveryService Extensions
 
-- [ ] T013 [US2] Modify `src/Relego.Server/Services/IMailDeliveryService.cs`: add `Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)` method. The method accepts a pre-composed `MimeMessage` (from `HtmlEmailComposer.Compose()`) and sends it via SMTP. This separates concerns: composition is owned by `HtmlEmailComposer`, transport is owned by the delivery service.
+- [X] T013 [US2] Modify `src/Relego.Server/Services/IMailDeliveryService.cs`: add `Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)` method. The method accepts a pre-composed `MimeMessage` (from `HtmlEmailComposer.Compose()`) and sends it via SMTP. This separates concerns: composition is owned by `HtmlEmailComposer`, transport is owned by the delivery service.
 
-- [ ] T014 [US2] Modify `src/Relego.Server/Services/MailDeliveryService.cs`: implement `SendHtmlRecapAsync` — delegates to the existing private `SendEmailAsync(MimeMessage, CancellationToken)` method (which handles SMTP connection, authentication via `SmtpClient`, and sending). No new SMTP configuration or connection logic — reuses the existing infrastructure. Log at `Information` level: `"HTML recap sent to {ToAddress}"`.
+- [X] T014 [US2] Modify `src/Relego.Server/Services/MailDeliveryService.cs`: implement `SendHtmlRecapAsync` — delegates to the existing private `SendEmailAsync(MimeMessage, CancellationToken)` method (which handles SMTP connection, authentication via `SmtpClient`, and sending). No new SMTP configuration or connection logic — reuses the existing infrastructure. Log at `Information` level: `"HTML recap sent to {ToAddress}"`.
 
-- [ ] T015 [US2] Modify `src/Relego.Server/Services/DevMailDeliveryService.cs`: implement `SendHtmlRecapAsync` — mirrors `MailDeliveryService` implementation but uses development SMTP settings (`SecureSocketOptions.None`, no auth, `Smtp__Port` default 25). Delegates to the existing private `SendEmailAsync` method.
+- [X] T015 [US2] Modify `src/Relego.Server/Services/DevMailDeliveryService.cs`: implement `SendHtmlRecapAsync` — mirrors `MailDeliveryService` implementation but uses development SMTP settings (`SecureSocketOptions.None`, no auth, `Smtp__Port` default 25). Delegates to the existing private `SendEmailAsync` method.
 
 ### RecapService Dual-Channel Refactor
 
-- [ ] T016 [US2] [US3] [US4] [US5] Modify `src/Relego.Server/Services/RecapService.cs`: refactor `ExecuteAsync` for dual-channel delivery with error isolation. New logic flow:
+- [X] T016 [US2] [US3] [US4] [US5] Modify `src/Relego.Server/Services/RecapService.cs`: refactor `ExecuteAsync` for dual-channel delivery with error isolation. New logic flow:
   1. Fetch user. Check `KindleEmail` (after trimming whitespace) and `DeliveryEmail` (after trimming whitespace). Determine `hasKindle = !string.IsNullOrWhiteSpace(user.KindleEmail)`, `hasEmail = !string.IsNullOrWhiteSpace(user.DeliveryEmail)`.
   2. If NEITHER is set (`!hasKindle && !hasEmail`): log warning `"No delivery channel configured — recaps cannot be delivered"` with structured property `{Channel = "None"}`, mark job failed, return early. No SMTP connections attempted.
   3. Compose EPUB **once** if `hasKindle` (reuse existing `EpubComposer.Compose()` call — unchanged).
@@ -112,7 +112,7 @@
      - Log per-channel outcomes: `"Kindle delivery: {Result}"`, `"Email delivery: {Result}"` with structured properties `{Channel, Success}`.
   7. **Backward compatibility** (US4): When only `kindle_email` is configured, the flow is identical to current behavior — EPUB composed and sent via existing `SendRecapAsync`. No code path changes for Kindle-only users.
 
-- [ ] T017 [US2] [US3] [US4] [US5] Write `src/Relego.Tests/Services/RecapServiceDualChannelTests.cs`: unit tests using mocked `IMailDeliveryService` (via Moq or manual test doubles). Test all delivery channel combinations:
+- [X] T017 [US2] [US3] [US4] [US5] Write `src/Relego.Tests/Services/RecapServiceDualChannelTests.cs`: unit tests using mocked `IMailDeliveryService` (via Moq or manual test doubles). Test all delivery channel combinations:
   - Both emails configured → `SendRecapAsync` called for Kindle AND `SendHtmlRecapAsync` called for Email; both highlights seen and job delivered.
   - Only `kindleEmail` configured → only `SendRecapAsync` called; `SendHtmlRecapAsync` NOT called; job delivered (US4 backward compat).
   - Only `deliveryEmail` configured → only `SendHtmlRecapAsync` called; `SendRecapAsync` NOT called; job delivered (US5 email-only mode).
