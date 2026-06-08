@@ -37,4 +37,7 @@ public sealed record StatusResponse
 
     /// <summary>Indicates whether a Kindle delivery email is configured for the user.</summary>
     public bool KindleEmailConfigured { get; set; }
+
+    /// <summary>Indicates whether a regular delivery email is configured for the user.</summary>
+    public bool DeliveryEmailConfigured { get; set; }
 }
