@@ -33,4 +33,10 @@ public sealed record SettingsResponse
 
     /// <summary>IANA timezone identifier for the delivery schedule (e.g., "Europe/Rome").</summary>
     public string Timezone { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Regular (non-Kindle) email address for HTML recap delivery.
+    /// <c>null</c> when not configured.
+    /// </summary>
+    public string? DeliveryEmail { get; set; }
 }

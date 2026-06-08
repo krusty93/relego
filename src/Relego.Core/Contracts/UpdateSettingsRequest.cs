@@ -39,4 +39,12 @@ public sealed record UpdateSettingsRequest
 
     /// <summary>IANA timezone identifier. Validated via TimeZoneInfo.FindSystemTimeZoneById.</summary>
     public string? Timezone { get; set; }
+
+    /// <summary>
+    /// Regular email address for HTML recap delivery.
+    /// <c>null</c> = don't change existing value.
+    /// <c>""</c> (empty string) = clear the field.
+    /// Non-empty valid email = set.
+    /// </summary>
+    public string? DeliveryEmail { get; set; }
 }

@@ -364,7 +364,7 @@ public sealed class SettingsScreen : IScreen
             CancelEdit();
             SetStatus($"{field.Label} updated.", isError: false);
 
-            if (field.FieldId == "kindleEmail" && _refreshChromeAsync is not null)
+            if ((field.FieldId == "kindleEmail" || field.FieldId == "deliveryEmail") && _refreshChromeAsync is not null)
                 _ = Task.Run(() => _refreshChromeAsync(CancellationToken.None));
         }
         catch (HttpRequestException ex)
@@ -375,9 +375,9 @@ public sealed class SettingsScreen : IScreen
 
     private async Task<ScreenResult> HandleTestEmailAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_settings?.KindleEmail))
+        if (string.IsNullOrWhiteSpace(_settings?.KindleEmail) && string.IsNullOrWhiteSpace(_settings?.DeliveryEmail))
         {
-            SetStatus("Kindle email is not configured. Please set it first.", isError: true);
+            SetStatus("No delivery email configured. Please set a Kindle or delivery email first.", isError: true);
             return ScreenResult.Stay();
         }
 
@@ -459,6 +459,7 @@ public sealed class SettingsScreen : IScreen
         return field.FieldId switch
         {
             "kindleEmail" => !value.Contains('@') ? "Email must contain '@'." : null,
+            "deliveryEmail" => value.Length > 0 && !value.Contains('@') ? "Email must contain '@'." : null,
             "schedule" => value is not "daily" and not "weekly" ? "Schedule must be 'daily' or 'weekly'." : null,
             "deliveryDay" => !DayOfWeekOptions.Contains(value, StringComparer.OrdinalIgnoreCase) ? "Invalid day of week." : null,
             "deliveryTime" => !TimeOnly.TryParseExact(value, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
@@ -474,6 +475,7 @@ public sealed class SettingsScreen : IScreen
         return field.FieldId switch
         {
             "kindleEmail" => new UpdateSettingsRequest { KindleEmail = value },
+            "deliveryEmail" => new UpdateSettingsRequest { DeliveryEmail = value },
             "schedule" => new UpdateSettingsRequest { Schedule = value },
             "deliveryDay" => new UpdateSettingsRequest { DeliveryDay = value },
             "deliveryTime" => new UpdateSettingsRequest { DeliveryTime = value },
@@ -490,6 +492,8 @@ public sealed class SettingsScreen : IScreen
             return;
 
         _fields.Add(new SettingsField("Kindle Email", _settings.KindleEmail, "kindleEmail", FieldKind.Editable,
+            Hint: "Insert a valid email address"));
+        _fields.Add(new SettingsField("Delivery Email", _settings.DeliveryEmail ?? "", "deliveryEmail", FieldKind.Editable,
             Hint: "Insert a valid email address"));
         _fields.Add(new SettingsField("Schedule", _settings.Schedule, "schedule", FieldKind.Editable,
             Hint: "◀ ▶ to change, Enter to confirm", Options: ScheduleOptions));

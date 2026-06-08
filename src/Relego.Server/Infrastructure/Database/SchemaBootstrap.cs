@@ -7,8 +7,9 @@ public sealed class SchemaBootstrap
     private const string SchemaSql = """
         CREATE TABLE IF NOT EXISTS users (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            kindle_email TEXT    NOT NULL UNIQUE,
-            created_at   TEXT    NOT NULL
+            kindle_email   TEXT    NOT NULL UNIQUE,
+            delivery_email TEXT    NULL,
+            created_at     TEXT    NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS authors (
@@ -89,6 +90,34 @@ public sealed class SchemaBootstrap
         await using var command = connection.CreateCommand();
         command.CommandText = SchemaSql;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        // Migration: add delivery_email column if it doesn't exist (existing databases)
+        await MigrateAddDeliveryEmailColumnAsync(connection, cancellationToken);
+    }
+
+    private static async Task MigrateAddDeliveryEmailColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var pragmaCommand = connection.CreateCommand();
+        pragmaCommand.CommandText = "PRAGMA table_info(users)";
+        await using var reader = await pragmaCommand.ExecuteReaderAsync(cancellationToken);
+
+        var hasDeliveryEmail = false;
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var columnName = reader.GetString(1);
+            if (columnName == "delivery_email")
+            {
+                hasDeliveryEmail = true;
+                break;
+            }
+        }
+
+        if (!hasDeliveryEmail)
+        {
+            await using var alterCommand = connection.CreateCommand();
+            alterCommand.CommandText = "ALTER TABLE users ADD COLUMN delivery_email TEXT NULL";
+            await alterCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     public async Task ApplyAsync(string dbPath, CancellationToken cancellationToken = default)

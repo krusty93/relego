@@ -37,7 +37,7 @@ public sealed class SettingsScreenTests
 
         Assert.NotNull(screen.Settings);
         Assert.Equal("user@kindle.com", screen.Settings.KindleEmail);
-        Assert.Equal(4, screen.Fields.Count); // 4 editable (schedule=daily, no delivery day, no timezone)
+        Assert.Equal(5, screen.Fields.Count); // 5 editable (schedule=daily, no delivery day, no timezone)
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class SettingsScreenTests
         var screen = new SettingsScreen(new RelegoHttpClient(httpClient), isDevelopment: true);
         await screen.InitializeAsync(CancellationToken.None);
 
-        Assert.Equal(5, screen.Fields.Count); // 4 editable + 1 action (trigger-recap only)
+        Assert.Equal(6, screen.Fields.Count); // 5 editable + 1 action (trigger-recap only)
         Assert.Contains(screen.Fields, f => f.ActionId == "trigger-recap");
     }
 
@@ -70,7 +70,7 @@ public sealed class SettingsScreenTests
         var screen = new SettingsScreen(new RelegoHttpClient(httpClient));
         await screen.InitializeAsync(CancellationToken.None);
 
-        Assert.Equal(5, screen.Fields.Count); // 5 editable (includes delivery day)
+        Assert.Equal(6, screen.Fields.Count); // 6 editable (includes delivery day)
         Assert.Contains(screen.Fields, f => f.FieldId == "deliveryDay");
         Assert.Equal("wednesday", screen.Fields.First(f => f.FieldId == "deliveryDay").Value);
     }

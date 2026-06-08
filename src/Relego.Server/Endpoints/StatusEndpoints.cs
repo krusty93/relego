@@ -18,6 +18,7 @@ public static class StatusEndpoints
             var nextFire = schedulerService.GetNextFireTimeUtc();
             status.NextRecap = nextFire?.ToString("O");
             status.KindleEmailConfigured = !string.IsNullOrWhiteSpace(user.KindleEmail);
+            status.DeliveryEmailConfigured = !string.IsNullOrWhiteSpace(user.DeliveryEmail);
 
             return Results.Ok(status);
         })

@@ -19,8 +19,8 @@
 
 **Purpose**: Verify the current solution builds and tests pass before starting implementation. No new code is written in this phase.
 
-- [ ] T001 Verify `dotnet build src/Relego.slnx` exits 0 with zero errors/warnings across all four projects
-- [ ] T002 [P] Verify `dotnet test src/Relego.slnx` exits 0 with no regressions in existing tests
+- [X] T001 Verify `dotnet build src/Relego.slnx` exits 0 with zero errors/warnings across all four projects
+- [X] T002 [P] Verify `dotnet test src/Relego.slnx` exits 0 with no regressions in existing tests
 
 **Checkpoint**: Solution is in a known-good state. Implementation can begin.
 
@@ -34,13 +34,13 @@
 
 ### Database Migration
 
-- [ ] T003 [P] [US1] Modify `src/Relego.Server/Infrastructure/Database/SchemaBootstrap.cs`: (a) update the `CREATE TABLE IF NOT EXISTS users` statement to include `delivery_email TEXT NULL` column for fresh installs, and (b) after the main schema DDL, query `PRAGMA table_info(users)` to check if `delivery_email` column exists; if not, execute `ALTER TABLE users ADD COLUMN delivery_email TEXT NULL`. Use Dapper for the PRAGMA query (consistent with existing `UserRepository` pattern). The migration must be idempotent — running it on a database that already has the column must not error.
+- [X] T003 [P] [US1] Modify `src/Relego.Server/Infrastructure/Database/SchemaBootstrap.cs`: (a) update the `CREATE TABLE IF NOT EXISTS users` statement to include `delivery_email TEXT NULL` column for fresh installs, and (b) after the main schema DDL, query `PRAGMA table_info(users)` to check if `delivery_email` column exists; if not, execute `ALTER TABLE users ADD COLUMN delivery_email TEXT NULL`. Use Dapper for the PRAGMA query (consistent with existing `UserRepository` pattern). The migration must be idempotent — running it on a database that already has the column must not error.
 
 ### Model & Row Updates
 
-- [ ] T004 [P] [US1] Modify `src/Relego.Server/Models/User.cs`: add `public string? DeliveryEmail { get; set; }` property (nullable, defaults to null). This mirrors the existing `KindleEmail` pattern but uses nullable string to represent "not configured" vs empty string "explicitly cleared."
+- [X] T004 [P] [US1] Modify `src/Relego.Server/Models/User.cs`: add `public string? DeliveryEmail { get; set; }` property (nullable, defaults to null). This mirrors the existing `KindleEmail` pattern but uses nullable string to represent "not configured" vs empty string "explicitly cleared."
 
-- [ ] T005 [US1] Modify `src/Relego.Server/Data/UserRepository.cs`:
+- [X] T005 [US1] Modify `src/Relego.Server/Data/UserRepository.cs`:
   - Update `UserRow` to include `DeliveryEmail` column mapping.
   - Update `GetByIdAsync` SQL to select `delivery_email AS DeliveryEmail`.
   - Update `EnsureUserAsync` INSERT to include `delivery_email` column with `NULL` default.
@@ -49,17 +49,17 @@
 
 ### Contract Updates (Relego.Core)
 
-- [ ] T006 [P] [US1] Modify `src/Relego.Core/Contracts/SettingsResponse.cs`: add `public string? DeliveryEmail { get; set; }` property (nullable; `null` when not configured). All existing properties remain unchanged. JSON serialization uses `System.Text.Json` — nullable reference types serialize as `null`/absent.
+- [X] T006 [P] [US1] Modify `src/Relego.Core/Contracts/SettingsResponse.cs`: add `public string? DeliveryEmail { get; set; }` property (nullable; `null` when not configured). All existing properties remain unchanged. JSON serialization uses `System.Text.Json` — nullable reference types serialize as `null`/absent.
 
-- [ ] T007 [P] [US1] Modify `src/Relego.Core/Contracts/UpdateSettingsRequest.cs`: add `public string? DeliveryEmail { get; set; }` property. Semantics: `null` = don't change existing value; `""` (empty string) = clear the field; non-empty valid email = set. Same pattern as existing `KindleEmail` property.
+- [X] T007 [P] [US1] Modify `src/Relego.Core/Contracts/UpdateSettingsRequest.cs`: add `public string? DeliveryEmail { get; set; }` property. Semantics: `null` = don't change existing value; `""` (empty string) = clear the field; non-empty valid email = set. Same pattern as existing `KindleEmail` property.
 
-- [ ] T008 [P] [US1] Modify `src/Relego.Core/Contracts/StatusResponse.cs`: add `public bool DeliveryEmailConfigured { get; set; }` property. `true` when `delivery_email` is a non-empty, non-null string; `false` otherwise. Mirrors existing `KindleEmailConfigured`.
+- [X] T008 [P] [US1] Modify `src/Relego.Core/Contracts/StatusResponse.cs`: add `public bool DeliveryEmailConfigured { get; set; }` property. `true` when `delivery_email` is a non-empty, non-null string; `false` otherwise. Mirrors existing `KindleEmailConfigured`.
 
-- [ ] T009 [P] [US6] Create `src/Relego.Core/Contracts/TestEmailRequest.cs`: new record `TestEmailRequest` with `public string? Channel { get; set; }` (allowed values: `"kindle"`, `"delivery"`, `"both"`, or `null` for auto-detect). This contract is used by the extended `POST /settings/test-email` endpoint (Phase 4).
+- [X] T009 [P] [US6] Create `src/Relego.Core/Contracts/TestEmailRequest.cs`: new record `TestEmailRequest` with `public string? Channel { get; set; }` (allowed values: `"kindle"`, `"delivery"`, `"both"`, or `null` for auto-detect). This contract is used by the extended `POST /settings/test-email` endpoint (Phase 4).
 
 ### Data Layer Tests
 
-- [ ] T010 [US1] Create `src/Relego.Tests/Api/SettingsDeliveryEmailTests.cs`: test that `GET /settings` returns `deliveryEmail` field (`null` when not set, value when set). Test that `PATCH /settings` with `deliveryEmail` persists correctly. Test that empty string `""` clears the field. Use the ASP.NET Core `WebApplicationFactory<Program>` integration test pattern already established in existing API tests.
+- [X] T010 [US1] Create `src/Relego.Tests/Api/SettingsDeliveryEmailTests.cs`: test that `GET /settings` returns `deliveryEmail` field (`null` when not set, value when set). Test that `PATCH /settings` with `deliveryEmail` persists correctly. Test that empty string `""` clears the field. Use the ASP.NET Core `WebApplicationFactory<Program>` integration test pattern already established in existing API tests.
 
 **Checkpoint**: `GET /settings` returns `deliveryEmail`. `PATCH /settings` accepts and persists `deliveryEmail`. Database migration runs on startup without errors for fresh and existing databases. Tests pass (`dotnet test --filter "FullyQualifiedName~SettingsDeliveryEmail"`).
 
@@ -134,7 +134,7 @@
 
 ### Settings Endpoints
 
-- [ ] T018 [US1] Modify `src/Relego.Server/Endpoints/SettingsEndpoints.cs` — `GET /settings` and `PATCH /settings`:
+- [X] T018 [US1] Modify `src/Relego.Server/Endpoints/SettingsEndpoints.cs` — `GET /settings` and `PATCH /settings`:
   - **GET**: In `ToSettingsResponse(User user)`, set `DeliveryEmail = user.DeliveryEmail` (already added in Phase 2 contracts). No other changes to the GET handler.
   - **PATCH**: In the update handler, extract `request.DeliveryEmail`:
     - If `request.DeliveryEmail` is not null: trim whitespace. If resulting string is empty → normalize to `null` (clears field). If non-empty → validate email format using the **same regex** as `kindleEmail` validation (extract to shared `ValidateEmailFormat(string? email)` helper method). If invalid → return 422 with `{"errors": {"deliveryEmail": ["Invalid email format."]}}`.
@@ -153,11 +153,11 @@
 
 ### Status Endpoint
 
-- [ ] T020 [US1] Modify `src/Relego.Server/Endpoints/StatusEndpoints.cs`: in the status handler (which maps `StatusResponse`), set `status.DeliveryEmailConfigured = !string.IsNullOrWhiteSpace(user.DeliveryEmail)`. The existing `KindleEmailConfigured` logic is unchanged. No other status fields change.
+- [X] T020 [US1] Modify `src/Relego.Server/Endpoints/StatusEndpoints.cs`: in the status handler (which maps `StatusResponse`), set `status.DeliveryEmailConfigured = !string.IsNullOrWhiteSpace(user.DeliveryEmail)`. The existing `KindleEmailConfigured` logic is unchanged. No other status fields change.
 
 ### API Layer Tests
 
-- [ ] T021 [US1] [US6] Extend `src/Relego.Tests/Api/SettingsDeliveryEmailTests.cs` (created in Phase 2) with additional test cases:
+- [X] T021 [US1] [US6] Extend `src/Relego.Tests/Api/SettingsDeliveryEmailTests.cs` (created in Phase 2) with additional test cases:
   - `PATCH /settings` with invalid `deliveryEmail` format (e.g., `"not-an-email"`) → 422 with `{"errors": {"deliveryEmail": ["Invalid email format."]}}`.
   - `PATCH /settings` with empty string `""` → clears `deliveryEmail`; subsequent `GET /settings` returns `deliveryEmail: null`.
   - `PATCH /settings` with `deliveryEmail: null` (JSON `null` or field absent) → existing value unchanged.
@@ -177,7 +177,7 @@
 
 ### CLI Commands
 
-- [ ] T022 [US8] Create `src/Relego.Cli/Commands/Config/ConfigDeliveryEmailCommand.cs`: Spectre.Console.Cli command invoked as `relego config delivery-email <address>`. Behavior:
+- [X] T022 [US8] Create `src/Relego.Cli/Commands/Config/ConfigDeliveryEmailCommand.cs`: Spectre.Console.Cli command invoked as `relego config delivery-email <address>`. Behavior:
   - Validates `<address>` with the same email regex used server-side (`ConfigKindleEmailCommand` pattern). If invalid, display `[red]Invalid email format.[/]` and return non-zero exit code.
   - Sends `PATCH /settings` with `{"deliveryEmail": "<address>"}` via `SunnyHttpClient.PatchSettingsAsync()` (or equivalent existing method).
   - `<address>` can be empty string `""` to clear the field.
@@ -185,17 +185,17 @@
   - On server error: display error message from API response.
   - Inherit from `Spectre.Console.Cli.AsyncCommand<ConfigDeliveryEmailCommand.Settings>` (pattern-match `ConfigKindleEmailCommand`).
 
-- [ ] T023 [US8] Modify `src/Relego.Cli/Program.cs`: register `ConfigDeliveryEmailCommand` in the `config` command branch alongside `ConfigKindleEmailCommand`. Follow the existing Spectre.Console.Cli command registration convention used for `ConfigKindleEmailCommand`.
+- [X] T023 [US8] Modify `src/Relego.Cli/Program.cs`: register `ConfigDeliveryEmailCommand` in the `config` command branch alongside `ConfigKindleEmailCommand`. Follow the existing Spectre.Console.Cli command registration convention used for `ConfigKindleEmailCommand`.
 
-- [ ] T024 [US8] Modify `src/Relego.Cli/Commands/Config/ConfigShowCommand.cs`: after the existing `kindleEmail` row, add `table.AddRow("Delivery Email", response.DeliveryEmail ?? "[grey](not set)[/]");`. Use the same Spectre.Console `Table` formatting pattern as the existing `kindleEmail` row.
+- [X] T024 [US8] Modify `src/Relego.Cli/Commands/Config/ConfigShowCommand.cs`: after the existing `kindleEmail` row, add `table.AddRow("Delivery Email", response.DeliveryEmail ?? "[grey](not set)[/]");`. Use the same Spectre.Console `Table` formatting pattern as the existing `kindleEmail` row.
 
-- [ ] T025 [US8] Modify `src/Relego.Cli/Commands/StatusCommand.cs`:
+- [X] T025 [US8] Modify `src/Relego.Cli/Commands/StatusCommand.cs`:
   - Add `table.AddRow("Delivery Email", FormatDeliveryEmail(response.DeliveryEmailConfigured));` after the existing `KindleEmail` row.
   - Add private helper `static string FormatDeliveryEmail(bool configured) => configured ? "[green]Configured[/]" : "[grey]Not configured[/]";` — mirroring the existing `FormatKindleEmail` pattern.
 
 ### TUI Updates
 
-- [ ] T026 [US8] Modify `src/Relego.Cli/Tui/SettingsScreen.cs`:
+- [X] T026 [US8] Modify `src/Relego.Cli/Tui/SettingsScreen.cs`:
   - Add a `SettingsField` for `"Delivery Email"` with value `_settings.DeliveryEmail ?? ""`, field key `"deliveryEmail"`, and `FieldKind.Editable`. Place it immediately after the existing `"Kindle Email"` field.
   - Extend the save logic: when the user saves, include `deliveryEmail` in the `UpdateSettingsRequest` sent to `PATCH /settings`. Use the same validation rules (email format, empty string → clear).
   - The field must render and behave identically to the existing `"Kindle Email"` field — same edit mode, same validation UX.

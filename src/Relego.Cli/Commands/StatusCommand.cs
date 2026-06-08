@@ -41,6 +41,7 @@ public sealed class StatusCommand(RelegoHttpClient client, ILogger<StatusCommand
         table.AddRow("Excluded Books", response.ExcludedBooks.ToString());
         table.AddRow("Excluded Authors", response.ExcludedAuthors.ToString());
         table.AddRow("Kindle Email", FormatKindleEmail(response.KindleEmailConfigured));
+        table.AddRow("Delivery Email", FormatDeliveryEmail(response.DeliveryEmailConfigured));
         table.AddRow("Next Recap", FormatTimestamp(response.NextRecap) ?? "[grey]Not scheduled[/]");
         table.AddRow("Last Recap Status", FormatLastStatus(response.LastRecapStatus));
 
@@ -66,6 +67,11 @@ public sealed class StatusCommand(RelegoHttpClient client, ILogger<StatusCommand
         configured
             ? "[green]\u2713 Configured[/]"
             : "[yellow]\u26a0 Not configured \u2014 run: relego config kindle-email <address>[/]";
+
+    private static string FormatDeliveryEmail(bool configured) =>
+        configured
+            ? "[green]\u2713 Configured[/]"
+            : "[grey]Not configured[/]";
 
     private static string FormatLastStatus(string? status) => status switch
     {

@@ -50,6 +50,20 @@ public static partial class SettingsEndpoints
             if (request.KindleEmail is not null && !IsValidEmail(request.KindleEmail, out normalizedKindleEmail))
                 errors["kindleEmail"] = ["Invalid email format."];
 
+            string? normalizedDeliveryEmail = null;
+            if (request.DeliveryEmail is not null)
+            {
+                var trimmed = request.DeliveryEmail.Trim();
+                if (trimmed.Length == 0)
+                {
+                    normalizedDeliveryEmail = null; // empty string → clear
+                }
+                else if (!IsValidEmail(request.DeliveryEmail, out normalizedDeliveryEmail))
+                {
+                    errors["deliveryEmail"] = ["Invalid email format."];
+                }
+            }
+
             if (request.Timezone is not null && !IsValidTimezone(request.Timezone))
                 errors["timezone"] = ["Invalid IANA timezone identifier."];
 
@@ -60,9 +74,11 @@ public static partial class SettingsEndpoints
             var user = await userRepo.GetByIdAsync(userId);
             var settings = await settingsRepo.GetByUserIdAsync(userId);
 
-            ApplySettingsUpdate(request, settings, user, normalizedSchedule, normalizedDeliveryTime, normalizedKindleEmail);
+            ApplySettingsUpdate(request, settings, user, normalizedSchedule, normalizedDeliveryTime, normalizedKindleEmail, normalizedDeliveryEmail);
 
             await userRepo.UpdateKindleEmailAsync(user.Id, user.KindleEmail);
+            if (request.DeliveryEmail is not null)
+                await userRepo.UpdateDeliveryEmailAsync(user.Id, normalizedDeliveryEmail);
             await settingsRepo.UpsertAsync(settings);
 
             await schedulerService.ScheduleAsync(settings);
@@ -125,7 +141,8 @@ public static partial class SettingsEndpoints
         User user,
         string? normalizedSchedule,
         string? normalizedDeliveryTime,
-        string? normalizedKindleEmail)
+        string? normalizedKindleEmail,
+        string? normalizedDeliveryEmail)
     {
         settings.Schedule = normalizedSchedule ?? settings.Schedule;
         settings.DeliveryDay = request.DeliveryDay is null ? settings.DeliveryDay : NormalizeDeliveryDay(request.DeliveryDay);
@@ -133,6 +150,8 @@ public static partial class SettingsEndpoints
         settings.Count = request.Count ?? settings.Count;
         settings.Timezone = request.Timezone?.Trim() ?? settings.Timezone;
         user.KindleEmail = normalizedKindleEmail ?? user.KindleEmail;
+        if (request.DeliveryEmail is not null)
+            user.DeliveryEmail = normalizedDeliveryEmail;
     }
 
     private static SettingsResponse ToSettingsResponse(User user, Settings settings)
@@ -144,7 +163,8 @@ public static partial class SettingsEndpoints
             DeliveryTime = settings.DeliveryTime,
             Count = settings.Count,
             KindleEmail = user.KindleEmail,
-            Timezone = settings.Timezone
+            Timezone = settings.Timezone,
+            DeliveryEmail = user.DeliveryEmail
         };
     }
 

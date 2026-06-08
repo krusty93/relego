@@ -104,6 +104,8 @@ app.Configure(config =>
             .WithDescription("Configure number of highlights per recap.");
         cfg.AddCommand<ConfigKindleEmailCommand>("kindle-email")
             .WithDescription("Set the Kindle delivery email address.");
+        cfg.AddCommand<ConfigDeliveryEmailCommand>("delivery-email")
+            .WithDescription("Set the regular delivery email address for HTML recap delivery.");
         cfg.AddCommand<ConfigShowCommand>("show")
             .WithDescription("Display all current settings.");
     });
