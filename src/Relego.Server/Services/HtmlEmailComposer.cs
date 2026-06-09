@@ -57,6 +57,7 @@ public static class HtmlEmailComposer
 
         // Outer table for centering
         sb.Append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;max-width:600px;background-color:#ffffff;\" align=\"center\">");
+        sb.Append("<tbody>");
 
         // Header
         sb.Append("<tr><td style=\"padding:30px 24px;background-color:");
@@ -91,7 +92,7 @@ public static class HtmlEmailComposer
             foreach (var group in grouped)
             {
                 // Book separator for visual grouping
-                sb.Append("<tr><td style=\"padding:0 24px;\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\"><tr><td style=\"border-top:1px solid #e8e2db;\"></td></tr></table></td></tr>");
+                sb.Append("<tr><td style=\"padding:0 24px;\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\"><tbody><tr><td style=\"border-top:1px solid #dcd6ce;\"></td></tr></tbody></table></td></tr>");
                 sb.Append("<tr><td style=\"padding:16px 24px 8px;\">");
                 sb.Append($"<h2 style=\"margin:0;color:#171311;font-size:18px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(group.Key.BookTitle)}</h2>");
                 sb.Append($"<p style=\"margin:2px 0 0;color:#5b4f47;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(group.Key.AuthorName)}</p>");
@@ -101,11 +102,11 @@ public static class HtmlEmailComposer
                 {
                     sb.Append("<tr><td style=\"padding:4px 24px 4px 28px;\">");
                     sb.Append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">");
-                    sb.Append("<tr>");
+                    sb.Append("<tbody><tr>");
                     sb.Append($"<td width=\"3\" style=\"width:3px;background-color:{AccentHex};\"></td>");
                     sb.Append("<td style=\"padding:0 0 0 12px;\">");
                     sb.Append($"<p style=\"margin:0;color:#171311;font-size:15px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(highlight.Text)}</p>");
-                    sb.Append("</td></tr></table>");
+                    sb.Append("</td></tr></tbody></table>");
                     sb.Append("</td></tr>");
                 }
             }
@@ -116,9 +117,10 @@ public static class HtmlEmailComposer
 
         // Footer
         sb.Append("<tr><td style=\"padding:24px;border-top:1px solid #dcd6ce;\">");
-        sb.Append("<p style=\"margin:0;color:#5b4f47;font-size:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">Sent by Relego &mdash; <a href=\"https://relego.io\" style=\"color:#b56b39;text-decoration:underline;\">relego.io</a></p>");
+        sb.Append("<p style=\"margin:0;color:#5b4f47;font-size:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">Sent by Relego &mdash; <a href=\"https://relego.app\" style=\"color:#b56b39;text-decoration:underline;\">relego.app</a></p>");
         sb.Append("</td></tr>");
 
+        sb.Append("</tbody>");
         sb.Append("</table>");
 
         // Close Outlook conditional wrapper
