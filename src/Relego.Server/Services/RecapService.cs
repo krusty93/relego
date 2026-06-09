@@ -1,5 +1,4 @@
-﻿using MimeKit;
-using Polly.Retry;
+﻿using Polly.Retry;
 using Relego.Server.Data;
 using Relego.Server.Infrastructure.Resilience;
 using Relego.Server.Infrastructure.Smtp;
@@ -64,15 +63,15 @@ public sealed class RecapService : IRecapService
         }
 
         // Compose EPUB for Kindle channel (if needed)
-        byte[]? epubContent = null;
-        string? fileName = null;
         var emailOk = false;
-        var emailAttempts = 0;
         var kindleOk = false;
+        var emailAttempts = 0;
         var kindleAttempts = 0;
 
         if (hasKindle)
         {
+            string? fileName = null;
+            byte[]? epubContent = null;
             epubContent = EpubComposer.Compose(candidates, scheduledFor, settings.Schedule);
             fileName = $"Relego Recap - {scheduledFor:yyy-MM-dd HH:mm}.epub";
 
@@ -83,6 +82,7 @@ public sealed class RecapService : IRecapService
                     kindleAttempts++;
                     await _mailDeliveryService.SendRecapAsync(user.KindleEmail, epubContent!, fileName!, ct);
                 }, cancellationToken);
+
                 kindleOk = true;
                 _logger.LogInformation("Kindle delivery: {Result}", "Success");
             }
@@ -103,14 +103,14 @@ public sealed class RecapService : IRecapService
                     user.DeliveryEmail!, _fromAddress);
 #pragma warning restore CA2000
 
-                var emailRetryPolicy = RecapDeliveryPolicy.Create(_logger);
                 try
                 {
-                    await emailRetryPolicy.ExecuteAsync(async ct =>
+                    await _retryPolicy.ExecuteAsync(async ct =>
                     {
                         emailAttempts++;
                         await _mailDeliveryService.SendHtmlRecapAsync(htmlMessage, ct);
                     }, cancellationToken);
+
                     emailOk = true;
                     _logger.LogInformation("Email delivery: {Result}", "Success");
                 }
@@ -135,7 +135,7 @@ public sealed class RecapService : IRecapService
         {
             await _recapRepository.UpdateJobDeliveredAsync(jobId, deliveredAt, kindleAttempts + emailAttempts);
 
-            foreach (var candidate in candidates)
+            foreach (SelectionCandidate candidate in candidates)
             {
                 await _recapRepository.UpdateHighlightSeenAsync(candidate.Id, deliveredAt);
             }

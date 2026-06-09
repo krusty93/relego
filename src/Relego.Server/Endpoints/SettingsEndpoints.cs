@@ -47,8 +47,18 @@ public static partial class SettingsEndpoints
             if (request.Count is < 1 or > 15)
                 errors["count"] = ["Count must be between 1 and 15."];
 
-            if (request.KindleEmail is not null && !IsValidEmail(request.KindleEmail, out normalizedKindleEmail))
-                errors["kindleEmail"] = ["Invalid email format."];
+            if (request.KindleEmail is not null)
+            {
+                var trimmed = request.KindleEmail.Trim();
+                if (trimmed.Length == 0)
+                {
+                    normalizedKindleEmail = string.Empty; // empty string → clear
+                }
+                else if (!IsValidEmail(request.KindleEmail, out normalizedKindleEmail))
+                {
+                    errors["kindleEmail"] = ["Invalid email format."];
+                }
+            }
 
             string? normalizedDeliveryEmail = null;
             if (request.DeliveryEmail is not null)
@@ -92,81 +102,81 @@ public static partial class SettingsEndpoints
         .Produces<SettingsResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
-        app.MapPost("/settings/test-email", async ([FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
+        app.MapPost("/settings/test-kindle-email", async ([FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
         {
             var userId = await userRepo.EnsureUserAsync();
             var user = await userRepo.GetByIdAsync(userId);
 
-            var hasKindle = !string.IsNullOrWhiteSpace(user.KindleEmail);
-            var hasDelivery = !string.IsNullOrWhiteSpace(user.DeliveryEmail);
-
-            if (!hasKindle && !hasDelivery)
+            if (string.IsNullOrWhiteSpace(user.KindleEmail))
             {
                 return Results.ValidationProblem(
-                    new Dictionary<string, string[]> { { "channel", ["No delivery email configured."] } },
+                    new Dictionary<string, string[]> { { "kindleEmail", ["Kindle email must be configured before sending a test email."] } },
                     statusCode: StatusCodes.Status422UnprocessableEntity);
             }
 
-            var kindleOk = false;
-            var deliveryOk = false;
-            string? kindleError = null;
-            string? deliveryError = null;
-
-            if (hasKindle)
+            try
             {
-                try
-                {
-                    await mailService.SendTestEmailAsync(user.KindleEmail!, CancellationToken.None);
-                    kindleOk = true;
-                }
-                catch (Exception ex) when (IsSmtpException(ex))
-                {
-                    kindleError = ex.Message;
-                }
-                catch (Exception)
-                {
-                    kindleError = "Internal error.";
-                }
+                await mailService.SendTestEmailAsync(user.KindleEmail);
+                return Results.Ok(new { message = "Test email sent successfully." });
             }
-
-            if (hasDelivery)
+            catch (Exception ex) when (IsSmtpException(ex))
             {
-                try
-                {
-                    await mailService.SendTestEmailAsync(user.DeliveryEmail!, CancellationToken.None);
-                    deliveryOk = true;
-                }
-                catch (Exception ex) when (IsSmtpException(ex))
-                {
-                    deliveryError = ex.Message;
-                }
-                catch (Exception)
-                {
-                    deliveryError = "Internal error.";
-                }
+                return Results.Problem(
+                    detail: ex.Message,
+                    title: "SMTP delivery failed.",
+                    statusCode: StatusCodes.Status502BadGateway);
             }
-
-            var anySuccess = kindleOk || deliveryOk;
-            if (!anySuccess)
+            catch (Exception)
             {
                 return Results.Problem(
                     detail: null,
-                    title: "All delivery channels failed.",
-                    statusCode: StatusCodes.Status502BadGateway);
+                    title: "Test email failed due to an internal error.",
+                    statusCode: StatusCodes.Status500InternalServerError);
             }
-
-            return Results.Ok(new
-            {
-                results = new
-                {
-                    kindle = new { success = kindleOk, error = kindleError },
-                    delivery = new { success = deliveryOk, error = deliveryError }
-                }
-            });
         })
         .WithTags("Settings")
-        .WithSummary("Send a plain-text test email to all configured channels.")
-        .WithDescription("Sends a simple verification email to every configured delivery address. Returns per-channel results.")
+        .WithSummary("Send a plain-text test email to the Kindle address.")
+        .WithDescription("Sends a simple verification email to the configured Kindle email address without generating a recap.")
+        .Produces(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status502BadGateway)
+        .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        app.MapPost("/settings/test-recap-email", async ([FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
+        {
+            var userId = await userRepo.EnsureUserAsync();
+            var user = await userRepo.GetByIdAsync(userId);
+
+            if (string.IsNullOrWhiteSpace(user.DeliveryEmail))
+            {
+                return Results.ValidationProblem(
+                    new Dictionary<string, string[]> { { "deliveryEmail", ["Delivery email must be configured before sending a test email."] } },
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+
+            try
+            {
+                await mailService.SendTestEmailAsync(user.DeliveryEmail);
+                return Results.Ok(new { message = "Test email sent successfully." });
+            }
+            catch (Exception ex) when (IsSmtpException(ex))
+            {
+                return Results.Problem(
+                    detail: ex.Message,
+                    title: "SMTP delivery failed.",
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+            catch (Exception)
+            {
+                return Results.Problem(
+                    detail: null,
+                    title: "Test email failed due to an internal error.",
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        })
+        .WithTags("Settings")
+        .WithSummary("Send a plain-text test email to the regular recap address.")
+        .WithDescription("Sends a simple verification email to the configured delivery email address without generating a recap.")
         .Produces(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status502BadGateway)

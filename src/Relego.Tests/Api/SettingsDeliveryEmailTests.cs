@@ -100,6 +100,26 @@ public sealed class SettingsDeliveryEmailTests : IDisposable
     }
 
     [Fact]
+    public async Task PatchSettings_KindleEmail_EmptyString_ClearsField()
+    {
+        // First set a value
+        await _client.PatchAsJsonAsync("/settings",
+            new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
+
+        // Clear with empty string
+        var clearResponse = await _client.PatchAsJsonAsync("/settings",
+            new UpdateSettingsRequest { KindleEmail = "" });
+
+        Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+
+        var getResponse = await _client.GetAsync("/settings");
+        var result = await getResponse.Content.ReadFromJsonAsync<SettingsResponse>();
+
+        Assert.NotNull(result);
+        Assert.Equal("", result.KindleEmail);
+    }
+
+    [Fact]
     public async Task GetStatus_DeliveryEmailConfigured_True_WhenSet()
     {
         await _client.PatchAsJsonAsync("/settings",
