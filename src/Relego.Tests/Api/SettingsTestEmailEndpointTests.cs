@@ -42,11 +42,11 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
         var response = await _client.PostAsync("/settings/test-email", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@kindle.com", _fakeMail.LastTestEmailAddress);
+        Assert.Contains("user@kindle.com", _fakeMail.SentAddresses);
     }
 
     [Fact]
-    public async Task PostTestEmail_WithoutKindleEmail_Returns422()
+    public async Task PostTestEmail_WithoutAnyEmail_Returns422()
     {
         var response = await _client.PostAsync("/settings/test-email", null);
 
@@ -66,137 +66,50 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("SMTP delivery failed", body);
+        Assert.Contains("All delivery channels failed", body);
     }
 
     [Fact]
-    public async Task PostTestEmail_WhenUnexpectedErrorOccurs_Returns500()
+    public async Task PostTestEmail_WhenUnexpectedErrorOccurs_Returns502()
     {
         await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
         _fakeMail.ShouldThrowUnexpected = true;
 
         var response = await _client.PostAsync("/settings/test-email", null);
 
-        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        // All channels fail (including unexpected errors) → 502
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }
 
     [Fact]
-    public async Task PostTestEmail_DeliveryChannel_SendsSuccessfully()
+    public async Task PostTestEmail_OnlyDeliveryConfigured_SendsToDelivery()
     {
         await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { DeliveryEmail = "user@example.com" });
 
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest { Channel = "delivery" });
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@example.com", _fakeMail.LastDeliveryTestEmailAddress);
-    }
-
-    [Fact]
-    public async Task PostTestEmail_DeliveryChannel_WhenNotConfigured_Returns422()
-    {
-        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
-
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest { Channel = "delivery" });
-
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task PostTestEmail_InvalidChannel_Returns422()
-    {
-        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
-
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest { Channel = "invalid" });
-
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("channel", body);
-    }
-
-    [Fact]
-    public async Task PostTestEmail_BothChannels_SendsToBoth()
-    {
-        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest
-        {
-            KindleEmail = "user@kindle.com",
-            DeliveryEmail = "user@example.com"
-        });
-
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest { Channel = "both" });
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@kindle.com", _fakeMail.LastTestEmailAddress);
-        Assert.Equal("user@example.com", _fakeMail.LastDeliveryTestEmailAddress);
-    }
-
-    [Fact]
-    public async Task PostTestEmail_NoChannelAutoDetect_WhenBothConfigured_SendsToBoth()
-    {
-        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest
-        {
-            KindleEmail = "user@kindle.com",
-            DeliveryEmail = "user@example.com"
-        });
-
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest());
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@kindle.com", _fakeMail.LastTestEmailAddress);
-        Assert.Equal("user@example.com", _fakeMail.LastDeliveryTestEmailAddress);
-    }
-
-    [Fact]
-    public async Task PostTestEmail_NoChannelAutoDetect_WhenOnlyDelivery_SendsToDelivery()
-    {
-        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest
-        {
-            DeliveryEmail = "user@example.com"
-        });
-
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest());
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@example.com", _fakeMail.LastDeliveryTestEmailAddress);
-    }
-
-    [Fact]
-    public async Task PostTestEmail_NoBody_BackwardCompatible_SendsToKindle()
-    {
-        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
-
-        // No body — same as existing call pattern
         var response = await _client.PostAsync("/settings/test-email", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@kindle.com", _fakeMail.LastTestEmailAddress);
+        Assert.Contains("user@example.com", _fakeMail.SentAddresses);
     }
 
     [Fact]
-    public async Task PostTestEmail_BothChannels_KindleFails_DeliveryStillSucceeds()
+    public async Task PostTestEmail_BothConfigured_SendsToBoth()
     {
         await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest
         {
             KindleEmail = "user@kindle.com",
             DeliveryEmail = "user@example.com"
         });
-        _fakeMail.ShouldThrow = true; // Kindle fails
 
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest { Channel = "both" });
+        var response = await _client.PostAsync("/settings/test-email", null);
 
-        // "both" returns 502 when both fail, but 200 when at least one succeeds
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@example.com", _fakeMail.LastDeliveryTestEmailAddress);
+        Assert.Contains("user@kindle.com", _fakeMail.SentAddresses);
+        Assert.Contains("user@example.com", _fakeMail.SentAddresses);
     }
 
     [Fact]
-    public async Task PostTestEmail_BothChannels_BothFail_Returns502()
+    public async Task PostTestEmail_BothConfigured_AllFail_Returns502()
     {
         await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest
         {
@@ -204,21 +117,18 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
             DeliveryEmail = "user@example.com"
         });
         _fakeMail.ShouldThrow = true;
-        _fakeMail.ShouldThrowDelivery = true;
 
-        var response = await _client.PostAsJsonAsync("/settings/test-email",
-            new TestEmailRequest { Channel = "both" });
+        var response = await _client.PostAsync("/settings/test-email", null);
 
+        // Both fail → 502
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }
 
     private sealed class FakeMailDeliveryService : IMailDeliveryService
     {
-        public string? LastTestEmailAddress { get; private set; }
-        public string? LastDeliveryTestEmailAddress { get; private set; }
+        public List<string> SentAddresses { get; } = [];
         public bool ShouldThrow { get; set; }
         public bool ShouldThrowUnexpected { get; set; }
-        public bool ShouldThrowDelivery { get; set; }
 
         public Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
@@ -231,20 +141,11 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
             if (ShouldThrow)
                 throw new System.Net.Sockets.SocketException(10061);
 
-            LastTestEmailAddress = toAddress;
+            SentAddresses.Add(toAddress);
             return Task.CompletedTask;
         }
 
         public Task SendHtmlRecapAsync(MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
-
-        public Task SendDeliveryTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
-        {
-            if (ShouldThrowDelivery)
-                throw new System.Net.Sockets.SocketException(10061);
-
-            LastDeliveryTestEmailAddress = toAddress;
-            return Task.CompletedTask;
-        }
     }
 }

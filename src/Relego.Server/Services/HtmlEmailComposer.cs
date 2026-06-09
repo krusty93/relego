@@ -12,12 +12,10 @@ public static class HtmlEmailComposer
     public static MimeMessage Compose(
         IReadOnlyList<SelectionCandidate> highlights,
         DateTimeOffset recapDate,
-        string _cadence,
+        string _,
         string toAddress,
         string fromAddress)
     {
-        _ = _cadence; // unused parameter — signature matches EpubComposer.Compose
-
         var bodyBuilder = new BodyBuilder();
 
         var formattedDate = recapDate.ToLocalTime().ToString("dddd, MMMM d, yyyy", CultureInfo.InvariantCulture);

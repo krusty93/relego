@@ -66,39 +66,16 @@ public sealed class RecapService : IRecapService
         // Compose EPUB for Kindle channel (if needed)
         byte[]? epubContent = null;
         string? fileName = null;
+        var emailOk = false;
+        var emailAttempts = 0;
+        var kindleOk = false;
+        var kindleAttempts = 0;
+
         if (hasKindle)
         {
             epubContent = EpubComposer.Compose(candidates, scheduledFor, settings.Schedule);
             fileName = $"Relego Recap - {scheduledFor:yyy-MM-dd HH:mm}.epub";
-        }
 
-        // Compose HTML for email channel (if needed)
-        MimeMessage? htmlMessage = null;
-        if (hasEmail)
-        {
-            try
-            {
-#pragma warning disable CA2000 // Ownership is transferred to SendHtmlRecapAsync via retry policy
-                htmlMessage = HtmlEmailComposer.Compose(
-                    candidates, scheduledFor, settings.Schedule,
-                    user.DeliveryEmail!, _fromAddress);
-#pragma warning restore CA2000
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "HTML email composition failed for user {UserId}. Skipping email channel", userId);
-                hasEmail = false;
-            }
-        }
-
-        var kindleOk = false;
-        var emailOk = false;
-        var kindleAttempts = 0;
-        var emailAttempts = 0;
-
-        // Deliver via Kindle channel
-        if (hasKindle)
-        {
             try
             {
                 await _retryPolicy.ExecuteAsync(async ct =>
@@ -116,24 +93,37 @@ public sealed class RecapService : IRecapService
             }
         }
 
-        // Deliver via Email channel
-        if (hasEmail && htmlMessage is not null)
+        if (hasEmail)
         {
-            var emailRetryPolicy = RecapDeliveryPolicy.Create(_logger);
             try
             {
-                await emailRetryPolicy.ExecuteAsync(async ct =>
+#pragma warning disable CA2000 // Ownership is transferred to SendHtmlRecapAsync via retry policy
+                var htmlMessage = HtmlEmailComposer.Compose(
+                    candidates, scheduledFor, settings.Schedule,
+                    user.DeliveryEmail!, _fromAddress);
+#pragma warning restore CA2000
+
+                var emailRetryPolicy = RecapDeliveryPolicy.Create(_logger);
+                try
                 {
-                    emailAttempts++;
-                    await _mailDeliveryService.SendHtmlRecapAsync(htmlMessage, ct);
-                }, cancellationToken);
-                emailOk = true;
-                _logger.LogInformation("Email delivery: {Result}", "Success");
+                    await emailRetryPolicy.ExecuteAsync(async ct =>
+                    {
+                        emailAttempts++;
+                        await _mailDeliveryService.SendHtmlRecapAsync(htmlMessage, ct);
+                    }, cancellationToken);
+                    emailOk = true;
+                    _logger.LogInformation("Email delivery: {Result}", "Success");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Email delivery failed after {Attempts} attempts for user {UserId}", emailAttempts, userId);
+                    emailOk = false;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Email delivery failed after {Attempts} attempts for user {UserId}", emailAttempts, userId);
-                emailOk = false;
+                _logger.LogError(ex, "HTML email composition failed for user {UserId}. Skipping email channel", userId);
+                hasEmail = false;
             }
         }
 
