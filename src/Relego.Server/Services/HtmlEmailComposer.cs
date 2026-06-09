@@ -170,7 +170,7 @@ public static class HtmlEmailComposer
         }
 
         sb.AppendLine("---");
-        sb.AppendLine("Sent by Relego (https://relego.io)");
+        sb.AppendLine("Sent by Relego (https://relego.app)");
 
         return sb.ToString();
     }
