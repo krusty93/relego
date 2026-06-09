@@ -41,7 +41,7 @@ builder.Services.AddSwaggerGen(options =>
             Contact = new OpenApiContact
             {
                 Name = "Relego",
-                Url = new Uri("https://relego.io"),
+                Url = new Uri("https://relego.app"),
             }
         }
     );

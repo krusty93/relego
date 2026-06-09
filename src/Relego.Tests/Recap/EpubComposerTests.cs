@@ -170,7 +170,7 @@ public sealed class EpubComposerTests
 
         var opf = ReadEntry(archive, "OEBPS/content.opf");
         Assert.Contains("Notes Recap (2026-04-20 18:00)", opf);
-        Assert.Contains("<dc:subject>relego.io</dc:subject>", opf);
+        Assert.Contains("<dc:subject>relego.app</dc:subject>", opf);
     }
 
     [Fact]

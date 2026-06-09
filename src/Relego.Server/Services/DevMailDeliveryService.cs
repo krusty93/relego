@@ -60,6 +60,11 @@ public sealed class DevMailDeliveryService : IMailDeliveryService
         await SendEmailAsync(message!, cancellationToken);
     }
 
+    public async Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)
+    {
+        await SendEmailAsync(message, cancellationToken);
+    }
+
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)
     {
         using var client = new SmtpClient();

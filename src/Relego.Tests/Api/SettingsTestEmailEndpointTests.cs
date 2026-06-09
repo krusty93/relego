@@ -99,5 +99,8 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
             LastTestEmailAddress = toAddress;
             return Task.CompletedTask;
         }
+
+        public Task SendHtmlRecapAsync(MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

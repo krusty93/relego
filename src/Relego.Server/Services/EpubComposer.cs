@@ -102,7 +102,7 @@ public static class EpubComposer
           <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
             <dc:title>Notes Recap ({recapDate:yyyy-MM-dd HH:mm})</dc:title>
             <dc:creator>Relego</dc:creator>
-            <dc:subject>relego.io</dc:subject>
+            <dc:subject>relego.app</dc:subject>
             <dc:identifier id="BookId">relego-recap-{recapDate:yyyyMMdd-HHmmss}</dc:identifier>
             <dc:language>en</dc:language>
             <meta name="cover" content="cover-image"/>
