@@ -92,41 +92,150 @@ public static partial class SettingsEndpoints
         .Produces<SettingsResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
-        app.MapPost("/settings/test-email", async ([FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
+        app.MapPost("/settings/test-email", async ([FromBody] TestEmailRequest? request, [FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
         {
             var userId = await userRepo.EnsureUserAsync();
             var user = await userRepo.GetByIdAsync(userId);
 
-            if (string.IsNullOrWhiteSpace(user.KindleEmail))
+            var hasKindle = !string.IsNullOrWhiteSpace(user.KindleEmail);
+            var hasDelivery = !string.IsNullOrWhiteSpace(user.DeliveryEmail);
+
+            // Resolve channel: auto-detect when null
+            var channel = request?.Channel?.Trim().ToLowerInvariant();
+            if (channel is null)
+            {
+                if (!hasKindle && !hasDelivery)
+                {
+                    return Results.ValidationProblem(
+                        new Dictionary<string, string[]> { { "channel", ["No delivery email configured."] } },
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+
+                channel = (hasKindle, hasDelivery) switch
+                {
+                    (true, true) => "both",
+                    (true, false) => "kindle",
+                    (false, true) => "delivery",
+                    _ => "kindle"
+                };
+            }
+
+            // Validate channel value
+            if (channel is not "kindle" and not "delivery" and not "both")
             {
                 return Results.ValidationProblem(
-                    new Dictionary<string, string[]> { { "kindleEmail", ["Kindle email must be configured before sending a test email."] } },
+                    new Dictionary<string, string[]> { { "channel", ["Channel must be 'kindle', 'delivery', or 'both'."] } },
                     statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+
+            // Validate required emails are configured
+            if (channel is "kindle" or "both")
+            {
+                if (!hasKindle)
+                {
+                    return Results.ValidationProblem(
+                        new Dictionary<string, string[]> { { "channel", ["Kindle email is not configured."] } },
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+            }
+
+            if (channel is "delivery" or "both")
+            {
+                if (!hasDelivery)
+                {
+                    return Results.ValidationProblem(
+                        new Dictionary<string, string[]> { { "channel", ["Delivery email is not configured."] } },
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+            }
+
+            // Single-channel delivery
+            if (channel == "kindle")
+            {
+                try
+                {
+                    await mailService.SendTestEmailAsync(user.KindleEmail!, CancellationToken.None);
+                    return Results.Ok(new { message = $"Test email sent successfully to {user.KindleEmail}." });
+                }
+                catch (Exception ex) when (IsSmtpException(ex))
+                {
+                    return Results.Problem(detail: ex.Message, title: "SMTP delivery failed.", statusCode: StatusCodes.Status502BadGateway);
+                }
+                catch (Exception)
+                {
+                    return Results.Problem(detail: null, title: "Test email failed due to an internal error.", statusCode: StatusCodes.Status500InternalServerError);
+                }
+            }
+
+            if (channel == "delivery")
+            {
+                try
+                {
+                    await mailService.SendDeliveryTestEmailAsync(user.DeliveryEmail!, CancellationToken.None);
+                    return Results.Ok(new { message = $"Test email sent successfully to {user.DeliveryEmail}." });
+                }
+                catch (Exception ex) when (IsSmtpException(ex))
+                {
+                    return Results.Problem(detail: ex.Message, title: "SMTP delivery failed.", statusCode: StatusCodes.Status502BadGateway);
+                }
+                catch (Exception)
+                {
+                    return Results.Problem(detail: null, title: "Test email failed due to an internal error.", statusCode: StatusCodes.Status500InternalServerError);
+                }
+            }
+
+            // Dual-channel delivery
+            var kindleOk = false;
+            var deliveryOk = false;
+            string? kindleError = null;
+            string? deliveryError = null;
+
+            try
+            {
+                await mailService.SendTestEmailAsync(user.KindleEmail!, CancellationToken.None);
+                kindleOk = true;
+            }
+            catch (Exception ex) when (IsSmtpException(ex))
+            {
+                kindleError = ex.Message;
+            }
+            catch (Exception)
+            {
+                kindleError = "Internal error.";
             }
 
             try
             {
-                await mailService.SendTestEmailAsync(user.KindleEmail);
-                return Results.Ok(new { message = "Test email sent successfully." });
+                await mailService.SendDeliveryTestEmailAsync(user.DeliveryEmail!, CancellationToken.None);
+                deliveryOk = true;
             }
-            catch (Exception ex) when (ex is MailKit.Net.Smtp.SmtpCommandException or MailKit.Net.Smtp.SmtpProtocolException or System.Net.Sockets.SocketException or IOException)
+            catch (Exception ex) when (IsSmtpException(ex))
             {
-                return Results.Problem(
-                    detail: ex.Message,
-                    title: "SMTP delivery failed.",
-                    statusCode: StatusCodes.Status502BadGateway);
+                deliveryError = ex.Message;
             }
             catch (Exception)
             {
-                return Results.Problem(
-                    detail: null,
-                    title: "Test email failed due to an internal error.",
-                    statusCode: StatusCodes.Status500InternalServerError);
+                deliveryError = "Internal error.";
             }
+
+            if (!kindleOk && !deliveryOk)
+            {
+                return Results.Problem(detail: null, title: "Both delivery channels failed.", statusCode: StatusCodes.Status502BadGateway);
+            }
+
+            return Results.Ok(new
+            {
+                results = new
+                {
+                    kindle = new { success = kindleOk, error = kindleError },
+                    delivery = new { success = deliveryOk, error = deliveryError }
+                }
+            });
         })
         .WithTags("Settings")
-        .WithSummary("Send a plain-text test email.")
-        .WithDescription("Sends a simple verification email to the configured Kindle email address without generating a recap.")
+        .WithSummary("Send a plain-text test email to one or both configured channels.")
+        .WithDescription("Sends a simple verification email. Accepts an optional channel parameter: 'kindle', 'delivery', 'both', or null for auto-detect.")
+        .Accepts<TestEmailRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status502BadGateway)
@@ -213,4 +322,13 @@ public static partial class SettingsEndpoints
             return false;
         }
     }
+
+    private static bool IsSmtpException(Exception ex) => ex switch
+    {
+        MailKit.Net.Smtp.SmtpCommandException or
+        MailKit.Net.Smtp.SmtpProtocolException or
+        System.Net.Sockets.SocketException or
+        IOException => true,
+        _ => false
+    };
 }

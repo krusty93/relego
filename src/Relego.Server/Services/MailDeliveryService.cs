@@ -65,6 +65,22 @@ public sealed class MailDeliveryService : IMailDeliveryService
         _logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
     }
 
+    public async Task SendDeliveryTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
+    {
+        using var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
+        message.To.Add(MailboxAddress.Parse(toAddress));
+        message.Subject = "Relego - Test Email";
+        message.Body = new TextPart("plain")
+        {
+            Text = "This is a test email from Relego. If you received this, your SMTP configuration is working correctly."
+        };
+
+        await SendEmailAsync(message!, cancellationToken);
+
+        _logger.LogInformation("Delivery test email sent to {ToAddress}", toAddress);
+    }
+
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)
     {
         using var client = new SmtpClient();

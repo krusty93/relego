@@ -232,6 +232,9 @@ internal sealed class FakeMailDeliveryService : IMailDeliveryService
     public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    public Task SendDeliveryTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     public Task SendHtmlRecapAsync(MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
     {
         HtmlSendCount++;
