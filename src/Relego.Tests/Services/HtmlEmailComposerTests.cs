@@ -65,7 +65,7 @@ public sealed class HtmlEmailComposerTests
 
         // Footer
         Assert.Contains("Sent by Relego", html);
-        Assert.Contains("https://relego.io", html);
+        Assert.Contains("https://relego.app", html);
 
         // Email-safe: no rgba() - Outlook doesn't support it
         Assert.DoesNotContain("rgba(", html);
