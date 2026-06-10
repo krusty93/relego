@@ -266,7 +266,7 @@ public sealed class SettingsScreenTests
         using var mockHttp = new MockHttpMessageHandler();
         mockHttp.When(HttpMethod.Get, "http://localhost/settings")
             .Respond("application/json", JsonSerializer.Serialize(settings, CamelCaseOptions));
-        mockHttp.When(HttpMethod.Post, "http://localhost/settings/test-email")
+        mockHttp.When(HttpMethod.Post, "http://localhost/settings/test-kindle-email")
             .Respond(HttpStatusCode.UnprocessableEntity, "application/json", "{\"errors\":{\"kindleEmail\":[\"Kindle email must be configured.\"]}}");
         using var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
 
@@ -382,7 +382,7 @@ public sealed class SettingsScreenTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When(HttpMethod.Get, "http://localhost/settings")
             .Respond("application/json", JsonSerializer.Serialize(settings, CamelCaseOptions));
-        mockHttp.When(HttpMethod.Post, "http://localhost/settings/test-email")
+        mockHttp.When(HttpMethod.Post, "http://localhost/settings/test-kindle-email")
             .Respond(HttpStatusCode.OK, "application/json", "{\"message\":\"Test email sent successfully.\"}");
         var httpClient = new HttpClient(mockHttp, disposeHandler: false) { BaseAddress = new Uri("http://localhost") };
 

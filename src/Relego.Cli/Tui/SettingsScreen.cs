@@ -11,7 +11,6 @@ namespace Relego.Cli.Tui;
 
 public sealed class SettingsScreen : IScreen
 {
-    private const int LabelColumnWidth = 22;
     private const int HorizontalPadding = 2;
     private const int MinWeight = 1;
     private const int MaxWeight = 15;
@@ -364,8 +363,12 @@ public sealed class SettingsScreen : IScreen
             CancelEdit();
             SetStatus($"{field.Label} updated.", isError: false);
 
-            if ((field.FieldId == "kindleEmail" || field.FieldId == "deliveryEmail") && _refreshChromeAsync is not null)
-                _ = Task.Run(() => _refreshChromeAsync(CancellationToken.None));
+            if (field.FieldId == "kindleEmail" || field.FieldId == "deliveryEmail")
+            {
+                await HandleRefreshAsync(CancellationToken.None).ConfigureAwait(false);
+                if (_refreshChromeAsync is not null)
+                    _ = Task.Run(() => _refreshChromeAsync(CancellationToken.None));
+            }
         }
         catch (HttpRequestException ex)
         {
@@ -375,37 +378,62 @@ public sealed class SettingsScreen : IScreen
 
     private async Task<ScreenResult> HandleTestEmailAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_settings?.KindleEmail) && string.IsNullOrWhiteSpace(_settings?.DeliveryEmail))
+        var hasKindle = !string.IsNullOrWhiteSpace(_settings?.KindleEmail);
+        var hasRecap = !string.IsNullOrWhiteSpace(_settings?.DeliveryEmail);
+
+        if (!hasKindle && !hasRecap)
         {
-            SetStatus("No delivery email configured. Please set a Kindle or delivery email first.", isError: true);
+            SetStatus("No email configured. Please set a Kindle or \"Also Email Recap to\" address first.", isError: true);
             return ScreenResult.Stay();
         }
 
-        SetStatus("Sending test email...", isError: false);
+        SetStatus("Sending test email(s)...", isError: false);
         UpdateViewStateIfCreated();
 
-        try
-        {
-            using var response = await _client.PostTestEmailAsync(cancellationToken).ConfigureAwait(false);
+        var errors = new List<string>();
 
-            if (response.IsSuccessStatusCode)
-            {
-                SetStatus("Test email sent successfully.", isError: false);
-            }
-            else
-            {
-                var message = response.StatusCode switch
-                {
-                    System.Net.HttpStatusCode.BadGateway => "SMTP delivery failed. Check your server SMTP configuration.",
-                    _ => "Test email failed. Check server configuration."
-                };
-                SetStatus(message, isError: true);
-            }
-        }
-        catch (HttpRequestException ex)
+        if (hasKindle)
         {
-            SetStatus($"Test email failed: {ex.Message}", isError: true);
+            try
+            {
+                using var response = await _client.PostTestKindleEmailAsync(cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var msg = response.StatusCode == System.Net.HttpStatusCode.BadGateway
+                        ? "SMTP failed for Kindle email."
+                        : "Test failed for Kindle email.";
+                    errors.Add(msg);
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                errors.Add($"Kindle email: {ex.Message}");
+            }
         }
+
+        if (hasRecap)
+        {
+            try
+            {
+                using var response = await _client.PostTestRecapEmailAsync(cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var msg = response.StatusCode == System.Net.HttpStatusCode.BadGateway
+                        ? "SMTP failed for recap email."
+                        : "Test failed for recap email.";
+                    errors.Add(msg);
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                errors.Add($"Recap email: {ex.Message}");
+            }
+        }
+
+        if (errors.Count == 0)
+            SetStatus("Test email(s) sent successfully.", isError: false);
+        else
+            SetStatus(string.Join(" ", errors), isError: true);
 
         return ScreenResult.Stay();
     }
@@ -493,8 +521,8 @@ public sealed class SettingsScreen : IScreen
 
         _fields.Add(new SettingsField("Kindle Email", _settings.KindleEmail, "kindleEmail", FieldKind.Editable,
             Hint: "Insert a valid email address"));
-        _fields.Add(new SettingsField("Delivery Email", _settings.DeliveryEmail ?? "", "deliveryEmail", FieldKind.Editable,
-            Hint: "Insert a valid email address"));
+        _fields.Add(new SettingsField("Also Email Recap to (opt.)", _settings.DeliveryEmail ?? "", "deliveryEmail", FieldKind.Editable,
+            Hint: "Optional — leave blank to skip. HTML recap sent here in addition to Kindle."));
         _fields.Add(new SettingsField("Schedule", _settings.Schedule, "schedule", FieldKind.Editable,
             Hint: "◀ ▶ to change, Enter to confirm", Options: ScheduleOptions));
 
@@ -559,9 +587,12 @@ public sealed class SettingsScreen : IScreen
         if (_fieldRows is not null)
         {
             _fieldRows.Clear();
+            var labelWidth = _fields.Any(f => f.Kind == FieldKind.Editable)
+                ? _fields.Where(f => f.Kind == FieldKind.Editable).Max(f => f.Label.Length) + 2
+                : 22;
             foreach (var field in _fields)
             {
-                _fieldRows.Add(FormatField(field));
+                _fieldRows.Add(FormatField(field, labelWidth));
             }
         }
 
@@ -586,12 +617,12 @@ public sealed class SettingsScreen : IScreen
         }
     }
 
-    private static string FormatField(SettingsField field)
+    private static string FormatField(SettingsField field, int labelWidth)
     {
         if (field.Kind == FieldKind.Action)
             return $"  {field.Label}";
 
-        var label = field.Label.PadRight(LabelColumnWidth);
+        var label = field.Label.PadRight(labelWidth);
         var displayValue = field.DisplaySuffix is not null ? $"{field.Value} {field.DisplaySuffix}" : field.Value;
         return $"  {label}{displayValue}";
     }

@@ -27,6 +27,7 @@ public sealed class StatusChrome(string serverUrl, string version)
 
     public bool IsConnected { get; private set; }
     public bool KindleEmailConfigured { get; private set; }
+    public bool DeliveryEmailConfigured { get; private set; }
     public string? NextRecap { get; private set; }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Views are owned by the parent container hierarchy")]
@@ -128,6 +129,7 @@ public sealed class StatusChrome(string serverUrl, string version)
     {
         IsConnected = false;
         KindleEmailConfigured = false;
+        DeliveryEmailConfigured = false;
     }
 
     public async Task RefreshAsync(RelegoHttpClient client, CancellationToken ct = default)
@@ -139,11 +141,13 @@ public sealed class StatusChrome(string serverUrl, string version)
             {
                 var status = await client.GetStatusAsync(ct).ConfigureAwait(false);
                 KindleEmailConfigured = status.KindleEmailConfigured;
+                DeliveryEmailConfigured = status.DeliveryEmailConfigured;
                 NextRecap = status.NextRecap;
             }
             else
             {
                 KindleEmailConfigured = false;
+                DeliveryEmailConfigured = false;
                 NextRecap = null;
             }
         }
