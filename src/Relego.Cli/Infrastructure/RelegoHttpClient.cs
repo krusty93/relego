@@ -55,8 +55,11 @@ public sealed class RelegoHttpClient(HttpClient http)
     public async Task<ExclusionsResponse> GetExclusionsAsync(CancellationToken ct = default)
         => (await http.GetFromJsonAsync("/exclusions", RelegoJsonContext.Default.ExclusionsResponse, ct).ConfigureAwait(false))!;
 
-    public Task<HttpResponseMessage> PostTestEmailAsync(CancellationToken ct = default)
-        => http.PostAsync("/settings/test-email", null, ct);
+    public Task<HttpResponseMessage> PostTestKindleEmailAsync(CancellationToken ct = default)
+        => http.PostAsync("/settings/test-kindle-email", null, ct);
+
+    public Task<HttpResponseMessage> PostTestRecapEmailAsync(CancellationToken ct = default)
+        => http.PostAsync("/settings/test-recap-email", null, ct);
 
     public async Task<RecapTriggerResponse> TriggerRecapAsync(CancellationToken ct = default)
     {

@@ -41,7 +41,7 @@ public sealed class ConfigShowCommand(RelegoHttpClient client, ILogger<ConfigSho
         table.AddRow("Delivery Time", response.DeliveryTime);
         table.AddRow("Count", response.Count.ToString());
         table.AddRow("Kindle Email", response.KindleEmail);
-        table.AddRow("Delivery Email", response.DeliveryEmail ?? "[grey](not set)[/]");
+        table.AddRow("Also Email Recap to (opt.)", response.DeliveryEmail ?? "[grey](not set — optional)[/]");
         table.AddRow("Timezone", response.Timezone);
 
         AnsiConsole.Write(table);

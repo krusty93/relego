@@ -9,7 +9,7 @@ using Relego.Core.Contracts;
 namespace Relego.Cli.Commands.Config;
 
 /// <summary>
-/// Sets the regular delivery email address on the server.
+/// Sets the optional secondary email address for HTML recap delivery on the server.
 /// Usage: relego config delivery-email &lt;address&gt;
 /// </summary>
 public sealed partial class ConfigDeliveryEmailCommand(RelegoHttpClient client, ILogger<ConfigDeliveryEmailCommand> logger)
@@ -20,7 +20,7 @@ public sealed partial class ConfigDeliveryEmailCommand(RelegoHttpClient client, 
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<address>")]
-        [Description("Regular delivery email address for HTML recap delivery.")]
+        [Description("Optional email address to also receive the HTML recap (in addition to Kindle).")]
         public string Address { get; set; } = string.Empty;
     }
 
@@ -50,11 +50,11 @@ public sealed partial class ConfigDeliveryEmailCommand(RelegoHttpClient client, 
 
         if (address.Length == 0)
         {
-            AnsiConsole.MarkupLine("[green]✓[/] Delivery email cleared.");
+            AnsiConsole.MarkupLine("[green]✓[/] Also Email Recap to address cleared.");
         }
         else
         {
-            AnsiConsole.MarkupLine($"[green]✓[/] Delivery email set to [bold]{Markup.Escape(response.DeliveryEmail ?? address)}[/].");
+            AnsiConsole.MarkupLine($"[green]✓[/] Also Email Recap to [bold]{Markup.Escape(response.DeliveryEmail ?? address)}[/] (optional, in addition to Kindle).");
         }
 
         return 0;

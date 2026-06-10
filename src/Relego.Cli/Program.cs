@@ -105,7 +105,7 @@ app.Configure(config =>
         cfg.AddCommand<ConfigKindleEmailCommand>("kindle-email")
             .WithDescription("Set the Kindle delivery email address.");
         cfg.AddCommand<ConfigDeliveryEmailCommand>("delivery-email")
-            .WithDescription("Set the regular delivery email address for HTML recap delivery.");
+            .WithDescription("Set an optional \"Also Email Recap to\" address for HTML recap delivery (in addition to Kindle).");
         cfg.AddCommand<ConfigShowCommand>("show")
             .WithDescription("Display all current settings.");
     });
