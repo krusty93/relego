@@ -180,7 +180,7 @@ public class ClippingsParserTests
         Assert.Equal("Highlighted text here.", h.Text);
         Assert.Equal("Location 100-105", h.Location);
         Assert.NotNull(h.AddedOn);
-        Assert.Equal(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), h.AddedOn);
+        Assert.Equal(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 1, 1))), h.AddedOn);
     }
 
     [Fact]

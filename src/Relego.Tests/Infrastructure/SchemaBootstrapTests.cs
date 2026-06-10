@@ -25,7 +25,14 @@ public class SchemaBootstrapTests
         {
             if (Directory.Exists(testDirectory))
             {
-                Directory.Delete(testDirectory, recursive: true);
+                try
+                {
+                    Directory.Delete(testDirectory, recursive: true);
+                }
+                catch (IOException)
+                {
+                    // File may still be locked by SQLite; cleanup will happen on next run
+                }
             }
         }
     }

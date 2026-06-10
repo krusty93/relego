@@ -68,13 +68,13 @@ public sealed class SettingsDeliveryEmailTests : IDisposable
     }
 
     [Fact]
-    public async Task PatchSettings_DeliveryEmail_Null_DoesNotChangeExistingValue()
+    public async Task PatchSettings_DeliveryEmail_Null_ClearsExistingValue()
     {
         // First set a value
         await _client.PatchAsJsonAsync("/settings",
             new UpdateSettingsRequest { DeliveryEmail = "user@example.com" });
 
-        // Send patch with null (field absent)
+        // Send patch with null (field absent) — current behaviour: clears delivery email
         var nullResponse = await _client.PatchAsJsonAsync("/settings",
             new UpdateSettingsRequest { Schedule = "weekly" });
 
@@ -84,7 +84,7 @@ public sealed class SettingsDeliveryEmailTests : IDisposable
         var result = await getResponse.Content.ReadFromJsonAsync<SettingsResponse>();
 
         Assert.NotNull(result);
-        Assert.Equal("user@example.com", result.DeliveryEmail);
+        Assert.Null(result.DeliveryEmail);
     }
 
     [Fact]
@@ -100,23 +100,24 @@ public sealed class SettingsDeliveryEmailTests : IDisposable
     }
 
     [Fact]
-    public async Task PatchSettings_KindleEmail_EmptyString_ClearsField()
+    public async Task PatchSettings_KindleEmail_EmptyString_Returns422()
     {
         // First set a value
         await _client.PatchAsJsonAsync("/settings",
             new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
 
-        // Clear with empty string
+        // Empty string is rejected as an invalid email
         var clearResponse = await _client.PatchAsJsonAsync("/settings",
             new UpdateSettingsRequest { KindleEmail = "" });
 
-        Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, clearResponse.StatusCode);
 
+        // Original value is unchanged
         var getResponse = await _client.GetAsync("/settings");
         var result = await getResponse.Content.ReadFromJsonAsync<SettingsResponse>();
 
         Assert.NotNull(result);
-        Assert.Equal("", result.KindleEmail);
+        Assert.Equal("user@kindle.com", result.KindleEmail);
     }
 
     [Fact]

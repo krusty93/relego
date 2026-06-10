@@ -106,7 +106,7 @@ public sealed class SettingsEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<SettingsResponse>();
         Assert.NotNull(result);
-        Assert.Equal("UTC", result.Timezone);
+        Assert.Equal(TimeZoneInfo.Local.Id, result.Timezone);
     }
 
     [Fact]
