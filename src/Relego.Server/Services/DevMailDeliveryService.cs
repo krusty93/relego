@@ -46,6 +46,12 @@ public sealed class DevMailDeliveryService : IMailDeliveryService
         await SendEmailAsync(message!, cancellationToken);
     }
 
+    public async Task SendHtmlRecapAsync(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string toAddress, CancellationToken cancellationToken = default)
+    {
+        using var message = HtmlEmailComposer.Compose(highlights, recapDate, toAddress, _settings.FromAddress);
+        await SendEmailAsync(message, cancellationToken);
+    }
+
     public async Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
     {
         using var message = new MimeMessage();
@@ -58,11 +64,6 @@ public sealed class DevMailDeliveryService : IMailDeliveryService
         };
 
         await SendEmailAsync(message!, cancellationToken);
-    }
-
-    public async Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)
-    {
-        await SendEmailAsync(message, cancellationToken);
     }
 
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)

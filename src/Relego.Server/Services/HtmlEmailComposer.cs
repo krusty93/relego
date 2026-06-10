@@ -12,7 +12,6 @@ public static class HtmlEmailComposer
     public static MimeMessage Compose(
         IReadOnlyList<SelectionCandidate> highlights,
         DateTimeOffset recapDate,
-        string _,
         string toAddress,
         string fromAddress)
     {

@@ -1,11 +1,8 @@
 ﻿using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
-using MimeKit;
 using Relego.Server.Data;
 using Relego.Server.Infrastructure.Database;
-using Relego.Server.Infrastructure.Smtp;
 using Relego.Server.Models;
 using Relego.Server.Services;
 
@@ -44,15 +41,12 @@ public sealed class RecapServiceDualChannelTests : IAsyncLifetime
         _selectionService = new HighlightSelectionService(_recapRepository);
         _fakeMailService = new FakeDualMailDeliveryService();
 
-        var smtpSettings = Options.Create(new SmtpSettings { FromAddress = "relego@test.local" });
-
         _sut = new RecapService(
             _selectionService,
             _fakeMailService,
             _recapRepository,
             _userRepository,
             _settingsRepository,
-            smtpSettings,
             NullLogger<RecapService>.Instance);
     }
 
@@ -233,7 +227,7 @@ internal sealed class FakeDualMailDeliveryService : IMailDeliveryService
     public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
-    public Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)
+    public Task SendHtmlRecapAsync(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string toAddress, CancellationToken cancellationToken = default)
     {
         EmailSendCount++;
         if (FailEmail)

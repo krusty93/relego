@@ -56,9 +56,9 @@ public sealed class MailDeliveryService : IMailDeliveryService
         await SendEmailAsync(message!, cancellationToken);
     }
 
-    public async Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)
+    public async Task SendHtmlRecapAsync(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string toAddress, CancellationToken cancellationToken = default)
     {
-        var toAddress = message.To.Mailboxes.FirstOrDefault()?.Address ?? "unknown";
+        using var message = HtmlEmailComposer.Compose(highlights, recapDate, toAddress, _settings.FromAddress);
 
         await SendEmailAsync(message, cancellationToken);
 

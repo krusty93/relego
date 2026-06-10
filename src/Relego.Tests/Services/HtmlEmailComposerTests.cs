@@ -1,4 +1,4 @@
-﻿using MimeKit;
+using MimeKit;
 using Relego.Server.Services;
 
 namespace Relego.Tests.Services;
@@ -6,7 +6,6 @@ namespace Relego.Tests.Services;
 public sealed class HtmlEmailComposerTests
 {
     private static readonly DateTimeOffset RecapDate = new(2026, 6, 8, 18, 0, 0, TimeSpan.Zero);
-    private const string Cadence = "daily";
     private const string ToAddress = "user@example.com";
     private const string FromAddress = "relego@relego.app";
 
@@ -20,7 +19,7 @@ public sealed class HtmlEmailComposerTests
     [Fact]
     public void Compose_ReturnsMultipartAlternative()
     {
-        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, ToAddress, FromAddress);
 
         Assert.NotNull(message);
         Assert.Equal("Your Relego Recap", message.Subject);
@@ -35,7 +34,7 @@ public sealed class HtmlEmailComposerTests
     [Fact]
     public void Compose_HtmlPart_ContainsRequiredElements()
     {
-        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, ToAddress, FromAddress);
         var body = Assert.IsType<MultipartAlternative>(message.Body);
 
         // BodyBuilder puts text/plain first, text/html second (by MIME convention)
@@ -83,7 +82,7 @@ public sealed class HtmlEmailComposerTests
     [Fact]
     public void Compose_PlainTextPart_ContainsRequiredElements()
     {
-        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, ToAddress, FromAddress);
         var body = Assert.IsType<MultipartAlternative>(message.Body);
 
         // BodyBuilder puts text/plain first
@@ -108,7 +107,7 @@ public sealed class HtmlEmailComposerTests
     [Fact]
     public void Compose_EmptyHighlights_ProducesNoHighlightsMessage()
     {
-        var message = HtmlEmailComposer.Compose([], RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose([], RecapDate, ToAddress, FromAddress);
         var body = Assert.IsType<MultipartAlternative>(message.Body);
 
         var htmlPart = Assert.IsType<TextPart>(body[1]);
@@ -126,7 +125,7 @@ public sealed class HtmlEmailComposerTests
             new(1, "Unicode test: émoji 🔥, 中文, español, français", "Book Üñî", "Äuthör", 3, null, DateTimeOffset.UtcNow, 10),
         };
 
-        var message = HtmlEmailComposer.Compose(highlights, RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose(highlights, RecapDate, ToAddress, FromAddress);
         var body = Assert.IsType<MultipartAlternative>(message.Body);
 
         var plainPart = Assert.IsType<TextPart>(body[0]);
@@ -142,7 +141,7 @@ public sealed class HtmlEmailComposerTests
     [Fact]
     public void Compose_MultipleBooks_AreGrouped()
     {
-        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, ToAddress, FromAddress);
         var body = Assert.IsType<MultipartAlternative>(message.Body);
         var htmlPart = Assert.IsType<TextPart>(body[1]);
         var html = htmlPart.Text;
@@ -162,7 +161,7 @@ public sealed class HtmlEmailComposerTests
             new(1, longText, "Book", "Author", 3, null, DateTimeOffset.UtcNow, 10),
         };
 
-        var message = HtmlEmailComposer.Compose(highlights, RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose(highlights, RecapDate, ToAddress, FromAddress);
         var body = Assert.IsType<MultipartAlternative>(message.Body);
 
         var plainPart = Assert.IsType<TextPart>(body[0]);
@@ -176,7 +175,7 @@ public sealed class HtmlEmailComposerTests
     [Fact]
     public void Compose_NoAttachmentParts()
     {
-        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, Cadence, ToAddress, FromAddress);
+        var message = HtmlEmailComposer.Compose(SampleHighlights, RecapDate, ToAddress, FromAddress);
 
         // The top-level body should be MultipartAlternative, not MultipartMixed
         Assert.IsType<MultipartAlternative>(message.Body);

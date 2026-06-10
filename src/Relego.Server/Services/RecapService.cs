@@ -1,8 +1,6 @@
 ﻿using Polly.Retry;
 using Relego.Server.Data;
 using Relego.Server.Infrastructure.Resilience;
-using Relego.Server.Infrastructure.Smtp;
-using Microsoft.Extensions.Options;
 
 namespace Relego.Server.Services;
 
@@ -15,7 +13,6 @@ public sealed class RecapService : IRecapService
     private readonly SettingsRepository _settingsRepository;
     private readonly AsyncRetryPolicy _retryPolicy;
     private readonly ILogger<RecapService> _logger;
-    private readonly string _fromAddress;
 
     public RecapService(
         HighlightSelectionService selectionService,
@@ -23,7 +20,6 @@ public sealed class RecapService : IRecapService
         RecapRepository recapRepository,
         UserRepository userRepository,
         SettingsRepository settingsRepository,
-        IOptions<SmtpSettings> smtpSettings,
         ILogger<RecapService> logger)
     {
         _selectionService = selectionService;
@@ -33,7 +29,6 @@ public sealed class RecapService : IRecapService
         _settingsRepository = settingsRepository;
         _logger = logger;
         _retryPolicy = RecapDeliveryPolicy.Create(logger);
-        _fromAddress = smtpSettings.Value.FromAddress;
     }
 
     public async Task ExecuteAsync(int userId, DateTimeOffset scheduledFor, CancellationToken cancellationToken = default)
@@ -97,33 +92,19 @@ public sealed class RecapService : IRecapService
         {
             try
             {
-#pragma warning disable CA2000 // Ownership is transferred to SendHtmlRecapAsync via retry policy
-                var htmlMessage = HtmlEmailComposer.Compose(
-                    candidates, scheduledFor, settings.Schedule,
-                    user.DeliveryEmail!, _fromAddress);
-#pragma warning restore CA2000
-
-                try
+                await _retryPolicy.ExecuteAsync(async ct =>
                 {
-                    await _retryPolicy.ExecuteAsync(async ct =>
-                    {
-                        emailAttempts++;
-                        await _mailDeliveryService.SendHtmlRecapAsync(htmlMessage, ct);
-                    }, cancellationToken);
+                    emailAttempts++;
+                    await _mailDeliveryService.SendHtmlRecapAsync(candidates, scheduledFor, user.DeliveryEmail!, ct);
+                }, cancellationToken);
 
-                    emailOk = true;
-                    _logger.LogInformation("Email delivery: {Result}", "Success");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Email delivery failed after {Attempts} attempts for user {UserId}", emailAttempts, userId);
-                    emailOk = false;
-                }
+                emailOk = true;
+                _logger.LogInformation("Email delivery: {Result}", "Success");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "HTML email composition failed for user {UserId}. Skipping email channel", userId);
-                hasEmail = false;
+                _logger.LogError(ex, "Email delivery failed after {Attempts} attempts for user {UserId}", emailAttempts, userId);
+                emailOk = false;
             }
         }
 

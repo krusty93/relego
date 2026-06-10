@@ -145,7 +145,7 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
             return Task.CompletedTask;
         }
 
-        public Task SendHtmlRecapAsync(MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
+        public Task SendHtmlRecapAsync(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string toAddress, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }

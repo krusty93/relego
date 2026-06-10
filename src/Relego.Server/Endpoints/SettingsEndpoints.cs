@@ -87,8 +87,8 @@ public static partial class SettingsEndpoints
             ApplySettingsUpdate(request, settings, user, normalizedSchedule, normalizedDeliveryTime, normalizedKindleEmail, normalizedDeliveryEmail);
 
             await userRepo.UpdateKindleEmailAsync(user.Id, user.KindleEmail);
-            if (request.DeliveryEmail is not null)
-                await userRepo.UpdateDeliveryEmailAsync(user.Id, normalizedDeliveryEmail);
+            await userRepo.UpdateDeliveryEmailAsync(user.Id, normalizedDeliveryEmail);
+
             await settingsRepo.UpsertAsync(settings);
 
             await schedulerService.ScheduleAsync(settings);
@@ -200,8 +200,7 @@ public static partial class SettingsEndpoints
         settings.Count = request.Count ?? settings.Count;
         settings.Timezone = request.Timezone?.Trim() ?? settings.Timezone;
         user.KindleEmail = normalizedKindleEmail ?? user.KindleEmail;
-        if (request.DeliveryEmail is not null)
-            user.DeliveryEmail = normalizedDeliveryEmail;
+        user.DeliveryEmail = normalizedDeliveryEmail ?? user.DeliveryEmail;
     }
 
     private static SettingsResponse ToSettingsResponse(User user, Settings settings)
