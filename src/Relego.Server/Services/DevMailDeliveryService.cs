@@ -46,6 +46,27 @@ public sealed class DevMailDeliveryService : IMailDeliveryService
         await SendEmailAsync(message!, cancellationToken);
     }
 
+    public async Task SendHtmlRecapAsync(
+        string toAddress,
+        string htmlBody,
+        string plainTextBody,
+        string subject = "Your Relego Recap",
+        CancellationToken cancellationToken = default)
+    {
+        var bodyBuilder = new BodyBuilder
+        {
+            HtmlBody = htmlBody,
+            TextBody = plainTextBody
+        };
+        using var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
+        message.To.Add(MailboxAddress.Parse(toAddress));
+        message.Subject = subject;
+        message.Body = bodyBuilder.ToMessageBody();
+
+        await SendEmailAsync(message!, cancellationToken);
+    }
+
     public async Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
     {
         using var message = new MimeMessage();
@@ -58,11 +79,6 @@ public sealed class DevMailDeliveryService : IMailDeliveryService
         };
 
         await SendEmailAsync(message!, cancellationToken);
-    }
-
-    public async Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default)
-    {
-        await SendEmailAsync(message, cancellationToken);
     }
 
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)

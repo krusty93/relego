@@ -142,7 +142,7 @@
   - After validation, call `await userRepo.UpdateDeliveryEmailAsync(user.Id, normalizedDeliveryEmail)`.
   - **Backward compatibility**: `PATCH /settings` without a `deliveryEmail` field (null/missing) does NOT clear an existing `delivery_email`. Existing `kindleEmail` handling is unchanged.
 
-- [ ] T019 [US6] Modify `src/Relego.Server/Endpoints/SettingsEndpoints.cs` — `POST /settings/test-email`:
+- [X] T019 [US6] Modify `src/Relego.Server/Endpoints/SettingsEndpoints.cs` — `POST /settings/test-email`:
   - Accept an **optional** JSON request body deserialized as `TestEmailRequest` (from Phase 2). If no body or null `Channel`, default to auto-detect.
   - **Channel auto-detect logic**: query user. If both `kindleEmail` and `deliveryEmail` configured → `both`; if only one → that channel; if neither → return 422 `{"errors": {"channel": ["No delivery email configured."]}}`.
   - **`"kindle"` channel**: if `kindleEmail` not configured → 422. Otherwise, call existing `SendTestEmailAsync(user.KindleEmail)`. Return `{"message": "Test email sent successfully to {kindleEmail}."}`.

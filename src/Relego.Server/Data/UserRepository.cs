@@ -49,7 +49,6 @@ public sealed class UserRepository(IDbConnection connection)
 
     public Task UpdateDeliveryEmailAsync(int userId, string? deliveryEmail)
     {
-        // Map empty string to NULL (clear the field)
         var normalizedValue = string.IsNullOrEmpty(deliveryEmail) ? null : deliveryEmail;
         return connection.ExecuteAsync(
             "UPDATE users SET delivery_email = @DeliveryEmail WHERE id = @UserId",

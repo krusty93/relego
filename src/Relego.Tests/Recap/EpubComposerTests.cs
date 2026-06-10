@@ -176,7 +176,7 @@ public sealed class EpubComposerTests
     [Fact]
     public void Compose_HighlightsXhtml_DailyHeadingIncludesCadenceAndDateTime()
     {
-        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "Daily");
 
         using var stream = new MemoryStream(epub);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
@@ -188,7 +188,7 @@ public sealed class EpubComposerTests
     [Fact]
     public void Compose_HighlightsXhtml_WeeklyHeadingIncludesCadenceAndDateTime()
     {
-        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "weekly");
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "Weekly");
 
         using var stream = new MemoryStream(epub);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);

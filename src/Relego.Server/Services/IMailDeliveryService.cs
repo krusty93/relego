@@ -1,6 +1,4 @@
-﻿using MimeKit;
-
-namespace Relego.Server.Services;
+﻿namespace Relego.Server.Services;
 
 public interface IMailDeliveryService
 {
@@ -9,8 +7,13 @@ public interface IMailDeliveryService
     Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sends a pre-composed HTML recap email (MimeMessage) via SMTP.
-    /// The message is produced by <see cref="HtmlEmailComposer.Compose"/>.
+    /// Composes and sends an HTML recap email via SMTP.
+    /// The message is composed by <see cref="HtmlEmailComposer.Compose"/>.
     /// </summary>
-    Task SendHtmlRecapAsync(MimeMessage message, CancellationToken cancellationToken = default);
+    Task SendHtmlRecapAsync(
+        string toAddress,
+        string htmlBody,
+        string plainTextBody,
+        string subject = "Your Relego Recap",
+        CancellationToken cancellationToken = default);
 }

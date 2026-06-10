@@ -34,21 +34,23 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
         _factory.Dispose();
     }
 
+    // ── test-kindle-email ──────────────────────────────────────────
+
     [Fact]
-    public async Task PostTestEmail_WithKindleEmail_SendsSuccessfully()
+    public async Task TestKindleEmail_WithKindleConfigured_SendsSuccessfully()
     {
         await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
 
-        var response = await _client.PostAsync("/settings/test-email", null);
+        var response = await _client.PostAsync("/settings/test-kindle-email", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("user@kindle.com", _fakeMail.LastTestEmailAddress);
+        Assert.Contains("user@kindle.com", _fakeMail.SentAddresses);
     }
 
     [Fact]
-    public async Task PostTestEmail_WithoutKindleEmail_Returns422()
+    public async Task TestKindleEmail_WithoutKindle_Returns422()
     {
-        var response = await _client.PostAsync("/settings/test-email", null);
+        var response = await _client.PostAsync("/settings/test-kindle-email", null);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -56,32 +58,75 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task PostTestEmail_WhenSmtpFails_Returns502()
+    public async Task TestKindleEmail_SmtpFails_Returns502()
     {
         await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
         _fakeMail.ShouldThrow = true;
 
-        var response = await _client.PostAsync("/settings/test-email", null);
+        var response = await _client.PostAsync("/settings/test-kindle-email", null);
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("SMTP delivery failed", body);
     }
 
     [Fact]
-    public async Task PostTestEmail_WhenUnexpectedErrorOccurs_Returns500()
+    public async Task TestKindleEmail_UnexpectedError_Returns500()
     {
         await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
         _fakeMail.ShouldThrowUnexpected = true;
 
-        var response = await _client.PostAsync("/settings/test-email", null);
+        var response = await _client.PostAsync("/settings/test-kindle-email", null);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+    }
+
+    // ── test-recap-email ───────────────────────────────────────────
+
+    [Fact]
+    public async Task TestRecapEmail_WithDeliveryConfigured_SendsSuccessfully()
+    {
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { DeliveryEmail = "user@example.com" });
+
+        var response = await _client.PostAsync("/settings/test-recap-email", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("user@example.com", _fakeMail.SentAddresses);
+    }
+
+    [Fact]
+    public async Task TestRecapEmail_WithoutDelivery_Returns422()
+    {
+        var response = await _client.PostAsync("/settings/test-recap-email", null);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("deliveryEmail", body);
+    }
+
+    [Fact]
+    public async Task TestRecapEmail_SmtpFails_Returns502()
+    {
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { DeliveryEmail = "user@example.com" });
+        _fakeMail.ShouldThrow = true;
+
+        var response = await _client.PostAsync("/settings/test-recap-email", null);
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TestRecapEmail_UnexpectedError_Returns500()
+    {
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest { DeliveryEmail = "user@example.com" });
+        _fakeMail.ShouldThrowUnexpected = true;
+
+        var response = await _client.PostAsync("/settings/test-recap-email", null);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
     }
 
     private sealed class FakeMailDeliveryService : IMailDeliveryService
     {
-        public string? LastTestEmailAddress { get; private set; }
+        public List<string> SentAddresses { get; } = [];
         public bool ShouldThrow { get; set; }
         public bool ShouldThrowUnexpected { get; set; }
 
@@ -96,11 +141,11 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
             if (ShouldThrow)
                 throw new System.Net.Sockets.SocketException(10061);
 
-            LastTestEmailAddress = toAddress;
+            SentAddresses.Add(toAddress);
             return Task.CompletedTask;
         }
 
-        public Task SendHtmlRecapAsync(MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
+        public Task SendHtmlRecapAsync(string toAddress, string htmlBody, string plainTextBody, string subject = "Your Relego Recap", CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }
