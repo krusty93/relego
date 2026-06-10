@@ -179,6 +179,18 @@ docker compose run --rm relego-cli config kindle-email "email@kindle.com"
 relego config kindle-email "email@kindle.com"
 ```
 
+Optionally, set an **"Also Email Recap to"** address to also receive an HTML recap in any regular inbox (in addition to Kindle):
+
+```sh
+# Docker
+docker compose run --rm relego-cli config delivery-email "you@example.com"
+
+# Binary
+relego config delivery-email "you@example.com"
+```
+
+Leave this blank if you only want Kindle delivery. Clear it at any time with `relego config delivery-email ""`.
+
 ### 5. Explore the TUI
 
 The TUI lets you sync highlights from `My Clippings.txt`, browse your library, manage exclusions, and adjust settings, all without leaving the terminal. To open it, launch the CLI without any argument:
@@ -224,25 +236,26 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 
 ## CLI reference
 
-|                   Command                        |              Description                  |
-|--------------------------------------------------|-------------------------------------------|
-| `relego`                                         | Open interactive TUI                      |
-| `relego import [path]`                           | Import highlights from `My Clippings.txt` |
-| `relego status`                                  | Show server status and next recap         |
-| `relego config show`                             | Show all current server settings          |
-| `relego config schedule <daily\|weekly> [HH:MM]` | Set recap schedule                        |
-| `relego config schedule show`                    | Show current schedule                     |
-| `relego config count show`                       | Show current highlights-per-recap setting |
-| `relego config count <1-15>`                     | Set highlights per recap (default: 5)     |
-| `relego config kindle-email <address>`           | Set the Kindle delivery email address     |
-| `relego exclude add <highlight\|book\|author> <id>` | Exclude an entity from future recaps   |
-| `relego exclude remove <highlight\|book\|author> <id>` | Re-include an excluded entity       |
-| `relego exclude list`                            | List all exclusions                       |
-| `relego rename-book <id> <title>`                | Rename a book                             |
-| `relego weight set <id> <1-5>`                   | Set highlight weight                      |
-| `relego weight list`                             | Show weighted highlights                  |
-| `relego recap trigger`                           | Trigger a recap immediately               |
-| `relego --version`                               | Print version                             |
+|                   Command                              |              Description                                                     |
+|--------------------------------------------------------|------------------------------------------------------------------------------|
+| `relego`                                               | Open interactive TUI                                                         |
+| `relego import [path]`                                 | Import highlights from `My Clippings.txt`                                    |
+| `relego status`                                        | Show server status and next recap                                            |
+| `relego config show`                                   | Show all current server settings                                             |
+| `relego config schedule <daily\|weekly> [HH:MM]`       | Set recap schedule                                                           |
+| `relego config schedule show`                          | Show current schedule                                                        |
+| `relego config count show`                             | Show current highlights-per-recap setting                                    |
+| `relego config count <1-15>`                           | Set highlights per recap (default: 5)                                        |
+| `relego config kindle-email <address>`                 | Set the Kindle delivery email address                                        |
+| `relego config delivery-email <address>`               | Set an optional email address to send HTML recaps to (in addition to Kindle) |
+| `relego exclude add <highlight\|book\|author> <id>`    | Exclude an entity from future recaps                                         |
+| `relego exclude remove <highlight\|book\|author> <id>` | Re-include an excluded entity                                                |
+| `relego exclude list`                                  | List all exclusions                                                          |
+| `relego rename-book <id> <title>`                      | Rename a book                                                                |
+| `relego weight set <id> <1-5>`                         | Set highlight weight                                                         |
+| `relego weight list`                                   | Show weighted highlights                                                     |
+| `relego recap trigger`                                 | Trigger a recap immediately                                                  |
+| `relego --version`                                     | Print version                                                                |
 
 ---
 
