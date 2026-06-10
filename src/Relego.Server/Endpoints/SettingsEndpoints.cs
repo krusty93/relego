@@ -47,18 +47,8 @@ public static partial class SettingsEndpoints
             if (request.Count is < 1 or > 15)
                 errors["count"] = ["Count must be between 1 and 15."];
 
-            if (request.KindleEmail is not null)
-            {
-                var trimmed = request.KindleEmail.Trim();
-                if (trimmed.Length == 0)
-                {
-                    normalizedKindleEmail = string.Empty; // empty string → clear
-                }
-                else if (!IsValidEmail(request.KindleEmail, out normalizedKindleEmail))
-                {
-                    errors["kindleEmail"] = ["Invalid email format."];
-                }
-            }
+            if (request.KindleEmail is not null && !IsValidEmail(request.KindleEmail, out normalizedKindleEmail))
+                errors["kindleEmail"] = ["Invalid email format."];
 
             string? normalizedDeliveryEmail = null;
             if (request.DeliveryEmail is not null)
