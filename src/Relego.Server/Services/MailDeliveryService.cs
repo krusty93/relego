@@ -56,11 +56,26 @@ public sealed class MailDeliveryService : IMailDeliveryService
         await SendEmailAsync(message!, cancellationToken);
     }
 
-    public async Task SendHtmlRecapAsync(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string toAddress, CancellationToken cancellationToken = default)
+    public async Task SendHtmlRecapAsync(
+        string toAddress,
+        string htmlBody,
+        string plainTextBody,
+        string subject = "Your Relego Recap",
+        CancellationToken cancellationToken = default)
     {
-        using var message = HtmlEmailComposer.Compose(highlights, recapDate, toAddress, _settings.FromAddress);
+        var bodyBuilder = new BodyBuilder
+        {
+            HtmlBody = htmlBody,
+            TextBody = plainTextBody
+        };
 
-        await SendEmailAsync(message, cancellationToken);
+        using var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
+        message.To.Add(MailboxAddress.Parse(toAddress));
+        message.Subject = subject;
+        message.Body = bodyBuilder.ToMessageBody();
+
+        await SendEmailAsync(message!, cancellationToken);
 
         _logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
     }

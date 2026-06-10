@@ -48,34 +48,32 @@ public sealed class RecapService : IRecapService
         var user = await _userRepository.GetByIdAsync(userId);
 
         var hasKindle = !string.IsNullOrWhiteSpace(user.KindleEmail);
-        var hasEmail = !string.IsNullOrWhiteSpace(user.DeliveryEmail);
+        var hasDeliveryEmail = !string.IsNullOrWhiteSpace(user.DeliveryEmail);
 
-        if (!hasKindle && !hasEmail)
+        if (!hasKindle && !hasDeliveryEmail)
         {
             _logger.LogWarning("No delivery channel configured for user {UserId}. Recaps cannot be delivered", userId);
             await _recapRepository.UpdateJobFailedAsync(jobId, "No delivery channel configured.", attemptCount: 0);
             return;
         }
 
-        // Compose EPUB for Kindle channel (if needed)
         var emailOk = false;
         var kindleOk = false;
         var emailAttempts = 0;
         var kindleAttempts = 0;
+        var cadenceLabel = settings.Schedule.Equals("weekly", StringComparison.OrdinalIgnoreCase) ? "Weekly" : "Daily";
 
         if (hasKindle)
         {
-            string? fileName = null;
-            byte[]? epubContent = null;
-            epubContent = EpubComposer.Compose(candidates, scheduledFor, settings.Schedule);
-            fileName = $"Relego Recap - {scheduledFor:yyy-MM-dd HH:mm}.epub";
+            byte[] epubContent = EpubComposer.Compose(candidates, scheduledFor, cadenceLabel);
+            string fileName = $"Relego Recap - {scheduledFor:yyy-MM-dd HH:mm}.epub";
 
             try
             {
                 await _retryPolicy.ExecuteAsync(async ct =>
                 {
                     kindleAttempts++;
-                    await _mailDeliveryService.SendRecapAsync(user.KindleEmail, epubContent!, fileName!, ct);
+                    await _mailDeliveryService.SendRecapAsync(user.KindleEmail, epubContent!, fileName, ct);
                 }, cancellationToken);
 
                 kindleOk = true;
@@ -88,14 +86,16 @@ public sealed class RecapService : IRecapService
             }
         }
 
-        if (hasEmail)
+        if (hasDeliveryEmail)
         {
+            (string htmlBody, string plainTextBody) = HtmlEmailComposer.Compose(candidates, scheduledFor);
+
             try
             {
                 await _retryPolicy.ExecuteAsync(async ct =>
                 {
                     emailAttempts++;
-                    await _mailDeliveryService.SendHtmlRecapAsync(candidates, scheduledFor, user.DeliveryEmail!, ct);
+                    await _mailDeliveryService.SendHtmlRecapAsync(user.DeliveryEmail!, htmlBody, plainTextBody, $"Your Relego {cadenceLabel} Recap", ct);
                 }, cancellationToken);
 
                 emailOk = true;
@@ -127,12 +127,16 @@ public sealed class RecapService : IRecapService
         }
         else
         {
-            var errorMsg = hasKindle && hasEmail
+            var errorMsg = hasKindle && hasDeliveryEmail
                 ? "Both delivery channels failed."
                 : hasKindle
                     ? "Kindle delivery failed."
                     : "Email delivery failed.";
             await _recapRepository.UpdateJobFailedAsync(jobId, errorMsg, kindleAttempts + emailAttempts);
+
+            _logger.LogError(
+                "Recap delivery failed for user {UserId}. Kindle: {KindleOk}, Email: {EmailOk}. Error: {ErrorMessage}",
+                userId, kindleOk, emailOk, errorMsg);
         }
     }
 }

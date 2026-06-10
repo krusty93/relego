@@ -139,7 +139,6 @@ public static class EpubComposer
 
     private static string BuildHighlightsXhtml(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string cadence)
     {
-        var cadenceLabel = cadence.Equals("weekly", StringComparison.OrdinalIgnoreCase) ? "Weekly" : "Daily";
         var sb = new StringBuilder();
         sb.AppendLine("""
             <?xml version="1.0" encoding="UTF-8"?>
@@ -148,7 +147,7 @@ public static class EpubComposer
             <head><title>Highlights</title></head>
             <body>
             """);
-        sb.AppendLine($"<h1>Relego {cadenceLabel} Recap ({recapDate:yyyy-MM-dd HH:mm})</h1>");
+        sb.AppendLine($"<h1>Relego {cadence} Recap ({recapDate:yyyy-MM-dd HH:mm})</h1>");
         sb.AppendLine("<ul>");
 
         foreach (var h in highlights)

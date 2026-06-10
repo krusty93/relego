@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Text;
-using MimeKit;
 
 namespace Relego.Server.Services;
 
@@ -9,29 +8,16 @@ public static class HtmlEmailComposer
     private const int PlainTextMaxLength = 2000;
     private const string AccentHex = "#b56b39";
 
-    public static MimeMessage Compose(
+    public static (string HtmlBody, string PlainTextBody) Compose(
         IReadOnlyList<SelectionCandidate> highlights,
-        DateTimeOffset recapDate,
-        string toAddress,
-        string fromAddress)
+        DateTimeOffset recapDate)
     {
-        var bodyBuilder = new BodyBuilder();
-
         var formattedDate = recapDate.ToLocalTime().ToString("dddd, MMMM d, yyyy", CultureInfo.InvariantCulture);
 
-        // Build HTML part
-        bodyBuilder.HtmlBody = BuildHtmlBody(highlights, formattedDate);
+        string htmlBody = BuildHtmlBody(highlights, formattedDate);
+        string plainTextBody = BuildPlainTextBody(highlights, formattedDate);
 
-        // Build plain-text part
-        bodyBuilder.TextBody = BuildPlainTextBody(highlights, formattedDate);
-
-        var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("Relego", fromAddress));
-        message.To.Add(MailboxAddress.Parse(toAddress));
-        message.Subject = "Your Relego Recap";
-        message.Body = bodyBuilder.ToMessageBody();
-
-        return message;
+        return (htmlBody, plainTextBody);
     }
 
     private static string BuildHtmlBody(IReadOnlyList<SelectionCandidate> highlights, string formattedDate)

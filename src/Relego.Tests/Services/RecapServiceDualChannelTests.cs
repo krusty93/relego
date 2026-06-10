@@ -227,7 +227,7 @@ internal sealed class FakeDualMailDeliveryService : IMailDeliveryService
     public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
-    public Task SendHtmlRecapAsync(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string toAddress, CancellationToken cancellationToken = default)
+    public Task SendHtmlRecapAsync(string toAddress, string htmlBody, string plainTextBody, string subject = "Your Relego Recap", CancellationToken cancellationToken = default)
     {
         EmailSendCount++;
         if (FailEmail)
