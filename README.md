@@ -8,6 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Release](https://github.com/Krusty93/relego/actions/workflows/release.yaml/badge.svg)](https://github.com/Krusty93/relego/actions/workflows/release.yaml)
+[![CodeQL](https://github.com/krusty93/relego/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/krusty93/relego/actions/workflows/github-code-scanning/codeql)
 [![GitHub Release](https://img.shields.io/github/v/release/krusty93/relego)](https://github.com/krusty93/relego/releases)
 
 ## Why relego.
