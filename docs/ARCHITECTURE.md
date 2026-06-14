@@ -270,11 +270,13 @@ src/landing/                # Static marketing landing page (independent from .N
 
 ## ADR Index
 
-| ADR                                                     | Decision                                   |
-|---------------------------------------------------------|--------------------------------------------|
-| [ADR-001](adr/001-client-server-architecture.md)        | Client/server architecture                 |
-| [ADR-002](adr/002-dotnet-core-runtime.md)               | .NET Core as language/runtime              |
-| [ADR-003](adr/003-sqlite-storage.md)                    | SQLite as storage engine                   |
-| [ADR-004](adr/004-rest-http-protocol.md)                | REST HTTP as client/server protocol        |
-| [ADR-005](adr/005-my-clippings-txt-highlight-source.md) | `My Clippings.txt` as MVP highlight source |
-| [ADR-006](adr/006-docker-only-distribution.md)          | Docker-only server distribution            |
+| ADR                                                     | Decision                                     |
+|---------------------------------------------------------|----------------------------------------------|
+| [ADR-001](adr/001-client-server-architecture.md)        | Client/server architecture                   |
+| [ADR-002](adr/002-dotnet-core-runtime.md)               | .NET Core as language/runtime                |
+| [ADR-003](adr/003-sqlite-storage.md)                    | SQLite as storage engine                     |
+| [ADR-004](adr/004-rest-http-protocol.md)                | REST HTTP as client/server protocol          |
+| [ADR-005](adr/005-my-clippings-txt-highlight-source.md) | `My Clippings.txt` as MVP highlight source   |
+| [ADR-006](adr/006-docker-only-distribution.md)          | Docker-only server distribution              |
+| [ADR-007](adr/007-dual-channel-email-delivery.md)       | Dual-channel email delivery                  |
+| [ADR-008](adr/008-kobo-reader-sqlite-source.md)         | `KoboReader.sqlite` as Kobo highlight source |
