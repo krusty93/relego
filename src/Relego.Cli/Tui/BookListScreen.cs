@@ -836,9 +836,9 @@ public sealed class BookListScreen(
 
     private static TableLayout CalculateTableLayout(int availableWidth)
     {
-        const int spacingWidth = 2;
+        const int SpacingWidth = 2;
 
-        var textColumnsWidth = Math.Max(0, availableWidth - HighlightsColumnWidth - spacingWidth);
+        var textColumnsWidth = Math.Max(0, availableWidth - HighlightsColumnWidth - SpacingWidth);
         if (textColumnsWidth == 0)
         {
             return new TableLayout(0, 0, HighlightsColumnWidth);

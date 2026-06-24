@@ -87,7 +87,7 @@ The application registers a scoped `IDbConnection` backed by `Microsoft.Data.Sql
 Endpoint groups currently implemented:
 
 - Sync: bulk import via `POST /highlights/import`
-- Settings: `GET /settings`, `PATCH /settings`, `POST /settings/test-email`
+- Settings: `GET /settings`, `PATCH /settings`, `POST /settings/test-kindle-email`, `POST /settings/test-recap-email`
 - Status: `GET /status`
 - Recap: `POST /recaps`
 - Highlights: `GET /highlights`, `DELETE /highlights/{id}`
@@ -129,7 +129,7 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 ## Data Model
 
 ```
-users            (id, kindle_email, created_at)
+users            (id, kindle_email[''], delivery_email[NULL], created_at)
 authors          (id, name)
 books            (id, user_id, author_id, title)
 highlights       (id, user_id, book_id, text, weight[1-5], excluded, last_seen, delivery_count, created_at)
@@ -137,6 +137,8 @@ excluded_books   (id, user_id, book_id, excluded_at)
 excluded_authors (id, user_id, author_id, excluded_at)
 settings         (user_id, schedule['daily'|'weekly'], delivery_day, delivery_time[default:'18:00'], count[1-15, default:3])
 ```
+
+> **Delivery destinations:** both `kindle_email` and `delivery_email` are optional; at least one must be set for recap delivery. `POST /recaps` returns HTTP 422 when neither is configured; the TUI shows a persistent warning.
 
 > **MVP note:** Single-user only. The server auto-creates or reuses user `id = 1` on demand for every API request.
 
@@ -165,26 +167,27 @@ LIMIT @count
 
 ## REST API Surface
 
-| Method   | Path                              | Description                                                   | Tag        |
-|----------|-----------------------------------|---------------------------------------------------------------|------------|
-| `POST`   | `/highlights/import`              | Bulk import highlights from client                            | Sync       |
-| `GET`    | `/status`                         | Server status, next recap, highlight stats                    | Status     |
-| `GET`    | `/settings`                       | Read current settings                                         | Settings   |
-| `PATCH`  | `/settings`                       | Partially update settings                                     | Settings   |
-| `POST`   | `/settings/test-email`            | Send a plain-text test email to the configured Kindle address | Settings   |
-| `POST`   | `/recaps`                         | Execute a recap immediately                                   | Recap      |
-| `GET`    | `/highlights`                     | List/paginate/search highlights                               | Highlights |
-| `DELETE` | `/highlights/{id}`                | Delete a highlight                                            | Highlights |
-| `PUT`    | `/highlights/{id}/weight`         | Set highlight recap weight                                    | Weights    |
-| `GET`    | `/highlights/weights`             | List weighted highlights                                      | Weights    |
-| `PUT`    | `/books/{id}/title`               | Rename a book                                                 | Books      |
-| `POST`   | `/highlights/{id}/exclusions`     | Exclude a highlight                                           | Exclusions |
-| `DELETE` | `/highlights/{id}/exclusions`     | Re-include a highlight                                        | Exclusions |
-| `POST`   | `/books/{id}/exclusions`          | Exclude a book                                                | Exclusions |
-| `DELETE` | `/books/{id}/exclusions`          | Re-include a book                                             | Exclusions |
-| `POST`   | `/authors/{id}/exclusions`        | Exclude an author                                             | Exclusions |
-| `DELETE` | `/authors/{id}/exclusions`        | Re-include an author                                          | Exclusions |
-| `GET`    | `/exclusions`                     | List all exclusions                                           | Exclusions |
+| Method   | Path                              | Description                                 | Tag        |
+|----------|-----------------------------------|---------------------------------------------|------------|
+| `POST`   | `/highlights/import`              | Bulk import highlights from client          | Sync       |
+| `GET`    | `/status`                         | Server status, next recap, highlight stats  | Status     |
+| `GET`    | `/settings`                       | Read current settings                       | Settings   |
+| `PATCH`  | `/settings`                       | Partially update settings                   | Settings   |
+| `POST`   | `/settings/test-kindle-email`     | Send a test email via Send-to-Kindle        | Settings   |
+| `POST`   | `/settings/test-recap-email`      | Send a test HTML email to the inbox address | Settings   |
+| `POST`   | `/recaps`                         | Execute a recap immediately                 | Recap      |
+| `GET`    | `/highlights`                     | List/paginate/search highlights             | Highlights |
+| `DELETE` | `/highlights/{id}`                | Delete a highlight                          | Highlights |
+| `PUT`    | `/highlights/{id}/weight`         | Set highlight recap weight                  | Weights    |
+| `GET`    | `/highlights/weights`             | List weighted highlights                    | Weights    |
+| `PUT`    | `/books/{id}/title`               | Rename a book                               | Books      |
+| `POST`   | `/highlights/{id}/exclusions`     | Exclude a highlight                         | Exclusions |
+| `DELETE` | `/highlights/{id}/exclusions`     | Re-include a highlight                      | Exclusions |
+| `POST`   | `/books/{id}/exclusions`          | Exclude a book                              | Exclusions |
+| `DELETE` | `/books/{id}/exclusions`          | Re-include a book                           | Exclusions |
+| `POST`   | `/authors/{id}/exclusions`        | Exclude an author                           | Exclusions |
+| `DELETE` | `/authors/{id}/exclusions`        | Re-include an author                        | Exclusions |
+| `GET`    | `/exclusions`                     | List all exclusions                         | Exclusions |
 
 ### Data access pattern
 

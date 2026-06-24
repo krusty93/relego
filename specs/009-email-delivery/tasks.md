@@ -177,17 +177,11 @@
 
 ### CLI Commands
 
-- [X] T022 [US8] Create `src/Relego.Cli/Commands/Config/ConfigDeliveryEmailCommand.cs`: Spectre.Console.Cli command invoked as `relego config delivery-email <address>`. Behavior:
-  - Validates `<address>` with the same email regex used server-side (`ConfigKindleEmailCommand` pattern). If invalid, display `[red]Invalid email format.[/]` and return non-zero exit code.
-  - Sends `PATCH /settings` with `{"deliveryEmail": "<address>"}` via `SunnyHttpClient.PatchSettingsAsync()` (or equivalent existing method).
-  - `<address>` can be empty string `""` to clear the field.
-  - On success: `[green]Delivery email set to {address}.[/]` (or `[green]Delivery email cleared.[/]` for empty).
-  - On server error: display error message from API response.
-  - Inherit from `Spectre.Console.Cli.AsyncCommand<ConfigDeliveryEmailCommand.Settings>` (pattern-match `ConfigKindleEmailCommand`).
+- [X] T022 [US8] ~~`relego config delivery-email`~~ → Superseded by #370. CLI restructured to `relego config email kindle <address>` (`ConfigEmailKindleCommand`) and `relego config email inbox <address>` (`ConfigEmailInboxCommand`) under `src/Relego.Cli/Commands/Config/Email/`. Old commands `ConfigKindleEmailCommand` and `ConfigDeliveryEmailCommand` removed.
 
-- [X] T023 [US8] Modify `src/Relego.Cli/Program.cs`: register `ConfigDeliveryEmailCommand` in the `config` command branch alongside `ConfigKindleEmailCommand`. Follow the existing Spectre.Console.Cli command registration convention used for `ConfigKindleEmailCommand`.
+- [X] T023 [US8] Modify `src/Relego.Cli/Program.cs`: registered `config email` branch → `kindle` / `inbox` sub-commands (see #370).
 
-- [X] T024 [US8] Modify `src/Relego.Cli/Commands/Config/ConfigShowCommand.cs`: after the existing `kindleEmail` row, add `table.AddRow("Delivery Email", response.DeliveryEmail ?? "[grey](not set)[/]");`. Use the same Spectre.Console `Table` formatting pattern as the existing `kindleEmail` row.
+- [X] T024 [US8] Modify `src/Relego.Cli/Commands/Config/ConfigShowCommand.cs`: rows relabelled **"Send to Kindle"** / **"Send to inbox (opt.)"**; "(not set)" shown when empty.
 
 - [X] T025 [US8] Modify `src/Relego.Cli/Commands/StatusCommand.cs`:
   - Add `table.AddRow("Delivery Email", FormatDeliveryEmail(response.DeliveryEmailConfigured));` after the existing `KindleEmail` row.
@@ -196,25 +190,18 @@
 ### TUI Updates
 
 - [X] T026 [US8] Modify `src/Relego.Cli/Tui/SettingsScreen.cs`:
-  - Add a `SettingsField` for `"Delivery Email"` with value `_settings.DeliveryEmail ?? ""`, field key `"deliveryEmail"`, and `FieldKind.Editable`. Place it immediately after the existing `"Kindle Email"` field.
-  - Extend the save logic: when the user saves, include `deliveryEmail` in the `UpdateSettingsRequest` sent to `PATCH /settings`. Use the same validation rules (email format, empty string → clear).
-  - The field must render and behave identically to the existing `"Kindle Email"` field — same edit mode, same validation UX.
+  - Replace the two inline `"Kindle Email"` / `"Also Email Recap to (opt.)"` fields with a single `"Recap Delivery Settings"` action field.
+  - The action field shows a live status indicator (`Kindle ✓/— · Inbox ✓/—`) in the list row.
+  - Selecting it opens a `ModalChrome`-based popup titled **"Deliver recap to..."** with two independently editable `TextField` entries: **Send to Kindle** (via Send-to-Kindle) and **Send to inbox** (read in any email client).
+  - Each field's Enter saves that field immediately via `PATCH /settings`; the popup status line shows success or validation error. Esc closes the popup without unsaved side-effects.
+  - After a successful save the StatusChrome chrome is refreshed asynchronously via `_refreshChromeAsync`.
 
-- [ ] T027 [US8] Modify `src/Relego.Cli/Tui/StatusChrome.cs`:
-  - In `RefreshAsync`: after fetching status from the server, compute a new `AnyEmailConfigured` property: `_status.KindleEmailConfigured || _status.DeliveryEmailConfigured`.
-  - In `UpdateLabels` (or equivalent render method):
-    - Change the warning condition from `!_status.KindleEmailConfigured` to `!AnyEmailConfigured`.
-    - Change the warning text from the Kindle-specific message to: `"⚠ No delivery email configured — recaps cannot be delivered."` (per FR-009-20).
-    - Ensure the warning is displayed with the same yellow/dim styling as the existing warning.
+- [X] T027 [US8] Modify `src/Relego.Cli/Tui/StatusChrome.cs`:
+  - Changed warning condition from `!KindleEmailConfigured` to `!(KindleEmailConfigured || DeliveryEmailConfigured)`.
+  - Warning text: `"⚠ No recap delivery destination configured"` (fires when neither channel is set).
+  - Both `KindleEmailConfigured` and `DeliveryEmailConfigured` are populated from `GetStatusAsync`.
 
-### CLI/TUI Tests
-
-- [ ] T028 [US8] Write `src/Relego.Tests/Cli/ConfigDeliveryEmailTests.cs`: unit tests for `ConfigDeliveryEmailCommand`:
-  - Valid email → sends correct `PATCH /settings` body; success output contains "Delivery email set to".
-  - Invalid email format → validation error message; no HTTP call made.
-  - Empty string → sends `{"deliveryEmail": ""}`; output contains "Delivery email cleared".
-  - Server returns error (e.g., 422) → error message displayed.
-  - Use a mock/test `SunnyHttpClient` or `IRelegoHttpClient` to verify the HTTP request body without a real server.
+- [X] T028 [US8] Tests in `src/Relego.Tests/Cli/ConfigCommandTests.cs` (`ConfigEmailKindleCommandTests`, `ConfigEmailInboxCommandTests`) and `src/Relego.Tests/Cli/RecapTriggerCommandTests.cs`.
 
 **Checkpoint**: `relego config delivery-email user@example.com` sets the delivery email. `relego config show` displays both emails. `relego status` shows delivery email status. TUI settings page has "Delivery email" field. TUI warning shows only when NEITHER email is configured. Tests pass (`dotnet test --filter "FullyQualifiedName~ConfigDeliveryEmail"`).
 

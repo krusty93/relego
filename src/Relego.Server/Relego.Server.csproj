@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <Version>0.16.2</Version>
+    <Version>0.17.0</Version>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -35,5 +35,18 @@
   <ItemGroup>
     <EmbeddedResource Include="Infrastructure\Database\quartz-sqlite.sql" />
     <EmbeddedResource Include="Assets\epub-cover.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      SQLitePCLRaw.lib.e_sqlite3 (transitive via SQLitePCLRaw.bundle_e_sqlite3) is flagged by
+      GHSA-2m69-gcr7-jv3q (SQLite < 3.50.2 memory corruption, CVE-2025-6965).
+      Mitigation: SourceGear.sqlite3 3.50.4.5 is an explicit dependency that places the patched
+      SQLite 3.50.4 binary in the output directory, overriding the vulnerable transitive binary.
+      The advisory is suppressed here because the actual runtime binary is the patched one.
+      Remove this suppression once SQLitePCLRaw.bundle_e_sqlite3 (via Microsoft.Data.Sqlite) ships a version that depends
+      on SourceGear.sqlite3 directly.
+    -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
   </ItemGroup>
 </Project>

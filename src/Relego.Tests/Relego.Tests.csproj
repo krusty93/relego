@@ -29,4 +29,12 @@
     <ProjectReference Include="..\Relego.Cli\Relego.Cli.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- SQLitePCLRaw.lib.e_sqlite3 (transitive via Server → bundle) flagged by GHSA-2m69-gcr7-jv3q.
+         Suppressed here to match the mitigation applied in Relego.Server.csproj (SourceGear.sqlite3
+         3.50.4.5 places a patched binary that overrides the vulnerable transitive binary).
+         Remove once SQLitePCLRaw.bundle_e_sqlite3 ships with SourceGear.sqlite3 as its native dep. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
+
 </Project>

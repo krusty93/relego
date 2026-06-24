@@ -166,7 +166,7 @@ public sealed class BookListScreenTests : IDisposable
     [Fact]
     public async Task TryHandleShortcutKey_R_ReinitializesBooks()
     {
-        const string initialItemsJson = """
+        const string InitialItemsJson = """
             [
               {
                 "id": 1,
@@ -185,7 +185,7 @@ public sealed class BookListScreenTests : IDisposable
                   "total": 1,
                   "page": 1,
                   "pageSize": 100,
-                  "items": {{initialItemsJson}}
+                  "items": {{InitialItemsJson}}
                 }
                 """);
 

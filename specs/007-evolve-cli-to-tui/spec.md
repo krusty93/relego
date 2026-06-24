@@ -39,8 +39,8 @@ When the TUI launches, the user sees a branded startup experience: a "Relego" Fi
 2. **Given** TUI mode starts, **When** the main screen renders, **Then** the CLI version (e.g., `v1.2.0`) is displayed in a fixed location.
 3. **Given** a reachable server (determined by a successful `GET /` returning HTTP 200), **When** the TUI main screen renders, **Then** a green connection status indicator is shown (e.g., `● Connected to http://localhost:8080`).
 4. **Given** an unreachable server (determined by a failed `GET /`), **When** the TUI main screen renders, **Then** a red connection status indicator is shown (e.g., `● Disconnected — cannot reach http://localhost:8080`).
-5. **Given** the Kindle email is not configured on the server, **When** any TUI screen renders, **Then** a persistent yellow warning line is displayed beneath the banner (e.g., `⚠ Kindle email not configured — recaps cannot be delivered`).
-6. **Given** the Kindle email is configured, **When** any TUI screen renders, **Then** no Kindle email warning is shown.
+5. **Given** neither the Kindle email nor the inbox email is configured on the server, **When** any TUI screen renders, **Then** a persistent yellow warning line is displayed beneath the banner (e.g., `⚠ No recap delivery destination configured`).
+6. **Given** at least one delivery email (Kindle or inbox) is configured, **When** any TUI screen renders, **Then** no delivery destination warning is shown.
 7. **Given** the user navigates from the main screen to the settings page, **When** the settings page renders, **Then** the Figlet banner, version, connection status, and Kindle email warning (if applicable) remain visible.
 
 ---

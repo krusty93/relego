@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Relego.Cli.Infrastructure;
@@ -19,6 +19,26 @@ public sealed class RecapTriggerCommand(RelegoHttpClient client, ILogger<RecapTr
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellation)
     {
         logger.LogDebug("Triggering immediate recap");
+
+        Core.Contracts.SettingsResponse currentSettings;
+        try
+        {
+            currentSettings = await client.GetSettingsAsync(cancellation);
+        }
+        catch (HttpRequestException)
+        {
+            // If we can't reach the server to pre-check, fall through — the trigger call will surface the error.
+            currentSettings = null!;
+        }
+
+        if (currentSettings is not null
+            && string.IsNullOrWhiteSpace(currentSettings.KindleEmail)
+            && string.IsNullOrWhiteSpace(currentSettings.DeliveryEmail))
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] No delivery destination configured.");
+            AnsiConsole.MarkupLine("[grey]Set a Kindle or inbox email first: [yellow]relego config email kindle <addr>[/] or [yellow]relego config email inbox <addr>[/][/]");
+            return 1;
+        }
 
         Core.Contracts.RecapTriggerResponse response;
         try

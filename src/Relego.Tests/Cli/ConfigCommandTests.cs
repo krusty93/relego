@@ -1,7 +1,8 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using RichardSzalay.MockHttp;
 using Spectre.Console.Cli;
 using Relego.Cli.Commands.Config;
+using Relego.Cli.Commands.Config.Email;
 using Relego.Cli.Infrastructure;
 
 namespace Relego.Tests.Cli;
@@ -261,62 +262,62 @@ public sealed class ConfigCommandTests : IDisposable
     }
 }
 
-public sealed class ConfigKindleEmailCommandTests : IDisposable
+public sealed class ConfigEmailKindleCommandTests : IDisposable
 {
     private readonly MockHttpMessageHandler _mockHttp = new();
 
     public void Dispose() => _mockHttp.Dispose();
 
     [Fact]
-    public async Task KindleEmail_ValidAddress_SendsPutAndPrintsConfirmation()
+    public async Task ConfigEmailKindle_ValidAddress_SendsPatchAndPrintsConfirmation()
     {
         var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", """
                 {"schedule":"daily","deliveryDay":null,"deliveryTime":"18:00","count":5,"kindleEmail":"user_abc123@kindle.com","timezone":"UTC"}
                 """);
 
-        var exitCode = await RunKindleEmailCommand("user_abc123@kindle.com");
+        var exitCode = await RunCommand("user_abc123@kindle.com");
 
         Assert.Equal(0, exitCode);
         Assert.Equal(1, _mockHttp.GetMatchCount(handler));
     }
 
     [Fact]
-    public async Task KindleEmail_InvalidAddress_ReturnsOneWithoutHttpCall()
+    public async Task ConfigEmailKindle_InvalidAddress_ReturnsOneWithoutHttpCall()
     {
         var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
-        var exitCode = await RunKindleEmailCommand("not-an-email");
+        var exitCode = await RunCommand("not-an-email");
 
         Assert.Equal(1, exitCode);
         Assert.Equal(0, _mockHttp.GetMatchCount(handler));
     }
 
     [Fact]
-    public async Task KindleEmail_EmptyString_ReturnsOneWithoutHttpCall()
+    public async Task ConfigEmailKindle_EmptyString_ReturnsOneWithoutHttpCall()
     {
         var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Respond("application/json", "{}");
 
-        var exitCode = await RunKindleEmailCommand("   ");
+        var exitCode = await RunCommand("   ");
 
         Assert.Equal(1, exitCode);
         Assert.Equal(0, _mockHttp.GetMatchCount(handler));
     }
 
     [Fact]
-    public async Task KindleEmail_ServerUnreachable_ReturnsOne()
+    public async Task ConfigEmailKindle_ServerUnreachable_ReturnsOne()
     {
         _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
             .Throw(new HttpRequestException("Connection refused"));
 
-        var exitCode = await RunKindleEmailCommand("user@kindle.com");
+        var exitCode = await RunCommand("user@kindle.com");
 
         Assert.Equal(1, exitCode);
     }
 
-    private async Task<int> RunKindleEmailCommand(params string[] args)
+    private async Task<int> RunCommand(params string[] args)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -336,11 +337,103 @@ public sealed class ConfigKindleEmailCommandTests : IDisposable
             config.SetApplicationName("relego");
             config.AddBranch("config", cfg =>
             {
-                cfg.AddCommand<ConfigKindleEmailCommand>("kindle-email");
+                cfg.AddBranch("email", email =>
+                {
+                    email.AddCommand<ConfigEmailKindleCommand>("kindle");
+                });
             });
         });
 
-        var fullArgs = new[] { "config", "kindle-email" }.Concat(args).ToArray();
+        var fullArgs = new[] { "config", "email", "kindle" }.Concat(args).ToArray();
+        return await app.RunAsync(fullArgs);
+    }
+}
+
+public sealed class ConfigEmailInboxCommandTests : IDisposable
+{
+    private readonly MockHttpMessageHandler _mockHttp = new();
+
+    public void Dispose() => _mockHttp.Dispose();
+
+    [Fact]
+    public async Task ConfigEmailInbox_ValidAddress_SendsPatchAndPrintsConfirmation()
+    {
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
+            .Respond("application/json", """
+                {"schedule":"daily","deliveryDay":null,"deliveryTime":"18:00","count":5,"kindleEmail":"","deliveryEmail":"user@example.com","timezone":"UTC"}
+                """);
+
+        var exitCode = await RunCommand("user@example.com");
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(1, _mockHttp.GetMatchCount(handler));
+    }
+
+    [Fact]
+    public async Task ConfigEmailInbox_EmptyString_ClearsAddressWithHttpCall()
+    {
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
+            .Respond("application/json", """
+                {"schedule":"daily","deliveryDay":null,"deliveryTime":"18:00","count":5,"kindleEmail":"","deliveryEmail":null,"timezone":"UTC"}
+                """);
+
+        var exitCode = await RunCommand("");
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(1, _mockHttp.GetMatchCount(handler));
+    }
+
+    [Fact]
+    public async Task ConfigEmailInbox_InvalidAddress_ReturnsOneWithoutHttpCall()
+    {
+        var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
+            .Respond("application/json", "{}");
+
+        var exitCode = await RunCommand("not-an-email");
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(0, _mockHttp.GetMatchCount(handler));
+    }
+
+    [Fact]
+    public async Task ConfigEmailInbox_ServerUnreachable_ReturnsOne()
+    {
+        _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
+            .Throw(new HttpRequestException("Connection refused"));
+
+        var exitCode = await RunCommand("user@example.com");
+
+        Assert.Equal(1, exitCode);
+    }
+
+    private async Task<int> RunCommand(params string[] args)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        services.AddTransient(_ =>
+        {
+            var httpClient = _mockHttp.ToHttpClient();
+            httpClient.BaseAddress = new Uri("http://localhost:5000");
+            return new RelegoHttpClient(httpClient);
+        });
+
+        var registrar = new TypeRegistrar(services.BuildServiceProvider());
+        var app = new CommandApp(registrar);
+
+        app.Configure(config =>
+        {
+            config.SetApplicationName("relego");
+            config.AddBranch("config", cfg =>
+            {
+                cfg.AddBranch("email", email =>
+                {
+                    email.AddCommand<ConfigEmailInboxCommand>("inbox");
+                });
+            });
+        });
+
+        var fullArgs = new[] { "config", "email", "inbox" }.Concat(args).ToArray();
         return await app.RunAsync(fullArgs);
     }
 }
