@@ -14,6 +14,16 @@ public static class RecapEndpoints
             CancellationToken ct) =>
         {
             var userId = await userRepo.EnsureUserAsync();
+            var user = await userRepo.GetByIdAsync(userId);
+
+            if (string.IsNullOrWhiteSpace(user.KindleEmail) && string.IsNullOrWhiteSpace(user.DeliveryEmail))
+            {
+                return Results.Problem(
+                    detail: "No delivery destination configured. Set a Kindle or inbox email with 'relego config email kindle|inbox'.",
+                    title: "No delivery destination configured.",
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+
             var scheduledFor = DateTimeOffset.UtcNow;
 
             try
@@ -30,6 +40,7 @@ public static class RecapEndpoints
         .WithSummary("Execute a recap immediately.")
         .WithDescription("Creates and executes a recap on demand for the implicit user.")
         .Produces(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         return app;

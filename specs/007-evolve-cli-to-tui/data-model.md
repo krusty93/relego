@@ -61,11 +61,12 @@ record ServerStatus
     bool IsConnected { get; init; }
     string ServerUrl { get; init; }
     bool KindleEmailConfigured { get; init; }
+    bool DeliveryEmailConfigured { get; init; }
     string? Version { get; init; }
 }
 ```
 
-**Source**: Derived from `PingAsync` (`GET /` returning HTTP 200 = connected) + `GetSettingsAsync` (`KindleEmailConfigured` field) and assembly version.
+**Source**: Derived from `PingAsync` (`GET /` returning HTTP 200 = connected) + `GetStatusAsync` (`KindleEmailConfigured` and `DeliveryEmailConfigured` fields) and assembly version. The delivery warning fires when **neither** flag is `true`.
 
 ---
 

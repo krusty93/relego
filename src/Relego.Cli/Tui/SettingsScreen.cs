@@ -14,6 +14,8 @@ public sealed class SettingsScreen : IScreen
     private const int HorizontalPadding = 2;
     private const int MinWeight = 1;
     private const int MaxWeight = 15;
+    private const int DeliveryPopupWidth = 58;
+    private const int DeliveryPopupHeight = 13;
 
     private static readonly string[] ScheduleOptions = ["daily", "weekly"];
     private static readonly string[] DayOfWeekOptions = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -52,6 +54,16 @@ public sealed class SettingsScreen : IScreen
     private bool _viewCreated;
 
     private readonly Func<CancellationToken, Task>? _refreshChromeAsync;
+
+    // Delivery settings popup
+    private Label? _deliveryBackdrop;
+    private FrameView? _deliveryFrame;
+    private TextField? _kindleEmailPopupField;
+    private TextField? _inboxEmailPopupField;
+    private Label? _deliveryPopupStatusLabel;
+    private bool _isDeliveryPopupOpen;
+    private bool _hasDeliveryPopupView;
+    private bool _deliveryHadValueOnOpen;
 
     public SettingsScreen(RelegoHttpClient client, bool isDevelopment = false, Func<CancellationToken, Task>? refreshChromeAsync = null)
     {
@@ -218,7 +230,120 @@ public sealed class SettingsScreen : IScreen
 
         container.KeyDown += async (_, key) => await HandleContainerKeyDownAsync(key).ConfigureAwait(false);
 
-        container.Add(headerLabel, _fieldList, _editOverlay, _editPromptLabel, _editField, _statusLabel);
+        // Delivery settings popup — created last so it renders on top of everything else
+        _deliveryBackdrop = ModalChrome.CreateBackdrop();
+
+        var popupKindleLabel = new Label
+        {
+            X = 2,
+            Y = 1,
+            Width = Dim.Fill(2),
+            Height = 1,
+            Text = "Send to Kindle  (via Send-to-Kindle)",
+            CanFocus = false
+        };
+        popupKindleLabel.SetScheme(ModalChrome.CreateBodyTextScheme());
+
+        _kindleEmailPopupField = new TextField
+        {
+            X = 2,
+            Y = 2,
+            Width = Dim.Fill(2),
+            Height = 1,
+            CanFocus = true
+        };
+        var kindleFieldAttr = new Terminal.Gui.Drawing.Attribute(TuiTheme.Palette.Text, TuiTheme.Palette.Background);
+        _kindleEmailPopupField.SetScheme(CreateEditFieldScheme(kindleFieldAttr));
+        _kindleEmailPopupField.KeyDown += (_, key) =>
+        {
+            if (key.KeyCode == KeyCode.Esc)
+            {
+                CloseDeliveryPopup();
+                key.Handled = true;
+            }
+        };
+        _kindleEmailPopupField.Accepting += async (_, _) =>
+            await SaveDeliveryFieldAsync("kindleEmail", _kindleEmailPopupField.Text ?? string.Empty).ConfigureAwait(false);
+
+        var popupInboxLabel = new Label
+        {
+            X = 2,
+            Y = 4,
+            Width = Dim.Fill(2),
+            Height = 1,
+            Text = "Send to inbox  (read in any email client)",
+            CanFocus = false
+        };
+        popupInboxLabel.SetScheme(ModalChrome.CreateBodyTextScheme());
+
+        _inboxEmailPopupField = new TextField
+        {
+            X = 2,
+            Y = 5,
+            Width = Dim.Fill(2),
+            Height = 1,
+            CanFocus = true
+        };
+        var inboxFieldAttr = new Terminal.Gui.Drawing.Attribute(TuiTheme.Palette.Text, TuiTheme.Palette.Background);
+        _inboxEmailPopupField.SetScheme(CreateEditFieldScheme(inboxFieldAttr));
+        _inboxEmailPopupField.KeyDown += (_, key) =>
+        {
+            if (key.KeyCode == KeyCode.Esc)
+            {
+                CloseDeliveryPopup();
+                key.Handled = true;
+            }
+        };
+        _inboxEmailPopupField.Accepting += async (_, _) =>
+            await SaveDeliveryFieldAsync("deliveryEmail", _inboxEmailPopupField.Text ?? string.Empty).ConfigureAwait(false);
+
+        var popupBlankHintLabel = new Label
+        {
+            X = 2,
+            Y = 7,
+            Width = Dim.Fill(2),
+            Height = 1,
+            Text = "Leave a field blank to deactivate that channel.",
+            CanFocus = false
+        };
+        popupBlankHintLabel.SetScheme(ModalChrome.CreateMutedTextScheme());
+
+        var popupHintLabel = new Label
+        {
+            X = 2,
+            Y = 8,
+            Width = Dim.Fill(2),
+            Height = 1,
+            Text = "Tab/\u2191\u2193 navigate \u00b7 Enter to save \u00b7 Esc to close",
+            CanFocus = false
+        };
+        popupHintLabel.SetScheme(ModalChrome.CreateMutedTextScheme());
+
+        _deliveryPopupStatusLabel = new Label
+        {
+            X = 2,
+            Y = 9,
+            Width = Dim.Fill(2),
+            Height = 2,
+            Text = string.Empty,
+            Visible = false,
+            CanFocus = false
+        };
+
+        _deliveryFrame = ModalChrome.CreateFrame(DeliveryPopupWidth, DeliveryPopupHeight, "Deliver recap to...");
+        _deliveryFrame.KeyDown += (_, key) =>
+        {
+            if (key.KeyCode == KeyCode.Esc)
+            {
+                CloseDeliveryPopup();
+                key.Handled = true;
+            }
+        };
+        _deliveryFrame.Add(popupKindleLabel, _kindleEmailPopupField, popupInboxLabel, _inboxEmailPopupField, popupBlankHintLabel, popupHintLabel, _deliveryPopupStatusLabel);
+
+        _hasDeliveryPopupView = true;
+
+        container.Add(headerLabel, _fieldList, _editOverlay, _editPromptLabel, _editField, _statusLabel, _deliveryBackdrop, _deliveryFrame);
 
         _viewCreated = true;
         UpdateViewState();
@@ -233,6 +358,9 @@ public sealed class SettingsScreen : IScreen
             // Edit mode keys are handled by TextField events
             return ScreenResult.Stay();
         }
+
+        if (_isDeliveryPopupOpen)
+            return ScreenResult.Stay();
 
         ScreenResult result = key.Key switch
         {
@@ -362,13 +490,6 @@ public sealed class SettingsScreen : IScreen
             RebuildFields();
             CancelEdit();
             SetStatus($"{field.Label} updated.", isError: false);
-
-            if (field.FieldId == "kindleEmail" || field.FieldId == "deliveryEmail")
-            {
-                await HandleRefreshAsync(CancellationToken.None).ConfigureAwait(false);
-                if (_refreshChromeAsync is not null)
-                    _ = Task.Run(() => _refreshChromeAsync(CancellationToken.None));
-            }
         }
         catch (HttpRequestException ex)
         {
@@ -383,7 +504,7 @@ public sealed class SettingsScreen : IScreen
 
         if (!hasKindle && !hasRecap)
         {
-            SetStatus("No email configured. Please set a Kindle or \"Also Email Recap to\" address first.", isError: true);
+            SetStatus("No email configured. Set a Kindle or inbox address in Recap Delivery Settings first.", isError: true);
             return ScreenResult.Stay();
         }
 
@@ -456,6 +577,12 @@ public sealed class SettingsScreen : IScreen
 
     private async Task<ScreenResult> ExecuteActionAsync(SettingsField field, CancellationToken cancellationToken)
     {
+        if (field.ActionId == "delivery-settings")
+        {
+            OpenDeliveryPopup();
+            return ScreenResult.Stay();
+        }
+
         if (field.ActionId == "test-email")
         {
             return await HandleTestEmailAsync(cancellationToken).ConfigureAwait(false);
@@ -480,6 +607,146 @@ public sealed class SettingsScreen : IScreen
         }
 
         return ScreenResult.Stay();
+    }
+
+    private void OpenDeliveryPopup()
+    {
+        if (!_hasDeliveryPopupView || _settings is null)
+            return;
+
+        _isDeliveryPopupOpen = true;
+
+        // Track whether a destination was already configured when the popup opened.
+        // The "at least one required" rule is only enforced when something was set,
+        // so a first-run user with nothing configured can explore and leave freely.
+        _deliveryHadValueOnOpen =
+            !string.IsNullOrWhiteSpace(_settings.KindleEmail) ||
+            !string.IsNullOrWhiteSpace(_settings.DeliveryEmail);
+
+        if (_kindleEmailPopupField is not null)
+            _kindleEmailPopupField.Text = _settings.KindleEmail ?? string.Empty;
+        if (_inboxEmailPopupField is not null)
+            _inboxEmailPopupField.Text = _settings.DeliveryEmail ?? string.Empty;
+        if (_deliveryPopupStatusLabel is not null)
+        {
+            _deliveryPopupStatusLabel.Text = string.Empty;
+            _deliveryPopupStatusLabel.Visible = false;
+        }
+
+        UpdateDeliveryPopupState();
+    }
+
+    private void CloseDeliveryPopup()
+    {
+        _isDeliveryPopupOpen = false;
+        UpdateDeliveryPopupState();
+
+        // Reload the settings from the server so the list reflects the latest values.
+        _ = ReloadSettingsAsync();
+    }
+
+    private async Task ReloadSettingsAsync()
+    {
+        try
+        {
+            _settings = await _client.GetSettingsAsync(CancellationToken.None).ConfigureAwait(false);
+            RebuildFields();
+            UpdateViewStateIfCreated();
+        }
+        catch (HttpRequestException)
+        {
+            // Leave the last known settings in place if the reload fails.
+        }
+    }
+
+    private void UpdateDeliveryPopupState()
+    {
+        ModalChrome.SetBackdropVisible(_deliveryBackdrop, _isDeliveryPopupOpen);
+
+        if (_deliveryFrame is not null)
+        {
+            _deliveryFrame.Visible = _isDeliveryPopupOpen;
+            _deliveryFrame.SetScheme(ModalChrome.CreateFrameScheme(isFocused: _isDeliveryPopupOpen));
+        }
+
+        if (_fieldList is not null)
+            _fieldList.CanFocus = !_isDeliveryPopupOpen;
+
+        if (_isDeliveryPopupOpen)
+        {
+            _deliveryFrame?.SetFocus();
+            _kindleEmailPopupField?.SetFocus();
+            _kindleEmailPopupField?.MoveEnd();
+        }
+        else
+        {
+            _fieldList?.SetFocus();
+        }
+    }
+
+    private async Task SaveDeliveryFieldAsync(string fieldId, string value)
+    {
+        var validationError = value.Length > 0 && !value.Contains('@')
+            ? "Email must contain '@'."
+            : null;
+
+        if (validationError is not null)
+        {
+            SetDeliveryPopupStatus(validationError, isError: true);
+            return;
+        }
+
+        // Client-side "at least one destination required" check. Only enforced when a
+        // destination was already configured when the popup opened, so a first-run user
+        // exploring the app isn't trapped by an empty-both state.
+        var kindleText = _kindleEmailPopupField?.Text?.Trim() ?? string.Empty;
+        var inboxText = _inboxEmailPopupField?.Text?.Trim() ?? string.Empty;
+        if (_deliveryHadValueOnOpen && kindleText.Length == 0 && inboxText.Length == 0)
+        {
+            SetDeliveryPopupStatus("At least one destination must be set.", isError: true);
+            return;
+        }
+
+        var request = fieldId switch
+        {
+            "kindleEmail" => new UpdateSettingsRequest { KindleEmail = value },
+            "deliveryEmail" => new UpdateSettingsRequest { DeliveryEmail = value },
+            _ => new UpdateSettingsRequest()
+        };
+
+        try
+        {
+            _settings = await _client.PatchSettingsAsync(request).ConfigureAwait(false);
+            RebuildFields();
+
+            var fieldLabel = fieldId == "kindleEmail" ? "Send to Kindle" : "Send to inbox";
+            var msg = string.IsNullOrEmpty(value)
+                ? $"{fieldLabel} deactivated."
+                : $"{fieldLabel} updated.";
+
+            CloseDeliveryPopup();
+            SetStatus(msg, isError: false);
+
+            if (_refreshChromeAsync is not null)
+                _ = Task.Run(() => _refreshChromeAsync(CancellationToken.None));
+        }
+        catch (HttpRequestException ex)
+        {
+            SetDeliveryPopupStatus($"Failed to save: {ex.Message}", isError: true);
+        }
+    }
+
+    private void SetDeliveryPopupStatus(string message, bool isError)
+    {
+        if (_deliveryPopupStatusLabel is null)
+            return;
+
+        var palette = TuiTheme.Palette;
+        var color = isError ? palette.Error : palette.Success;
+        _deliveryPopupStatusLabel.Text = message;
+        _deliveryPopupStatusLabel.Visible = true;
+        _deliveryPopupStatusLabel.SetScheme(new Scheme(
+            new Terminal.Gui.Drawing.Attribute(color, palette.Background)));
     }
 
     public static string? ValidateField(SettingsField field, string value)
@@ -519,10 +786,13 @@ public sealed class SettingsScreen : IScreen
         if (_settings is null)
             return;
 
-        _fields.Add(new SettingsField("Kindle Email", _settings.KindleEmail, "kindleEmail", FieldKind.Editable,
-            Hint: "Insert a valid email address"));
-        _fields.Add(new SettingsField("Also Email Recap to (opt.)", _settings.DeliveryEmail ?? "", "deliveryEmail", FieldKind.Editable,
-            Hint: "Optional — leave blank to skip. HTML recap sent here in addition to Kindle."));
+        var kindleIndicator = string.IsNullOrWhiteSpace(_settings.KindleEmail) ? "—" : "✓";
+        var inboxIndicator = string.IsNullOrWhiteSpace(_settings.DeliveryEmail) ? "—" : "✓";
+        _fields.Add(new SettingsField(
+            "Recap Delivery Settings",
+            $"Kindle {kindleIndicator} · Inbox {inboxIndicator}",
+            "delivery-settings",
+            FieldKind.Action));
         _fields.Add(new SettingsField("Schedule", _settings.Schedule, "schedule", FieldKind.Editable,
             Hint: "◀ ▶ to change, Enter to confirm", Options: ScheduleOptions));
 
@@ -587,8 +857,8 @@ public sealed class SettingsScreen : IScreen
         if (_fieldRows is not null)
         {
             _fieldRows.Clear();
-            var labelWidth = _fields.Any(f => f.Kind == FieldKind.Editable)
-                ? _fields.Where(f => f.Kind == FieldKind.Editable).Max(f => f.Label.Length) + 2
+            var labelWidth = _fields.Count > 0
+                ? _fields.Max(f => f.Label.Length) + 4
                 : 22;
             foreach (var field in _fields)
             {
@@ -620,7 +890,11 @@ public sealed class SettingsScreen : IScreen
     private static string FormatField(SettingsField field, int labelWidth)
     {
         if (field.Kind == FieldKind.Action)
+        {
+            if (!string.IsNullOrEmpty(field.Value))
+                return $"  {field.Label.PadRight(labelWidth)}{field.Value}";
             return $"  {field.Label}";
+        }
 
         var label = field.Label.PadRight(labelWidth);
         var displayValue = field.DisplaySuffix is not null ? $"{field.Value} {field.DisplaySuffix}" : field.Value;
@@ -646,6 +920,8 @@ public sealed class SettingsScreen : IScreen
     {
         if (_isEditing)
             return;
+        if (_isDeliveryPopupOpen)
+            return;
 
         if (!TryMapGlobalKey(key, out var mappedKey))
             return;
@@ -659,6 +935,8 @@ public sealed class SettingsScreen : IScreen
     {
         if (_isEditing)
             return;
+        if (_isDeliveryPopupOpen)
+            return;
 
         if (!TryMapGlobalKey(key, out var mappedKey))
             return;
@@ -671,6 +949,8 @@ public sealed class SettingsScreen : IScreen
     private async Task HandleShortcutKeyAsync(Key key)
     {
         if (_isEditing)
+            return;
+        if (_isDeliveryPopupOpen)
             return;
 
         if (!TryMapGlobalKey(key, out var mappedKey))

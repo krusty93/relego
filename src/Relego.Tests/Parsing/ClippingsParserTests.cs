@@ -656,19 +656,19 @@ public class ClippingsParserTests
     [Fact]
     public async Task ParseAsync_HighlightWithSpecialCharacters_PreservesVerbatim()
     {
-        const string specialText = """He said "hello" & she replied <'world'>.""";
+        const string SpecialText = """He said "hello" & she replied <'world'>.""";
 
         var input = "Book (Author)\n" +
                     "- Your Highlight on Location 10-15 | Added on Thursday, January 1, 2026 12:00:00 AM\n" +
                     "\n" +
-                    specialText + "\n" +
+                    SpecialText + "\n" +
                     "==========\n";
 
         using var reader = new StringReader(input);
         var result = await ClippingsParser.ParseAsync(reader);
 
         Assert.Single(result.Books);
-        Assert.Equal(specialText, result.Books[0].Highlights[0].Text);
+        Assert.Equal(SpecialText, result.Books[0].Highlights[0].Text);
     }
 
     #endregion

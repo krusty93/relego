@@ -40,8 +40,12 @@ public sealed class ConfigShowCommand(RelegoHttpClient client, ILogger<ConfigSho
             table.AddRow("Delivery Day", response.DeliveryDay);
         table.AddRow("Delivery Time", response.DeliveryTime);
         table.AddRow("Count", response.Count.ToString());
-        table.AddRow("Kindle Email", response.KindleEmail);
-        table.AddRow("Also Email Recap to (opt.)", response.DeliveryEmail ?? "[grey](not set — optional)[/]");
+        table.AddRow("Send to Kindle", string.IsNullOrEmpty(response.KindleEmail)
+            ? "[grey](not set)[/]"
+            : response.KindleEmail);
+        table.AddRow("Send to inbox (opt.)", response.DeliveryEmail is null or ""
+            ? "[grey](not set — optional)[/]"
+            : response.DeliveryEmail);
         table.AddRow("Timezone", response.Timezone);
 
         AnsiConsole.Write(table);

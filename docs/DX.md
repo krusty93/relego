@@ -151,17 +151,19 @@ relego sync <path>   # Explicit path to My Clippings.txt
 
 ### Email addresses
 
+Both delivery destinations are optional — at least one must be set for recap delivery to succeed.
+
 ```sh
-# Set the Kindle delivery email (required for Kindle delivery)
-relego config kindle-email your-address@kindle.com
+# Set the Send-to-Kindle address (optional if an inbox address is set)
+relego config email kindle your-address@kindle.com
 
-# Set an optional "Also Email Recap to" address for HTML recap delivery in addition to Kindle
-relego config delivery-email you@example.com
+# Set the inbox address for HTML recap delivery (optional if a Kindle address is set)
+relego config email inbox you@example.com
 
-# Clear the optional address
-relego config delivery-email ""
+# Clear the inbox address
+relego config email inbox ""
 
-# Show all current settings
+# Show all current settings (includes both addresses)
 relego config show
 ```
 
@@ -285,8 +287,8 @@ Errors are actionable — they tell the user exactly what to do.
 | `relego config schedule show`                          | Show current schedule                                                        |
 | `relego config count show`                             | Show current highlights-per-recap setting                                    |
 | `relego config count <1-15>`                           | Set highlights per recap (default: 5)                                        |
-| `relego config kindle-email <address>`                 | Set the Kindle delivery email address                                        |
-| `relego config delivery-email <address>`               | Set an optional email address to send HTML recaps to (in addition to Kindle) |
+| `relego config email kindle <address>`                 | Set the Send-to-Kindle email address                                         |
+| `relego config email inbox <address>`                  | Set the inbox email address for HTML recap delivery. Pass `""` to clear      |
 | `relego exclude add <highlight\|book\|author> <id>`    | Exclude an entity from future recaps                                         |
 | `relego exclude remove <highlight\|book\|author> <id>` | Re-include an excluded entity                                                |
 | `relego exclude list`                                  | List all exclusions                                                          |

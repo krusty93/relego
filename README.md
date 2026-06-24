@@ -253,8 +253,8 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 | `relego config schedule show`                          | Show current schedule                                                        |
 | `relego config count show`                             | Show current highlights-per-recap setting                                    |
 | `relego config count <1-15>`                           | Set highlights per recap (default: 5)                                        |
-| `relego config kindle-email <address>`                 | Set the Kindle delivery email address                                        |
-| `relego config delivery-email <address>`               | Set an optional email address to send HTML recaps to (in addition to Kindle) |
+| `relego config email kindle <address>`                 | Set the Send-to-Kindle email address                                         |
+| `relego config email inbox <address>`                  | Set the inbox email address for HTML recap delivery. Pass `""` to clear      |
 | `relego exclude add <highlight\|book\|author> <id>`    | Exclude an entity from future recaps                                         |
 | `relego exclude remove <highlight\|book\|author> <id>` | Re-include an excluded entity                                                |
 | `relego exclude list`                                  | List all exclusions                                                          |

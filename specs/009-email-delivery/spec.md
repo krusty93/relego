@@ -18,7 +18,7 @@ A user sets a non-Kindle email address via the CLI or TUI. The server stores it 
 
 **Acceptance Scenarios**:
 
-1. **Given** the user runs `relego config set delivery-email user@example.com`, **When** the command completes, **Then** the server persists `delivery_email` as `user@example.com` and `GET /settings` returns the new value.
+1. **Given** the user runs `relego config email inbox user@example.com`, **When** the command completes, **Then** the server persists `delivery_email` as `user@example.com` and `GET /settings` returns the new value.
 2. **Given** the user navigates to the TUI settings page, **When** they edit the "Delivery email" field and save, **Then** the new email is stored on the server and reflected in the TUI.
 3. **Given** a `delivery_email` is set, **When** the TUI renders, **Then** no "email not configured" warning is shown (provided at least one email channel is configured).
 4. **Given** the user provides an invalid email format for `delivery-email`, **When** they attempt to save, **Then** a validation error is returned and the value is not persisted.
@@ -136,27 +136,27 @@ The server composes a well-designed HTML email for the regular email channel. Th
 
 ### User Story 8 — CLI/TUI Settings Management (Priority: P2)
 
-The CLI `config` command and the TUI settings screen expose the new `delivery-email` setting alongside `kindle-email`. The field is labelled **"Also Email Recap to (opt.)"** in the TUI and **"Also Email Recap to (opt.)"** in `relego config show` output to make its optional, additive nature explicit. The TUI warning always fires when Kindle email is not configured — the optional address does not suppress it.
+The CLI `config email` branch exposes `kindle` and `inbox` sub-commands. Both delivery channels are optional peers; the TUI groups them under a **"Recap Delivery Settings"** entry that opens a **"Deliver recap to…"** popup with independent **Send to Kindle** *(via Send-to-Kindle)* and **Send to inbox** *(read in any email client)* fields. The TUI warning fires when **neither** destination is configured.
 
 **Why this priority**: CLI/TUI integration makes the feature accessible and aligns with Relego's configuration UX, but the server-side delivery capability is more critical.
 
-**Independent Test**: Run `relego config delivery-email user@example.com` and verify it works. Open the TUI settings page and verify the field is present and editable.
+**Independent Test**: Run `relego config email inbox user@example.com` and verify it works. Open the TUI settings page and verify the Recap Delivery Settings popup is present and both fields are independently editable.
 
 **Acceptance Scenarios**:
 
-1. **Given** the user runs `relego config delivery-email user@example.com`, **When** the command completes, **Then** the delivery email is persisted on the server.
-2. **Given** the user runs `relego config show`, **When** the output is displayed, **Then** both `kindle-email` and the `Also Email Recap to (opt.)` row are shown with their current values.
-3. **Given** the user navigates to the TUI settings page, **When** it renders, **Then** an **"Also Email Recap to (opt.)"** field is displayed alongside **"Kindle Email"**.
-4. **Given** the TUI settings page, **When** the user edits and saves the delivery email, **Then** the value is validated (email format) and sent to the server; the screen refreshes automatically from server state.
-5. **Given** `kindle_email` is NOT configured, **When** the TUI renders, **Then** a persistent warning **"⚠ Kindle email not configured"** is shown — regardless of whether `delivery_email` is set.
-6. **Given** `kindle_email` IS configured, **When** the TUI renders, **Then** no email warning is displayed — regardless of whether `delivery_email` is set.
-7. **Given** the user runs `relego config delivery-email ""` (empty string), **When** the command completes, **Then** the delivery email is cleared and the server no longer sends recaps to that channel.
+1. **Given** the user runs `relego config email inbox user@example.com`, **When** the command completes, **Then** the inbox address is persisted on the server.
+2. **Given** the user runs `relego config email kindle user@kindle.com`, **When** the command completes, **Then** the Kindle address is persisted on the server.
+3. **Given** the user runs `relego config show`, **When** the output is displayed, **Then** a **"Send to Kindle"** row and a **"Send to inbox (opt.)"** row are shown with their current values.
+4. **Given** the user opens the TUI Settings screen and selects **"Recap Delivery Settings"**, **When** the popup opens, **Then** it shows two independently editable fields: **Send to Kindle** *(via Send-to-Kindle)* and **Send to inbox** *(read in any email client)*.
+5. **Given** NEITHER `kindle_email` NOR `delivery_email` is configured, **When** the TUI renders, **Then** a persistent warning **"⚠ No recap delivery destination configured"** is shown.
+6. **Given** at least one of `kindle_email` or `delivery_email` IS configured, **When** the TUI renders, **Then** no delivery warning is displayed.
+7. **Given** the user runs `relego config email inbox ""` (empty string), **When** the command completes, **Then** the inbox address is cleared and the server no longer sends recaps to that channel.
 
 ---
 
 ### Edge Cases
 
-- **Both emails empty or null**: When neither `kindle_email` nor `delivery_email` is configured, the recap scheduler skips delivery entirely (no SMTP connections are attempted). The TUI shows a persistent warning. The server logs a warning that no delivery channel is configured.
+- **Both emails empty or null**: When neither `kindle_email` nor `delivery_email` is configured: `POST /recaps` returns HTTP 422 with an actionable message; the TUI shows a persistent warning **"⚠ No recap delivery destination configured"**; and `relego recap trigger` performs a client-side pre-check and exits with code 1 and a clear message before calling the server.
 - **SMTP fails for one channel, succeeds for the other**: In dual-channel mode, each delivery is independent. If the Kindle/EPUB delivery fails, the regular/HTML delivery still proceeds (and vice versa). Both success and failure outcomes are logged separately.
 - **`delivery_email` set to a `@kindle.com` address**: The regular email channel always sends HTML email regardless of the domain. If a user sets `delivery_email` to their `@kindle.com` address, they receive HTML email (not EPUB). The Kindle channel (`kindle_email`) remains the dedicated EPUB channel. This is documented behavior.
 - **Empty recap (no highlights selected for the period)**: When the recap selection yields zero highlights, no email is sent to either channel. The server logs the event and does not attempt delivery.
@@ -173,7 +173,8 @@ The CLI `config` command and the TUI settings screen expose the new `delivery-em
 - **FR-009-02**: Server MUST auto-migrate the database on startup — existing rows with no `delivery_email` column get the column added with a NULL default.
 - **FR-009-03**: `GET /settings` MUST return both `kindle_email` and `delivery_email` fields.
 - **FR-009-04**: `PATCH /settings` MUST accept and validate both `kindle_email` and `delivery_email` fields independently.
-- **FR-009-05**: Server MUST validate that at least one of `kindle_email` or `delivery_email` has a valid email format when either is set — an empty string clears the field; a null/missing field leaves it unchanged.
+- **FR-009-05**: Server MUST validate email format of `kindle_email`/`delivery_email` when set — an empty string clears the field; null/missing leaves it unchanged. `PATCH /settings` does NOT require at least one to be set (saves any combination). At-least-one is enforced at trigger time (see FR-009-05b).
+- **FR-009-05b**: `POST /recaps` MUST return HTTP 422 with an actionable message if neither `kindle_email` nor `delivery_email` is set at trigger time.
 - **FR-009-06**: Recap execution MUST check both `kindle_email` and `delivery_email` — if NEITHER is set, the recap is skipped with a logged warning.
 - **FR-009-07**: Recap execution MUST send an EPUB email to `kindle_email` when `kindle_email` is configured (existing behavior, unchanged).
 - **FR-009-08**: Recap execution MUST send an HTML email to `delivery_email` when `delivery_email` is configured (new behavior).
@@ -185,10 +186,10 @@ The CLI `config` command and the TUI settings screen expose the new `delivery-em
 - **FR-009-14**: The plain-text email part MUST render all highlights with clear text-only formatting (book title, author, highlight text separated by whitespace).
 - **FR-009-15**: `POST /settings/test-kindle-email` MUST send a plain-text test email to `kindle_email`. `POST /settings/test-recap-email` MUST send a plain-text test email to `delivery_email`. Both endpoints return `422` when the respective address is not configured.
 - **FR-009-16**: Test email for the delivery channel MUST send a plain-text email (not HTML, not a recap) to `delivery_email`.
-- **FR-009-17**: The CLI `config set` command MUST accept `delivery-email` as a setting key alongside `kindle-email`.
-- **FR-009-18**: The CLI `config show` command MUST display `delivery-email` alongside `kindle-email`.
-- **FR-009-19**: The TUI settings page MUST expose an **"Also Email Recap to (opt.)"** field alongside the existing **"Kindle Email"** field. The label width is computed dynamically from the longest field label.
-- **FR-009-20**: The TUI warning MUST fire when `kindle_email` is NOT configured, regardless of whether `delivery_email` is set. The warning text is **"⚠ Kindle email not configured"**. Configuring only `delivery_email` does not suppress this warning; Kindle email is the primary expected delivery channel.
+- **FR-009-17**: The CLI MUST expose `relego config email kindle <address>` and `relego config email inbox <address>` (pass `""` to clear inbox). The old `config kindle-email` and `config delivery-email` commands are removed.
+- **FR-009-18**: The CLI `relego config show` command MUST display a **"Send to Kindle"** row and a **"Send to inbox (opt.)"** row with their current values.
+- **FR-009-19**: The TUI settings screen MUST expose a **"Recap Delivery Settings"** action that opens a **"Deliver recap to…"** popup with two independently editable fields: **Send to Kindle** *(via Send-to-Kindle)* and **Send to inbox** *(read in any email client)*.
+- **FR-009-20**: The TUI warning MUST fire when NEITHER `kindle_email` NOR `delivery_email` is configured. The warning text is **"⚠ No recap delivery destination configured"**. Having at least one channel set suppresses the warning. `relego recap trigger` MUST perform a client-side pre-check and exit with code 1 before contacting the server if neither address is set.
 - **FR-009-21**: The `delivery_email` field MUST share the same email format validation as `kindle_email`.
 - **FR-009-22**: Each delivery outcome (success or failure, per channel) MUST be logged independently with channel identification.
 

@@ -8,6 +8,7 @@ using Spectre.Console;
 using Spectre.Console.Cli;
 using Relego.Cli.Commands;
 using Relego.Cli.Commands.Config;
+using Relego.Cli.Commands.Config.Email;
 using Relego.Cli.Commands.Exclude;
 using Relego.Cli.Commands.Recap;
 using Relego.Cli.Commands.Weight;
@@ -102,10 +103,14 @@ app.Configure(config =>
             .WithDescription("Configure recap schedule (cadence and time).");
         cfg.AddCommand<ConfigCountCommand>("count")
             .WithDescription("Configure number of highlights per recap.");
-        cfg.AddCommand<ConfigKindleEmailCommand>("kindle-email")
-            .WithDescription("Set the Kindle delivery email address.");
-        cfg.AddCommand<ConfigDeliveryEmailCommand>("delivery-email")
-            .WithDescription("Set an optional \"Also Email Recap to\" address for HTML recap delivery (in addition to Kindle).");
+        cfg.AddBranch("email", email =>
+        {
+            email.SetDescription("Configure recap delivery email addresses.");
+            email.AddCommand<ConfigEmailKindleCommand>("kindle")
+                .WithDescription("Set the Send-to-Kindle email address.");
+            email.AddCommand<ConfigEmailInboxCommand>("inbox")
+                .WithDescription("Set the inbox email address for HTML recap delivery. Pass \"\" to clear.");
+        });
         cfg.AddCommand<ConfigShowCommand>("show")
             .WithDescription("Display all current settings.");
     });

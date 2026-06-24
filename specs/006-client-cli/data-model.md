@@ -26,7 +26,10 @@ relego (root)
 ├── config (branch)
 │   ├── show                       → ConfigShowCommand
 │   ├── schedule <cadence> <time>  → ConfigScheduleCommand
-│   └── count <n|show>             → ConfigCountCommand
+│   ├── count <n|show>             → ConfigCountCommand
+│   └── email (branch)
+│       ├── kindle <address>       → ConfigEmailKindleCommand
+│       └── inbox <address>        → ConfigEmailInboxCommand
 ├── exclude (branch)
 │   ├── <type> <id>                → ExcludeAddCommand (default)
 │   ├── remove <type> <id>         → ExcludeRemoveCommand

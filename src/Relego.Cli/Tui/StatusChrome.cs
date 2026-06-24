@@ -191,13 +191,13 @@ public sealed class StatusChrome(string serverUrl, string version)
 
         if (_warningLabel is not null)
         {
-            if (KindleEmailConfigured)
+            if (KindleEmailConfigured || DeliveryEmailConfigured)
             {
                 _warningLabel.Text = string.Empty;
             }
             else
             {
-                _warningLabel.Text = "⚠ Kindle email not configured";
+                _warningLabel.Text = "⚠ No recap delivery destination configured";
                 _warningLabel.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Warning, bg)));
             }
         }

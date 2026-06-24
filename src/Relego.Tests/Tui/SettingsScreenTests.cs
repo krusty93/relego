@@ -37,7 +37,7 @@ public sealed class SettingsScreenTests
 
         Assert.NotNull(screen.Settings);
         Assert.Equal("user@kindle.com", screen.Settings.KindleEmail);
-        Assert.Equal(5, screen.Fields.Count); // 5 editable (schedule=daily, no delivery day, no timezone)
+        Assert.Equal(4, screen.Fields.Count); // delivery-settings (action) + schedule + deliveryTime + count
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class SettingsScreenTests
         var screen = new SettingsScreen(new RelegoHttpClient(httpClient), isDevelopment: true);
         await screen.InitializeAsync(CancellationToken.None);
 
-        Assert.Equal(6, screen.Fields.Count); // 5 editable + 1 action (trigger-recap only)
+        Assert.Equal(5, screen.Fields.Count); // delivery-settings (action) + schedule + deliveryTime + count + trigger-recap (action)
         Assert.Contains(screen.Fields, f => f.ActionId == "trigger-recap");
     }
 
@@ -70,7 +70,7 @@ public sealed class SettingsScreenTests
         var screen = new SettingsScreen(new RelegoHttpClient(httpClient));
         await screen.InitializeAsync(CancellationToken.None);
 
-        Assert.Equal(6, screen.Fields.Count); // 6 editable (includes delivery day)
+        Assert.Equal(5, screen.Fields.Count); // delivery-settings (action) + schedule + deliveryDay + deliveryTime + count
         Assert.Contains(screen.Fields, f => f.FieldId == "deliveryDay");
         Assert.Equal("wednesday", screen.Fields.First(f => f.FieldId == "deliveryDay").Value);
     }
@@ -156,12 +156,11 @@ public sealed class SettingsScreenTests
     }
 
     [Fact]
-    public async Task Fields_KindleEmailHasHint()
+    public async Task Fields_RecapDeliverySettingsActionFieldExists()
     {
         var screen = await CreateInitializedScreen();
 
-        var emailField = screen.Fields.First(f => f.FieldId == "kindleEmail");
-        Assert.Equal("Insert a valid email address", emailField.Hint);
+        Assert.Contains(screen.Fields, f => f.FieldId == "delivery-settings" && f.Kind == SettingsScreen.FieldKind.Action);
     }
 
     [Fact]
@@ -240,7 +239,8 @@ public sealed class SettingsScreenTests
     {
         var screen = await CreateInitializedScreen();
 
-        // First field is Kindle Email (editable), verify it's editable
+        // Navigate to the first editable field (Schedule is at index 1, after the delivery-settings action)
+        await screen.HandleKeyAsync(Key(ConsoleKey.DownArrow), CancellationToken.None);
         Assert.Equal(SettingsScreen.FieldKind.Editable, screen.Fields[screen.SelectedField].Kind);
 
         // Direct state assertion: editing is not active before Enter.
