@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-14
+**Updated:** 2026-06-25 — added the open source-registry extensibility model (§5) and multi-source import behaviour (§3).
 
 ## Context
 
@@ -49,11 +50,11 @@ Feature 016 adds **no new delivery channel**. Kobo users configure `delivery_ema
 
 **Rationale**: Kobo has no email-to-device address, so the Kindle EPUB-by-email model cannot apply. The regular email channel already delivers fully-formed HTML recaps to any inbox and requires zero new code. Cloud-folder EPUB sync would require OAuth flows, token storage, a new composer/delivery path, and per-user folder configuration, and would only work on newer Kobo models — a substantial feature in its own right, disproportionate to the value of replicating an on-device reading experience. Scoping Feature 016 to import-only keeps it small, robust, and immediately useful.
 
-### 3. CLI UX: auto-detect the source
+### 3. CLI UX: auto-detect and import all connected sources
 
-`relego sync` auto-detects whether the provided path/device is a Kindle source (`My Clippings.txt`) or a Kobo source (`.kobo/KoboReader.sqlite`). The user does not pass an explicit source-type flag.
+`relego sync` auto-detects the source(s) from the provided path/device without an explicit source-type flag. When a single source is found it is imported. When **both** a Kindle (`My Clippings.txt`) and a Kobo (`.kobo/KoboReader.sqlite`) source are present at the same time, **both are imported** in one run. Import order is not significant; if reading one source fails, the import continues with the other(s) and the failure is reported to the user (per-source failure isolation). When no source is found, the command fails with an actionable error naming every probed location.
 
-**Rationale**: Auto-detection preserves the single, uniform `relego sync` command across both device families and avoids leaking device-type knowledge into the user's muscle memory. The two sources are unambiguous to distinguish (file name, presence of a `.kobo` folder, SQLite file signature), so detection is reliable.
+**Rationale**: Auto-detection preserves the single, uniform `relego sync` command across both device families and avoids leaking device-type knowledge into the user's muscle memory. The two sources are unambiguous to distinguish (file name, presence of a `.kobo` folder, SQLite file signature), so detection is reliable. Importing all connected sources — rather than picking one by precedence — avoids silently dropping a user's highlights when two devices happen to be attached (an uncommon but valid setup); per-source failure isolation means a problem reading one device never costs the user the other.
 
 ### 4. Pipeline: source-agnostic, no downstream changes
 
@@ -61,10 +62,23 @@ The Kobo reader emits the same `ParsedBook` / `ParsedHighlight` structures the K
 
 **Rationale**: The existing pipeline already operates on a normalized highlight model. Normalizing Kobo input at the parser boundary means everything downstream is reused as-is, with no schema, API, or recap changes and no migration.
 
+### 5. Extensibility: an open source registry (Open/Closed Principle)
+
+The source abstraction is an **open registry**, not a closed set. Each source is a self-describing `IHighlightSource` that owns:
+
+- its **identity** via a `SourceDescriptor` (`Id` + `DisplayName`) instead of a central `enum` discriminant;
+- its own **detection** logic (a `Locate(userPath)` that resolves an explicit path or probes connected devices and reports the locations it checked);
+- its **read** logic (`ReadAsync`).
+
+The `HighlightSourceResolver` is constructed from the **injected collection** of sources and iterates them; it contains **no** per-source branching. DI registration order defines processing order. Adding a future highlight source (e.g. Readwise, a web export, another e-reader) therefore requires only: implement `IHighlightSource` and register it once in the DI container — no edits to the resolver, the import workflow, the command surface, or any enum.
+
+**Rationale**: This applies the Open/Closed Principle — open for extension (new sources), closed for modification (no shared file changes per source). A central `enum` would force every new source to edit shared code and invites exhaustive `switch` statements that become parallel edit points; a self-describing descriptor, used only as a label and never branched on, keeps source-type knowledge at the source boundary. The registry shape costs essentially nothing now — the same detection code lives inside each source instead of inside the resolver — but turns future integrations into "implement and register". Dynamic/external plugin loading (assembly scanning, third-party plugin DLLs) is explicitly **not** adopted (YAGNI): sources are in-process and compile-time, discovered via DI. This extensibility model is a first-class promise of the architecture and must be documented for future integrators (`ARCHITECTURE.md`) and contributors (`CONTRIBUTING.md`).
+
 ## Consequences
 
 - **New dependency**: the CLI gains a SQLite reader (`Microsoft.Data.Sqlite`) to read `KoboReader.sqlite`.
-- **New source abstraction**: a common source interface lets the Kindle and Kobo parsers feed the same pipeline; future sources follow the same pattern.
+- **Open source registry**: `IHighlightSource` + `SourceDescriptor` + a DI-injected `HighlightSourceResolver` let the Kindle and Kobo readers feed the same pipeline with no per-source branching; a third source is "implement `IHighlightSource` and register it once". This model is documented for future integrations (`ARCHITECTURE.md`) and contributors (`CONTRIBUTING.md`).
+- **Multi-source import**: when both devices are connected, both are imported in one run with per-source failure isolation. The resolver returns all detected sources; the import workflow loops over them, aggregating outcomes and reporting any per-source error without aborting the rest.
 - **Zero changes** to server, storage, scheduler, recap composition, or the database schema.
 - **No new delivery channel**: Kobo recaps depend on the regular email channel (feature 009) being configured. Users who want on-device reading must continue to sideload manually.
 - **Locked-file handling**: the reader must copy the database before opening it, and tolerate store vs sideloaded `VolumeID` formats, soft-deleted (`Hidden`) rows, and UTF-8 content.
