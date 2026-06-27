@@ -1,4 +1,4 @@
-namespace Relego.Cli.Sources;
+﻿namespace Relego.Cli.Sources;
 
 /// <summary>
 /// A source's self-owned identity. Used only as a label for reporting/logging,

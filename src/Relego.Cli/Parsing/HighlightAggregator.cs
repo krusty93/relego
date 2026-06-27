@@ -1,4 +1,4 @@
-namespace Relego.Cli.Parsing;
+﻿namespace Relego.Cli.Parsing;
 
 /// <summary>
 /// Shared normalization for highlight sources. Extracted verbatim from
