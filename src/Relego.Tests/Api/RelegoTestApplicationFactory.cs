@@ -8,7 +8,12 @@ using Relego.Server.Infrastructure.Database;
 
 namespace Relego.Tests.Api;
 
-public sealed class RelegoTestApplicationFactory : WebApplicationFactory<Program>
+// Uses SchemaBootstrap (a public type in the Relego.Server assembly) as the
+// WebApplicationFactory entry-point marker instead of the bare `Program`.
+// Both Relego.Server and Relego.Cli emit an implicit global `Program` from their
+// top-level statements; once Relego.Cli exposes its internals to this test project
+// (InternalsVisibleTo), referencing `Program` unqualified is ambiguous (CS0433).
+public sealed class RelegoTestApplicationFactory : WebApplicationFactory<SchemaBootstrap>
 {
     private readonly SqliteConnection _connection;
     private readonly Action<IWebHostBuilder>? _configureWebHost;
