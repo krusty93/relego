@@ -11,7 +11,6 @@ namespace Relego.Cli.Parsing;
 public static partial class ClippingsParser
 {
     private const string Separator = "==========";
-    private const string NotePrefix = "[my note] ";
     private const string DateFormat = "dddd, MMMM d, yyyy h:mm:ss tt";
 
     [GeneratedRegex(@"^- Your (?<type>Highlight|Note|Bookmark) on (?<location>.+?) \| Added on (?<date>.+)$")]
@@ -51,52 +50,8 @@ public static partial class ClippingsParser
             }
         }
 
-        // Filter bookmarks (empty text after trimming means bookmark)
-        var highlights = clippings.Where(c => !string.IsNullOrEmpty(c.Text)).ToList();
-
-        // Deduplicate by (Title, Author, Text) — keep first occurrence, count removals
-        var seen = new HashSet<(string, string?, string)>();
-        var duplicatesRemoved = 0;
-        var deduped = new List<RawClipping>(highlights.Count);
-
-        foreach (var clip in highlights)
-        {
-            var key = (clip.Title, clip.Author, clip.IsNote ? NotePrefix + clip.Text : clip.Text);
-            if (!seen.Add(key))
-            {
-                duplicatesRemoved++;
-                continue;
-            }
-
-            deduped.Add(clip);
-        }
-
-        // Group by (Title, Author) — preserve first-seen order
-        var bookDict = new Dictionary<(string Title, string? Author), List<ParsedHighlight>>();
-        var bookOrder = new List<(string Title, string? Author)>();
-
-        foreach (var clip in deduped)
-        {
-            var key = (clip.Title, clip.Author);
-            var text = clip.IsNote ? NotePrefix + clip.Text : clip.Text;
-            var highlight = new ParsedHighlight(text, clip.Location, clip.AddedOn);
-
-            if (!bookDict.TryGetValue(key, out var list))
-            {
-                list = [];
-                bookDict[key] = list;
-                bookOrder.Add(key);
-            }
-
-            list.Add(highlight);
-        }
-
-        var books = bookOrder
-            .Select(key => new ParsedBook(key.Title, key.Author, bookDict[key]))
-            .Where(b => b.Highlights.Count > 0)
-            .ToList();
-
-        return new ParseResult(books, entryIndex, duplicatesRemoved);
+        // Deduplication and grouping are shared across sources via HighlightAggregator.
+        return HighlightAggregator.Aggregate(clippings, entryIndex);
     }
 
     private static async Task<List<List<string>>> SplitEntriesAsync(TextReader reader)

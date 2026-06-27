@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <PollyVersion>8.6.6</PollyVersion>
+    <MicrosoftDataSqliteVersion>10.0.5</MicrosoftDataSqliteVersion>
   </PropertyGroup>
 
 </Project>

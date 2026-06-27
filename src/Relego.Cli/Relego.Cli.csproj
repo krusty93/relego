@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.6" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.1.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="$(MicrosoftDataSqliteVersion)" />
     <PackageReference Include="Polly" Version="$(PollyVersion)" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog" Version="4.3.1" />
@@ -26,6 +27,18 @@
   <ItemGroup>
     <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      SQLitePCLRaw.lib.e_sqlite3 (transitive via Microsoft.Data.Sqlite) is flagged by
+      GHSA-2m69-gcr7-jv3q (SQLite < 3.50.2 memory corruption, CVE-2025-6965).
+      Suppressed here to match the mitigation applied in Relego.Server.csproj (SourceGear.sqlite3
+      3.50.4.5 places a patched binary that overrides the vulnerable transitive binary).
+      Without this suppression the build fails (TreatWarningsAsErrors=true).
+      Remove once SQLitePCLRaw.bundle_e_sqlite3 ships with SourceGear.sqlite3 as its native dep.
+    -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
   </ItemGroup>
 
   <PropertyGroup>
