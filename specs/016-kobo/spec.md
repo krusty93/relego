@@ -8,13 +8,13 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 — Import Highlights from a Kobo Device (Priority: P1)
+### User Story 1 — Import Highlights and Notes from a Kobo Device (Priority: P1)
 
-A Kobo user connects their e-reader via USB and runs the `relego sync` command, pointing it at the mounted Kobo drive. The system locates the `KoboReader.sqlite` database inside the device's `.kobo` folder, reads the stored highlights and notes, and extracts structured highlight data including book title, author, highlight text, and the date each highlight was created. The user sees a summary of how many highlights were successfully imported — identical to the summary a Kindle user sees.
+A Kobo user connects their e-reader via USB and runs the `relego sync` command, pointing it at the mounted Kobo drive. The system locates the `KoboReader.sqlite` database inside the device's `.kobo` folder, reads the stored highlights and notes, and extracts structured highlight data including book title, author, highlight text, and the date each highlight was created. Notes the user wrote on passages are imported alongside highlights and appear in recaps the same way Kindle notes do — prefixed with `[my note]` — so a recap reads identically regardless of which device the highlight came from. The user sees a summary of how many highlights were successfully imported — identical to the summary a Kindle user sees.
 
-**Why this priority**: This is the foundational capability of the feature. Without reading highlights from the Kobo database, nothing else (notes handling, deduplication, sync) is possible for Kobo owners. It is the Kobo equivalent of Kindle's `My Clippings.txt` parsing.
+**Why this priority**: This is the foundational capability of the feature. Without reading highlights and notes from the Kobo database, nothing else (deduplication, sync) is possible for Kobo owners. It is the Kobo equivalent of Kindle's `My Clippings.txt` parsing, and cross-source note consistency is the core promise of treating Kobo as an equal source: notes are common on Kobo, and inconsistent handling would make recaps feel different depending on device.
 
-**Independent Test**: Can be fully tested by providing a sample `KoboReader.sqlite` fixture and verifying that all valid highlights are extracted with the correct book/author/text/date associations, emitted in the same structure the Kindle parser produces.
+**Independent Test**: Can be fully tested by providing a sample `KoboReader.sqlite` fixture and verifying that all valid highlights and notes are extracted with the correct book/author/text/date associations, that note text begins with the `[my note]` prefix matching the Kindle parser exactly, and that the output is emitted in the same structure the Kindle parser produces.
 
 **Acceptance Scenarios**:
 
@@ -22,56 +22,30 @@ A Kobo user connects their e-reader via USB and runs the `relego sync` command, 
 2. **Given** a Kobo database with highlights, notes (`Type = note`), and plain bookmarks (`dogear` / text-less rows), **When** the reader processes the database, **Then** highlights are extracted as-is, notes are extracted with a `[my note]` prefix prepended to their text, and bookmarks are skipped.
 3. **Given** a Kobo database where some rows are soft-deleted (`Hidden = 'true'`), **When** the reader processes the database, **Then** the hidden rows are excluded from the output and only active highlights are imported.
 4. **Given** a Kobo database whose file on the device is locked or mounted read-only, **When** the reader processes the device, **Then** the reader copies the database to a temporary file first and reads from the copy without modifying the device.
+5. **Given** a Kobo database row with `Type = note` and annotation text, **When** the reader processes it, **Then** the emitted highlight text is the note content prefixed with `[my note]`.
+6. **Given** a mix of highlight rows and note rows for the same book, **When** the reader processes the database, **Then** both appear under the same book group with notes distinguished only by the `[my note]` prefix and no separate type field.
+7. **Given** the imported output, **When** it flows through the existing deduplication, grouping, and sync pipeline, **Then** no downstream component requires Kobo-specific handling to process the highlights or notes correctly.
 
 ---
 
-### User Story 2 — Auto-Detect Kindle vs Kobo Source (Priority: P1)
+### User Story 2 — Auto-Detect Source and Import From All Connected Devices (Priority: P1)
 
-A user runs the single `relego sync` command and points it at a connected device or a path, without specifying which kind of device it is. The system inspects the location, determines whether it is a Kindle source (a `My Clippings.txt` file) or a Kobo source (a `.kobo/KoboReader.sqlite` database), and processes it with the matching reader. The user never has to declare a device type or pass a source-type flag.
+A user runs the single `relego sync` command and points it at a connected device or a path, without specifying which kind of device it is. The system inspects the location, determines whether it is a Kindle source (a `My Clippings.txt` file) or a Kobo source (a `.kobo/KoboReader.sqlite` database), and processes it with the matching reader — never requiring the user to declare a device type or pass a source-type flag. When both a Kindle and a Kobo are connected at the same time (an uncommon but valid setup), the single command imports highlights from **both** devices in one run; the processing order does not matter, and if importing from one device fails (e.g. a corrupt database), the system continues importing from the other and reports the failure rather than aborting the entire sync.
 
-**Why this priority**: Auto-detection is what makes Kobo a first-class, equal source. It preserves the single uniform `relego sync` command across both device families and is required for User Story 1 to be reachable without new command syntax. It must ship together with the Kobo reader.
+**Why this priority**: Auto-detection is what makes Kobo a first-class, equal source. It preserves the single uniform `relego sync` command across both device families and is required for User Story 1 to be reachable without new command syntax, so it must ship together with the Kobo reader. Supporting two simultaneously-connected devices is itself an edge case — most users own a single e-reader — but when it happens, silently importing only one device (or aborting the whole run on a single failure) would lose the user's highlights, so the behavior must be explicit and reliable.
 
-**Independent Test**: Can be tested by pointing `sync` at a Kindle path, a Kobo path, and an invalid path, and verifying that each is routed to the correct reader (or rejected) without any source-type flag.
+**Independent Test**: Point `sync` at a Kindle path, a Kobo path, and an invalid path and verify each is routed to the correct reader (or rejected) without any source-type flag; then point it at a location where both a `My Clippings.txt` and a `.kobo/KoboReader.sqlite` are present and verify highlights from both are imported in one run, that making one source fail still imports the other and reports the failure, and that the combined result is order-independent.
 
 **Acceptance Scenarios**:
 
 1. **Given** a path containing a `My Clippings.txt` file, **When** the user runs `relego sync` against it, **Then** the system detects a Kindle source and uses the Kindle parser.
 2. **Given** a path containing a `.kobo/KoboReader.sqlite` database, **When** the user runs `relego sync` against it, **Then** the system detects a Kobo source and uses the Kobo reader.
 3. **Given** a path containing neither a `My Clippings.txt` nor a `.kobo/KoboReader.sqlite`, **When** the user runs `relego sync` against it, **Then** the command fails with an actionable error that explains which sources were looked for and where, and does not crash.
-4. **Given** a directory or device, **When** the system resolves it, **Then** each detected source reports the concrete file to read and its display name, with no source-type flag required from the user. (When more than one source is detected, all are imported — see User Story 4.)
-
----
-
-### User Story 3 — Notes Imported Consistently with Kindle (Priority: P2)
-
-A Kobo user who has written notes on passages in their books runs `relego sync`. Their notes are imported alongside highlights and appear in recaps the same way Kindle notes do — prefixed with `[my note]` — so that a recap reads identically regardless of which device the highlight came from.
-
-**Why this priority**: Cross-source consistency is the core promise of treating Kobo as an equal source. Notes are common on Kobo, and inconsistent handling would make recaps feel different depending on device. It builds directly on User Story 1.
-
-**Independent Test**: Can be tested by providing a Kobo database containing note rows and verifying their emitted text begins with the `[my note]` prefix, matching the Kindle parser's behavior exactly.
-
-**Acceptance Scenarios**:
-
-1. **Given** a Kobo database row with `Type = note` and annotation text, **When** the reader processes it, **Then** the emitted highlight text is the note content prefixed with `[my note]`.
-2. **Given** a mix of highlight rows and note rows for the same book, **When** the reader processes the database, **Then** both appear under the same book group with notes distinguished only by the `[my note]` prefix and no separate type field.
-3. **Given** the imported output, **When** it flows through the existing deduplication, grouping, and sync pipeline, **Then** no downstream component requires Kobo-specific handling to process the notes correctly.
-
----
-
-### User Story 4 — Import From Both Devices When Both Are Connected (Priority: P3)
-
-A user has both a Kindle and a Kobo connected at the same time (an uncommon but valid setup). Running the single `relego sync` command imports highlights from **both** devices in one run. The processing order does not matter. If importing from one device fails (e.g. a corrupt database), the system continues importing from the other and reports the failure, rather than aborting the entire sync.
-
-**Why this priority**: Supporting two simultaneously-connected devices is an edge case — most users own a single e-reader — so it ranks below single-source import, detection, and note consistency. But when it happens, silently importing only one device (or aborting the whole run on a single failure) would lose the user's highlights, so the behavior must be explicit and reliable.
-
-**Independent Test**: Point `sync` at a location where both a `My Clippings.txt` and a `.kobo/KoboReader.sqlite` are present and verify highlights from both are imported in one run; then make one source fail and verify the other still imports and the failure is reported.
-
-**Acceptance Scenarios**:
-
-1. **Given** both a Kindle and a Kobo source are detected, **When** the user runs `relego sync`, **Then** highlights from both sources are imported in a single run and the summary reports each source's result.
-2. **Given** both sources are detected and one fails to read (e.g. a corrupt Kobo database), **When** sync runs, **Then** the other source is still imported successfully and the failed source is reported with an actionable error (the run is not aborted).
-3. **Given** both sources are detected, **When** sync runs, **Then** the combined imported set is the same regardless of which source is processed first (order independence).
-4. **Given** a Kobo user who has imported highlights and configured `delivery_email` (feature 009 / ADR-007), **When** a recap is scheduled, **Then** it is delivered through the existing regular email channel with no Kobo-specific delivery code — confirming the import-only scope end to end.
+4. **Given** a directory or device, **When** the system resolves it, **Then** each detected source reports the concrete file to read and its display name, with no source-type flag required from the user.
+5. **Given** both a Kindle and a Kobo source are detected, **When** the user runs `relego sync`, **Then** highlights from both sources are imported in a single run and the summary reports each source's result.
+6. **Given** both sources are detected and one fails to read (e.g. a corrupt Kobo database), **When** sync runs, **Then** the other source is still imported successfully and the failed source is reported with an actionable error (the run is not aborted).
+7. **Given** both sources are detected, **When** sync runs, **Then** the combined imported set is the same regardless of which source is processed first (order independence).
+8. **Given** a Kobo user who has imported highlights and configured `delivery_email` (feature 009 / ADR-007), **When** a recap is scheduled, **Then** it is delivered through the existing regular email channel with no Kobo-specific delivery code — confirming the import-only scope end to end.
 
 ---
 
