@@ -79,7 +79,7 @@ public sealed class ClippingsImportWorkflow(RelegoHttpClient client, ILogger<Cli
         return detectedPath;
     }
 
-    private static SyncRequest CreateSyncRequest(ParseResult result)
+    internal static SyncRequest CreateSyncRequest(ParseResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
 
