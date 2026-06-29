@@ -10,6 +10,8 @@ internal static class TestFixtures
 {
     public static string KoboFixturePath() => Resolve("kobo-highlights.sqlite");
 
+    public static string KindleFixturePath() => Resolve("kindle-highlights.txt");
+
     private static string Resolve(string fileName)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

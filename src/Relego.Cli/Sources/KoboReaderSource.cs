@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using Relego.Cli.Infrastructure;
 using Relego.Cli.Parsing;
 
 namespace Relego.Cli.Sources;
@@ -13,13 +14,16 @@ namespace Relego.Cli.Sources;
 /// <remarks>
 /// The device file is never opened in place: it is copied to a temp file, opened
 /// read-only, and the copy is deleted in a <c>finally</c> block, leaving the
-/// on-device database byte-identical (FR-007). Its detection member is added in a
-/// later phase.
+/// on-device database byte-identical (FR-007). Owns the <c>KoboReader.sqlite</c>
+/// detection rules (filename, <c>.kobo/</c> directory, SQLite-header sniff) and the
+/// <see cref="KoboDetector"/> device probe.
 /// </remarks>
 public sealed class KoboReaderSource : IHighlightSource
 {
     // "SQLite format 3\0" — the 16-byte magic header every SQLite database starts with.
     private static readonly byte[] SqliteHeader = "SQLite format 3\u0000"u8.ToArray();
+
+    private const string DatabaseFileName = "KoboReader.sqlite";
 
     private const string ReadQuery =
         "SELECT c.Title, c.Attribution, b.Text, b.Annotation, b.Type, b.DateCreated, b.Hidden " +
@@ -28,6 +32,40 @@ public sealed class KoboReaderSource : IHighlightSource
 
     /// <inheritdoc />
     public SourceDescriptor Descriptor { get; } = new("kobo", "Kobo");
+
+    /// <inheritdoc />
+    public SourceProbe Locate(string? userPath)
+    {
+        if (string.IsNullOrWhiteSpace(userPath))
+        {
+            var detected = KoboDetector.DetectDatabasePath();
+            var suggested = KoboDetector.GetSuggestedDatabasePath() ?? DatabaseFileName;
+            return new SourceProbe(detected, [suggested]);
+        }
+
+        userPath = userPath.Trim();
+
+        // Explicit file named "KoboReader.sqlite".
+        if (IsDatabaseFileName(userPath))
+        {
+            return new SourceProbe(File.Exists(userPath) ? userPath : null, [userPath]);
+        }
+
+        // Directory (a mounted device root): the database lives under .kobo/.
+        if (Directory.Exists(userPath))
+        {
+            var dbPath = Path.Combine(userPath, ".kobo", DatabaseFileName);
+            return new SourceProbe(File.Exists(dbPath) ? dbPath : null, [dbPath]);
+        }
+
+        // An explicit, oddly-named file: sniff the SQLite header so a renamed copy still routes.
+        if (File.Exists(userPath) && HasSqliteHeader(userPath))
+        {
+            return new SourceProbe(userPath, [userPath]);
+        }
+
+        return new SourceProbe(null, [userPath]);
+    }
 
     /// <inheritdoc />
     public async Task<ParseResult> ReadAsync(
@@ -84,16 +122,30 @@ public sealed class KoboReaderSource : IHighlightSource
 
     private static void ValidateSqliteHeader(string tempPath, string originalPath)
     {
-        Span<byte> header = stackalloc byte[16];
-        using var stream = File.OpenRead(tempPath);
-        var read = stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
-        if (read < header.Length || !header.SequenceEqual(SqliteHeader))
+        if (!HasSqliteHeader(tempPath))
         {
             throw new InvalidDataException(
                 $"The file at '{originalPath}' is not a valid Kobo database (missing SQLite header).");
-
         }
     }
+
+    private static bool HasSqliteHeader(string path)
+    {
+        try
+        {
+            Span<byte> header = stackalloc byte[16];
+            using var stream = File.OpenRead(path);
+            var read = stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
+            return read >= header.Length && header.SequenceEqual(SqliteHeader);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsDatabaseFileName(string path)
+        => string.Equals(Path.GetFileName(path), DatabaseFileName, StringComparison.OrdinalIgnoreCase);
 
     private static async Task<(List<KoboBookmarkRow> Rows, int TotalBookmarks, int OrphanedCount)> ReadDatabaseAsync(
         string tempPath,

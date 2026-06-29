@@ -4,6 +4,7 @@ using Spectre.Console.Cli;
 using Relego.Cli.Commands;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
+using Relego.Cli.Sources;
 
 namespace Relego.Tests.Cli;
 
@@ -82,6 +83,9 @@ public sealed class ImportCommandTests : IDisposable
             httpClient.BaseAddress = new Uri("http://localhost:5000");
             return new RelegoHttpClient(httpClient);
         });
+        services.AddSingleton<IHighlightSource, KindleClippingsSource>();
+        services.AddSingleton<IHighlightSource, KoboReaderSource>();
+        services.AddSingleton<HighlightSourceResolver>();
         services.AddTransient<ClippingsImportWorkflow>();
 
         var registrar = new TypeRegistrar(services.BuildServiceProvider());

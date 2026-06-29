@@ -2,9 +2,8 @@
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Relego.Cli.Parsing;
+using Spectre.Console.Rendering;
 using Relego.Cli.Import;
-using Relego.Core.Contracts;
 
 namespace Relego.Cli.Commands;
 
@@ -29,6 +28,12 @@ public sealed class ImportCommand(ClippingsImportWorkflow workflow, ILogger<Impo
             FilePath = settings.Path,
             ResolvePathAsync = settings.Path is null ? ResolvePathAsync : null
         }, cancellation).ConfigureAwait(false);
+
+        // Both devices connected → render a per-source summary (T044).
+        if (outcome.SourceOutcomes.Count > 1)
+        {
+            return HandleMultiSource(outcome);
+        }
 
         return outcome.Status switch
         {
@@ -89,22 +94,62 @@ public sealed class ImportCommand(ClippingsImportWorkflow workflow, ILogger<Impo
 
     private static int HandleSuccess(ClippingsImportOutcome outcome)
     {
-        DisplaySummary(outcome.ParseResult!, outcome.Response!);
+        DisplaySummary(outcome);
         return 0;
     }
 
-    private static void DisplaySummary(ParseResult parseResult, SyncResponse response)
+    private static void DisplaySummary(ClippingsImportOutcome outcome)
     {
+        var parseResult = outcome.ParseResult!;
+        var response = outcome.Response!;
         var totalHighlights = parseResult.Books.Sum(book => book.Highlights.Count);
 
+        var rows = new List<IRenderable>();
+        if (outcome.Source is not null)
+        {
+            rows.Add(new Markup($"[green]✓[/] Detected [bold]{Markup.Escape(outcome.Source.DisplayName)}[/] source"));
+        }
+
+        rows.Add(new Markup($"[green]✓[/] Parsed [bold]{totalHighlights}[/] highlights from [bold]{parseResult.Books.Count}[/] books"));
+        rows.Add(new Markup($"[green]✓[/] [bold]{response.NewHighlights}[/] new highlights imported ([grey]{response.DuplicateHighlights} duplicates skipped[/])"));
+        rows.Add(new Markup($"[green]✓[/] [bold]{response.NewBooks}[/] new books, [bold]{response.NewAuthors}[/] new authors"));
+
         AnsiConsole.WriteLine();
-        AnsiConsole.Write(new Panel(
-            new Rows(
-                new Markup($"[green]✓[/] Parsed [bold]{totalHighlights}[/] highlights from [bold]{parseResult.Books.Count}[/] books"),
-                new Markup($"[green]✓[/] [bold]{response.NewHighlights}[/] new highlights imported ([grey]{response.DuplicateHighlights} duplicates skipped[/])"),
-                new Markup($"[green]✓[/] [bold]{response.NewBooks}[/] new books, [bold]{response.NewAuthors}[/] new authors")
-            ))
+        AnsiConsole.Write(new Panel(new Rows(rows))
             .Header("[green]Import Complete[/]")
             .Border(BoxBorder.Rounded));
+    }
+
+    private static int HandleMultiSource(ClippingsImportOutcome outcome)
+    {
+        var rows = new List<IRenderable>();
+        foreach (var source in outcome.SourceOutcomes)
+        {
+            var name = Markup.Escape(source.Source?.DisplayName ?? "Source");
+            switch (source.Status)
+            {
+                case ClippingsImportStatus.Succeeded:
+                    rows.Add(new Markup(
+                        $"[green]✓[/] [bold]{name}[/]: {source.TotalHighlightsParsed} parsed, " +
+                        $"[bold]{source.Response!.NewHighlights}[/] new ([grey]{source.Response.DuplicateHighlights} duplicates skipped[/])"));
+                    break;
+
+                case ClippingsImportStatus.NoHighlightsFound:
+                    rows.Add(new Markup($"[yellow]•[/] [bold]{name}[/]: no highlights found"));
+                    break;
+
+                default:
+                    rows.Add(new Markup($"[red]✗[/] [bold]{name}[/]: {Markup.Escape(source.Message ?? "import failed")}"));
+                    break;
+            }
+        }
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Panel(new Rows(rows))
+            .Header("[green]Import Complete[/]")
+            .Border(BoxBorder.Rounded));
+
+        // Per-source failure isolation: succeed if at least one source imported.
+        return outcome.SourceOutcomes.Any(s => s.IsSuccessful) ? 0 : 1;
     }
 }
