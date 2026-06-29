@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
+using Relego.Cli.Sources;
 using Relego.Core.Contracts;
 
 namespace Relego.Tests.Cli;
@@ -148,7 +149,10 @@ public sealed class ClippingsImportWorkflowTests : IDisposable
             BaseAddress = new Uri("http://localhost:5000")
         };
 
-        return new WorkflowHarness(httpClient, new ClippingsImportWorkflow(new RelegoHttpClient(httpClient), NullLogger<ClippingsImportWorkflow>.Instance));
+        return new WorkflowHarness(httpClient, new ClippingsImportWorkflow(
+            new RelegoHttpClient(httpClient),
+            new HighlightSourceResolver([new KindleClippingsSource(), new KoboReaderSource()]),
+            NullLogger<ClippingsImportWorkflow>.Instance));
     }
 
     private string CreateClippingsFile(string content)

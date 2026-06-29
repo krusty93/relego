@@ -14,6 +14,7 @@ using Relego.Cli.Commands.Recap;
 using Relego.Cli.Commands.Weight;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
+using Relego.Cli.Sources;
 using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -68,6 +69,10 @@ builder.Services.AddHttpClient<RelegoHttpClient>((sp, client) =>
     client.BaseAddress = new Uri(serverUrl);
     client.Timeout = TimeSpan.FromSeconds(30);
 }).AddRelegoResilience();
+
+builder.Services.AddSingleton<IHighlightSource, KindleClippingsSource>();
+builder.Services.AddSingleton<IHighlightSource, KoboReaderSource>();
+builder.Services.AddSingleton<HighlightSourceResolver>();
 builder.Services.AddTransient<ClippingsImportWorkflow>();
 
 using IHost host = builder.Build();

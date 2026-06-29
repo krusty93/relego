@@ -12,7 +12,6 @@ namespace Relego.Cli.Sources;
 /// <remarks>
 /// A new source is added by implementing this interface and registering it once
 /// in DI — no edits to the resolver, workflow, command, or any enum (FR-011).
-/// The detection member (<c>Locate</c>) is introduced in a later phase.
 /// </remarks>
 public interface IHighlightSource
 {
@@ -21,6 +20,20 @@ public interface IHighlightSource
     /// never branched on.
     /// </summary>
     SourceDescriptor Descriptor { get; }
+
+    /// <summary>
+    /// Detection owned by the source: encapsulates this source's filename / directory /
+    /// device rules so the resolver needs no per-source branching.
+    /// </summary>
+    /// <param name="userPath">
+    /// An explicit path to resolve, or <see langword="null"/> to probe connected devices.
+    /// </param>
+    /// <returns>
+    /// A <see cref="SourceProbe"/> whose <see cref="SourceProbe.FoundPath"/> is the concrete
+    /// file this source can read (or <see langword="null"/>), and whose
+    /// <see cref="SourceProbe.ProbedLocations"/> lists everywhere it looked.
+    /// </returns>
+    SourceProbe Locate(string? userPath);
 
     /// <summary>
     /// Reads the source at <paramref name="path"/> and returns the normalized result.

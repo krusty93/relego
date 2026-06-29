@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using RichardSzalay.MockHttp;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
+using Relego.Cli.Sources;
 using Relego.Cli.Tui;
 
 namespace Relego.Tests.Tui;
@@ -202,7 +203,7 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureSupplementaryEndpoints(mockHttp);
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
+        var workflow = CreateSyncWorkflow(releClient);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
 
@@ -287,7 +288,7 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureSupplementaryEndpoints(mockHttp);
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
+        var workflow = CreateSyncWorkflow(releClient);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
 
@@ -314,7 +315,7 @@ public sealed class BookListScreenTests : IDisposable
             .Throw(new HttpRequestException("Connection refused"));
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
+        var workflow = CreateSyncWorkflow(releClient);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
 
@@ -422,7 +423,7 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureSupplementaryEndpoints(mockHttp);
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
+        var workflow = CreateSyncWorkflow(releClient);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
 
@@ -447,7 +448,7 @@ public sealed class BookListScreenTests : IDisposable
         ConfigureSupplementaryEndpoints(mockHttp);
 
         var releClient = CreateRelegoClient(mockHttp);
-        var workflow = new ClippingsImportWorkflow(releClient, NullLogger<ClippingsImportWorkflow>.Instance);
+        var workflow = CreateSyncWorkflow(releClient);
         var screen = new BookListScreen(releClient, workflow);
         await screen.InitializeAsync(CancellationToken.None);
         return screen;
@@ -459,6 +460,12 @@ public sealed class BookListScreenTests : IDisposable
         httpClient.BaseAddress = new Uri("http://localhost:5000");
         return new RelegoHttpClient(httpClient);
     }
+
+    private static ClippingsImportWorkflow CreateSyncWorkflow(RelegoHttpClient client)
+        => new(
+            client,
+            new HighlightSourceResolver([new KindleClippingsSource(), new KoboReaderSource()]),
+            NullLogger<ClippingsImportWorkflow>.Instance);
 
     private static void ConfigureHighlightEndpoints(MockHttpMessageHandler mockHttp, int total = 3, string? itemsJson = null)
     {
