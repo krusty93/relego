@@ -69,6 +69,21 @@ Every PR should:
 
 For larger feature work, follow the spec-kit flow above instead of hand-editing a partial `specs/` package or opening an untracked implementation PR.
 
+## Adding a new highlight source
+
+Relego's import side is intentionally open for new highlight sources. The architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the Kobo decision record in [docs/adr/008-kobo-reader-sqlite-source.md](docs/adr/008-kobo-reader-sqlite-source.md). In short: a source owns its own identity, detection, and reading logic, then feeds the same `ParseResult` model as every other source.
+
+To add a source:
+
+1. Implement `IHighlightSource` in `src/Relego.Cli/Sources/`.
+2. Give it a stable `SourceDescriptor`, for example `new("kobo", "Kobo")`. The id is for reporting and logs only; do not branch on it.
+3. Implement `Locate(string? userPath)` so the source owns its filename, directory, export, or device-detection rules and returns all probed locations in `SourceProbe`.
+4. Implement `ReadAsync(...)` so it returns the shared `ParseResult` shape. For row-oriented sources, normalize raw records to `RawClipping` and run them through `HighlightAggregator.Aggregate(...)` so deduplication, note prefixing, and grouping stay consistent.
+5. Register one line in `src/Relego.Cli/Program.cs`, for example `builder.Services.AddSingleton<IHighlightSource, KoboSource>();`. Registration order is processing order when several sources are detected.
+6. Add focused tests under `src/Relego.Tests/Sources/`. Include a small fixture in `src/Relego.Tests/Fixtures/` for test stability; add a docs-facing example under `docs/examples/` when it helps contributors or users understand the format.
+
+Do not edit `HighlightSourceResolver`, `ClippingsImportWorkflow`, `ImportCommand`, or a central enum to add source-specific handling. There is no central enum by design: the resolver iterates the DI-registered sources and the workflow imports every resolved source with per-source failure isolation. Keeping that Open/Closed guarantee is part of the contributor contract.
+
 ## Development setup
 
 ### Prerequisites

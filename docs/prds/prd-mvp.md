@@ -1,6 +1,6 @@
-# Product Requirements Document — Relego
+# Product Requirements Document — MVP
 
-**Version:** 0.2 — Draft
+**Version:** 0.3 — Draft
 **Date:** 2026-03-30
 **Status:** Draft
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-Relego is a self-hosted, open source CLI tool that parses Kindle highlights from `My Clippings.txt` and delivers periodic recap documents directly to a Kindle device via Amazon's Send-to-Kindle email service.
+Relego is a self-hosted, open source recap system for ebook highlights. The CLI imports highlights from registered local sources — Kindle `My Clippings.txt` and Kobo `.kobo/KoboReader.sqlite` today — and syncs them to a self-hosted server. The server selects periodic recap highlights with spaced repetition and sends them through the configured delivery destination: Amazon Send-to-Kindle for Kindle users and/or regular inbox email for HTML recaps.
 
 ---
 
@@ -16,20 +16,21 @@ Relego is a self-hosted, open source CLI tool that parses Kindle highlights from
 
 | ID | Requirement | Priority |
 |---|---|---|
-| FR-01 | Parse `My Clippings.txt` and extract highlights and annotations | Must |
-| FR-02 | Deduplicate highlights (Kindle appends duplicates on re-highlight) | Must |
+| FR-01 | Import highlights and annotations from registered highlight sources, including Kindle `My Clippings.txt` and Kobo `.kobo/KoboReader.sqlite` | Must |
+| FR-02 | Deduplicate highlights across imports and sources | Must |
 | FR-03 | Group highlights by book title and author | Must |
 | FR-04 | Compose a recap document from the parsed highlights | Must |
-| FR-05 | Send the recap as an email attachment to a configured Kindle email address | Must |
+| FR-05 | Send recaps to configured delivery destinations: Kindle email and/or regular inbox email | Must |
 | FR-06 | Support configurable recap schedule (daily or weekly) | Must |
-| FR-07 | Provide sensible defaults for all settings except the Kindle email address, requiring zero configuration to get started | Must |
+| FR-07 | Provide sensible defaults for all settings except the delivery destination, requiring minimal configuration to get started | Must |
 | FR-08 | Track recap history per highlight (delivery count, last seen date) | Must |
 | FR-09 | Select highlights for each recap using spaced repetition — highlights seen less recently are prioritized | Must |
-| FR-10 | Produce output compatible with Kindle's native document rendering (e-ink friendly) | Must |
+| FR-10 | Produce recap output compatible with Kindle's native document rendering and regular email inbox reading | Must |
 | FR-11 | Allow the user to assign a weight to each highlight (higher weight = higher probability of appearing in recaps) | Must |
 | FR-12 | Allow the user to exclude specific highlights, books, or authors from all future recaps, and to re-include them at any time | Must |
 | FR-13 | Expose all settings management via CLI commands — settings are stored server-side, not in a local file edited by the user | Must |
 | FR-14 | Allow the user to configure the number of highlights per recap (min 1, max 15, default 3) | Must |
+| FR-15 | Allow additional highlight sources to be added through `IHighlightSource` registration without resolver, workflow, command, or enum edits | Should |
 
 ---
 
@@ -51,16 +52,18 @@ Relego is a self-hosted, open source CLI tool that parses Kindle highlights from
 
 | ID | Story | Priority |
 |---|---|---|
-| US-01 | As a Kindle user, I want to connect my Kindle via USB and point the tool at `My Clippings.txt`, so that my highlights are available for recap generation | Must |
-| US-02 | As a user, I want to provide only my Kindle email address to get started, with all other settings applied automatically as defaults, so that onboarding requires minimal effort | Must |
+| US-01 | As a reader, I want to connect my Kindle or Kobo via USB and point the tool at the device or source file, so that my highlights are available for recap generation | Must |
+| US-02 | As a user, I want to provide only my delivery address to get started, with all other settings applied automatically as defaults, so that onboarding requires minimal effort | Must |
 | US-03 | As a user, I want to choose between daily and weekly recap delivery via CLI, so that I can adjust the frequency without editing any file manually | Must |
 | US-04 | As a user, I want each recap to surface highlights I haven't seen recently, weighted by my preferences, so that repeated exposure helps me retain what matters most to me | Must |
-| US-05 | As a user, I want the recap to open as a native document on my Kindle, so that I can read it comfortably on e-ink without eye strain | Must |
+| US-05 | As a user, I want the recap to open on my configured reading surface, so that I can revisit highlights comfortably | Must |
 | US-06 | As a user, I want to run the tool with a single command after initial setup, so that day-to-day usage requires no technical knowledge | Must |
-| US-07 | As a self-hoster, I want to run the server component as a always-on Docker container on my home server or NAS, so that recaps are sent automatically without requiring my laptop to be on | Must |
+| US-07 | As a self-hoster, I want to run the server component as an always-on Docker container on my home server or NAS, so that recaps are sent automatically without requiring my laptop to be on | Must |
 | US-08 | As a user, I want clear error messages when email delivery fails, so that I can diagnose and fix configuration issues quickly | Should |
 | US-09 | As a user, I want to mark a highlight/book/author as excluded via CLI, so that it never appears in my recaps | Must |
 | US-10 | As a user, I want to assign a higher weight to specific highlights via CLI, so that they appear more frequently than others | Must |
+| US-11 | As a Kobo user, I want Relego to import highlights from `KoboReader.sqlite` | Must |
+| US-12 | As a contributor, I want a documented highlight-source extension model, so that I can add a new source without changing shared resolver, workflow, command, or enum code | Should |
 
 ---
 
@@ -68,8 +71,8 @@ Relego is a self-hosted, open source CLI tool that parses Kindle highlights from
 
 ### Must Have (MVP)
 
-- Parse `My Clippings.txt`, deduplicate, and group by book (FR-01, FR-02, FR-03)
-- Compose and send recap document to Kindle email (FR-04, FR-05, FR-10)
+- Import from supported highlight sources, deduplicate, and group by book (FR-01, FR-02, FR-03)
+- Compose and send recap output to configured Kindle or inbox email destinations (FR-04, FR-05, FR-10)
 - Track recap history per highlight and apply spaced repetition for selection (FR-08, FR-09)
 - User-defined highlight weights and exclusions (FR-11, FR-12)
 - Configurable schedule: daily or weekly (FR-06)
@@ -90,7 +93,8 @@ Relego is a self-hosted, open source CLI tool that parses Kindle highlights from
 
 - Readwise integration as optional connector
 - Web clipper integration
-- Multiple highlight sources (e.g. Apple Books, Kobo)
+- Additional highlight sources (e.g. Apple Books, Readwise exports, web exports)
+- Kobo on-device delivery through Dropbox or Google Drive folder sync
 - Recap format customization (font size, density, layout)
 
 ### Won't Have (explicitly out of scope)
@@ -109,5 +113,5 @@ Relego is a self-hosted, open source CLI tool that parses Kindle highlights from
 The MVP is complete when a user can:
 
 1. Deploy the server component as a Docker container on a home server, NAS, or Raspberry Pi
-2. Run the client CLI on their laptop, point it at `My Clippings.txt`, and provide their Kindle email address
-3. Receive a correctly formatted recap document on their Kindle on the configured schedule, with highlights selected via spaced repetition
+2. Run the client CLI on their laptop, point it at a supported highlight source, and provide at least one delivery destination
+3. Receive a correctly formatted recap on the configured schedule, with highlights selected via spaced repetition

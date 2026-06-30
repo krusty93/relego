@@ -40,7 +40,7 @@ test.describe('Content Sections', () => {
 		await expect(tabs).toHaveCount(3);
 		await expect(tabs.nth(0).locator('h3')).toHaveText('Import your highlights');
 		await expect(tabs.nth(1).locator('h3')).toHaveText('Let the server schedule');
-		await expect(tabs.nth(2).locator('h3')).toHaveText('Read on your Kindle');
+		await expect(tabs.nth(2).locator('h3')).toHaveText('Read your recap');
 	});
 
 	test('clicking a step tab switches the visible panel', async ({ page }) => {

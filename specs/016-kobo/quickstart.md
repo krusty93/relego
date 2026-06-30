@@ -83,8 +83,11 @@ dotnet test src/Relego.Tests/Relego.Tests.csproj --filter "FullyQualifiedName~So
 ### Reading a Kobo database directly
 
 ```csharp
+using Microsoft.Extensions.Logging;
+using Relego.Cli.Parsing;
 using Relego.Cli.Sources;
 
+ILogger? logger = null;
 IHighlightSource source = new KoboReaderSource();
 ParseResult result = await source.ReadAsync("/Volumes/KOBOeReader/.kobo/KoboReader.sqlite", logger);
 foreach (var book in result.Books)
@@ -101,11 +104,18 @@ foreach (var book in result.Books)
 ### Auto-detecting the source(s) (what the sync workflow does)
 
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Relego.Cli.Parsing;
+using Relego.Cli.Sources;
+
 // HighlightSourceResolver is injected with the registered sources (Program.cs DI, Kindle first):
-//   services.AddSingleton<IHighlightSource, KindleClippingsSource>();
-//   services.AddSingleton<IHighlightSource, KoboReaderSource>();
-//   services.AddSingleton<HighlightSourceResolver>();
+//   builder.Services.AddSingleton<IHighlightSource, KindleClippingsSource>();
+//   builder.Services.AddSingleton<IHighlightSource, KoboReaderSource>();
+//   builder.Services.AddSingleton<HighlightSourceResolver>();
 var resolver = serviceProvider.GetRequiredService<HighlightSourceResolver>();
+ILogger? logger = null;
+string? userPath = null;
 
 // Pass a device root, a file path, or null to probe connected devices.
 SourceResolution resolution = resolver.Resolve(userPath);
@@ -120,7 +130,7 @@ if (!resolution.Found)
 // A failure reading one source is reported but does not stop the others (per-source isolation).
 foreach (var resolved in resolution.Sources)
 {
-    Console.WriteLine($"Detected {resolved.Descriptor.DisplayName} source at {resolved.ResolvedPath}");
+    Console.WriteLine($"Detected {resolved.Source.Descriptor.DisplayName} source at {resolved.ResolvedPath}");
     try
     {
         ParseResult result = await resolved.Source.ReadAsync(resolved.ResolvedPath, logger);
@@ -129,7 +139,7 @@ foreach (var resolved in resolution.Sources)
     catch (Exception ex)
     {
         // Report this source's failure and continue with the next one.
-        logger?.LogError(ex, "Failed to import {Source}", resolved.Descriptor.DisplayName);
+        logger?.LogError(ex, "Failed to import {Source}", resolved.Source.Descriptor.DisplayName);
     }
 }
 ```
@@ -146,12 +156,14 @@ representative rows for coverage:
 - an orphaned `Bookmark` (no matching `content` — verify dropped by the join),
 - UTF-8 content (CJK / diacritics).
 
-Load it in tests by copying to a temp path (or pointing the reader at it directly — the reader
-copies internally):
+For docs and manual checks, point the reader at `docs/examples/kobo-highlights.sqlite` from the
+repository root. For unit tests, use the committed test fixture copy under `src/Relego.Tests/Fixtures/`
+via the `TestFixtures.KoboFixturePath()` helper.
 
 ```csharp
-var fixture = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-    "docs", "examples", "kobo-highlights.sqlite");
+using Relego.Cli.Sources;
+
+var fixture = Path.GetFullPath(Path.Combine("docs", "examples", "kobo-highlights.sqlite"));
 var result = await new KoboReaderSource().ReadAsync(fixture);
 
 Assert.Contains(result.Books, b => b.Highlights.Any(h => h.Text.StartsWith("[my note] ")));

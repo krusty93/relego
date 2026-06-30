@@ -26,16 +26,19 @@ Capabilities:
 - **E-ink first**: recaps delivered as native Kindle documents, not push notifications on your phone
 - **Free and self-hosted**: no subscription, no data leaving your infrastructure
 - **No lock-in**: your highlights stay yours, in an open format
+- **Multiple import sources**: Kindle and Kobo are supported today, with a documented source registry for future integrations
 - **Privacy**: your reading habits are not sent to any cloud service
 
 ---
 
 ## How it works
 
-1. Connect your Kindle via USB and run `relego import` to import highlights from `My Clippings.txt`
+1. Connect a Kindle or Kobo via USB and run `relego import` to import highlights from `My Clippings.txt` or `.kobo/KoboReader.sqlite`
 2. The server selects a daily or weekly subset of highlights using spaced repetition (weighted by your preferences)
-3. A recap document is sent to your Kindle email address via Amazon's Send-to-Kindle service
-4. Open the recap on your Kindle like any other book
+3. A recap is sent through your configured delivery channel: Send-to-Kindle for Kindle, or the regular inbox email channel for Kobo users
+4. Open the recap on your Kindle or in your inbox and revisit what mattered
+
+`relego import` uses an open highlight-source registry. Kindle and Kobo are built in today; if both are connected, Relego imports both in one run and reports any per-source failure without stopping the other import. Contributors can add another source by implementing `IHighlightSource` and registering it once. See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-highlight-source) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ### What a recap looks like
 
@@ -77,11 +80,11 @@ Theme selection for TUI:
 
 ## Getting started
 
-### 1. Connect your Kindle device
+### 1. Connect your reading device
 
-Connect your Kindle device to your computer via USB cable.
+Connect your Kindle or Kobo device to your computer via USB cable.
 
-> **No Kindle handy?** A sample `My Clippings.txt` is included at `docs/examples/kindle-highlights.txt`.
+> **No device handy?** Sample Kindle and Kobo files are included under `docs/examples/`.
 
 ### 2. Run the server
 
@@ -102,9 +105,9 @@ docker compose --profile server up -d
 >
 > If you don't have or don't want to setup any SMTP server now, replace the SMTP settings in the `relego-server` block with the demo-mode block from `docker-compose.yml`, then run the `demo` profile: `docker compose --profile demo up -d`.
 
-### 3. Import the Kindle highlights
+### 3. Import your highlights
 
-It's time to import the highlights from your Kindle.
+It's time to import the highlights from your device.
 
 > **Using the sample data in `docs/examples`?** Append the local path to the `import` command shown in this section
 
@@ -174,7 +177,7 @@ The installer detects your Windows architecture automatically and prints the pat
 
 </details>
 
-### 4. Set the Kindle email
+### 4. Set the recap destination
 
 Set your Kindle email:
 
@@ -186,7 +189,7 @@ docker compose run --rm relego-cli config kindle-email "email@kindle.com"
 relego config kindle-email "email@kindle.com"
 ```
 
-Optionally, set an **"Also Email Recap to"** address to also receive an HTML recap in any regular inbox (in addition to Kindle):
+Optionally, set an **"Also Email Recap to"** address to also receive an HTML recap in any regular inbox (in addition to Kindle). Kobo users should set this regular inbox address, because Kobo devices do not have a Send-to-Kindle-style email channel:
 
 ```sh
 # Docker
@@ -200,7 +203,7 @@ Leave this blank if you only want Kindle delivery. Clear it at any time with `re
 
 ### 5. Explore the TUI
 
-The TUI lets you sync highlights from `My Clippings.txt`, browse your library, manage exclusions, and adjust settings, all without leaving the terminal. To open it, launch the CLI without any argument:
+The TUI lets you sync highlights from Kindle or Kobo sources, browse your library, manage exclusions, and adjust settings, all without leaving the terminal. To open it, launch the CLI without any argument:
 
 ```sh
 # Docker
@@ -246,7 +249,7 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 |                   Command                              |              Description                                                     |
 |--------------------------------------------------------|------------------------------------------------------------------------------|
 | `relego`                                               | Open interactive TUI                                                         |
-| `relego import [path]`                                 | Import highlights from `My Clippings.txt`                                    |
+| `relego import [path]`                                 | Import highlights from a detected Kindle or Kobo source                      |
 | `relego status`                                        | Show server status and next recap                                            |
 | `relego config show`                                   | Show all current server settings                                             |
 | `relego config schedule <daily\|weekly> [HH:MM]`       | Set recap schedule                                                           |
@@ -268,8 +271,15 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 
 ## Known Limitations
 
-The current version imports highlights from Kindle's `My Clippings.txt` only and delivers recaps to Kindle via Send-to-Kindle email.
-Additional import sources and delivery targets are planned.
+The current version imports highlights from Kindle `My Clippings.txt` and Kobo `.kobo/KoboReader.sqlite` sources. Kindle recaps can be delivered through Send-to-Kindle email; Kobo users use the regular inbox email channel because Kobo has no Send-to-Kindle-style address.
+
+Additional import sources and delivery targets are planned. If you wish to add your own, see the next section.
+
+## For contributors
+
+Relego is an open source project and the highlight-source layer is built to be extended. The quickest way to understand the project is to read the product context in [docs/prds/prd-mvp.md](docs/prds/prd-mvp.md), the source registry overview in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), then the contributor guide section on [adding a new highlight source](CONTRIBUTING.md#adding-a-new-highlight-source).
+
+---
 
 ## Supply chain verification
 
@@ -293,7 +303,7 @@ gh attestation verify \
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Useful documentation:
 
-- [Product Requirements Document](docs/PRD.md)
+- [MVP Product Requirements Document](docs/prds/prd-mvp.md)
 - [Developer Experience Design](docs/DX.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture Decision Records](docs/adr/)

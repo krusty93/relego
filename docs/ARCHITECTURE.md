@@ -16,14 +16,11 @@ User Laptop                              Home Server / NAS / Pi
 relego CLI  ── REST HTTP ──────────────▶  relego-server (Docker)
     │                                       ├── Scheduler (Quartz.NET)
     │ USB                                   ├── SMTP sender (MailKit)
-    ▼                                       └── SQLite (Docker volume)
-Kindle / My Clippings.txt                              │
-                                                       │ SMTP
+    │                                       └── SQLite (Docker volume)
+    ├── Kindle / My Clippings.txt                      │
+    └── Kobo / .kobo/KoboReader.sqlite                 │ SMTP
                                                        ▼
-                                            Amazon Send-to-Kindle
-                                                       │
-                                                       ▼
-                                                  Kindle (e-ink)
+                                            Send-to-Kindle or inbox email
 ```
 
 ---
@@ -36,11 +33,26 @@ Kindle / My Clippings.txt                              │
 - Optional Docker image for no-install usage: `ghcr.io/krusty93/relego.cli`
 - Reads the server URL from client configuration (`Server:Url`) with runtime override via `SERVER_URL` (no authentication — local network trusted)
 - Responsibilities:
-  - Parse and sync highlights from `My Clippings.txt` to the server
+  - Parse and sync highlights from registered highlight sources to the server (Kindle and Kobo today)
   - Manage user settings via CLI commands (schedule, count, weights, exclusions)
   - Display server status
 
-Responsible for transforming raw Kindle export text into structured data before syncing to the server.
+#### Highlight source registry (`Relego.Cli/Sources/`)
+
+The CLI imports through an open source registry rather than a closed source-type enum. Each source implements `IHighlightSource`, owns a stable `SourceDescriptor` (`Id`, `DisplayName`), implements its own `Locate(string? userPath)` detection rules, and returns the existing `ParseResult` from `ReadAsync`. The `HighlightSourceResolver` receives `IEnumerable<IHighlightSource>` from DI, calls each source's `Locate`, and returns every detected source without per-source branching.
+
+Current sources:
+
+- `KindleClippingsSource`: detects and reads `My Clippings.txt` using the existing Kindle detector and parser.
+- `KoboReaderSource`: detects and reads `.kobo/KoboReader.sqlite`. It copies the SQLite database to a temp file, validates the SQLite header, opens the copy read-only, and deletes the copy afterward so the mounted device database is never modified.
+
+Adding a future integration is intentionally small: implement `IHighlightSource` and register one `AddSingleton<IHighlightSource, NewSource>()` line in `Program.cs`. Do not add a central enum, and do not edit the resolver, import workflow, or command surface for source-specific branching. `SourceDescriptor` is a reporting/logging label only.
+
+When more than one source is detected, the import workflow imports all of them in one run. Each source is read and synced independently; a failure in one source is reported in the per-source summary and does not stop the remaining detected sources from importing. This behavior follows ADR-008 sections 3 and 5.
+
+Kobo support is import-only. Kobo has no Send-to-Kindle-style email address, so no new server, schema, sync API, scheduler, recap composition, or device-delivery channel was added. Kobo users receive recaps through the existing regular inbox email channel (`delivery_email`, ADR-007 / feature 009).
+
+All sources are responsible for transforming raw source data into structured data before syncing to the server.
 
 - **Entry point**: `ClippingsParser.ParseAsync(string filePath, ILogger? logger = null)` — file-path overload; `ClippingsParser.ParseAsync(TextReader, ILogger? logger = null)` — streaming overload for testability
 - **Output types**:
@@ -48,11 +60,12 @@ Responsible for transforming raw Kindle export text into structured data before 
   - `ParsedBook` — `(Title, Author?, IReadOnlyList<ParsedHighlight> Highlights)`
   - `ParsedHighlight` — `(Text, Location?, AddedOn?)`
 - **Design decisions**:
-  - Streaming: reads lines one-by-one via `ReadLineAsync()`; no full file in memory
+  - Streaming for Kindle text: reads lines one-by-one via `ReadLineAsync()`; no full file in memory
   - Skip-and-warn: malformed entries are skipped with an `ILogger.LogWarning`; never throws
   - Deduplication: `HashSet<(Title, Author, Text)>` — exact case-sensitive match, first occurrence kept
   - Notes as highlights: entries of type "Note" are emitted as highlights with `[my note] ` prefix on their text
   - Bookmarks: entries of type "Bookmark" are silently dropped
+  - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
 
 #### TUI subsystem (`Relego.Cli/Tui/`)
 
@@ -236,8 +249,9 @@ src/Relego.Core/
 
 src/Relego.Cli/
 ├── Commands/           # Spectre.Console CLI sub-commands (sync, status, config, …)
-├── Infrastructure/     # HTTP client, resilience, Kindle detector
+├── Infrastructure/     # HTTP client, resilience, device detectors
 ├── Parsing/            # My Clippings.txt parser
+├── Sources/            # Highlight source registry, source readers, resolver
 ├── Tui/                # Terminal.Gui TUI (TuiApp, screens, StatusChrome, …)
 └── Program.cs          # Dual-mode entry point (TUI or CLI)
 
@@ -254,6 +268,7 @@ src/Relego.Tests/
 ├── Infrastructure/     # Database/bootstrap tests
 ├── Parsing/            # CLI parser tests
 ├── Recap/              # Recap service tests
+├── Sources/            # Highlight source, resolver, and multi-import tests
 └── Tui/                # TUI logic tests (mode detection, search, screen key handling)
 
 src/landing/                # Static marketing landing page (independent from .NET)

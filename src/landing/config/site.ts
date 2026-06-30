@@ -12,7 +12,7 @@ export interface SiteConfig {
 export const siteConfig = {
 	name: 'Relego',
 	logotype: 'relego.',
-	tagline: 'Revisit your highlights, delivered to your Kindle. For free.',
+	tagline: 'Revisit your highlights, delivered to your eReader. For free.',
 	githubUrl: 'https://github.com/Krusty93/relego',
 	docsUrl: 'https://github.com/Krusty93/relego/blob/main/README.md',
 	license: 'MIT',
