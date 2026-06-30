@@ -38,7 +38,7 @@ Capabilities:
 3. A recap is sent through your configured delivery channel: Send-to-Kindle for Kindle, or the regular inbox email channel for Kobo users
 4. Open the recap on your Kindle or in your inbox and revisit what mattered
 
-`relego import` uses an open highlight-source registry. Kindle and Kobo are built in today; if both are connected, Relego imports both in one run and reports any per-source failure without stopping the other import. Contributors can add another source by implementing `IHighlightSource` and registering it once. See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-highlight-source), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [ADR-008](docs/adr/008-kobo-reader-sqlite-source.md) for the design.
+`relego import` uses an open highlight-source registry. Kindle and Kobo are built in today; if both are connected, Relego imports both in one run and reports any per-source failure without stopping the other import. Contributors can add another source by implementing `IHighlightSource` and registering it once. See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-highlight-source) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ### What a recap looks like
 
@@ -107,7 +107,7 @@ docker compose --profile server up -d
 
 ### 3. Import your highlights
 
-It's time to import your highlights. `relego import` accepts a Kindle `My Clippings.txt` path, a Kobo `KoboReader.sqlite` path, or a mounted device root. If you omit the path, Relego probes the default Kindle and Kobo mount locations.
+It's time to import the highlights from your device.
 
 > **Using the sample data in `docs/examples`?** Append the local path to the `import` command shown in this section
 
@@ -267,17 +267,19 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 | `relego recap trigger`                                 | Trigger a recap immediately                                                  |
 | `relego --version`                                     | Print version                                                                |
 
-## For contributors
-
-Relego is an open source project and the highlight-source layer is built to be extended. The quickest way to understand the project is to read the product context in [docs/prds/prd-mvp.md](docs/prds/prd-mvp.md), the source registry overview in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), then the contributor guide section on [adding a new highlight source](CONTRIBUTING.md#adding-a-new-highlight-source). ADR-008 explains why Kobo support uses `.kobo/KoboReader.sqlite`, why it is import-only, and why new sources plug in through `IHighlightSource` instead of a central enum.
-
 ---
 
 ## Known Limitations
 
 The current version imports highlights from Kindle `My Clippings.txt` and Kobo `.kobo/KoboReader.sqlite` sources. Kindle recaps can be delivered through Send-to-Kindle email; Kobo users use the regular inbox email channel because Kobo has no Send-to-Kindle-style address.
 
-Additional import sources can be added through the documented source registry. New on-device delivery targets, such as Kobo cloud-folder sync, are planned separately.
+Additional import sources and delivery targets are planned. If you wish to add your own, see the next section.
+
+## For contributors
+
+Relego is an open source project and the highlight-source layer is built to be extended. The quickest way to understand the project is to read the product context in [docs/prds/prd-mvp.md](docs/prds/prd-mvp.md), the source registry overview in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), then the contributor guide section on [adding a new highlight source](CONTRIBUTING.md#adding-a-new-highlight-source).
+
+---
 
 ## Supply chain verification
 
@@ -301,7 +303,7 @@ gh attestation verify \
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Useful documentation:
 
-- [Product Requirements Document](docs/prds/prd-mvp.md)
+- [MVP Product Requirements Document](docs/prds/prd-mvp.md)
 - [Developer Experience Design](docs/DX.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture Decision Records](docs/adr/)

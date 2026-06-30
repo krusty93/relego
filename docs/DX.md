@@ -11,9 +11,9 @@
 Relego consists of two components with distinct installation and usage patterns:
 
 - **Server** (`relego-server`) — Always-on Docker container deployed on a home server, NAS, or Raspberry Pi. Handles scheduling, spaced repetition, recap composition, and email delivery.
-- **Client CLI** (`relego`) — Installed on the user's laptop. Used to sync highlights from `My Clippings.txt` and manage settings.
+- **Client CLI** (`relego`) — Installed on the user's laptop. Used to import highlights from registered sources (Kindle and Kobo today) and manage settings.
 
-The guiding DX principle: **zero friction after a one-time setup**. Onboarding requires one Docker command, one environment variable, one sync command.
+The guiding DX principle: **zero friction after a one-time setup**. Onboarding requires one server start, one delivery destination, one import command.
 
 ---
 
@@ -69,7 +69,7 @@ winget install Krusty93.Relego
 
 ## Configuration
 
-All configuration is passed as environment variables to the server container. The client keeps its default server address in `Server:Url` and allows a runtime override via `SERVER_URL`.
+Server bootstrap configuration is passed as environment variables to the server container. User-facing settings, including Kindle and inbox delivery addresses, are managed through the CLI and stored server-side. The client keeps its default server address in `Server:Url` and allows a runtime override via `SERVER_URL`.
 
 ```sh
 docker run -d \
@@ -100,37 +100,33 @@ No other configuration is required to get started.
 ```
 Step 1 — Deploy server (see above)
 Step 2 — Set SERVER_URL in your shell profile if the server is not on localhost:8080
-Step 3 — Connect Kindle via USB
-Step 4 — Sync highlights
+Step 3 — Configure at least one delivery destination
+Step 4 — Connect a Kindle or Kobo via USB
+Step 5 — Import highlights
 ```
 
 ```sh
-relego sync /Volumes/Kindle/documents/My\ Clippings.txt
+relego config email kindle your-address@kindle.com
+relego import /Volumes/Kindle/documents/My\ Clippings.txt
 ```
 
 Expected output:
 ```
 ✓ Connected to server at http://192.168.1.10:8080
+✓ Detected Kindle source at /Volumes/Kindle/documents/My Clippings.txt
 ✓ Parsed 1,243 highlights from 47 books
 ✓ 1,198 new highlights imported (45 duplicates skipped)
 → Next recap: Sunday, Apr 5 at 18:00
 ```
 
-If no path is specified, `relego sync` auto-detects the Kindle mount path. If not found, it prompts the user:
+Kobo users use the regular inbox email channel because Kobo has no Send-to-Kindle-style address:
 
 ```sh
-relego sync
+relego config email inbox you@example.com
+relego import /Volumes/KOBOeReader/.kobo/KoboReader.sqlite
 ```
 
-```
-⚠ Kindle not found at default paths.
-  Kindle connected and mounted? Enter the path to My Clippings.txt, or press Enter to cancel:
-  > /media/user/Kindle/documents/My Clippings.txt
-✓ Connected to server at http://192.168.1.10:8080
-✓ Parsed 1,243 highlights from 47 books
-✓ 1,198 new highlights imported (45 duplicates skipped)
-→ Next recap: Sunday, Apr 5 at 18:00
-```
+If no path is specified, `relego import` probes the default Kindle and Kobo mount locations. Passing a mounted device root is also valid; each registered source owns its own detection rules.
 
 Total time to first recap: ~2 minutes.
 
@@ -138,12 +134,14 @@ Total time to first recap: ~2 minutes.
 
 ## Day-to-day usage
 
-### Sync new highlights (after connecting Kindle via USB)
+### Import new highlights (after connecting a reading device via USB)
 
 ```sh
-relego sync          # Auto-detect Kindle mount path; prompts if not found
-relego sync <path>   # Explicit path to My Clippings.txt
+relego import          # Auto-detect Kindle and Kobo mount paths
+relego import <path>   # Explicit source file or mounted device root
 ```
+
+When both a Kindle and a Kobo are connected, Relego imports both in one run and reports each source separately. If one source fails, the other still imports.
 
 ---
 
@@ -251,9 +249,9 @@ Errors are actionable — they tell the user exactly what to do.
 ### File not found
 
 ```
-✗ File not found: /Volumes/Kindle/documents/My Clippings.txt
-  Is your Kindle connected via USB?
-  Looking for the file at a different path? Run: relego sync <path>
+✗ No Kindle or Kobo source detected.
+  Checked: /Volumes/Kindle/documents/My Clippings.txt, /Volumes/KOBOeReader/.kobo/KoboReader.sqlite
+  Looking for the file at a different path? Run: relego import <path>
 ```
 
 ### Email delivery failed
@@ -261,16 +259,16 @@ Errors are actionable — they tell the user exactly what to do.
 ```
 ✗ Failed to deliver recap to your-address@kindle.com
   Reason: SMTP authentication failed
-  Check your KINDLE_EMAIL and SMTP settings on the server:
+  Check your delivery address and SMTP settings on the server:
     docker exec relego-server env | grep SMTP
 ```
 
-### Empty clippings file
+### Empty source
 
 ```
-⚠ No highlights found in My Clippings.txt
-  This can happen if the file is empty or in an unexpected format.
-  Expected format: Kindle's native My Clippings.txt (UTF-8, BOM prefix per entry)
+⚠ No highlights found in the source file.
+  This can happen if the source is empty or in an unexpected format.
+  Expected format: Kindle My Clippings.txt or Kobo KoboReader.sqlite
 ```
 
 ---
@@ -280,7 +278,7 @@ Errors are actionable — they tell the user exactly what to do.
 |                   Command                              |              Description                                                     |
 |--------------------------------------------------------|------------------------------------------------------------------------------|
 | `relego`                                               | Open interactive TUI                                                         |
-| `relego import [path]`                                 | Import highlights from `My Clippings.txt`                                    |
+| `relego import [path]`                                 | Import highlights from a detected Kindle or Kobo source                      |
 | `relego status`                                        | Show server status and next recap                                            |
 | `relego config show`                                   | Show all current server settings                                             |
 | `relego config schedule <daily\|weekly> [HH:MM]`       | Set recap schedule                                                           |
@@ -302,7 +300,7 @@ Errors are actionable — they tell the user exactly what to do.
 
 ## Decisions
 
-- `relego sync` auto-detects the Kindle mount path on macOS, Linux, and Windows. If not found, it prompts the user to enter the path interactively.
+- `relego import` auto-detects Kindle and Kobo sources on macOS, Linux, and Windows. Each source owns its own detection rules, and the resolver imports every detected source with per-source failure isolation.
 - Server authentication is not required — the server is assumed to be on a trusted local network.
 
 ---
