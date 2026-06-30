@@ -43,6 +43,7 @@ test.describe('FAQ Section', () => {
 		expect(text).toMatch(/SMTP/i);
 		expect(text).toMatch(/frequency|how often/i);
 		expect(text).toMatch(/Kindle/i);
+		expect(text).toMatch(/Kobo/i);
 		expect(text).toMatch(/data|stored/i);
 		expect(text).toMatch(/exclude/i);
 	});

@@ -36,7 +36,7 @@ test.describe('Navigation', () => {
 	test('hero section renders logotype, tagline, and CTA', async ({ page }) => {
 		const hero = page.locator('#hero');
 		await expect(hero.locator('h1')).toContainText('relego.');
-		await expect(hero.locator('p')).toContainText('Kindle');
+		await expect(hero.locator('p')).toContainText('eReader');
 		await expect(hero.locator('a:has-text("Get started")')).toBeVisible();
 	});
 

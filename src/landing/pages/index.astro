@@ -16,20 +16,20 @@ const steps = [
 	{
 		number: 1,
 		title: 'Import your highlights',
-		description: 'Connect your Kindle and run a single command.',
-		content: 'Plug your Kindle via USB and run relego import. The CLI detects the device, reads My Clippings.txt, parses every highlight and note, then stores them locally. No cloud upload, no account required. Your data stays on your machine.',
+		description: 'Connect your Kindle or Kobo and run a single command.',
+		content: 'Plug your Kindle or Kobo via USB and run relego import. The CLI detects My Clippings.txt or KoboReader.sqlite, parses every highlight and note, then stores them locally. No cloud upload, no account required. Your data stays on your machine.',
 	},
 	{
 		number: 2,
 		title: 'Let the server schedule',
 		description: 'Spaced repetition picks the best highlights for you.',
-		content: 'The self-hosted server builds a daily recap document using spaced repetition. Highlights you haven\'t seen in a while get higher priority. The recap is delivered to your Kindle via Send-to-Kindle email, fully automatic and on your schedule.',
+		content: 'The self-hosted server builds a daily recap using spaced repetition. Highlights you haven\'t seen in a while get higher priority. Kindle users can receive a Send-to-Kindle document; Kobo users can receive the same recap in a regular inbox.',
 	},
 	{
 		number: 3,
-		title: 'Read on your Kindle',
-		description: 'Open the recap like any other book: pure e-ink.',
-		content: 'Every morning you\'ll find a new document on your Kindle. Open it like any other book: no apps, no glowing screens, just e-ink. Re-read your best highlights from across your entire library while having your coffee.',
+		title: 'Read your recap',
+		description: 'Open the recap where it fits your reading routine.',
+		content: 'Every morning you\'ll find a fresh set of highlights ready to revisit. Open the Kindle document on e-ink or read the HTML recap in your inbox. Either way, the best lines from your library come back on schedule.',
 	},
 ];
 ---
@@ -117,7 +117,7 @@ const steps = [
 				<FeatureCard
 					icon='<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="10" y1="18" x2="14" y2="18"/></svg>'
 					title="Built for e-ink"
-					description="Recaps are formatted as clean documents optimized for Kindle's e-ink display."
+					description="Recaps are formatted as clean documents optimized for e-ink display."
 				/>
 				<FeatureCard
 					icon='<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
@@ -148,8 +148,8 @@ const steps = [
 					answer="By default, once a day. You can adjust the frequency through the server configuration, from multiple times a day to weekly, whatever suits your reading habits."
 				/>
 				<Accordion
-					question="Which Kindle models are supported?"
-					answer="Any Kindle that supports Send-to-Kindle email. That covers every model released in the last decade. The recap arrives as a standard document that opens like any other book."
+					question="Which readers are supported?"
+					answer="Relego imports highlights from Kindle My Clippings.txt files and Kobo KoboReader.sqlite databases today. Kindle users can receive Send-to-Kindle documents; Kobo users receive recaps through the regular inbox email channel."
 				/>
 				<Accordion
 					question="Where is my data stored?"
