@@ -1,6 +1,6 @@
-# Product Requirements Document — Relego
+# Product Requirements Document — MVP
 
-**Version:** 0.2 — Draft
+**Version:** 0.3 — Draft
 **Date:** 2026-03-30
 **Status:** Draft
 
@@ -9,8 +9,6 @@
 ## Overview
 
 Relego is a self-hosted, open source recap system for ebook highlights. The CLI imports highlights from registered local sources — Kindle `My Clippings.txt` and Kobo `.kobo/KoboReader.sqlite` today — and syncs them to a self-hosted server. The server selects periodic recap highlights with spaced repetition and sends them through the configured delivery destination: Amazon Send-to-Kindle for Kindle users and/or regular inbox email for HTML recaps.
-
-The highlight-source layer is intentionally extensible. New sources plug in through the open `IHighlightSource` registry described in [ARCHITECTURE.md](ARCHITECTURE.md) and [ADR-008](adr/008-kobo-reader-sqlite-source.md), with contributor guidance in [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-new-highlight-source).
 
 ---
 
@@ -47,7 +45,6 @@ The highlight-source layer is intentionally extensible. New sources plug in thro
 | NFR-05 | No data sent to third-party services — all processing is local | Must |
 | NFR-06 | Recap generation completes in under 30 seconds for a 10,000-highlight file | Should |
 | NFR-07 | Recap document renders correctly on Kindle Paperwhite (any generation) | Must |
-| NFR-08 | Import from a readable source without modifying the source file or device database | Must |
 
 ---
 
@@ -65,7 +62,7 @@ The highlight-source layer is intentionally extensible. New sources plug in thro
 | US-08 | As a user, I want clear error messages when email delivery fails, so that I can diagnose and fix configuration issues quickly | Should |
 | US-09 | As a user, I want to mark a highlight/book/author as excluded via CLI, so that it never appears in my recaps | Must |
 | US-10 | As a user, I want to assign a higher weight to specific highlights via CLI, so that they appear more frequently than others | Must |
-| US-11 | As a Kobo user, I want Relego to import highlights from `KoboReader.sqlite` without modifying the device database, so that I can use the same recap workflow safely | Must |
+| US-11 | As a Kobo user, I want Relego to import highlights from `KoboReader.sqlite` | Must |
 | US-12 | As a contributor, I want a documented highlight-source extension model, so that I can add a new source without changing shared resolver, workflow, command, or enum code | Should |
 
 ---
@@ -89,7 +86,6 @@ The highlight-source layer is intentionally extensible. New sources plug in thro
 ### Should Have
 
 - Clear error messages for SMTP/delivery failures (US-08)
-- Documented source registry for adding future highlight sources without shared-code branching (FR-15, US-12)
 - Sub-30s performance for large clippings files (NFR-06)
 - Minimal runtime dependencies (NFR-02)
 

@@ -269,7 +269,7 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 
 ## For contributors
 
-Relego is an open source project and the highlight-source layer is built to be extended. The quickest way to understand the project is to read the product context in [docs/PRD.md](docs/PRD.md), the source registry overview in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), then the contributor guide section on [adding a new highlight source](CONTRIBUTING.md#adding-a-new-highlight-source). ADR-008 explains why Kobo support uses `.kobo/KoboReader.sqlite`, why it is import-only, and why new sources plug in through `IHighlightSource` instead of a central enum.
+Relego is an open source project and the highlight-source layer is built to be extended. The quickest way to understand the project is to read the product context in [docs/prds/prd-mvp.md](docs/prds/prd-mvp.md), the source registry overview in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), then the contributor guide section on [adding a new highlight source](CONTRIBUTING.md#adding-a-new-highlight-source). ADR-008 explains why Kobo support uses `.kobo/KoboReader.sqlite`, why it is import-only, and why new sources plug in through `IHighlightSource` instead of a central enum.
 
 ---
 
@@ -301,7 +301,7 @@ gh attestation verify \
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Useful documentation:
 
-- [Product Requirements Document](docs/PRD.md)
+- [Product Requirements Document](docs/prds/prd-mvp.md)
 - [Developer Experience Design](docs/DX.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture Decision Records](docs/adr/)
