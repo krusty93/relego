@@ -12,6 +12,8 @@ Set Margin 20
 Set MarginFill "#d4a05e"
 Set BorderRadius 10
 
+Hide
+
 # Launch the TUI
 Sleep 1s
 Type "docker compose run --rm -v $PWD:/kindle:ro relego-cli"
@@ -23,6 +25,7 @@ Type "i"
 Sleep 2s
 Backspace 45
 Sleep 500ms
+Show
 Type "/kindle/docs/examples/kindle-highlights.txt"
 Sleep 1s
 Enter

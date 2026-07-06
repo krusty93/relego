@@ -1,5 +1,3 @@
-![Relego landing page hero section in dark theme](docs/assets/landing-hero-dark.jpg)
-
 <h1 align="center">relego.</h1>
 
 <h4 align="center">
@@ -28,6 +26,8 @@ Capabilities:
 - **No lock-in**: your highlights stay yours, in an open format
 - **Multiple import sources**: Kindle and Kobo are supported today, with a documented source registry for future integrations
 - **Privacy**: your reading habits are not sent to any cloud service
+
+![tui demo](docs/assets/tui-demo.gif)
 
 ---
 
@@ -65,11 +65,7 @@ Each highlight includes the quote, the book title, and the author, making it eas
 
 ## Interactive mode
 
-Run `relego` without arguments to open the interactive TUI:
-
-![tui demo](docs/assets/tui-demo.gif)
-
-Use the TUI to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
+Run `relego` without arguments to open the interactive TUI. Use it to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
 
 Theme selection for TUI:
 
