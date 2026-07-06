@@ -15,8 +15,7 @@ Set BorderRadius 10
 Hide
 
 # Launch the TUI
-Sleep 1s
-Type "docker compose run --rm -v $PWD:/kindle:ro relego-cli"
+Type "docker compose run --rm -v $PWD:/relego:ro relego-cli"
 Enter
 Sleep 5s
 
@@ -24,9 +23,10 @@ Sleep 5s
 Type "i"
 Sleep 2s
 Backspace 45
-Sleep 500ms
+
 Show
-Type "/kindle/docs/examples/kindle-highlights.txt"
+Sleep 1s
+Type "/relego/docs/examples/kindle-highlights.txt"
 Sleep 1s
 Enter
 Sleep 1s
