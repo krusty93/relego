@@ -54,6 +54,21 @@ public sealed class HighlightSourceResolverTests : IDisposable
     }
 
     [Fact]
+    public void Resolve_RenamedTxtFile_RoutesToKindle()
+    {
+        var dir = NewTempDir();
+        var clippings = Path.Combine(dir, "kindle-export.txt");
+        File.WriteAllText(clippings, "ignored");
+
+        var resolution = CreateResolver().Resolve(clippings);
+
+        Assert.True(resolution.Found);
+        var resolved = Assert.Single(resolution.Sources);
+        Assert.Equal("kindle", resolved.Source.Descriptor.Id);
+        Assert.Equal(clippings, resolved.ResolvedPath);
+    }
+
+    [Fact]
     public void Resolve_DirectoryWithDocumentsClippings_RoutesToKindle()
     {
         var dir = NewTempDir();

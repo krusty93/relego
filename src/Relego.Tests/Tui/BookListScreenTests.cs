@@ -236,7 +236,9 @@ public sealed class BookListScreenTests : IDisposable
         var outcome = await screen.SubmitImportAsync(string.Empty);
 
         Assert.Equal(ClippingsImportStatus.Cancelled, outcome.Status);
-        Assert.Equal("Enter a path to My Clippings.txt or press Esc to cancel.", screen.FeedbackMessage);
+        Assert.Equal(
+            "Enter a Kindle .txt or Kobo SQLite path, or press Esc to cancel.",
+            screen.FeedbackMessage);
         Assert.True(screen.FeedbackIsError);
         Assert.True(screen.IsImportPromptActive);
     }
@@ -301,6 +303,58 @@ public sealed class BookListScreenTests : IDisposable
         Assert.False(screen.IsImportPromptActive);
         Assert.False(screen.FeedbackIsError);
         Assert.Contains("Import complete.", screen.FeedbackMessage);
+        mockHttp.VerifyNoOutstandingExpectation();
+    }
+
+    [Fact]
+    public async Task SubmitImportAsync_WithRenamedTxtFile_ImportsAndClosesPrompt()
+    {
+        using var mockHttp = new MockHttpMessageHandler(BackendDefinitionBehavior.Always);
+
+        mockHttp.Expect(HttpMethod.Get, "http://localhost:5000/highlights?page=1&pageSize=100")
+            .Respond("application/json", """
+                {
+                  "total": 0,
+                  "page": 1,
+                  "pageSize": 100,
+                  "items": []
+                }
+                """);
+
+        mockHttp.Expect(HttpMethod.Post, "http://localhost:5000/highlights/import")
+            .Respond("application/json", """
+                {
+                  "newHighlights": 1,
+                  "duplicateHighlights": 0,
+                  "newBooks": 1,
+                  "newAuthors": 1
+                }
+                """);
+
+        mockHttp.Expect(HttpMethod.Get, "http://localhost:5000/highlights?page=1&pageSize=100")
+            .Respond("application/json", """
+                {
+                  "total": 0,
+                  "page": 1,
+                  "pageSize": 100,
+                  "items": []
+                }
+                """);
+
+        ConfigureSupplementaryEndpoints(mockHttp);
+
+        var releClient = CreateRelegoClient(mockHttp);
+        var workflow = CreateSyncWorkflow(releClient);
+        var screen = new BookListScreen(releClient, workflow);
+        await screen.InitializeAsync(CancellationToken.None);
+
+        var filePath = CreateClippingsFile("kindle-export.txt");
+        SetSyncPromptState(screen, detectedPath: filePath, syncPathInput: filePath);
+        var outcome = await screen.SubmitImportAsync(filePath);
+
+        Assert.Equal(ClippingsImportStatus.Succeeded, outcome.Status);
+        Assert.False(screen.IsImportPromptActive);
+        Assert.False(screen.FeedbackIsError);
         mockHttp.VerifyNoOutstandingExpectation();
     }
 
@@ -539,9 +593,9 @@ public sealed class BookListScreenTests : IDisposable
                 """);
     }
 
-    private string CreateClippingsFile()
+    private string CreateClippingsFile(string fileName = "My Clippings.txt")
     {
-        var filePath = Path.Combine(_tempDir, "My Clippings.txt");
+        var filePath = Path.Combine(_tempDir, fileName);
         File.WriteAllText(filePath, SampleClippings);
         return filePath;
     }
