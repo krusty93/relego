@@ -7,12 +7,13 @@ namespace Relego.Cli.Sources;
 /// <summary>
 /// <see cref="IHighlightSource"/> adapter over the existing static
 /// <see cref="ClippingsParser"/>. Adds no parsing logic (FR-011); exists so the
-/// resolver can treat every source uniformly. Owns the <c>My Clippings.txt</c>
-/// detection rules and the <see cref="KindleDetector"/> device probe.
+/// resolver can treat every source uniformly. Owns explicit <c>.txt</c> file routing,
+/// <c>My Clippings.txt</c> auto-detection, and the <see cref="KindleDetector"/> device probe.
 /// </summary>
 public sealed class KindleClippingsSource : IHighlightSource
 {
     private const string ClippingsFileName = "My Clippings.txt";
+    private const string ClippingsFileExtension = ".txt";
 
     /// <inheritdoc />
     public SourceDescriptor Descriptor { get; } = new("kindle", "Kindle");
@@ -29,10 +30,10 @@ public sealed class KindleClippingsSource : IHighlightSource
 
         userPath = userPath.Trim();
 
-        // Explicit file named "My Clippings.txt".
-        if (IsClippingsFileName(userPath))
+        // Explicit Kindle text export. Auto-detection remains filename-based below.
+        if (IsClippingsTextFile(userPath))
         {
-            return new SourceProbe(File.Exists(userPath) ? userPath : null, [userPath]);
+            return new SourceProbe(userPath, [userPath]);
         }
 
         // Directory (a mounted device root): try documents/ then the directory itself.
@@ -57,7 +58,7 @@ public sealed class KindleClippingsSource : IHighlightSource
             return new SourceProbe(null, probed);
         }
 
-        // An explicit path that is neither a "My Clippings.txt" file nor a directory.
+        // An explicit path that is neither a Kindle .txt file nor a directory.
         return new SourceProbe(null, [userPath]);
     }
 
@@ -68,6 +69,7 @@ public sealed class KindleClippingsSource : IHighlightSource
         CancellationToken cancellationToken = default)
         => ClippingsParser.ParseAsync(path, logger);
 
-    private static bool IsClippingsFileName(string path)
-        => string.Equals(Path.GetFileName(path), ClippingsFileName, StringComparison.OrdinalIgnoreCase);
+    private static bool IsClippingsTextFile(string path)
+        => File.Exists(path)
+            && string.Equals(Path.GetExtension(path), ClippingsFileExtension, StringComparison.OrdinalIgnoreCase);
 }

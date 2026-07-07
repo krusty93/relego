@@ -126,7 +126,7 @@ relego config email inbox you@example.com
 relego import /Volumes/KOBOeReader/.kobo/KoboReader.sqlite
 ```
 
-If no path is specified, `relego import` probes the default Kindle and Kobo mount locations. Passing a mounted device root is also valid; each registered source owns its own detection rules.
+If no path is specified, `relego import` probes the default Kindle and Kobo mount locations. Passing a mounted device root is also valid; each registered source owns its own detection rules. For explicit Kindle file paths, Relego routes any existing `.txt` file to the Kindle parser; the `My Clippings.txt` filename is only required for device auto-detection.
 
 Total time to first recap: ~2 minutes.
 
@@ -268,7 +268,7 @@ Errors are actionable — they tell the user exactly what to do.
 ```
 ⚠ No highlights found in the source file.
   This can happen if the source is empty or in an unexpected format.
-  Expected format: Kindle My Clippings.txt or Kobo KoboReader.sqlite
+  Expected format: Kindle clippings text export (.txt) or Kobo KoboReader.sqlite
 ```
 
 ---
@@ -300,7 +300,7 @@ Errors are actionable — they tell the user exactly what to do.
 
 ## Decisions
 
-- `relego import` auto-detects Kindle and Kobo sources on macOS, Linux, and Windows. Each source owns its own detection rules, and the resolver imports every detected source with per-source failure isolation.
+- `relego import` auto-detects Kindle and Kobo sources on macOS, Linux, and Windows. Explicit Kindle file paths are routed by `.txt` extension, while auto-detection still probes the device's `My Clippings.txt` path. Each source owns its own detection rules, and the resolver imports every detected source with per-source failure isolation.
 - Server authentication is not required — the server is assumed to be on a trusted local network.
 
 ---

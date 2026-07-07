@@ -135,7 +135,7 @@ public interface IHighlightSource
 
 | Type | `Descriptor` | Reads |
 |------|--------------|-------|
-| `KindleClippingsSource` | `("kindle", "Kindle")` | `My Clippings.txt` (delegates to `ClippingsParser`) |
+| `KindleClippingsSource` | `("kindle", "Kindle")` | Kindle `.txt` clippings export (delegates to `ClippingsParser`) |
 | `KoboReaderSource` | `("kobo", "Kobo")` | `KoboReader.sqlite` (this contract, §1) |
 
 ---
@@ -147,7 +147,7 @@ returns a `SourceResolution` with **every** detected source (no per-source branc
 
 | Input | Resolved sources |
 |-------|------------------|
-| File named `My Clippings.txt` | Kindle |
+| Existing `.txt` file, including `My Clippings.txt` | Kindle |
 | File named `KoboReader.sqlite` | Kobo |
 | File with SQLite header, other name | Kobo |
 | Directory containing `.kobo/KoboReader.sqlite` | Kobo |

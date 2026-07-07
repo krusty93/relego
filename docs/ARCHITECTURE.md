@@ -43,7 +43,7 @@ The CLI imports through an open source registry rather than a closed source-type
 
 Current sources:
 
-- `KindleClippingsSource`: detects and reads `My Clippings.txt` using the existing Kindle detector and parser.
+- `KindleClippingsSource`: reads Kindle `.txt` clippings exports. Explicit file paths are accepted by `.txt` extension; auto-detection uses the existing Kindle detector to probe for `My Clippings.txt` on mounted devices.
 - `KoboReaderSource`: detects and reads `.kobo/KoboReader.sqlite`. It copies the SQLite database to a temp file, validates the SQLite header, opens the copy read-only, and deletes the copy afterward so the mounted device database is never modified.
 
 Adding a future integration is intentionally small: implement `IHighlightSource` and register one `AddSingleton<IHighlightSource, NewSource>()` line in `Program.cs`. Do not add a central enum, and do not edit the resolver, import workflow, or command surface for source-specific branching. `SourceDescriptor` is a reporting/logging label only.

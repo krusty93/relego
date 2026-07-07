@@ -118,6 +118,19 @@ public sealed class KindleClippingsSourceTests : IDisposable
     }
 
     [Fact]
+    public void Locate_ExistingRenamedTxtFile_ReturnsThatPath()
+    {
+        var dir = NewTempDir();
+        var path = Path.Combine(dir, "kindle-export.txt");
+        File.WriteAllText(path, "ignored");
+
+        var probe = new KindleClippingsSource().Locate(path);
+
+        Assert.Equal(path, probe.FoundPath);
+        Assert.Equal(new[] { path }, probe.ProbedLocations);
+    }
+
+    [Fact]
     public void Locate_MissingClippingsFileByName_ReturnsNullButProbesIt()
     {
         var path = Path.Combine(NewTempDir(), ClippingsFileName);

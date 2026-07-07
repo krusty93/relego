@@ -42,6 +42,21 @@ public sealed class ImportCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Import_WithRenamedTxtFile_ReturnsZero()
+    {
+        var filePath = CreateClippingsFile(SampleClippings, "kindle-export.txt");
+
+        _mockHttp.When(HttpMethod.Post, "http://localhost:5000/highlights/import")
+            .Respond("application/json", """
+                {"newHighlights":5,"duplicateHighlights":2,"newBooks":3,"newAuthors":2}
+                """);
+
+        var exitCode = await RunImportCommand(filePath);
+
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
     public async Task Import_WithEmptyFile_ReturnsZero()
     {
         var filePath = CreateClippingsFile("");
@@ -100,9 +115,9 @@ public sealed class ImportCommandTests : IDisposable
         return await app.RunAsync(["import", filePath]);
     }
 
-    private string CreateClippingsFile(string content)
+    private string CreateClippingsFile(string content, string fileName = "My Clippings.txt")
     {
-        var filePath = Path.Combine(_tempDir, "My Clippings.txt");
+        var filePath = Path.Combine(_tempDir, fileName);
         File.WriteAllText(filePath, content);
         return filePath;
     }

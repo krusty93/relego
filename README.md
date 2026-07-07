@@ -109,7 +109,7 @@ docker compose --profile server up -d
 
 It's time to import the highlights from your device.
 
-> **Using the sample data in `docs/examples`?** Append the local path to the `import` command shown in this section
+> **Using the sample data `docs/examples/kindle-highlights.txt`?** Append the local path to the `import` command shown in this section
 
 <details>
   <summary>Docker (no install)</summary>

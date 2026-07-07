@@ -49,7 +49,7 @@ public sealed class BookListScreen(
     private const string SearchPlaceholderIdle = "type / to search";
     private const string SearchPlaceholderFocused = "Press Esc to return to the list";
     private const string SyncPlaceholderDetected = "Press Enter to import or edit the path";
-    private const string SyncPlaceholderManual = "Enter the path to My Clippings.txt";
+    private const string SyncPlaceholderManual = "Enter a Kindle .txt or Kobo SQLite path";
 
     private readonly RelegoHttpClient _client = client;
     private readonly ClippingsImportWorkflow _syncWorkflow = syncWorkflow;
@@ -651,7 +651,7 @@ public sealed class BookListScreen(
         var resolvedPath = filePath ?? _syncPathInput;
         if (string.IsNullOrWhiteSpace(resolvedPath))
         {
-            SetFeedback("Enter a path to My Clippings.txt or press Esc to cancel.", isError: true);
+            SetFeedback("Enter a Kindle .txt or Kobo SQLite path, or press Esc to cancel.", isError: true);
             return ClippingsImportOutcome.Cancelled();
         }
 

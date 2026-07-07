@@ -96,7 +96,7 @@ app.Configure(config =>
     config.SetApplicationVersion(version);
 
     config.AddCommand<ImportCommand>("import")
-        .WithDescription("Parse and import highlights from My Clippings.txt to the server.");
+        .WithDescription("Parse and import highlights from a Kindle or Kobo source to the server.");
 
     config.AddCommand<StatusCommand>("status")
         .WithDescription("Display server health and aggregate state.");

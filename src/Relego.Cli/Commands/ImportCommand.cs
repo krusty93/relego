@@ -8,7 +8,7 @@ using Relego.Cli.Import;
 namespace Relego.Cli.Commands;
 
 /// <summary>
-/// Parses a Kindle clippings file and imports highlights to the server.
+/// Parses a highlight source file and imports highlights to the server.
 /// </summary>
 public sealed class ImportCommand(ClippingsImportWorkflow workflow, ILogger<ImportCommand> logger) : ServerCommand<ImportCommand.Settings>
 {
@@ -17,7 +17,7 @@ public sealed class ImportCommand(ClippingsImportWorkflow workflow, ILogger<Impo
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "[path]")]
-        [Description("Path to My Clippings.txt. Auto-detected if omitted.")]
+        [Description("Path to a Kindle .txt export or Kobo SQLite database. Auto-detected if omitted.")]
         public string? Path { get; set; }
     }
 
@@ -57,7 +57,7 @@ public sealed class ImportCommand(ClippingsImportWorkflow workflow, ILogger<Impo
     {
         AnsiConsole.MarkupLine("[yellow]Kindle not found at default paths.[/]");
         var path = AnsiConsole.Prompt(
-            new TextPrompt<string>("[grey]Enter the path to My Clippings.txt, or press Enter to cancel:[/]")
+            new TextPrompt<string>("[grey]Enter the source path, or press Enter to cancel:[/]")
                 .AllowEmpty());
 
         return string.IsNullOrWhiteSpace(path) ? null : path;
