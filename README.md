@@ -1,10 +1,10 @@
-![Relego landing page hero section in dark theme](docs/assets/landing-hero-dark.jpg)
+<p align="center">
+  <img src="docs/assets/relego-logo-banner.png" alt="relego logo" width="720">
+</p>
 
-<h1 align="center">relego.</h1>
-
-<h4 align="center">
-  Revisit your highlights, delivered to your Kindle. For free.
-</h4>
+<p align="center">
+  <strong>Learn from your highlights. For free.</strong>
+</p>
 
 <h4 align="center">
 
@@ -17,6 +17,13 @@
 
 </h4>
 
+<p align="center">
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#see-it">See it</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#cli-reference">CLI</a>
+</p>
+
 ## Why relego.
 
 Relego comes from the Latin *relegere*: to read again, go over carefully, review. That is the core idea of the project: bring your highlights back to Kindle so they can be revisited, not forgotten.
@@ -28,6 +35,10 @@ Capabilities:
 - **No lock-in**: your highlights stay yours, in an open format
 - **Multiple import sources**: Kindle and Kobo are supported today, with a documented source registry for future integrations
 - **Privacy**: your reading habits are not sent to any cloud service
+
+## See it
+
+![tui demo](docs/assets/tui-demo.gif)
 
 ---
 
@@ -65,11 +76,7 @@ Each highlight includes the quote, the book title, and the author, making it eas
 
 ## Interactive mode
 
-Run `relego` without arguments to open the interactive TUI:
-
-![tui demo](docs/assets/tui-demo.gif)
-
-Use the TUI to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
+Run `relego` without arguments to open the interactive TUI. Use it to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
 
 Theme selection for TUI:
 
