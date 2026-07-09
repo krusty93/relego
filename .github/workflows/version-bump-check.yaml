@@ -10,12 +10,14 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   version-bump-check:
     name: Version Bump Check
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6

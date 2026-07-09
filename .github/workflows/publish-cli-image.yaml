@@ -10,6 +10,9 @@ name: Publish CLI Image
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
   check-tag:
     name: Check tag prefix
@@ -42,6 +45,6 @@ jobs:
       image_name: ghcr.io/krusty93/relego.cli
       dockerfile: Dockerfile.cli
       version: ${{ needs.check-tag.outputs.version }}
-      description: Periodic notes recaps, on your Kindle
+      description: Learn from your highlights. For free.
       authors: Krusty93
     secrets: inherit
