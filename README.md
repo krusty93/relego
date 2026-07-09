@@ -13,7 +13,9 @@
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![CodeQL](https://github.com/krusty93/relego/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/krusty93/relego/actions/workflows/github-code-scanning/codeql)
+
   [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/krusty93/relego/badge)](https://scorecard.dev/viewer/?uri=github.com/krusty93/relego)
+  [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13547/badge)](https://www.bestpractices.dev/projects/13547)
 
 </h4>
 
