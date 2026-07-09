@@ -1,0 +1,160 @@
+name: Build CLI Binaries
+
+on:
+  push:
+    tags:
+      - 'cli/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  metadata:
+    name: Parse tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag:     ${{ steps.meta.outputs.tag }}
+    steps:
+      - id: meta
+        name: Extract version from tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#cli/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG"         >> $GITHUB_OUTPUT
+
+  build:
+    name: Build (${{ matrix.rid }})
+    needs: metadata
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            ext: .exe
+          - rid: win-arm64
+            ext: .exe
+          - rid: linux-x64
+            ext: ""
+          - rid: linux-arm
+            ext: ""
+          - rid: linux-arm64
+            ext: ""
+          - rid: osx-x64
+            ext: ""
+          - rid: osx-arm64
+            ext: ""
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: |
+          dotnet publish src/Relego.Cli \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            --output publish/${{ matrix.rid }}
+
+      - name: Rename binary
+        run: |
+          V="${{ needs.metadata.outputs.version }}"
+          RID="${{ matrix.rid }}"
+          EXT="${{ matrix.ext }}"
+          mv "publish/${RID}/Relego.Cli${EXT}" \
+             "publish/relego-${V}-${RID}${EXT}" 2>/dev/null || \
+          mv "publish/${RID}/relego${EXT}" \
+             "publish/relego-${V}-${RID}${EXT}" 2>/dev/null || \
+          find "publish/${RID}" -maxdepth 1 -type f -not -name "*.pdb" \
+            -exec mv {} "publish/relego-${V}-${RID}${EXT}" \;
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-${{ matrix.rid }}
+          path: publish/relego-*
+          if-no-files-found: error
+
+  publish-release:
+    name: Upload assets & publish release
+    needs: [metadata, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: cli-*
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Upload assets to draft release
+        run: |
+          TAG="${{ needs.metadata.outputs.tag }}"
+          gh release upload "$TAG" artifacts/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish release
+        run: |
+          TAG="${{ needs.metadata.outputs.tag }}"
+          gh release edit "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false
+
+  winget:
+    name: Publish to WinGet
+    needs: [metadata, publish-release]
+    runs-on: windows-latest
+    env:
+      WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_PAT }}
+    steps:
+      - name: Get installer URLs
+        id: asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          $tag     = "${{ needs.metadata.outputs.tag }}"
+          $version = "${{ needs.metadata.outputs.version }}"
+
+          $assets = gh release view $tag `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --json assets `
+            --jq '.assets[] | "\(.name) \(.url)"'
+
+          $urlX64   = ($assets | Where-Object { $_ -match "relego-$version-win-x64.exe" }   | ForEach-Object { ($_ -split ' ')[1] })
+          $urlArm64 = ($assets | Where-Object { $_ -match "relego-$version-win-arm64.exe" } | ForEach-Object { ($_ -split ' ')[1] })
+
+          if (-not $urlX64 -or -not $urlArm64) {
+            Write-Error "One or more Windows assets not found in release $tag (x64=$urlX64, arm64=$urlArm64)"
+            exit 1
+          }
+
+          "url_x64=$urlX64"     >> $env:GITHUB_OUTPUT
+          "url_arm64=$urlArm64" >> $env:GITHUB_OUTPUT
+
+      - name: Download wingetcreate
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://aka.ms/wingetcreate/latest' -OutFile wingetcreate.exe
+
+      - name: Update WinGet manifest
+        shell: pwsh
+        run: |
+          $version  = "${{ needs.metadata.outputs.version }}"
+          $urlX64   = "${{ steps.asset.outputs.url_x64 }}"
+          $urlArm64 = "${{ steps.asset.outputs.url_arm64 }}"
+
+          .\wingetcreate.exe update Krusty93.Relego `
+            --submit `
+            --version $version `
+            --urls $urlX64 $urlArm64
