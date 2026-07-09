@@ -165,11 +165,11 @@ jobs:
         uses: ./.github/actions/discover-versioned-components
 
       - name: Download CLI Release Assets
+        if: needs.metadata.outputs.component == 'cli'
         uses: actions/download-artifact@v8
         with:
           name: cli-release-assets
           path: artifacts/
-        continue-on-error: true
 
       - name: Generate Release Notes
         id: notes
