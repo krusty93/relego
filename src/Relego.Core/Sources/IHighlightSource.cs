@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using Relego.Cli.Parsing;
+using Microsoft.Extensions.Logging;
+using Relego.Core.Parsing;
 
-namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// The common, self-describing abstraction through which every highlight source

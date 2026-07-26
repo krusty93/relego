@@ -1,10 +1,9 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
-using Relego.Cli.Infrastructure;
-using Relego.Cli.Parsing;
+using Relego.Core.Parsing;
 
-namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// Reads highlights and notes from a Kobo <c>KoboReader.sqlite</c> database and

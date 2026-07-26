@@ -1,4 +1,4 @@
-﻿using Relego.Cli.Sources;
+using Relego.Core.Sources;
 using Relego.Tests.Sources.Support;
 
 namespace Relego.Tests.Sources;

@@ -1,4 +1,4 @@
-﻿namespace Relego.Cli.Parsing;
+namespace Relego.Core.Parsing;
 
 /// <summary>
 /// A single parsed highlight or note from a Kindle clippings file.

@@ -1,8 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using Relego.Cli.Infrastructure;
-using Relego.Cli.Parsing;
+using Microsoft.Extensions.Logging;
+using Relego.Core.Parsing;
 
-namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// <see cref="IHighlightSource"/> adapter over the existing static

@@ -1,4 +1,4 @@
-namespace Relego.Cli.Infrastructure;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// Detects the Kobo <c>KoboReader.sqlite</c> database path across macOS, Linux, and Windows.

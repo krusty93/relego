@@ -1,4 +1,4 @@
-namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// The result of resolving an input (an explicit path or a device probe) into the

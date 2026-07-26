@@ -1,4 +1,4 @@
-﻿namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// Intermediate projection of one joined <c>Bookmark ⋈ content</c> row, before

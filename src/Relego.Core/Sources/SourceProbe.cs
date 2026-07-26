@@ -1,4 +1,4 @@
-namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// The outcome of a single source's detection attempt. Each source owns its own
