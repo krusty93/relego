@@ -1,5 +1,7 @@
-﻿using System.Data;
+using System.Data;
+using System.Globalization;
 using Dapper;
+using Relego.Core.Contracts;
 using Relego.Server.Models;
 using Relego.Server.Services;
 
@@ -75,6 +77,38 @@ public sealed class RecapRepository(IDbConnection connection)
             new { UserId = userId });
     }
 
+    public async Task<IReadOnlyList<RecapHistoryItemDto>> GetHistoryAsync(int userId, int limit)
+    {
+        var rows = await connection.QueryAsync<HistoryRow>(
+            """
+            SELECT id AS Id, scheduled_for AS ScheduledForText, status AS Status,
+                   attempt_count AS AttemptCount, error_message AS ErrorMessage,
+                   created_at AS CreatedAtText, delivered_at AS DeliveredAtText
+            FROM recap_jobs
+            WHERE user_id = @UserId
+            ORDER BY scheduled_for DESC
+            LIMIT @Limit
+            """,
+            new { UserId = userId, Limit = limit }).ConfigureAwait(false);
+
+        return
+        [
+            .. rows.Select(r => new RecapHistoryItemDto
+            {
+                Id = (int)r.Id,
+                ScheduledFor = ParseTimestamp(r.ScheduledForText),
+                Status = r.Status,
+                AttemptCount = (int)r.AttemptCount,
+                ErrorMessage = r.ErrorMessage,
+                CreatedAt = ParseTimestamp(r.CreatedAtText),
+                DeliveredAt = r.DeliveredAtText is null ? null : ParseTimestamp(r.DeliveredAtText),
+            }),
+        ];
+    }
+
+    private static DateTimeOffset ParseTimestamp(string value)
+        => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
     public async Task<IReadOnlyList<SelectionCandidate>> SelectCandidatesAsync(int userId, CancellationToken cancellationToken = default)
     {
         var rows = await connection.QueryAsync<SelectionCandidateRow>(new CommandDefinition(
@@ -136,5 +170,17 @@ public sealed class RecapRepository(IDbConnection connection)
         public long Weight { get; set; }
         public string? LastSeenText { get; set; }
         public string CreatedAtText { get; set; } = "";
+    }
+
+    // Raw row type for the recap history projection.
+    private sealed class HistoryRow
+    {
+        public long Id { get; set; }
+        public string ScheduledForText { get; set; } = "";
+        public string Status { get; set; } = "";
+        public long AttemptCount { get; set; }
+        public string? ErrorMessage { get; set; }
+        public string CreatedAtText { get; set; } = "";
+        public string? DeliveredAtText { get; set; }
     }
 }

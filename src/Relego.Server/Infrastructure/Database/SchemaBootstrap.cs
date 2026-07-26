@@ -70,6 +70,16 @@ public sealed class SchemaBootstrap
             delivered_at  TEXT    NULL
         );
 
+        CREATE TABLE IF NOT EXISTS smtp_settings (
+            id           INTEGER PRIMARY KEY CHECK (id = 1),
+            host         TEXT    NOT NULL,
+            port         INTEGER NOT NULL,
+            from_address TEXT    NOT NULL,
+            username     TEXT    NOT NULL DEFAULT '',
+            password     TEXT    NOT NULL DEFAULT '',
+            updated_at   TEXT    NOT NULL
+        );
+
         CREATE UNIQUE INDEX IF NOT EXISTS uq_authors_name
             ON authors(name);
 
