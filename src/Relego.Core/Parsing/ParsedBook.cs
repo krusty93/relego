@@ -1,4 +1,4 @@
-﻿namespace Relego.Cli.Parsing;
+namespace Relego.Core.Parsing;
 
 /// <summary>
 /// A book with its associated highlights, after deduplication and grouping.

@@ -1,10 +1,10 @@
-﻿using System.Net;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
-using Relego.Cli.Sources;
+using Relego.Core.Sources;
 using Relego.Core.Contracts;
 
 namespace Relego.Tests.Cli;

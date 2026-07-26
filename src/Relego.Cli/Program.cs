@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,7 +14,7 @@ using Relego.Cli.Commands.Recap;
 using Relego.Cli.Commands.Weight;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
-using Relego.Cli.Sources;
+using Relego.Core.Sources;
 using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);

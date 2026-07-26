@@ -1,4 +1,4 @@
-﻿namespace Relego.Cli.Infrastructure;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// Detects the Kindle "My Clippings.txt" file path across macOS, Linux, and Windows.
