@@ -22,6 +22,7 @@
 <p align="center">
   <a href="#how-it-works">How it works</a> ·
   <a href="#see-it">See it</a> ·
+  <a href="#web-ui">Web UI</a> ·
   <a href="#getting-started">Getting started</a> ·
   <a href="#cli-reference">CLI</a>
 </p>
@@ -37,6 +38,7 @@ Capabilities:
 - **No lock-in**: your highlights stay yours, in an open format
 - **Multiple import sources**: Kindle and Kobo are supported today, with a documented source registry for future integrations
 - **Privacy**: your reading habits are not sent to any cloud service
+- **Two front-ends**: a local web UI in your browser, or the terminal UI and CLI
 
 ## See it
 
@@ -76,6 +78,28 @@ Each recap is an EPUB document delivered to your Kindle. Here's an example of wh
 
 Each highlight includes the quote, the book title, and the author, making it easy to recall context at a glance. The number of highlights per recap is configurable (default is 5).
 
+## Web UI
+
+`docker compose --profile server up -d` also starts **relego-web** on <http://localhost:8081>. It is the easiest way to run Relego day to day: everything the TUI does, in the browser, on desktop or phone.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/web-ui-dark.png">
+  <img src="docs/assets/web-ui-light.png" alt="The Relego web UI showing the Highlights view: a left navigation rail, a search bar, and a list of highlight cards with their book, author and recap weight.">
+</picture>
+
+- **Library** — every book, its highlight count, and whether it is in the recap rotation. Rename a book inline.
+- **Highlights** — search, expand a highlight in place, set its recap weight 1–5, exclude or delete it. Deletions come back with an undo.
+- **Import** — drag `My Clippings.txt` or `KoboReader.sqlite` onto the page. No USB mount, no CLI, no device detection: the file is parsed on the server and you get a per-book summary of what was added and what was already there.
+- **Recaps** — when the next one goes out, what is in the rotation, the delivery history, and a "Send recap now" button.
+- **Settings** — delivery addresses, schedule, and the SMTP server itself, each with a test button. SMTP saved here is stored in the database and takes precedence over the environment variables, which only seed the first boot. The password is write-only: it is never sent back to the browser.
+
+It is keyboard-first. `Ctrl`/`⌘` `K` opens the command palette, `/` focuses search, `g` then `l` / `h` / `r` / `i` / `s` jumps between views, `j` / `k` move through lists, `t` cycles light → dark → system, and `?` shows every shortcut. Light, dark, and system themes are all first-class; the default follows your OS.
+
+Point the browser at a different server with `RELEGO_API_URL` on the `relego-web` service, and add that browser origin to `RELEGO_CORS_ORIGINS` on `relego-server`.
+
+> [!IMPORTANT]
+> Like the REST API, the web UI has **no authentication**. Anything that can reach the two published ports can read your highlights and change your settings, including the SMTP password. Keep both on a trusted network, or put them behind your own reverse proxy and auth layer. Do not expose them to the public internet.
+
 ## Interactive mode
 
 Run `relego` without arguments to open the interactive TUI. Use it to configure the server, browse highlights, and manage exclusions. For automation and scripting, use the CLI commands directly (see CLI reference).
@@ -102,6 +126,8 @@ Fill in `KINDLE_EMAIL` and the `SMTP_*` variables in `docker-compose.yml`, then:
 ```sh
 docker compose --profile server up -d
 ```
+
+This starts the API on <http://localhost:8080> and the [web UI](#web-ui) on <http://localhost:8081>. Steps 3 to 6 below use the CLI; you can do all of them in the browser instead.
 
 > [!IMPORTANT]
 > Amazon Send-to-Kindle only accepts emails from approved senders. Add the email address you are going to use in your Amazon "Approved Personal Document E-mail List" before testing delivery.
@@ -248,6 +274,7 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 |---------|-----|
 | `relego recap trigger` returns an error | Verify the server is up with `docker compose ps`. |
 | Trigger returns `No eligible highlights available` | No highlights imported yet. Run the import step first. |
+| Web UI shows "Disconnected" | The browser cannot reach the API. Check `docker compose ps`, then confirm the origin you opened matches `RELEGO_CORS_ORIGINS` on `relego-server`. |
 | No email in smtp4dev | Check that the `demo` profile is running, and that the `relego-server` environment block is using `ASPNETCORE_ENVIRONMENT=Development`, `SMTP_HOST=smtp4dev`, and `SMTP_PORT=2525`. |
 | smtp4dev web UI is blank | smtp4dev renders after a moment. Refresh the page. |
 
