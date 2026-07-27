@@ -13,19 +13,14 @@ services:
     image: ghcr.io/krusty93/relego.server:latest
     restart: unless-stopped
     environment:
-      SMTP_FROM_ADDRESS: noreply@example.com
-      KINDLE_EMAIL: your-address@kindle.com
-
-      SMTP_USER: user@example.com
-      SMTP_PASSWORD: yourpassword
-      SMTP_HOST: smtp.example.com
-      SMTP_PORT: "587"
-
-      # smtp4dev demo mode: replace the four lines above with these
-      # SMTP_PASSWORD: ""
-      # ASPNETCORE_ENVIRONMENT: Development
-      # SMTP_HOST: smtp4dev
-      # SMTP_PORT: "2525"
+      # These values seed the configuration on first boot. Settings saved in the web UI
+      # take precedence after that.
+      SMTP_FROM_ADDRESS: ${RELEGO_SMTP_FROM:-noreply@example.com}
+      SMTP_HOST: ${RELEGO_SMTP_HOST:-smtp.example.com}
+      SMTP_PORT: "${RELEGO_SMTP_PORT:-587}"
+      SMTP_USER: ${RELEGO_SMTP_USER:-}
+      SMTP_PASSWORD: ${RELEGO_SMTP_PASSWORD:-}
+      KINDLE_EMAIL: ${RELEGO_KINDLE_EMAIL:-}
     ports:
       - "8080:8080"
     volumes:

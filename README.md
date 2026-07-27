@@ -97,10 +97,10 @@ Connect your Kindle or Kobo device to your computer via USB cable.
 
 ### 2. Run the server
 
-Fill in `KINDLE_EMAIL` and the `SMTP_*` variables in `docker-compose.yml`, then:
+Set `RELEGO_KINDLE_EMAIL` and the `RELEGO_SMTP_*` variables in your shell or a `.env` file next to `docker-compose.yml`, then:
 
 ```sh
-docker compose --profile server up -d
+docker compose --profile app up -d
 ```
 
 > [!IMPORTANT]
@@ -112,7 +112,7 @@ docker compose --profile server up -d
 >
 > Use a free SMTP relay like [AWS SES](https://aws.amazon.com/ses/), [Resend](https://resend.com/docs/send-with-smtp), [MailerSend](https://www.mailersend.com/help/smtp-relay) or [Mailgun](https://www.mailgun.com/features/smtp-server/) instead. They offer free tiers with generous limits, suitable for Relego's everyday usage. Otherwise, you can use your own SMTP relay server.
 >
-> If you don't have or don't want to setup any SMTP server now, replace the SMTP settings in the `relego-server` block with the demo-mode block from `docker-compose.yml`, then run the `demo` profile: `docker compose --profile demo up -d`.
+> If you don't have or don't want to set up an SMTP server now, use the demo relay: `RELEGO_SMTP_HOST=smtp4dev RELEGO_SMTP_PORT=2525 docker compose --profile demo up -d`.
 
 ### 3. Import your highlights
 

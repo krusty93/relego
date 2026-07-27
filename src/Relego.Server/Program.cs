@@ -95,10 +95,7 @@ builder.Services.AddSingleton<ISchedulerService, SchedulerService>();
 builder.Services.AddTransient<RecapJob>();
 builder.Services.AddScoped<HighlightSelectionService>();
 
-if (builder.Environment.IsDevelopment())
-    builder.Services.AddScoped<IMailDeliveryService, DevMailDeliveryService>();
-else
-    builder.Services.AddScoped<IMailDeliveryService, MailDeliveryService>();
+builder.Services.AddScoped<IMailDeliveryService, MailDeliveryService>();
 
 builder.Services.AddScoped<IRecapService, RecapService>();
 

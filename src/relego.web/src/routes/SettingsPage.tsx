@@ -24,6 +24,16 @@ function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+/**
+ * Send-to-Kindle only accepts mail at Amazon's own domain, so a typo here fails silently
+ * hours later when the recap is dropped. `free.kindle.com` is Amazon's own wifi-delivery
+ * variant, so subdomains are allowed.
+ */
+function isKindleAddress(value: string): boolean {
+  const domain = value.trim().toLowerCase().split("@")[1];
+  return domain === "kindle.com" || domain?.endsWith(".kindle.com") === true;
+}
+
 export function SettingsPage() {
   const [current, setCurrent] = useState<string>(SECTIONS[0].id);
 
@@ -132,10 +142,15 @@ function DeliveryPanel() {
     setDeliveryEmail(query.data.deliveryEmail ?? "");
   }, [query.data]);
 
-  const kindleError =
-    touched && kindleEmail.trim() && !looksLikeEmail(kindleEmail)
+  const kindleValid = looksLikeEmail(kindleEmail) && isKindleAddress(kindleEmail);
+
+  const kindleError = !touched || !kindleEmail.trim()
+    ? null
+    : !looksLikeEmail(kindleEmail)
       ? "That doesn't look like an email address. It needs a domain, like you@kindle.com."
-      : null;
+      : !isKindleAddress(kindleEmail)
+        ? "Send-to-Kindle addresses end in @kindle.com. Check the Preferences page in your Amazon account for yours."
+        : null;
 
   const inboxError =
     touched && deliveryEmail.trim() && !looksLikeEmail(deliveryEmail)
@@ -186,7 +201,7 @@ function DeliveryPanel() {
             <button
               className="btn"
               type="button"
-              disabled={!looksLikeEmail(kindleEmail) || test.isPending}
+              disabled={!kindleValid || test.isPending}
               onClick={() => test.mutate("kindle")}
             >
               Send test
@@ -198,7 +213,8 @@ function DeliveryPanel() {
             </span>
           ) : (
             <span className="help" id="kindle-help">
-              Add your Relego sender address to your Amazon approved-sender list first.
+              Ends in @kindle.com. Add your Relego sender address to your Amazon
+              approved-sender list first.
             </span>
           )}
         </div>

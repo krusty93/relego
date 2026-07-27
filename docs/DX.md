@@ -44,6 +44,8 @@ That's it. The server is running and will start sending recaps on the default sc
 
 The server image includes the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
 
+SMTP environment variables seed an empty database on first boot. Once settings are saved in the web UI, the stored values take precedence.
+
 ### Client CLI
 
 **Option A — Docker (no install required):**

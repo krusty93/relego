@@ -106,6 +106,7 @@ export function ShortcutsSheet({ open, onClose }: { open: boolean; onClose: () =
           </Row>
           <Row keys={<kbd>Enter</kbd>}>Open or expand</Row>
           <Row keys={<kbd>e</kbd>}>Exclude / include</Row>
+          <Row keys={<kbd>n</kbd>}>Rename book</Row>
           <Row
             keys={
               <>

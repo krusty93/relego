@@ -15,6 +15,44 @@ test.describe("highlights", () => {
     await expect(page.locator(".hl-body:visible")).toHaveCount(1);
   });
 
+  // Same regression as the library list: the keys used to require an already-focused card.
+  test.describe("shortcuts work without focusing a card first", () => {
+    test("j and k walk the list, starting at the first card", async ({ page }) => {
+      const cards = page.locator(".hl-summary");
+      await expect(cards.first()).toBeVisible();
+      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("BODY");
+
+      await page.keyboard.press("j");
+      await expect(cards.nth(0)).toBeFocused();
+
+      await page.keyboard.press("j");
+      await expect(cards.nth(1)).toBeFocused();
+
+      await page.keyboard.press("k");
+      await expect(cards.nth(0)).toBeFocused();
+    });
+
+    test("number keys set the weight on the cursor card", async ({ page }) => {
+      await expect(page.locator(".hl-summary").first()).toBeVisible();
+
+      await page.keyboard.press("5");
+      await expect(page.locator(".hl .weight").first()).toHaveAttribute(
+        "aria-label",
+        "Recap weight 5 of 5",
+      );
+    });
+
+    test("e excludes the cursor highlight", async ({ page }) => {
+      await expect(page.locator(".hl-summary").first()).toBeVisible();
+
+      await page.keyboard.press("e");
+      await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(1);
+
+      await page.locator(".toast-action").click();
+      await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(0);
+    });
+  });
+
   test("number keys set the recap weight", async ({ page }) => {
     await page.locator(".hl-summary").first().focus();
     await page.keyboard.press("5");
