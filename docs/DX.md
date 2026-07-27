@@ -8,12 +8,13 @@
 
 ## Overview
 
-Relego consists of two components with distinct installation and usage patterns:
+Relego consists of three components with distinct installation and usage patterns:
 
 - **Server** (`relego-server`) — Always-on Docker container deployed on a home server, NAS, or Raspberry Pi. Handles scheduling, spaced repetition, recap composition, and email delivery.
-- **Client CLI** (`relego`) — Installed on the user's laptop. Used to import highlights from registered sources (Kindle and Kobo today) and manage settings.
+- **Web UI** (`relego-web`) — Static single-page app in a Docker container, served alongside the server. The recommended everyday surface: browse and curate highlights, upload a clippings file, and configure everything including SMTP from the browser.
+- **Client CLI** (`relego`) — Installed on the user's laptop. Used to import highlights directly from a connected device (Kindle and Kobo today), to manage settings from the terminal, and for scripting.
 
-The guiding DX principle: **zero friction after a one-time setup**. Onboarding requires one server start, one delivery destination, one import command.
+The guiding DX principle: **zero friction after a one-time setup**. Onboarding requires one server start, one delivery destination, one import.
 
 ---
 
@@ -39,6 +40,24 @@ docker run -d \
 ```
 
 That's it. The server is running and will start sending recaps on the default schedule (daily at 18:00 client's local time).
+
+### Web UI
+
+The simplest route is `docker compose --profile server up -d` from the repository root, which starts the server and the web UI together. Standalone:
+
+```sh
+docker run -d \
+  --name relego-web \
+  --restart unless-stopped \
+  -e RELEGO_API_URL=http://localhost:8080 \
+  -p 8081:8081 \
+  --network relego \
+  relego-web
+```
+
+`RELEGO_API_URL` is resolved by the **browser**, not by the container, so it must be a URL you can open yourself — usually the host's published server port. Add that browser origin to `RELEGO_CORS_ORIGINS` on `relego-server` (for example `http://localhost:8081`) or every request will be blocked by the browser.
+
+Once SMTP is saved from the Settings page it lives in the database and the `SMTP_*` environment variables stop being read; they only seed an empty configuration on first boot.
 
 ### Client CLI
 
@@ -142,6 +161,8 @@ relego import <path>   # Explicit source file or mounted device root
 ```
 
 When both a Kindle and a Kobo are connected, Relego imports both in one run and reports each source separately. If one source fails, the other still imports.
+
+Without a CLI install, open the web UI's **Import** page and drop `My Clippings.txt` or `KoboReader.sqlite` onto it. The server sniffs the format, parses it with the same `Relego.Core` code the CLI uses, and reports per book what was added and what was already there. This is the only import path that works when the device is attached to a machine that has no Relego binary — for example a phone or a locked-down work laptop.
 
 ---
 
@@ -301,7 +322,35 @@ Errors are actionable — they tell the user exactly what to do.
 ## Decisions
 
 - `relego import` auto-detects Kindle and Kobo sources on macOS, Linux, and Windows. Explicit Kindle file paths are routed by `.txt` extension, while auto-detection still probes the device's `My Clippings.txt` path. Each source owns its own detection rules, and the resolver imports every detected source with per-source failure isolation.
-- Server authentication is not required — the server is assumed to be on a trusted local network.
+- Parsing and the source registry live in `Relego.Core`, so the CLI (device attached) and the server (file uploaded) share one implementation. Adding a source adds it to both.
+- The web UI ships as static files with no build-time configuration; the API URL is injected at container start. One image works against any server.
+- Server authentication is not required — the server is assumed to be on a trusted local network. The web UI inherits that assumption and must not be exposed to the public internet.
+
+---
+
+## Local development (web UI)
+
+```sh
+# terminal 1 — API
+cd src/Relego.Server
+RELEGO_CORS_ORIGINS=http://localhost:5173 dotnet run
+
+# terminal 2 — UI with hot reload
+cd src/web
+npm install
+npm run dev            # http://localhost:5173
+```
+
+In development the SPA falls back to `http://localhost:8080` when `/config.js` is absent, so no extra setup is needed.
+
+```sh
+npm run typecheck      # tsc --noEmit over src, tests and configs
+npm run build          # typecheck + production bundle into dist/
+npm test               # Playwright: boots the API and Vite, seeds fixtures, runs everything
+npm run test:a11y      # axe-core sweep only
+```
+
+`npm test` starts `relego-server` itself against a throwaway SQLite file in the temp directory, so it never touches your development database. Existing servers on ports 8080 and 5173 are reused outside CI.
 
 ---
 

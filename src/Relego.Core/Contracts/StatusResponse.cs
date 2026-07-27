@@ -40,4 +40,7 @@ public sealed record StatusResponse
 
     /// <summary>Indicates whether a regular delivery email is configured for the user.</summary>
     public bool DeliveryEmailConfigured { get; set; }
+
+    /// <summary>Informational build version of the running server, e.g. "0.18.0".</summary>
+    public string? ServerVersion { get; set; }
 }
