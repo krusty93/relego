@@ -43,7 +43,7 @@ That's it. The server is running and will start sending recaps on the default sc
 
 ### Web UI
 
-The simplest route is `docker compose --profile server up -d` from the repository root, which starts the server and the web UI together. Standalone:
+The simplest route is `docker compose --profile app up -d` from the repository root, which starts the server and the web UI together. The `demo` profile adds a throwaway smtp4dev relay on top of those two; `cli` runs the CLI container on its own. Standalone:
 
 ```sh
 docker run -d \

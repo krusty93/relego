@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { AsyncSection, EmptyState, Tag } from "../components/ui";
 import { api } from "../lib/api";
 import { formatCount, plural } from "../lib/format";
+import { useListKeys } from "../lib/listkeys";
 import { useDebounced, useSearch } from "../lib/search";
 import { useToasts } from "../lib/toasts";
 import type { BookItem } from "../lib/types";
@@ -73,33 +74,29 @@ export function LibraryPage() {
     row?.focus();
   }
 
-  function onRowKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, book: BookItem, index: number) {
-    switch (event.key) {
-      case "j":
-      case "ArrowDown":
-        event.preventDefault();
-        focusRow(index + 1);
-        break;
-      case "k":
-      case "ArrowUp":
-        event.preventDefault();
-        focusRow(index - 1);
-        break;
-      case "Enter":
-        event.preventDefault();
-        navigate(`/books/${book.id}`);
-        break;
-      case "e":
-        event.preventDefault();
-        toggleExclusion.mutate(book);
-        break;
-      case "n":
-        event.preventDefault();
-        setRenaming(book);
-        break;
-      default:
-        break;
-    }
+  useListKeys({
+    count: items.length,
+    cursor,
+    containerRef: rowsRef,
+    focusAt: focusRow,
+    actions: {
+      e: (index) => {
+        const book = items[index];
+        if (book) toggleExclusion.mutate(book);
+      },
+      n: (index) => {
+        const book = items[index];
+        if (book) setRenaming(book);
+      },
+    },
+  });
+
+  // Enter belongs to the focused row rather than to the page: hijacking it globally would
+  // steal activation from every other control.
+  function onRowKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, book: BookItem) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    navigate(`/books/${book.id}`);
   }
 
   const totalHighlights = items.reduce((sum, book) => sum + book.highlightCount, 0);
@@ -172,7 +169,7 @@ export function LibraryPage() {
                   aria-selected={index === cursor}
                   onFocus={() => setCursor(index)}
                   onClick={() => navigate(`/books/${book.id}`)}
-                  onKeyDown={(event) => onRowKeyDown(event, book, index)}
+                  onKeyDown={(event) => onRowKeyDown(event, book)}
                 >
                   <td className="book-title">{book.title}</td>
                   <td className="book-author">{book.authorName}</td>
