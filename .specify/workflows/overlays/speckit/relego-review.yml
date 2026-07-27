@@ -1,0 +1,15 @@
+id: relego-review
+extends: speckit
+priority: 10
+enabled: true
+edits:
+- insert_before: implement
+  step:
+    id: review-implementation
+    type: gate
+    message: Confirm the design package is approved, the design PR is merged, and
+      implementation subtasks are ready.
+    options:
+    - approve
+    - reject
+    on_reject: abort
