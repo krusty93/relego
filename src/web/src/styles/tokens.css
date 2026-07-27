@@ -79,6 +79,11 @@
   --r-md: 9px;
   --r-lg: 14px;
   --r-pill: 999px;
+  /* The widest the working column ever gets. Beyond this, rows grow a dead
+     gutter and right-aligned metadata drifts away from the text it describes. */
+  --measure-view: 1180px;
+  /* Reading measure for standalone prose, per the 65-75ch rule. */
+  --measure-prose: 68ch;
   --z-sticky: 100;
   --z-rail: 200;
   --z-backdrop: 300;

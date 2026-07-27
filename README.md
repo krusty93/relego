@@ -88,7 +88,7 @@ Each highlight includes the quote, the book title, and the author, making it eas
 </picture>
 
 - **Library** — every book, its highlight count, and whether it is in the recap rotation. Rename a book inline.
-- **Highlights** — search, expand a highlight in place, set its recap weight 1–5, exclude or delete it. Deletions come back with an undo.
+- **Highlights** — search, expand a highlight in place, set its recap weight 1–5, exclude or delete it. Excluding is reversible from a toast; deleting is permanent, so it asks once, in place.
 - **Import** — drag `My Clippings.txt` or `KoboReader.sqlite` onto the page. No USB mount, no CLI, no device detection: the file is parsed on the server and you get a per-book summary of what was added and what was already there.
 - **Recaps** — when the next one goes out, what is in the rotation, the delivery history, and a "Send recap now" button.
 - **Settings** — delivery addresses, schedule, and the SMTP server itself, each with a test button. SMTP saved here is stored in the database and takes precedence over the environment variables, which only seed the first boot. The password is write-only: it is never sent back to the browser.

@@ -491,3 +491,8 @@ $RECYCLE.BIN/
 .data/
 .vercel
 .env*
+
+# impeccable design-skill runtime state (per-machine, not shared)
+.impeccable/hook.cache.json
+.impeccable/config.local.json
+.impeccable/live/

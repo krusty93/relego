@@ -3,8 +3,10 @@ import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const API_PORT = 8080;
-const WEB_PORT = 5173;
+// Ports are overridable so the suite can run on a machine where 8080 / 5173 are
+// already taken by something else.
+const API_PORT = Number(process.env.RELEGO_E2E_API_PORT ?? 8080);
+const WEB_PORT = Number(process.env.RELEGO_E2E_WEB_PORT ?? 5173);
 export const API_URL = `http://localhost:${API_PORT}`;
 
 // A throwaway database per run, removed here so it is gone before the server boots.
@@ -40,8 +42,10 @@ export default defineConfig({
   ],
   webServer: [
     {
+      // --no-launch-profile so launchSettings.json's applicationUrl doesn't
+      // override ASPNETCORE_URLS and pin the suite to one hard-coded port.
       command:
-        "dotnet run --project ../Relego.Server/Relego.Server.csproj --configuration Release",
+        "dotnet run --project ../Relego.Server/Relego.Server.csproj --configuration Release --no-launch-profile",
       url: `${API_URL}/healthz/startup`,
       reuseExistingServer: !process.env.CI,
       timeout: 240_000,
@@ -61,6 +65,7 @@ export default defineConfig({
       url: `http://localhost:${WEB_PORT}/`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      env: { RELEGO_API_URL: API_URL },
     },
   ],
 });
