@@ -33,18 +33,35 @@ Use the repository templates when opening a new issue:
 
 Planned product work also uses feature labels such as `feature:003-highlight-parser`. Those labels map to the design artifacts in `specs/` and should stay aligned between the parent issue, its subtasks, and the final PR.
 
-### Spec-kit workflow for tracked features
+### Spec Kit workflow for tracked features
 
-This repository already wires [GitHub speck-kit](https://github.com/github/spec-kit) into the local `/speckit.*` commands. Use that workflow only for tracked feature work under a `feature:00X-name` label, not for routine bug fixes, docs changes, or chores.
+This repository uses [GitHub Spec Kit](https://github.com/github/spec-kit) with the Copilot skills integration. Use Spec Kit only for tracked feature work under a `feature:00X-name` label, not for routine bug fixes, docs changes, or chores.
+
+The complete workflow can be invoked from the repository root:
+
+```sh
+specify workflow run speckit -i spec="Describe the feature to build"
+```
+
+The workflow pauses after specification and planning for review. The Relego-specific `relego-review` overlay adds a final gate before implementation. Approve that gate only after the design PR has merged and the GitHub Project implementation subtasks have been created.
+
+Inspect or resume a paused run with:
+
+```sh
+specify workflow status
+specify workflow status <run-id>
+specify workflow resume <run-id>
+```
 
 1. Create the Design subtask and the Implementation subtask under the parent feature issue.
 2. Move the Design subtask to `In progress` before writing spec artifacts.
-3. Run `/speckit.specify`, `/speckit.plan`, and `/speckit.tasks` in order.
+3. Run the Spec Kit workflow, or run `/speckit-specify`, `/speckit-plan`, and `/speckit-tasks` in order.
 4. Capture user or maintainer decisions at each step instead of letting the tool guess scope or behavior.
 5. Treat the resulting `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and `tasks.md` files in `specs/00X/` as the feature design package, and open a PR.
-6. Iterate on the design package until the implementation phase is ready, then merge to `main` before starting implementation.
-7. After `tasks.md` is ready, create one implementation phase subtask per phase and implement them incrementally.
-8. When a task is completed on a branch, mark it `[X]` in `tasks.md` on that same branch before pushing.
+6. Iterate on the design package until the implementation phase is ready, then merge the design PR to `main` before starting implementation.
+7. **After the design PR merges**, create one implementation phase subtask per phase defined in `tasks.md`. Make each phase subtask a child of the Implementation subtask, apply the parent feature label, add it to the GitHub Project Kanban, and leave it in `Backlog`.
+8. Move the Implementation subtask to `In progress`, then implement the phase subtasks incrementally.
+9. When a task is completed on a branch, mark it `[X]` in `tasks.md` on that same branch before pushing.
 
 Do not add ad-hoc files under `specs/` or run spec-kit for work that is not tied to a tracked feature issue.
 

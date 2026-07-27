@@ -12,11 +12,46 @@ Self-hosted tool that delivers Kindle highlight recaps to the user's Kindle via 
 
 ## Coding conventions
 
-- .NET/C# conventions (use already installed skills csharp-async, dotnet-best-practices, dotnet-upgrade,etc.)
-- All REST endpoints return JSON; errors are actionable 
-- TDD where applicable (e.g. API endpoints, parsers) using already installed skills csharp-xunit, etc.; not required for mechanical changes (e.g. NuGet updates, csproj edits)
+- Follow existing .NET and C# conventions and use the repository's installed language and framework guidance where applicable.
+- All REST endpoints return JSON; errors must be actionable.
+- Use TDD where applicable, especially for API endpoints, parsers, and other behavior-heavy changes. Tests are not required for purely mechanical changes such as NuGet updates or `.csproj` edits.
 - When adding new .NET projects: `dotnet sln src/Relego.slnx add src/<Project>/<Project>.csproj` in the same PR
 - Diagrams: Mermaid preferred; ASCII only for spatial layouts
+
+## Spec Kit integration
+
+This repository uses GitHub Spec Kit with the Copilot skills integration. Spec Kit skills live under `.github/skills/speckit-<command>/SKILL.md` and are invoked with `/speckit-<command>`.
+
+Core commands:
+
+- `/speckit-constitution`
+- `/speckit-specify`
+- `/speckit-plan`
+- `/speckit-tasks`
+- `/speckit-implement`
+
+Optional quality commands:
+
+- `/speckit-clarify`
+- `/speckit-checklist`
+- `/speckit-analyze`
+- `/speckit-converge`
+
+The complete tracked-feature workflow can be run from the repository root:
+
+```sh
+specify workflow run speckit -i spec="Describe the feature to build"
+```
+
+The workflow pauses after specification and planning for review. The Relego-specific `relego-review` overlay also pauses before implementation. Approve that gate only after the design package is approved, the design PR is merged, and GitHub Project implementation phase subtasks have been created from `tasks.md`. Inspect and resume runs with:
+
+```sh
+specify workflow status
+specify workflow status <run-id>
+specify workflow resume <run-id>
+```
+
+Do not run `/speckit-implement` until the feature issue and implementation subtask exist, the design package has been reviewed and approved, the design PR has been merged, implementation subtasks are ready, and the relevant issue has moved to `In progress`.
 
 ## ADR conventions
 
@@ -43,7 +78,7 @@ Status names: `Backlog` · `Ready` · `In progress` · `In review` · `Done`
 
 Each feature (e.g. `003-highlight-parser`) has **one parent task** on the kanban with label `feature:00X-name`. The parent task contains:
 
-1. **Design subtask** — runs spec-kit (`/speckit.specify` → `/speckit.plan` → `/speckit.tasks`); produces `specs/00X/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `tasks.md`; implementation subtasks are created here
+1. **Design subtask** — runs Spec Kit (`/speckit-specify` → `/speckit-plan` → `/speckit-tasks`); produces `specs/00X/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `tasks.md`
 2. **Implementation subtasks** — one per phase defined in `tasks.md`; each subtask carries the same label as the parent
 
 ### Feature start sequence
@@ -52,9 +87,10 @@ When asked to start a feature, follow this exact order **before writing any code
 
 1. Create the **Design subtask** issue (label = parent label), add to kanban → move to `In progress`
 2. Create the **Implementation subtask** issue (label = parent label), add to kanban → leave in `Backlog`
-3. Run spec-kit: `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` — **each step requires user involvement**: ask the user for all decisions, feature preferences, constraints, and clarifications before proceeding to the next step; do not make assumptions on scope or design choices
-4. Once `tasks.md` is ready, create **one implementation phase subtask** per phase defined in `tasks.md`; each phase subtask is a child of the Implementation subtask issue (same label); add each to kanban → `Backlog`
-5. Mark Design subtask PR → `In review`; on merge → `Done`; move Implementation subtask → `In progress` and begin phase-by-phase implementation
+3. Run Spec Kit: `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` — **each step requires user involvement**: ask the user for all decisions, feature preferences, constraints, and clarifications before proceeding to the next step; do not make assumptions on scope or design choices
+4. Open the design PR and move the Design subtask to `In review`.
+5. **After the design PR merges**, move the Design subtask to `Done`, then create **one implementation phase subtask** per phase defined in `tasks.md`. Each phase subtask must be a child of the Implementation subtask, use the same feature label, and be added to the GitHub Project Kanban in `Backlog`.
+6. Move the Implementation subtask to `In progress`, then begin phase-by-phase implementation.
 
 For non-feature tasks (e.g. CI/CD pipeline), check existing labels first. If no label matches, ask the user before proceeding.
 
