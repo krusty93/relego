@@ -43,4 +43,41 @@ test.describe("highlights", () => {
     await page.locator(".toast-action").click();
     await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(0);
   });
+
+  test("deleting takes a second confirmation and Keep backs out", async ({ page }) => {
+    const before = await page.locator(".hl").count();
+
+    await page.locator(".hl-summary").first().click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+
+    const confirm = page.getByRole("group", { name: "Confirm delete" });
+    await expect(confirm).toBeVisible();
+    await expect(page.locator(".hl")).toHaveCount(before);
+
+    await confirm.getByRole("button", { name: "Keep" }).click();
+    await expect(confirm).toBeHidden();
+    await expect(page.locator(".hl")).toHaveCount(before);
+  });
+
+  test("collapsing a row abandons a pending delete", async ({ page }) => {
+    await page.locator(".hl-summary").first().click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Yes, delete" })).toBeVisible();
+
+    await page.locator(".hl-summary").first().click();
+    await expect(page.getByRole("button", { name: "Yes, delete" })).toBeHidden();
+
+    await page.locator(".hl-summary").first().click();
+    await expect(page.getByRole("button", { name: "Yes, delete" })).toBeHidden();
+  });
+
+  test("confirming the delete removes the highlight", async ({ page }) => {
+    const before = await page.locator(".hl").count();
+
+    await page.locator(".hl-summary").last().click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+
+    await expect(page.locator(".hl")).toHaveCount(before - 1);
+  });
 });

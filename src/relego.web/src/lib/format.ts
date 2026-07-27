@@ -39,6 +39,42 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
+/**
+ * The schedule is configured in the server's timezone, so the next-recap time
+ * has to be rendered in that zone too — otherwise a reader in another zone sees
+ * their own local clock time labelled with the server's zone name.
+ * Returns the zone the text is actually expressed in so the label can't drift.
+ */
+export function formatDateTimeInZone(
+  iso: string | null | undefined,
+  timeZone: string | null | undefined,
+): { text: string; zone: string } {
+  const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  if (!iso) return { text: "—", zone: timeZone ?? localZone };
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { text: "—", zone: timeZone ?? localZone };
+
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  };
+
+  if (timeZone) {
+    try {
+      return { text: date.toLocaleString(undefined, { ...options, timeZone }), zone: timeZone };
+    } catch {
+      // Unknown zone identifier — fall through to the browser's own zone.
+    }
+  }
+
+  return { text: date.toLocaleString(undefined, options), zone: localZone };
+}
+
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
 

@@ -3,7 +3,8 @@ import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const API_PORT = 8080;
+// The port is overridable so the suite can run alongside an existing server.
+const API_PORT = Number(process.env.RELEGO_E2E_API_PORT ?? 8080);
 export const API_URL = `http://localhost:${API_PORT}`;
 const SERVER_PROJECT = resolve("../Relego.Server/Relego.Server.csproj");
 const PUBLISH_DIRECTORY = join(tmpdir(), "relego-web-e2e-publish");
