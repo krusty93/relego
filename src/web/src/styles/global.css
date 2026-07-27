@@ -60,6 +60,11 @@ code {
   border-radius: var(--r-sm);
 }
 
+::placeholder {
+  color: var(--ink-subtle);
+  opacity: 1;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -301,6 +306,8 @@ code {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Shared by the topbar and the view so chrome and content align on one column. */
+  --gutter: max(var(--sp-5), calc((100% - var(--measure-view)) / 2));
 }
 
 .topbar {
@@ -310,7 +317,7 @@ code {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-5);
+  padding: var(--sp-3) var(--gutter);
   background: var(--canvas);
   border-bottom: 1px solid var(--border);
   min-height: 57px;
@@ -402,10 +409,6 @@ code {
   width: 100%;
   font-size: var(--t-base);
   color: var(--ink);
-}
-
-.search input::placeholder {
-  color: var(--ink-subtle);
 }
 
 .search svg {
@@ -515,7 +518,16 @@ kbd {
 
 /* ---------------------------------------------------------- Views */
 .view {
-  padding: var(--sp-5);
+  padding: var(--sp-5) var(--gutter);
+}
+
+/* Standalone prose keeps a reading measure; text inside tables, rows and
+   controls is laid out by its own component and is excluded. */
+.view > p,
+.panel > p,
+.panel > header > p {
+  max-width: var(--measure-prose);
+  text-wrap: pretty;
 }
 
 .view-head {
@@ -550,6 +562,16 @@ kbd {
   gap: var(--sp-2);
   align-items: center;
   flex-wrap: wrap;
+}
+
+.notice {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-sunk);
+  color: var(--ink-muted);
+  font-size: var(--t-sm);
 }
 
 .table-wrap {
@@ -663,6 +685,10 @@ td {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
+  /* The quote is capped at a reading measure, so the card is capped just wide
+     enough to hold it plus the weight pips — otherwise the pips strand
+     themselves at the far edge of an empty card. */
+  max-width: 800px;
 }
 
 .hl {
@@ -693,6 +719,11 @@ td {
   text-align: left;
   cursor: pointer;
   color: inherit;
+}
+
+.hl-summary:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--r-lg);
 }
 
 .hl-quote {
@@ -757,6 +788,19 @@ td {
   align-items: center;
   padding-top: var(--sp-3);
   border-top: 1px solid var(--border);
+}
+
+.confirm {
+  display: inline-flex;
+  gap: var(--sp-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.confirm-q {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .seg {
@@ -1407,7 +1451,7 @@ dialog[open] {
   }
 
   .main {
-    padding-bottom: 72px;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
   }
 
   .mobile-mark {
@@ -1420,8 +1464,17 @@ dialog[open] {
   }
 
   .topbar .breadcrumb,
-  .topbar [data-palette],
   .topbar .spacer {
+    display: none;
+  }
+
+  /* The palette is the only route to the actions that live behind
+     keyboard chords on desktop, so it has to survive on touch. */
+  .topbar [data-palette] {
+    margin-left: auto;
+  }
+
+  .topbar [data-palette] kbd {
     display: none;
   }
 
@@ -1471,7 +1524,7 @@ dialog[open] {
 
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     position: fixed;
     inset: auto 0 0 0;
     z-index: var(--z-rail);
@@ -1493,6 +1546,8 @@ dialog[open] {
     cursor: pointer;
     border-radius: var(--r-md);
     text-decoration: none;
+    min-width: 0;
+    text-align: center;
   }
 
   .tabbar a[aria-current="page"] {

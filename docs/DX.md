@@ -352,6 +352,12 @@ npm run test:a11y      # axe-core sweep only
 
 `npm test` starts `relego-server` itself against a throwaway SQLite file in the temp directory, so it never touches your development database. Existing servers on ports 8080 and 5173 are reused outside CI.
 
+If either port is already taken by something else, move the suite instead of hunting down the other process:
+
+```sh
+RELEGO_E2E_API_PORT=8099 RELEGO_E2E_WEB_PORT=5199 npm test
+```
+
 ---
 
 ## Local development (VS Code)

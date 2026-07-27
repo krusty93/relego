@@ -70,8 +70,10 @@ celebrates. Success is confirmed once, quietly, and gets out of the way.
    place a display face appears. Controls stay quiet so the words don't compete.
 3. **Inline over modal.** A detail view, a weight change, a confirmation — resolve it in
    place. Interrupt only for genuinely global actions.
-4. **Reversible beats confirmed.** Prefer an undo affordance after the fact over a
-   are-you-sure gate before it.
+4. **Reversible beats confirmed.** Prefer an undo affordance after the fact over an
+   are-you-sure gate before it. Where the action genuinely cannot be undone — deleting a
+   highlight is a hard delete with no restore endpoint — confirm in place rather than
+   pretending it is reversible.
 5. **Keyboard is a first-class path, not an accessibility checkbox.** The people replacing
    a TUI expect to drive this without a mouse; the shortcut layer is part of the design,
    discoverable from a single `?`.

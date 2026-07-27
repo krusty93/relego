@@ -314,7 +314,7 @@ Hover raises color, not altitude.
 - **Ghost:** transparent, `ink-muted` text; hover fills with `accent-wash`. Toolbar and
   rail affordances only.
 - **Danger:** secondary shape, `danger` text, hover fills with 12% `danger`. Never a solid
-  red button — destruction is undoable here, so it doesn't get to shout.
+  red button — the confirmation step carries the weight, so the trigger doesn't get to shout.
 - **Hover / Focus:** 180ms `cubic-bezier(0.22, 1, 0.36, 1)` on background and border only.
   Focus is a 2px `accent` outline with 2px offset — on every interactive element, no
   exceptions.
@@ -379,8 +379,28 @@ beneath a hairline: a 1–5 segmented weight control (`aria-pressed`, keys `1`�
 exclude/include toggle, and a danger-text Delete. **Nothing opens.** The list keeps its
 scroll position and the user keeps their place.
 
-Delete does not confirm. It removes the row and raises a toast with an Undo button for
-~4 seconds, announced via `role="status"`.
+Delete is the one destructive action with no server-side undo — `DELETE /highlights/{id}` is a
+hard delete and there is no restore endpoint. So it takes two deliberate steps *in place*:
+Delete swaps the button row for "Delete permanently? · Yes, delete · Keep". Still no dialog,
+still no lost scroll position. `Escape` backs out of the confirmation before it collapses the
+row, and collapsing or moving to another row abandons a pending confirmation.
+
+Reversible actions get the opposite treatment: exclude/include acts immediately and raises a
+toast with an Undo button, announced via `role="status"`.
+
+### Measure
+
+Two caps keep wide screens from stranding content:
+
+- `--measure-view` (1180px) is applied as a shared `--gutter` on `.main`, so `.topbar` and
+  `.view` centre on the same column. The topbar keeps a full-bleed background while its
+  contents line up with the view beneath it. On mobile the `max()` collapses to `--sp-5`.
+- `--measure-prose` (68ch) caps standalone paragraphs (`.view > p`, `.panel > p`,
+  `.panel > header > p`). Text inside tables, rows and controls is laid out by its own
+  component and is deliberately exempt.
+
+`.hl-list` is additionally capped at 800px: the quote is capped at 72ch, so a wider card would
+leave the weight pips stranded at the far edge of empty space.
 
 ## 6. Do's and Don'ts
 
@@ -389,9 +409,24 @@ Delete does not confirm. It removes the row and raises a toast with an Undo butt
 - **Do** use `accent-ink` (`#8f5228`) whenever the accent carries a glyph in light mode, and
   `accent-solid` (`#9a5a2f`) whenever a glyph sits on the accent. Raw `#b56b39` is a shape color.
 - **Do** keep `ink-subtle` (`#736558` / `#9a8d7f`) as the lightest text in the system. Placeholders
-  use it too — they are not exempt from 4.5:1.
+  use it too — they are not exempt from 4.5:1, so the base rule is a bare `::placeholder`
+  selector with `opacity: 1`, never a per-component override that some inputs miss.
+- **Do** flip a focus ring inset (`outline-offset: -2px`) on any control that sits flush inside
+  an `overflow: hidden` parent — table rows and `.hl-summary`. An outset ring on a flush child
+  is clipped away entirely, which reads as "no focus ring" to a keyboard user.
+- **Do** guard an action in **every** surface that can trigger it. A guard on the page button
+  and none in the command palette just moves the failure; on mobile the palette *is* the
+  primary action surface.
 - **Do** resolve detail, weight editing and confirmation **inline**. The TUI's popups were the
   problem being solved; reproducing them as `<dialog>` is a regression.
+- **Do** make destructive actions reversible where the server allows it (undo toast) and
+  two-step where it does not (inline confirm). Never one-click-and-gone.
+- **Do** send every partial `PATCH /settings` with the current `deliveryEmail`. The server
+  treats an absent `deliveryEmail` as "clear it", so a Schedule-only save would otherwise wipe
+  the user's delivery address.
+- **Do** render server-scheduled times in the **server's** timezone with a matching label.
+  The delivery time is configured in that zone; showing the viewer's local clock beside the
+  server's zone name is a lie.
 - **Do** pair every status color with a text label — `Delivered`, `Excluded`, `Disconnected`.
 - **Do** give every interactive element all seven states: default, hover, focus-visible,
   active, disabled, loading, error.

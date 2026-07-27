@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { AsyncSection, EmptyState, Tag } from "../components/ui";
 import { api } from "../lib/api";
-import { describeSchedule, formatDateTime, plural } from "../lib/format";
+import { describeSchedule, formatDateTime, formatDateTimeInZone, plural } from "../lib/format";
 import { useToasts } from "../lib/toasts";
 
 function resultTone(status: string): "ok" | "bad" | "excluded" {
@@ -32,6 +33,13 @@ export function RecapsPage() {
 
   const items = history.data?.items ?? [];
 
+  const hasDestination = Boolean(
+    settings.data?.kindleEmail?.trim() || settings.data?.deliveryEmail?.trim(),
+  );
+  const blockedReason = settings.isSuccess && !hasDestination ? "Add a reader address first." : null;
+
+  const nextRecap = formatDateTimeInZone(status.data?.nextRecap, settings.data?.timezone);
+
   return (
     <section className="view" aria-labelledby="rc-h">
       <div className="view-head">
@@ -47,12 +55,20 @@ export function RecapsPage() {
             className="btn btn--primary"
             type="button"
             onClick={() => sendNow.mutate()}
-            disabled={sendNow.isPending}
+            disabled={sendNow.isPending || blockedReason !== null}
+            aria-describedby={blockedReason ? "rc-blocked" : undefined}
           >
             {sendNow.isPending ? "Sending…" : "Send recap now"}
           </button>
         </div>
       </div>
+
+      {blockedReason ? (
+        <p className="notice" id="rc-blocked">
+          {blockedReason} <Link to="/settings">Open settings</Link> to choose where recaps are
+          delivered.
+        </p>
+      ) : null}
 
       <div className="panel">
         <dl className="dl">
@@ -60,10 +76,8 @@ export function RecapsPage() {
           <dd>
             {status.data?.nextRecap ? (
               <>
-                <time dateTime={status.data.nextRecap}>
-                  {formatDateTime(status.data.nextRecap)}
-                </time>{" "}
-                {settings.data ? <span className="subtle">{settings.data.timezone}</span> : null}
+                <time dateTime={status.data.nextRecap}>{nextRecap.text}</time>{" "}
+                <span className="subtle">{nextRecap.zone}</span>
               </>
             ) : (
               <span className="subtle">Not scheduled yet</span>

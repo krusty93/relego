@@ -7,7 +7,11 @@ import { api, ApiError } from "../lib/api";
 import { API_URL } from "../lib/config";
 import { capitalise, DAYS } from "../lib/format";
 import { useToasts } from "../lib/toasts";
-import type { SettingsResponse, SmtpSettingsResponse } from "../lib/types";
+import type {
+  SettingsResponse,
+  SmtpSettingsResponse,
+  UpdateSettingsRequest,
+} from "../lib/types";
 
 const SECTIONS = [
   { id: "s-delivery", label: "Where recaps go" },
@@ -95,9 +99,14 @@ function useSettingsForm() {
   const { push } = useToasts();
 
   const query = useQuery({ queryKey: ["settings"], queryFn: api.settings, retry: false });
+  const current = query.data;
 
   const save = useMutation({
-    mutationFn: api.updateSettings,
+    // The server treats an absent deliveryEmail as "clear it", so every partial
+    // save has to carry the address it isn't editing or the Schedule form would
+    // silently wipe the delivery address.
+    mutationFn: (body: UpdateSettingsRequest) =>
+      api.updateSettings({ deliveryEmail: current?.deliveryEmail ?? "", ...body }),
     onSuccess: (data) => {
       queryClient.setQueryData(["settings"], data);
       void queryClient.invalidateQueries({ queryKey: ["status"] });
