@@ -1,42 +1,30 @@
 services:
-  relego-cli:
-    image: ghcr.io/krusty93/relego.cli:latest
-    restart: "no"
-    tty: true
-    environment:
-      SERVER_URL: http://relego-server:8080
-    networks:
-      - relego
-    profiles: [client]
-
   relego-server:
     image: ghcr.io/krusty93/relego.server:latest
     restart: unless-stopped
     environment:
-      SMTP_FROM_ADDRESS: noreply@example.com
-      KINDLE_EMAIL: your-address@kindle.com
+      # Mail server. These seed the configuration on FIRST BOOT ONLY — once you save
+      # settings from the web UI the stored values win and changing these has no further
+      # effect. Point the demo at its bundled relay with:
+      #   RELEGO_SMTP_HOST=smtp4dev RELEGO_SMTP_PORT=2525 docker compose --profile demo up -d
+      SMTP_FROM_ADDRESS: ${RELEGO_SMTP_FROM:-noreply@example.com}
+      SMTP_HOST: ${RELEGO_SMTP_HOST:-smtp.example.com}
+      SMTP_PORT: "${RELEGO_SMTP_PORT:-587}"
+      SMTP_USER: ${RELEGO_SMTP_USER:-}
+      SMTP_PASSWORD: ${RELEGO_SMTP_PASSWORD:-}
 
-      SMTP_USER: user@example.com
-      SMTP_PASSWORD: yourpassword
-      SMTP_HOST: smtp.example.com
-      SMTP_PORT: "587"
+      KINDLE_EMAIL: ${RELEGO_KINDLE_EMAIL:-}
 
       # Browser origins allowed to call this API. Must list the relego-web URL you
       # open in your browser; add more, comma-separated, for other machines on the LAN.
-      RELEGO_CORS_ORIGINS: http://localhost:8081
-
-      # smtp4dev demo mode: replace the four lines above with these
-      # SMTP_PASSWORD: ""
-      # ASPNETCORE_ENVIRONMENT: Development
-      # SMTP_HOST: smtp4dev
-      # SMTP_PORT: "2525"
+      RELEGO_CORS_ORIGINS: ${RELEGO_CORS_ORIGINS:-http://localhost:8081}
     ports:
       - "8080:8080"
     volumes:
       - relego-data:/data
     networks:
       - relego
-    profiles: [server, demo]
+    profiles: [app, demo]
 
   relego-web:
     build:
@@ -46,20 +34,32 @@ services:
     environment:
       # Resolved by the browser, not by this container, so it points at the
       # published relego-server port on the host.
-      RELEGO_API_URL: http://localhost:8080
+      RELEGO_API_URL: ${RELEGO_API_URL:-http://localhost:8080}
     ports:
       - "8081:8081"
     depends_on:
       - relego-server
     networks:
       - relego
-    profiles: [server, demo]
+    profiles: [app, demo]
+
+  relego-cli:
+    image: ghcr.io/krusty93/relego.cli:latest
+    restart: "no"
+    tty: true
+    environment:
+      SERVER_URL: http://relego-server:8080
+    networks:
+      - relego
+    profiles: [cli]
 
   smtp4dev:
     image: rnwood/smtp4dev:latest
     restart: unless-stopped
     environment:
-      ServerOptions__SmtpPort: "2525"
+      # smtp4dev v3 reads ServerOptions__Port. The older SmtpPort key is silently
+      # ignored, which leaves the relay listening on 25 and every send refused.
+      ServerOptions__Port: "2525"
     ports:
       - "5000:80"
     networks:

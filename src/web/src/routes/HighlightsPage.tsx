@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { AsyncSection, EmptyState, Tag, WeightPips } from "../components/ui";
 import { api } from "../lib/api";
 import { plural } from "../lib/format";
+import { useListKeys } from "../lib/listkeys";
 import { useDebounced, useSearch } from "../lib/search";
 import { useToasts } from "../lib/toasts";
 import type { BookItem, HighlightItem } from "../lib/types";
@@ -138,41 +139,39 @@ export function HighlightsPage() {
     listRef.current?.querySelectorAll<HTMLButtonElement>(".hl-summary")[clamped]?.focus();
   }
 
-  function onCardKeyDown(event: React.KeyboardEvent, item: HighlightItem, index: number) {
-    const excluded = excludedIds.has(item.id);
+  useListKeys({
+    count: items.length,
+    cursor,
+    containerRef: listRef,
+    focusAt: focusCard,
+    actions: {
+      e: (index) => {
+        const item = items[index];
+        if (item) toggleHighlight.mutate({ id: item.id, excluded: excludedIds.has(item.id) });
+      },
+      ...Object.fromEntries(
+        [1, 2, 3, 4, 5].map((weight) => [
+          String(weight),
+          (index: number) => {
+            const item = items[index];
+            if (item) setWeight.mutate({ id: item.id, weight });
+          },
+        ]),
+      ),
+    },
+  });
 
-    if (event.key >= "1" && event.key <= "5") {
+  // Escape is contextual to the focused card, so it stays here rather than moving to the
+  // page-level layer where it would collide with dialogs and the search field.
+  function onCardKeyDown(event: React.KeyboardEvent, item: HighlightItem) {
+    if (event.key !== "Escape") return;
+
+    if (confirmingId === item.id) {
       event.preventDefault();
-      setWeight.mutate({ id: item.id, weight: Number(event.key) });
-      return;
-    }
-
-    switch (event.key) {
-      case "j":
-      case "ArrowDown":
-        event.preventDefault();
-        focusCard(index + 1);
-        break;
-      case "k":
-      case "ArrowUp":
-        event.preventDefault();
-        focusCard(index - 1);
-        break;
-      case "e":
-        event.preventDefault();
-        toggleHighlight.mutate({ id: item.id, excluded });
-        break;
-      case "Escape":
-        if (confirmingId === item.id) {
-          event.preventDefault();
-          setConfirmingId(null);
-        } else if (openId === item.id) {
-          event.preventDefault();
-          setOpenId(null);
-        }
-        break;
-      default:
-        break;
+      setConfirmingId(null);
+    } else if (openId === item.id) {
+      event.preventDefault();
+      setOpenId(null);
     }
   }
 
@@ -208,26 +207,36 @@ export function HighlightsPage() {
           </p>
         </div>
 
-        {book ? (
-          <div className="actions">
-            <button
-              className="btn btn--sm"
-              type="button"
-              onClick={() => toggleBook.mutate({ id: book.id, excluded: book.excluded })}
-            >
-              {book.excluded ? "Include book" : "Exclude book"}
-            </button>
-            <button
-              className="btn btn--sm"
-              type="button"
-              onClick={() =>
-                toggleAuthor.mutate({ id: book.authorId, excluded: book.authorExcluded })
-              }
-            >
-              {book.authorExcluded ? "Include author" : "Exclude author"}
-            </button>
-          </div>
-        ) : null}
+        <div className="actions">
+          {book ? (
+            <>
+              <button
+                className="btn btn--sm"
+                type="button"
+                onClick={() => toggleBook.mutate({ id: book.id, excluded: book.excluded })}
+              >
+                {book.excluded ? "Include book" : "Exclude book"}
+              </button>
+              <button
+                className="btn btn--sm"
+                type="button"
+                onClick={() =>
+                  toggleAuthor.mutate({ id: book.authorId, excluded: book.authorExcluded })
+                }
+              >
+                {book.authorExcluded ? "Include author" : "Exclude author"}
+              </button>
+            </>
+          ) : null}
+          {/* Sized to match its neighbours: full size on its own, small beside the book actions. */}
+          <button
+            className={book ? "btn btn--sm" : "btn"}
+            type="button"
+            onClick={() => navigate("/import")}
+          >
+            Import highlights
+          </button>
+        </div>
       </div>
 
       <AsyncSection
@@ -275,7 +284,7 @@ export function HighlightsPage() {
                   tabIndex={index === cursor ? 0 : -1}
                   onFocus={() => setCursor(index)}
                   onClick={() => setOpenId(open ? null : item.id)}
-                  onKeyDown={(event) => onCardKeyDown(event, item, index)}
+                  onKeyDown={(event) => onCardKeyDown(event, item)}
                 >
                   <span>
                     <span className="hl-quote">{item.text}</span>
