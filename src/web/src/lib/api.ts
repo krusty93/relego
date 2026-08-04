@@ -1,4 +1,3 @@
-import { API_URL } from "./config";
 import type {
   BooksResponse,
   ExclusionsResponse,
@@ -69,7 +68,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
 
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await fetch(path, {
       ...init,
       headers: {
         Accept: "application/json",
@@ -79,7 +78,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      `Could not reach the Relego server at ${API_URL}. Check that it is running and that this origin is allowed by RELEGO_CORS_ORIGINS.`,
+      "Could not reach the Relego server. Check that it is running and try again.",
       0,
     );
   }
@@ -157,7 +156,7 @@ export const api = {
       form.append("file", file);
 
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${API_URL}/imports`);
+      xhr.open("POST", "/imports");
       xhr.responseType = "json";
 
       xhr.upload.addEventListener("progress", (event) => {
@@ -187,7 +186,7 @@ export const api = {
       });
 
       xhr.addEventListener("error", () =>
-        reject(new ApiError(`Could not reach the Relego server at ${API_URL}.`, 0)),
+        reject(new ApiError("Could not reach the Relego server.", 0)),
       );
 
       xhr.addEventListener("abort", () => reject(new ApiError("Upload cancelled.", 0)));

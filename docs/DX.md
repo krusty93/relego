@@ -8,10 +8,9 @@
 
 ## Overview
 
-Relego consists of three components with distinct installation and usage patterns:
+Relego consists of two deployable components with distinct installation and usage patterns:
 
-- **Server** (`relego-server`) — Always-on Docker container deployed on a home server, NAS, or Raspberry Pi. Handles scheduling, spaced repetition, recap composition, and email delivery.
-- **Web UI** (`relego-web`) — Static single-page app in a Docker container, served alongside the server. The recommended everyday surface: browse and curate highlights, upload a clippings file, and configure everything including SMTP from the browser.
+- **Server** (`relego-server`) — Always-on Docker container deployed on a home server, NAS, or Raspberry Pi. Handles scheduling, spaced repetition, recap composition, email delivery, and serves the web UI.
 - **Client CLI** (`relego`) — Installed on the user's laptop. Used to import highlights directly from a connected device (Kindle and Kobo today), to manage settings from the terminal, and for scripting.
 
 The guiding DX principle: **zero friction after a one-time setup**. Onboarding requires one server start, one delivery destination, one import.
@@ -43,19 +42,7 @@ That's it. The server is running and will start sending recaps on the default sc
 
 ### Web UI
 
-The simplest route is `docker compose --profile server up -d` from the repository root, which starts the server and the web UI together. Standalone:
-
-```sh
-docker run -d \
-  --name relego-web \
-  --restart unless-stopped \
-  -e RELEGO_API_URL=http://localhost:8080 \
-  -p 8081:8081 \
-  --network relego \
-  relego-web
-```
-
-`RELEGO_API_URL` is resolved by the **browser**, not by the container, so it must be a URL you can open yourself — usually the host's published server port. Add that browser origin to `RELEGO_CORS_ORIGINS` on `relego-server` (for example `http://localhost:8081`) or every request will be blocked by the browser.
+The server image includes the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
 
 Once SMTP is saved from the Settings page it lives in the database and the `SMTP_*` environment variables stop being read; they only seed an empty configuration on first boot.
 
@@ -333,7 +320,7 @@ Errors are actionable — they tell the user exactly what to do.
 ```sh
 # terminal 1 — API
 cd src/Relego.Server
-RELEGO_CORS_ORIGINS=http://localhost:5173 dotnet run
+RELEGO_WEB_ROOT=../web/dist dotnet run
 
 # terminal 2 — UI with hot reload
 cd src/web
@@ -341,7 +328,7 @@ npm install
 npm run dev            # http://localhost:5173
 ```
 
-In development the SPA falls back to `http://localhost:8080` when `/config.js` is absent, so no extra setup is needed.
+For local frontend development, Vite proxies API routes to the server. For production-like local testing, build `src/web` and set `RELEGO_WEB_ROOT` to its `dist` directory.
 
 ```sh
 npm run typecheck      # tsc --noEmit over src, tests and configs

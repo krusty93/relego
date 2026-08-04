@@ -8,7 +8,7 @@
 
 ## System Overview
 
-Relego follows a client/server architecture. The server is the only always-on component; the CLI and the web UI are interchangeable front-ends over the same REST API.
+Relego follows a client/server architecture. The server is the only always-on component; it hosts the React web UI and REST API together, while the CLI remains an optional client.
 
 ```
 User Laptop                              Home Server / NAS / Pi
@@ -19,9 +19,10 @@ relego CLI  ── REST HTTP ──────────────▶  rele
     │                                    │  └── SQLite (Docker volume)
     ├── Kindle / My Clippings.txt        │             │
     └── Kobo / .kobo/KoboReader.sqlite   │             │ SMTP
-                                         │             ▼
-Browser ── HTTP ──▶ relego-web (Docker) ─┘  Send-to-Kindle or inbox email
-                    static SPA, CORS
+Browser ── HTTP ──────────────────────────▶  Same-origin web UI + API
+                                                       │
+                                                       ▼
+                                        Send-to-Kindle or inbox email
 ```
 
 ---
@@ -86,7 +87,7 @@ When invoked with no arguments in an interactive terminal (`relego`), the client
   - Run scheduled recap generation (daily or weekly, configurable time)
   - Select highlights via spaced repetition algorithm
   - Compose recap document and send via SMTP to Kindle email address
-  - Expose REST HTTP API consumed by the client CLI
+  - Serve the React web UI and REST HTTP API from one origin
 
 #### REST API layer (`Relego.Server/`)
 
@@ -117,18 +118,12 @@ Endpoint groups currently implemented:
 
 SMTP settings live in the `smtp_settings` table so they can be changed from the web UI without restarting the container. On first boot, when the table is empty, the `SMTP_*` environment variables seed it. From then on the database is authoritative and the environment variables are ignored; `SmtpConfigurationService` is the single read path used by `MailDeliveryService`. The password is never returned by `GET /settings/smtp`, and omitting it from `PUT /settings/smtp` keeps the stored value.
 
-#### CORS
-
-Browser front-ends are cross-origin, so the server registers a named CORS policy driven by `RELEGO_CORS_ORIGINS` (comma-separated). When the variable is unset, no origin is allowed and only same-origin clients such as the CLI work — the browser UI must be opted in explicitly.
-
----
-
 ### Web UI (`src/web/`)
 
-Single-page application served as static files by Nginx, published as the `relego-web` container. It has full feature parity with the TUI and is the recommended day-to-day surface.
+Single-page application built with Vite and copied into the `relego-server` image at publish time. ASP.NET Core serves the static assets and SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed. It has full feature parity with the TUI and is the recommended day-to-day surface.
 
 - **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer — no CSS framework, so the design system in [DESIGN.md](DESIGN.md) is the only source of truth for visual decisions.
-- **No build-time configuration**: the API URL is read from `window.__RELEGO__.apiUrl`, written into `/config.js` by the container entrypoint from `RELEGO_API_URL`. One image works against any server.
+- **Same-origin API calls**: browser requests use relative paths, so the web UI always talks to the server that served it.
 - **Offline-capable assets**: fonts are bundled (`@fontsource/playfair-display`); nothing is fetched from a CDN at runtime, which matters for a self-hosted tool on an isolated network.
 - **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights · `/recaps` · `/import` · `/settings`
 - **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
