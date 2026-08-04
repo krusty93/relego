@@ -1,4 +1,4 @@
-# Architecture — Relego
+﻿# Architecture — Relego
 
 **Version:** 0.2 — Draft
 **Date:** 2026-06-02
@@ -68,6 +68,8 @@ All sources are responsible for transforming raw source data into structured dat
   - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
 
 #### TUI subsystem (`Relego.Cli/Tui/`)
+
+> **Deprecated:** The TUI is deprecated in favour of the [web UI](http://localhost:8081). It will be removed in a future release. New users should start with the web UI.
 
 When invoked with no arguments in an interactive terminal (`relego`), the client enters **TUI mode** — a full-screen terminal UI powered by [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) (v2).
 

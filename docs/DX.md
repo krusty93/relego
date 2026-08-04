@@ -1,4 +1,4 @@
-# Developer Experience Design — Relego
+﻿# Developer Experience Design — Relego
 
 **Version:** 0.2 — Draft
 **Date:** 2026-03-31
@@ -277,6 +277,8 @@ Errors are actionable — they tell the user exactly what to do.
 
 |                   Command                              |              Description                                                     |
 |--------------------------------------------------------|------------------------------------------------------------------------------|
+
+> **Deprecated:** The TUI is deprecated in favour of the [web UI](http://localhost:8081). It will be removed in a future release. New users should start with the web UI.
 | `relego`                                               | Open interactive TUI                                                         |
 | `relego import [path]`                                 | Import highlights from a detected Kindle or Kobo source                      |
 | `relego status`                                        | Show server status and next recap                                            |

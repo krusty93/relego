@@ -491,6 +491,13 @@ public sealed class BookListScreenTests : IDisposable
         mockHttp.VerifyNoOutstandingExpectation();
     }
 
+    [Fact]
+    public void StatusChrome_DeprecationText_ContainsDeprecatedAndWebUI()
+    {
+        Assert.Contains("Deprecated", StatusChrome.DeprecationText);
+        Assert.Contains("web UI", StatusChrome.DeprecationText);
+    }
+
     private async Task<BookListScreen> CreateScreenAsync(int total = 3, string? itemsJson = null)
     {
         return await CreateScreenAsync(_mockHttp, total, itemsJson).ConfigureAwait(false);

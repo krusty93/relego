@@ -1,4 +1,4 @@
-# Relego Brand Colors
+﻿# Relego Brand Colors
 
 This file is the shared source of truth for color values used across the landing page and the TUI.
 
@@ -20,6 +20,8 @@ This file is the shared source of truth for color values used across the landing
 - surface: `rgba(18,14,12,0.82)`
 - border: `rgba(245,238,227,0.14)`
 
+
+> **Deprecated:** The TUI is deprecated in favour of the [web UI](http://localhost:8081). It will be removed in a future release. New users should start with the web UI.
 ## Semantic mapping in TUI
 
 `src/Relego.Cli/Tui/TuiTheme.cs` maps the canonical palette to terminal-friendly tokens:

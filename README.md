@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="docs/assets/relego-logo-banner.png" alt="relego logo" width="720">
 </p>
 
@@ -252,6 +252,9 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 | smtp4dev web UI is blank | smtp4dev renders after a moment. Refresh the page. |
 
 ---
+
+
+> **Deprecated:** The TUI is deprecated in favour of the [web UI](http://localhost:8081). It will be removed in a future release. New users should start with the web UI.
 
 ## CLI reference
 
