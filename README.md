@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="docs/assets/relego-logo-banner.png" alt="relego logo" width="720">
 </p>
 
@@ -257,7 +257,7 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 
 |                   Command                              |              Description                                                     |
 |--------------------------------------------------------|------------------------------------------------------------------------------|
-| `relego`                                               | Open interactive TUI                                                         |
+| `relego` (**deprecated**)                              | Open interactive TUI                                                         |
 | `relego import [path]`                                 | Import highlights from a detected Kindle or Kobo source                      |
 | `relego status`                                        | Show server status and next recap                                            |
 | `relego config show`                                   | Show all current server settings                                             |

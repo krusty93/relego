@@ -19,11 +19,14 @@ public sealed class StatusChrome(string serverUrl, string version)
 
     public static Color Background => TuiTheme.Palette.Background;
 
+    internal const string DeprecationText = "⚠ TUI Deprecated — use the web UI";
+
     public const int LogoHeight = 7; // 6 logo + separator
 
     private Label? _connectionLabel;
     private Label? _nextRecapLabel;
     private Label? _warningLabel;
+    private Label _deprecationLabel = null!;
 
     public bool IsConnected { get; private set; }
     public bool KindleEmailConfigured { get; private set; }
@@ -77,7 +80,7 @@ public sealed class StatusChrome(string serverUrl, string version)
             X = Pos.AnchorEnd(frameContentWidth),
             Y = 0,
             Width = frameContentWidth,
-            Height = 6,
+            Height = 7,
             BorderStyle = LineStyle.Rounded
         };
         infoFrame.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Border, bg)));
@@ -119,7 +122,17 @@ public sealed class StatusChrome(string serverUrl, string version)
         };
         versionLabel.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.TextMuted, bg)));
 
-        infoFrame.Add(_connectionLabel, _nextRecapLabel, _warningLabel, versionLabel);
+        _deprecationLabel = new Label
+        {
+            Text = DeprecationText,
+            X = 1,
+            Y = 4,
+            Width = Dim.Fill(1),
+            TextAlignment = Alignment.End
+        };
+        _deprecationLabel.SetScheme(new Scheme(new Terminal.Gui.Drawing.Attribute(palette.Warning, bg)));
+
+        infoFrame.Add(_connectionLabel, _nextRecapLabel, _warningLabel, versionLabel, _deprecationLabel);
         container.Add(infoFrame);
 
         return container;
