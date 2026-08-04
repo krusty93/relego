@@ -285,7 +285,6 @@ Errors are actionable — they tell the user exactly what to do.
 
 |                   Command                              |              Description                                                     |
 |--------------------------------------------------------|------------------------------------------------------------------------------|
-| `relego` (**deprecated**)                              | Open interactive TUI                                                         |
 | `relego import [path]`                                 | Import highlights from a detected Kindle or Kobo source                      |
 | `relego status`                                        | Show server status and next recap                                            |
 | `relego config show`                                   | Show all current server settings                                             |
