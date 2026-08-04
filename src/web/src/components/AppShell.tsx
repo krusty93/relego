@@ -143,6 +143,7 @@ export function AppShell() {
               relego<span className="dot">.</span>
             </span>
             {status.data?.serverVersion ? <small>v{status.data.serverVersion}</small> : null}
+            <span className="beta-badge" title="The web UI is in beta. You may encounter rough edges.">beta</span>
           </div>
 
           <nav className="nav" aria-label="Primary">
