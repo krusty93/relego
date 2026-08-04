@@ -1,7 +1,7 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
-using Relego.Cli.Sources;
+using Relego.Core.Sources;
 using Relego.Tests.Sources.Support;
 
 namespace Relego.Tests.Sources;
@@ -249,7 +249,7 @@ public sealed class KoboReaderSourceTests : IDisposable
             noteText + "\n" +
             "==========\n";
         using var reader = new StringReader(kindleInput);
-        var kindleResult = await Relego.Cli.Parsing.ClippingsParser.ParseAsync(reader);
+        var kindleResult = await Relego.Core.Parsing.ClippingsParser.ParseAsync(reader);
         var kindleNote = kindleResult.Books.SelectMany(b => b.Highlights).Single().Text;
 
         // Kobo note for equivalent content.

@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Relego.Cli.Infrastructure;
-using Relego.Cli.Parsing;
-using Relego.Cli.Sources;
+using Relego.Core.Parsing;
+using Relego.Core.Sources;
 using Relego.Core.Contracts;
 
 namespace Relego.Cli.Import;

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Relego.Core.Contracts;
 using Relego.Server.Data;
 using Relego.Server.Services;
 
@@ -8,6 +9,28 @@ public static class RecapEndpoints
 {
     public static WebApplication MapRecapEndpoints(this WebApplication app)
     {
+        app.MapGet("/recaps", async (
+            [FromServices] UserRepository userRepo,
+            [FromServices] RecapRepository recapRepo,
+            [FromQuery] int limit = 20) =>
+        {
+            if (limit is < 1 or > 100)
+            {
+                return Results.ValidationProblem(
+                    new Dictionary<string, string[]> { ["limit"] = ["limit must be between 1 and 100."] },
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+
+            var userId = await userRepo.EnsureUserAsync();
+            var items = await recapRepo.GetHistoryAsync(userId, limit);
+            return Results.Ok(new RecapHistoryResponse { Items = [.. items] });
+        })
+        .WithTags("Recap")
+        .WithSummary("List recent recap deliveries.")
+        .WithDescription("Returns the most recent recap delivery attempts, newest first, with their status and any failure detail.")
+        .Produces<RecapHistoryResponse>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
+
         app.MapPost("/recaps", async (
             [FromServices] UserRepository userRepo,
             [FromServices] IRecapService recapService,

@@ -1,10 +1,10 @@
-﻿using System.Net;
+using System.Net;
 using System.Reflection;
 using Microsoft.Extensions.Logging.Abstractions;
 using RichardSzalay.MockHttp;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
-using Relego.Cli.Sources;
+using Relego.Core.Sources;
 using Relego.Cli.Tui;
 
 namespace Relego.Tests.Tui;

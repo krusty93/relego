@@ -11,4 +11,11 @@ public sealed class SmtpSettings
     public string Username { get; set; } = string.Empty;
 
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When <see langword="true"/>, TLS certificate validation is skipped.
+    /// Useful for internal mail relays that use self-signed certificates.
+    /// Never enable this against a public mail server.
+    /// </summary>
+    public bool SkipCertificateVerification { get; set; }
 }

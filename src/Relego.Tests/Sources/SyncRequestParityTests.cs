@@ -1,6 +1,6 @@
-﻿using Relego.Cli.Import;
-using Relego.Cli.Parsing;
-using Relego.Cli.Sources;
+using Relego.Cli.Import;
+using Relego.Core.Parsing;
+using Relego.Core.Sources;
 using Relego.Core.Contracts;
 
 namespace Relego.Tests.Sources;

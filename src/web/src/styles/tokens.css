@@ -1,0 +1,94 @@
+/* --------------------------------------------------------------------------
+ * Design tokens. Normative source: docs/DESIGN.md.
+ * The brand values (canvas / ink / accent) match docs/BRAND_COLORS.md; the
+ * derived accent steps exist because raw #b56b39 does not reach 4.5:1 on the
+ * light canvas or behind white text.
+ * -------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --canvas: #f7f1e8;
+  --surface: #fffcf7;
+  --surface-sunk: #f0e7d9;
+  --rail: #f1e8db;
+  --ink: #171311;
+  --ink-muted: #5f5349;
+  --ink-subtle: #736558;
+  --accent: #b56b39;
+  --accent-ink: #8f5228;
+  --accent-solid: #9a5a2f;
+  --accent-solid-hover: #874e28;
+  --on-accent: #ffffff;
+  --accent-wash: rgba(181, 107, 57, 0.1);
+  --border: rgba(23, 19, 17, 0.14);
+  --border-strong: rgba(23, 19, 17, 0.3);
+  --scrim: rgba(23, 19, 17, 0.45);
+  --success: #26694a;
+  --danger: #a33127;
+  --warning: #7d5a10;
+  --shadow-raised: 0 1px 2px rgba(23, 19, 17, 0.06), 0 1px 1px rgba(23, 19, 17, 0.04);
+  --shadow-overlay: 0 12px 32px -12px rgba(23, 19, 17, 0.28), 0 2px 8px rgba(23, 19, 17, 0.08);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #120e0c;
+  --surface: #1b1613;
+  --surface-sunk: #0c0908;
+  --rail: #0e0b0a;
+  --ink: #f5eee3;
+  --ink-muted: #bdb1a4;
+  --ink-subtle: #9a8d7f;
+  --accent: #d4a05e;
+  --accent-ink: #d4a05e;
+  --accent-solid: #d4a05e;
+  --accent-solid-hover: #e0b073;
+  --on-accent: #171311;
+  --accent-wash: rgba(212, 160, 94, 0.14);
+  --border: rgba(245, 238, 227, 0.14);
+  --border-strong: rgba(245, 238, 227, 0.3);
+  --scrim: rgba(6, 4, 4, 0.66);
+  --success: #74c496;
+  --danger: #ef8d81;
+  --warning: #e3b75f;
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-overlay: 0 16px 40px -14px rgba(0, 0, 0, 0.72), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+:root {
+  --font-ui: ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-quote: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  --t-micro: 0.6875rem;
+  --t-xs: 0.75rem;
+  --t-sm: 0.8125rem;
+  --t-base: 0.875rem;
+  --t-md: 1rem;
+  --t-lg: 1.25rem;
+  --t-xl: 1.5rem;
+  --sp-0: 2px;
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --r-xs: 3px;
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+  /* The widest the working column ever gets. Beyond this, rows grow a dead
+     gutter and right-aligned metadata drifts away from the text it describes. */
+  --measure-view: 1180px;
+  /* Reading measure for standalone prose, per the 65-75ch rule. */
+  --measure-prose: 68ch;
+  --z-sticky: 100;
+  --z-rail: 200;
+  --z-backdrop: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 180ms;
+}

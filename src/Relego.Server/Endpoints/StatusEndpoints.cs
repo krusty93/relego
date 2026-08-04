@@ -7,6 +7,9 @@ namespace Relego.Server.Endpoints;
 
 public static class StatusEndpoints
 {
+    private static readonly string ServerVersion =
+        typeof(StatusEndpoints).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+
     public static WebApplication MapStatusEndpoints(this WebApplication app)
     {
         app.MapGet("/status", async ([FromServices] UserRepository userRepo, [FromServices] StatusRepository statusRepo, [FromServices] ISchedulerService schedulerService) =>
@@ -19,6 +22,7 @@ public static class StatusEndpoints
             status.NextRecap = nextFire?.ToString("O");
             status.KindleEmailConfigured = !string.IsNullOrWhiteSpace(user.KindleEmail);
             status.DeliveryEmailConfigured = !string.IsNullOrWhiteSpace(user.DeliveryEmail);
+            status.ServerVersion = ServerVersion;
 
             return Results.Ok(status);
         })

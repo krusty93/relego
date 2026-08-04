@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using Relego.Cli.Parsing;
+using Microsoft.Extensions.Logging;
+using Relego.Core.Parsing;
 
 namespace Relego.Tests.Parsing;
 

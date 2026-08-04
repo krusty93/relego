@@ -2,6 +2,7 @@
 using System.Reflection;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Quartz;
 using Serilog;
@@ -13,6 +14,8 @@ using Relego.Server.Infrastructure.Logging;
 using Relego.Server.Infrastructure.Smtp;
 using Relego.Server.Jobs;
 using Relego.Server.Services;
+
+const string WebUiCorsPolicy = "relego-web-ui";
 
 SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
 
@@ -28,6 +31,27 @@ if (smtpEnvironmentOverrides.Count > 0)
     builder.Configuration.AddInMemoryCollection(smtpEnvironmentOverrides);
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
+
+// The web UI runs in its own container on a different origin, so it needs an explicit
+// allow-list. RELEGO_CORS_ORIGINS is a comma-separated list of origins; when it is unset
+// no cross-origin request is allowed and only same-origin clients (the CLI) can call the API.
+var corsOrigins = (Environment.GetEnvironmentVariable("RELEGO_CORS_ORIGINS") ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(WebUiCorsPolicy, policy =>
+    {
+        if (corsOrigins.Contains("*"))
+            policy.AllowAnyOrigin();
+        else
+            policy.WithOrigins(corsOrigins);
+
+        policy.AllowAnyHeader().AllowAnyMethod();
+    });
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -71,6 +95,9 @@ builder.Services.AddScoped<WeightRepository>();
 builder.Services.AddScoped<RecapRepository>();
 builder.Services.AddScoped<HighlightRepository>();
 builder.Services.AddScoped<BookRepository>();
+builder.Services.AddScoped<SmtpSettingsRepository>();
+builder.Services.AddScoped<SmtpConfigurationService>();
+builder.Services.AddScoped<UploadImportService>();
 
 builder.Services.AddQuartz(q =>
 {
@@ -91,10 +118,7 @@ builder.Services.AddSingleton<ISchedulerService, SchedulerService>();
 builder.Services.AddTransient<RecapJob>();
 builder.Services.AddScoped<HighlightSelectionService>();
 
-if (builder.Environment.IsDevelopment())
-    builder.Services.AddScoped<IMailDeliveryService, DevMailDeliveryService>();
-else
-    builder.Services.AddScoped<IMailDeliveryService, MailDeliveryService>();
+builder.Services.AddScoped<IMailDeliveryService, MailDeliveryService>();
 
 builder.Services.AddScoped<IRecapService, RecapService>();
 
@@ -121,10 +145,14 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseCors(WebUiCorsPolicy);
+
 app.MapRecapEndpoints();
 app.MapProbeEndpoints();
 app.MapSyncEndpoints();
+app.MapImportEndpoints();
 app.MapSettingsEndpoints();
+app.MapSmtpSettingsEndpoints();
 app.MapStatusEndpoints();
 app.MapExclusionEndpoints();
 app.MapWeightEndpoints();
@@ -134,6 +162,24 @@ app.MapBookEndpoints();
 var schemaBootstrap = new SchemaBootstrap();
 await schemaBootstrap.ApplyAsync(dbPath);
 await QuartzSchemaInitializer.ApplyAsync(connectionString);
+
+// Seed the mail server configuration from SMTP_* on first boot only. Once a client saves
+// settings the stored row wins, so the environment is a starting point rather than a lock.
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var smtpRepo = scope.ServiceProvider.GetRequiredService<SmtpSettingsRepository>();
+
+    if (await smtpRepo.GetAsync() is null)
+    {
+        var seed = scope.ServiceProvider.GetRequiredService<IOptions<SmtpSettings>>().Value;
+
+        if (!string.IsNullOrWhiteSpace(seed.FromAddress) && !string.IsNullOrWhiteSpace(seed.Host))
+        {
+            await smtpRepo.UpsertAsync(seed);
+            Log.Information("Seeded mail server configuration from the environment ({Host}:{Port}).", seed.Host, seed.Port);
+        }
+    }
+}
 
 // Schedule recap trigger only on first run (persistent store preserves it across restarts)
 {
@@ -169,6 +215,7 @@ static Dictionary<string, string?> GetLegacySmtpEnvironmentOverrides()
     AddOverride(overrides, "Smtp:FromAddress", "SMTP_FROM_ADDRESS");
     AddOverride(overrides, "Smtp:Username", "SMTP_USER");
     AddOverride(overrides, "Smtp:Password", "SMTP_PASSWORD");
+    AddBoolOverride(overrides, "Smtp:SkipCertificateVerification", "SMTP_SKIP_CERT_VERIFY");
 
     return overrides;
 }
@@ -190,4 +237,11 @@ static void AddOverride(Dictionary<string, string?> overrides, string configurat
         overrides[configurationKey] = value;
         return;
     }
+}
+
+static void AddBoolOverride(Dictionary<string, string?> overrides, string configurationKey, string environmentVariableName)
+{
+    var value = Environment.GetEnvironmentVariable(environmentVariableName);
+    if (!string.IsNullOrWhiteSpace(value) && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1"))
+        overrides[configurationKey] = "true";
 }

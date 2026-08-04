@@ -1,25 +1,26 @@
-﻿using MailKit.Net.Smtp;
-using Microsoft.Extensions.Options;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using MimeKit;
 using Relego.Server.Infrastructure.Smtp;
 
 namespace Relego.Server.Services;
 
-public sealed class MailDeliveryService : IMailDeliveryService
+/// <summary>
+/// Sends mail through the effective SMTP configuration.
+/// </summary>
+/// <remarks>
+/// There is deliberately one implementation for every environment. A separate development
+/// service used to exist, reading <c>IOptions&lt;SmtpSettings&gt;</c> — the environment
+/// variables — directly. That silently ignored anything saved from a client, so mail server
+/// settings entered in the UI appeared to save and then had no effect on delivery.
+/// </remarks>
+public sealed class MailDeliveryService(
+    SmtpConfigurationService configuration,
+    ILogger<MailDeliveryService> logger) : IMailDeliveryService
 {
-    private readonly SmtpSettings _settings;
-    private readonly ILogger<MailDeliveryService> _logger;
-
-    public MailDeliveryService(IOptions<SmtpSettings> settings, ILogger<MailDeliveryService> logger)
-    {
-        _settings = settings.Value;
-        _logger = logger;
-    }
-
     public async Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default)
     {
         using var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(toAddress));
         message.Subject = "Your Relego Recap";
 
@@ -36,16 +37,14 @@ public sealed class MailDeliveryService : IMailDeliveryService
             FileName = fileName
         };
 
-        var multipart = new Multipart("mixed") { body, attachment };
-        message.Body = multipart;
+        message.Body = new Multipart("mixed") { body, attachment };
 
-        await SendEmailAsync(message!, cancellationToken);
+        await SendEmailAsync(message, cancellationToken);
     }
 
     public async Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
     {
         using var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(toAddress));
         message.Subject = "Relego - Test Email";
         message.Body = new TextPart("plain")
@@ -53,7 +52,7 @@ public sealed class MailDeliveryService : IMailDeliveryService
             Text = "This is a test email from Relego. If you received this, your SMTP configuration is working correctly."
         };
 
-        await SendEmailAsync(message!, cancellationToken);
+        await SendEmailAsync(message, cancellationToken);
     }
 
     public async Task SendHtmlRecapAsync(
@@ -70,34 +69,59 @@ public sealed class MailDeliveryService : IMailDeliveryService
         };
 
         using var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(toAddress));
         message.Subject = subject;
         message.Body = bodyBuilder.ToMessageBody();
 
-        await SendEmailAsync(message!, cancellationToken);
+        await SendEmailAsync(message, cancellationToken);
 
-        _logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
+        logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
     }
 
+    // The sender address and credentials are resolved per send so a change saved from a
+    // client takes effect immediately, without restarting the server.
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)
     {
+        var settings = (await configuration.GetEffectiveAsync().ConfigureAwait(false)).Settings;
+        message.From.Add(new MailboxAddress("Relego", settings.FromAddress));
+
         using var client = new SmtpClient();
+
+        // When the user explicitly opts in to skipping certificate verification (for a
+        // self-hosted relay with a self-signed cert), install a permissive callback.
+        // This is a deliberate opt-in; the default is strict validation.
+        if (settings.SkipCertificateVerification)
+            client.ServerCertificateValidationCallback = (_, _, _, _) => true;
 
         try
         {
-            await client.ConnectAsync(_settings.Host, _settings.Port, useSsl: true, cancellationToken);
+            // Auto is the only option that covers every port a self-hoster will point us at:
+            // implicit TLS on 465, STARTTLS on 587 when the server advertises it, and plain
+            // on 25 / 2525 for a local relay such as smtp4dev. Forcing SSL-on-connect here
+            // fails against 587, which is the most common submission port there is.
+            await client.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.Auto, cancellationToken)
+                .ConfigureAwait(false);
 
-            if (!string.IsNullOrEmpty(_settings.Username))
+            if (!string.IsNullOrEmpty(settings.Username))
             {
-                await client.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
+                await client.AuthenticateAsync(settings.Username, settings.Password, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            await client.SendAsync(message, cancellationToken);
+            await client.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Mail sent via {Host}:{Port} (secure: {Secure}).",
+                settings.Host,
+                settings.Port,
+                client.IsSecure);
         }
         finally
         {
-            await client.DisconnectAsync(quit: true, cancellationToken);
+            if (client.IsConnected)
+            {
+                await client.DisconnectAsync(quit: true, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }

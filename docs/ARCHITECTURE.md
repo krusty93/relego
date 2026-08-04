@@ -8,19 +8,20 @@
 
 ## System Overview
 
-Relego follows a client/server architecture with two independently deployable components.
+Relego follows a client/server architecture. The server is the only always-on component; the CLI and the web UI are interchangeable front-ends over the same REST API.
 
 ```
 User Laptop                              Home Server / NAS / Pi
 -----------                              ----------------------
 relego CLI  ── REST HTTP ──────────────▶  relego-server (Docker)
-    │                                       ├── Scheduler (Quartz.NET)
-    │ USB                                   ├── SMTP sender (MailKit)
-    │                                       └── SQLite (Docker volume)
-    ├── Kindle / My Clippings.txt                      │
-    └── Kobo / .kobo/KoboReader.sqlite                 │ SMTP
-                                                       ▼
-                                            Send-to-Kindle or inbox email
+    │                                    ▲  ├── Scheduler (Quartz.NET)
+    │ USB                                │  ├── SMTP sender (MailKit)
+    │                                    │  └── SQLite (Docker volume)
+    ├── Kindle / My Clippings.txt        │             │
+    └── Kobo / .kobo/KoboReader.sqlite   │             │ SMTP
+                                         │             ▼
+Browser ── HTTP ──▶ relego-web (Docker) ─┘  Send-to-Kindle or inbox email
+                    static SPA, CORS
 ```
 
 ---
@@ -37,9 +38,11 @@ relego CLI  ── REST HTTP ──────────────▶  rele
   - Manage user settings via CLI commands (schedule, count, weights, exclusions)
   - Display server status
 
-#### Highlight source registry (`Relego.Cli/Sources/`)
+#### Highlight source registry (`Relego.Core/Sources/`)
 
 The CLI imports through an open source registry rather than a closed source-type enum. Each source implements `IHighlightSource`, owns a stable `SourceDescriptor` (`Id`, `DisplayName`), implements its own `Locate(string? userPath)` detection rules, and returns the existing `ParseResult` from `ReadAsync`. The `HighlightSourceResolver` receives `IEnumerable<IHighlightSource>` from DI, calls each source's `Locate`, and returns every detected source without per-source branching.
+
+The registry, the parsers (`Relego.Core/Parsing/`) and the device detectors live in `Relego.Core` so both front-end paths can use them: the CLI detects a mounted device and reads it locally, while the server parses the same formats from an uploaded file (`POST /imports`). Registering a new source therefore adds it to both surfaces at once.
 
 Current sources:
 
@@ -100,13 +103,40 @@ The application registers a scoped `IDbConnection` backed by `Microsoft.Data.Sql
 Endpoint groups currently implemented:
 
 - Sync: bulk import via `POST /highlights/import`
+- Import: multipart upload via `POST /imports` — accepts `My Clippings.txt` or `KoboReader.sqlite`, sniffs the format, parses with `Relego.Core`, and returns a per-book summary of added and duplicate highlights
 - Settings: `GET /settings`, `PATCH /settings`, `POST /settings/test-kindle-email`, `POST /settings/test-recap-email`
+- SMTP settings: `GET /settings/smtp`, `PUT /settings/smtp`, `POST /settings/smtp/test`
 - Status: `GET /status`
-- Recap: `POST /recaps`
+- Recap: `POST /recaps`, `GET /recaps` (delivery history)
 - Highlights: `GET /highlights`, `DELETE /highlights/{id}`
-- Books: `PUT /books/{id}/title`
+- Books: `GET /books`, `PUT /books/{id}/title`
 - Exclusions: `*/{id}/exclusions` plus `GET /exclusions`
 - Weights: `PUT /highlights/{id}/weight`, `GET /highlights/weights`
+
+#### SMTP configuration precedence
+
+SMTP settings live in the `smtp_settings` table so they can be changed from the web UI without restarting the container. On first boot, when the table is empty, the `SMTP_*` environment variables seed it. From then on the database is authoritative and the environment variables are ignored; `SmtpConfigurationService` is the single read path used by `MailDeliveryService`. The password is never returned by `GET /settings/smtp`, and omitting it from `PUT /settings/smtp` keeps the stored value.
+
+#### CORS
+
+Browser front-ends are cross-origin, so the server registers a named CORS policy driven by `RELEGO_CORS_ORIGINS` (comma-separated). When the variable is unset, no origin is allowed and only same-origin clients such as the CLI work — the browser UI must be opted in explicitly.
+
+---
+
+### Web UI (`src/web/`)
+
+Single-page application served as static files by Nginx, published as the `relego-web` container. It has full feature parity with the TUI and is the recommended day-to-day surface.
+
+- **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer — no CSS framework, so the design system in [DESIGN.md](DESIGN.md) is the only source of truth for visual decisions.
+- **No build-time configuration**: the API URL is read from `window.__RELEGO__.apiUrl`, written into `/config.js` by the container entrypoint from `RELEGO_API_URL`. One image works against any server.
+- **Offline-capable assets**: fonts are bundled (`@fontsource/playfair-display`); nothing is fetched from a CDN at runtime, which matters for a self-hosted tool on an isolated network.
+- **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights · `/recaps` · `/import` · `/settings`
+- **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
+- **Build**: `cd src/web && npm run build` → `src/web/dist/`
+- **Tests**: `cd src/web && npm test` — Playwright starts both `relego-server` (against a throwaway SQLite file) and the Vite dev server, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites
+- **Separation**: like the landing page, no shared code or dependencies with the .NET projects
+
+Authentication is deliberately absent, matching the REST API's existing local-network trust model. The web UI raises the stakes because it can write the SMTP password, so the README documents the exposure and both ports are expected to stay on a trusted network.
 
 ---
 
@@ -135,6 +165,7 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 | Logging                  | Serilog (file + SQLite sink)   | Structured logging, persistent, queryable               |
 | Scheduling               | Quartz.NET                     | Mature .NET scheduler, cron-style expressions           |
 | CLI UX                   | Spectre.Console                | Rich terminal output, tables, progress bars             |
+| Web UI                   | Vite + React + plain CSS       | Static build, runtime-configurable API URL, no framework lock-in |
 | Landing page             | Astro + Tailwind CSS           | Static site generation, minimal JS, fast build          |
 
 ---
@@ -183,16 +214,22 @@ LIMIT @count
 | Method   | Path                              | Description                                 | Tag        |
 |----------|-----------------------------------|---------------------------------------------|------------|
 | `POST`   | `/highlights/import`              | Bulk import highlights from client          | Sync       |
+| `POST`   | `/imports`                        | Upload and parse a clippings or Kobo file   | Import     |
 | `GET`    | `/status`                         | Server status, next recap, highlight stats  | Status     |
 | `GET`    | `/settings`                       | Read current settings                       | Settings   |
 | `PATCH`  | `/settings`                       | Partially update settings                   | Settings   |
 | `POST`   | `/settings/test-kindle-email`     | Send a test email via Send-to-Kindle        | Settings   |
 | `POST`   | `/settings/test-recap-email`      | Send a test HTML email to the inbox address | Settings   |
+| `GET`    | `/settings/smtp`                  | Read SMTP settings (password never returned)| Settings   |
+| `PUT`    | `/settings/smtp`                  | Update SMTP settings                        | Settings   |
+| `POST`   | `/settings/smtp/test`             | Verify the SMTP connection                  | Settings   |
 | `POST`   | `/recaps`                         | Execute a recap immediately                 | Recap      |
+| `GET`    | `/recaps`                         | Recap delivery history                      | Recap      |
 | `GET`    | `/highlights`                     | List/paginate/search highlights             | Highlights |
 | `DELETE` | `/highlights/{id}`                | Delete a highlight                          | Highlights |
 | `PUT`    | `/highlights/{id}/weight`         | Set highlight recap weight                  | Weights    |
 | `GET`    | `/highlights/weights`             | List weighted highlights                    | Weights    |
+| `GET`    | `/books`                          | List books with highlight counts            | Books      |
 | `PUT`    | `/books/{id}/title`               | Rename a book                               | Books      |
 | `POST`   | `/highlights/{id}/exclusions`     | Exclude a highlight                         | Exclusions |
 | `DELETE` | `/highlights/{id}/exclusions`     | Re-include a highlight                      | Exclusions |
@@ -245,13 +282,15 @@ Transport objects in `Relego.Core/Contracts/` follow these suffixes:
 
 ```tree
 src/Relego.Core/
-└── Contracts/          # Shared request/response DTOs for CLI and server
+├── Branding/           # Shared wordmark and palette constants
+├── Contracts/          # Shared request/response DTOs for CLI, server and web UI
+├── Parsing/            # My Clippings.txt parser and shared highlight aggregation
+└── Sources/            # Highlight source registry, source readers, resolver, device detectors
 
 src/Relego.Cli/
 ├── Commands/           # Spectre.Console CLI sub-commands (sync, status, config, …)
-├── Infrastructure/     # HTTP client, resilience, device detectors
-├── Parsing/            # My Clippings.txt parser
-├── Sources/            # Highlight source registry, source readers, resolver
+├── Import/             # Device import workflow shared by the CLI and the TUI
+├── Infrastructure/     # HTTP client and resilience
 ├── Tui/                # Terminal.Gui TUI (TuiApp, screens, StatusChrome, …)
 └── Program.cs          # Dual-mode entry point (TUI or CLI)
 
@@ -260,16 +299,25 @@ src/Relego.Server/
 ├── Endpoints/          # Minimal API endpoint modules
 ├── Infrastructure/     # Database bootstrap and logging
 ├── Models/             # Server-side domain models
+├── Services/           # Upload import, SMTP configuration, mail delivery
 └── Program.cs          # Composition root and DI wiring
 
 src/Relego.Tests/
 ├── Api/                # End-to-end HTTP integration tests via WebApplicationFactory
 ├── Cli/                # CLI command tests
 ├── Infrastructure/     # Database/bootstrap tests
-├── Parsing/            # CLI parser tests
+├── Parsing/            # Parser tests
 ├── Recap/              # Recap service tests
 ├── Sources/            # Highlight source, resolver, and multi-import tests
 └── Tui/                # TUI logic tests (mode detection, search, screen key handling)
+
+src/web/                    # Web UI SPA (independent from .NET)
+├── src/components/     # App shell, command palette, shortcuts sheet, primitives
+├── src/routes/         # Library, Highlights, Import, Recaps, Settings
+├── src/lib/            # API client, theme, hotkeys, toasts, formatting
+├── src/styles/         # Design tokens and global stylesheet
+├── docker/             # Nginx config and runtime config entrypoint
+└── tests/              # Playwright behavioural and axe-core accessibility suites
 
 src/landing/                # Static marketing landing page (independent from .NET)
 ├── pages/              # Astro pages (index.astro)
