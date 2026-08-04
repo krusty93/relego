@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@300;400&display=swap');
+
+:root {
+  --ifm-color-primary: #b56b39;
+  --ifm-color-primary-dark: #9a5a2f;
+  --ifm-color-primary-darker: #874e28;
+  --ifm-color-primary-darkest: #6b3d1f;
+  --ifm-color-primary-light: #c97c4a;
+  --ifm-color-primary-lighter: #d48c5f;
+  --ifm-color-primary-lightest: #e0a07a;
+  --ifm-background-color: #f7f1e8;
+  --ifm-background-surface-color: #fffcf7;
+  --ifm-font-family-base: 'Inter', system-ui, sans-serif;
+  --ifm-heading-font-family: 'Playfair Display', Georgia, serif;
+  --ifm-font-weight-semibold: 500;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #d4a05e;
+  --ifm-background-color: #120e0c;
+  --ifm-background-surface-color: #1b1613;
+  --ifm-font-color-base: #f5eee3;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
