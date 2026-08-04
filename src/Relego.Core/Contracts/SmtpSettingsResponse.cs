@@ -32,6 +32,11 @@ public sealed record SmtpSettingsResponse
 
     /// <summary>When the stored configuration was last saved. <c>null</c> when never saved.</summary>
     public DateTimeOffset? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// When <see langword="true"/>, TLS certificate validation is skipped.
+    /// </summary>
+    public bool SkipCertificateVerification { get; set; }
 }
 
 /// <summary>
@@ -59,6 +64,12 @@ public sealed record UpdateSmtpSettingsRequest
     /// Write-only: it is never returned by <c>GET /settings/smtp</c>.
     /// </summary>
     public string? Password { get; set; }
+
+    /// <summary>
+    /// When <see langword="true"/>, TLS certificate validation is skipped.
+    /// Only enable for trusted internal mail relays with self-signed certificates.
+    /// </summary>
+    public bool? SkipCertificateVerification { get; set; }
 }
 
 /// <summary>

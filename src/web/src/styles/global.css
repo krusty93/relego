@@ -1050,6 +1050,33 @@ td {
   color: var(--ink-subtle);
 }
 
+.field--checkbox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.field--checkbox .help {
+  font-size: var(--t-xs);
+  color: var(--ink-subtle);
+  padding-left: calc(1rem + var(--sp-2));
+}
+
 .field .err {
   font-size: var(--t-xs);
   color: var(--danger);

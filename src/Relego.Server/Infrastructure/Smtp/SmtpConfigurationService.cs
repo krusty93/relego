@@ -32,6 +32,7 @@ public sealed class SmtpConfigurationService(
                     FromAddress = stored.FromAddress,
                     Username = stored.Username,
                     Password = stored.Password,
+                    SkipCertificateVerification = stored.SkipCertificateVerification,
                 },
                 SmtpSettingsOrigin.Database,
                 stored.UpdatedAt);
@@ -72,6 +73,7 @@ public sealed class SmtpConfigurationService(
             FromAddress = request.FromAddress?.Trim() ?? current.Settings.FromAddress,
             Username = request.Username?.Trim() ?? current.Settings.Username,
             Password = request.Password ?? current.Settings.Password,
+            SkipCertificateVerification = request.SkipCertificateVerification ?? current.Settings.SkipCertificateVerification,
         };
 
         var stored = await repository.UpsertAsync(merged).ConfigureAwait(false);
@@ -90,6 +92,7 @@ public sealed class SmtpConfigurationService(
             FromAddress = effective.Settings.FromAddress,
             Username = effective.Settings.Username,
             PasswordSet = !string.IsNullOrEmpty(effective.Settings.Password),
+            SkipCertificateVerification = effective.Settings.SkipCertificateVerification,
             Source = effective.Origin switch
             {
                 SmtpSettingsOrigin.Database => "database",

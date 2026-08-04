@@ -94,6 +94,7 @@ export interface SmtpSettingsResponse {
   passwordSet: boolean;
   source: "database" | "environment" | "default";
   updatedAt: string | null;
+  skipCertificateVerification: boolean;
 }
 
 export interface UpdateSmtpSettingsRequest {
@@ -102,6 +103,7 @@ export interface UpdateSmtpSettingsRequest {
   fromAddress?: string;
   username?: string;
   password?: string;
+  skipCertificateVerification?: boolean;
 }
 
 export interface SmtpTestResponse {

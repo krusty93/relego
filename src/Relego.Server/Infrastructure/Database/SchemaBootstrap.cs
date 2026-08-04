@@ -77,6 +77,7 @@ public sealed class SchemaBootstrap
             from_address TEXT    NOT NULL,
             username     TEXT    NOT NULL DEFAULT '',
             password     TEXT    NOT NULL DEFAULT '',
+            skip_cert_verify INTEGER NOT NULL DEFAULT 0,
             updated_at   TEXT    NOT NULL
         );
 
@@ -103,6 +104,7 @@ public sealed class SchemaBootstrap
 
         // Migration: add delivery_email column if it doesn't exist (existing databases)
         await MigrateAddDeliveryEmailColumnAsync(connection, cancellationToken);
+        await MigrateAddSkipCertVerifyColumnAsync(connection, cancellationToken);
     }
 
     private static async Task MigrateAddDeliveryEmailColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -126,6 +128,30 @@ public sealed class SchemaBootstrap
         {
             await using var alterCommand = connection.CreateCommand();
             alterCommand.CommandText = "ALTER TABLE users ADD COLUMN delivery_email TEXT NULL";
+            await alterCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static async Task MigrateAddSkipCertVerifyColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var pragmaCommand = connection.CreateCommand();
+        pragmaCommand.CommandText = "PRAGMA table_info(smtp_settings)";
+        await using var reader = await pragmaCommand.ExecuteReaderAsync(cancellationToken);
+
+        var hasColumn = false;
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (reader.GetString(1) == "skip_cert_verify")
+            {
+                hasColumn = true;
+                break;
+            }
+        }
+
+        if (!hasColumn)
+        {
+            await using var alterCommand = connection.CreateCommand();
+            alterCommand.CommandText = "ALTER TABLE smtp_settings ADD COLUMN skip_cert_verify INTEGER NOT NULL DEFAULT 0";
             await alterCommand.ExecuteNonQueryAsync(cancellationToken);
         }
     }

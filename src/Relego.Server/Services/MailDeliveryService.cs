@@ -87,6 +87,12 @@ public sealed class MailDeliveryService(
 
         using var client = new SmtpClient();
 
+        // When the user explicitly opts in to skipping certificate verification (for a
+        // self-hosted relay with a self-signed cert), install a permissive callback.
+        // This is a deliberate opt-in; the default is strict validation.
+        if (settings.SkipCertificateVerification)
+            client.ServerCertificateValidationCallback = (_, _, _, _) => true;
+
         try
         {
             // Auto is the only option that covers every port a self-hoster will point us at:

@@ -404,6 +404,7 @@ function SmtpPanel() {
     "host" | "port" | "fromAddress" | "username"
   > | null>(null);
   const [password, setPassword] = useState("");
+  const [skipCertVerify, setSkipCertVerify] = useState(false);
 
   useEffect(() => {
     if (!query.data) return;
@@ -414,6 +415,7 @@ function SmtpPanel() {
       username: query.data.username,
     });
     setPassword("");
+    setSkipCertVerify(query.data.skipCertificateVerification);
   }, [query.data]);
 
   const save = useMutation({
@@ -422,6 +424,7 @@ function SmtpPanel() {
         ...form!,
         // An untouched password field must not clear the stored secret.
         ...(password ? { password } : {}),
+        skipCertificateVerification: skipCertVerify,
       }),
     onSuccess: (data) => {
       queryClient.setQueryData(["smtp"], data);
@@ -558,6 +561,23 @@ function SmtpPanel() {
             />
             <span className="help" id="pass-help">
               Write-only. The server never sends it back to the browser.
+            </span>
+          </div>
+
+          <div className="field--checkbox">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={skipCertVerify}
+                onChange={(event) => setSkipCertVerify(event.target.checked)}
+                aria-describedby="cert-help"
+              />
+              <span>Skip TLS certificate verification</span>
+            </label>
+            <span className="help" id="cert-help">
+              Only enable for trusted internal relays with self-signed certificates. Never
+              enable against a public mail server — it disables protection against
+              man-in-the-middle attacks.
             </span>
           </div>
         </div>

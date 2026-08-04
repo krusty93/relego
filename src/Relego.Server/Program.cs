@@ -215,6 +215,7 @@ static Dictionary<string, string?> GetLegacySmtpEnvironmentOverrides()
     AddOverride(overrides, "Smtp:FromAddress", "SMTP_FROM_ADDRESS");
     AddOverride(overrides, "Smtp:Username", "SMTP_USER");
     AddOverride(overrides, "Smtp:Password", "SMTP_PASSWORD");
+    AddBoolOverride(overrides, "Smtp:SkipCertificateVerification", "SMTP_SKIP_CERT_VERIFY");
 
     return overrides;
 }
@@ -236,4 +237,11 @@ static void AddOverride(Dictionary<string, string?> overrides, string configurat
         overrides[configurationKey] = value;
         return;
     }
+}
+
+static void AddBoolOverride(Dictionary<string, string?> overrides, string configurationKey, string environmentVariableName)
+{
+    var value = Environment.GetEnvironmentVariable(environmentVariableName);
+    if (!string.IsNullOrWhiteSpace(value) && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1"))
+        overrides[configurationKey] = "true";
 }

@@ -18,7 +18,9 @@ public sealed class SmtpSettingsRepository(IDbConnection connection)
         var row = await connection.QuerySingleOrDefaultAsync<Row>(
             """
             SELECT host AS Host, port AS Port, from_address AS FromAddress,
-                   username AS Username, password AS Password, updated_at AS UpdatedAtText
+                   username AS Username, password AS Password,
+                   skip_cert_verify AS SkipCertVerify,
+                   updated_at AS UpdatedAtText
             FROM smtp_settings WHERE id = 1
             """).ConfigureAwait(false);
 
@@ -30,6 +32,7 @@ public sealed class SmtpSettingsRepository(IDbConnection connection)
                 row.FromAddress,
                 row.Username,
                 row.Password,
+                row.SkipCertVerify != 0,
                 DateTimeOffset.Parse(row.UpdatedAtText, System.Globalization.CultureInfo.InvariantCulture));
     }
 
@@ -41,14 +44,15 @@ public sealed class SmtpSettingsRepository(IDbConnection connection)
 
         await connection.ExecuteAsync(
             """
-            INSERT INTO smtp_settings (id, host, port, from_address, username, password, updated_at)
-            VALUES (1, @Host, @Port, @FromAddress, @Username, @Password, @UpdatedAt)
+            INSERT INTO smtp_settings (id, host, port, from_address, username, password, skip_cert_verify, updated_at)
+            VALUES (1, @Host, @Port, @FromAddress, @Username, @Password, @SkipCertVerify, @UpdatedAt)
             ON CONFLICT(id) DO UPDATE SET
                 host = excluded.host,
                 port = excluded.port,
                 from_address = excluded.from_address,
                 username = excluded.username,
                 password = excluded.password,
+                skip_cert_verify = excluded.skip_cert_verify,
                 updated_at = excluded.updated_at
             """,
             new
@@ -58,6 +62,7 @@ public sealed class SmtpSettingsRepository(IDbConnection connection)
                 settings.FromAddress,
                 settings.Username,
                 settings.Password,
+                SkipCertVerify = settings.SkipCertificateVerification ? 1 : 0,
                 UpdatedAt = updatedAt.UtcDateTime.ToString("O"),
             }).ConfigureAwait(false);
 
@@ -67,6 +72,7 @@ public sealed class SmtpSettingsRepository(IDbConnection connection)
             settings.FromAddress,
             settings.Username,
             settings.Password,
+            settings.SkipCertificateVerification,
             updatedAt);
     }
 
@@ -77,6 +83,7 @@ public sealed class SmtpSettingsRepository(IDbConnection connection)
         public string FromAddress { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+        public long SkipCertVerify { get; set; }
         public string UpdatedAtText { get; set; } = string.Empty;
     }
 }
@@ -88,4 +95,5 @@ public sealed record StoredSmtpSettings(
     string FromAddress,
     string Username,
     string Password,
+    bool SkipCertificateVerification,
     DateTimeOffset UpdatedAt);
