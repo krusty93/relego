@@ -67,13 +67,9 @@ All sources are responsible for transforming raw source data into structured dat
   - Bookmarks: entries of type "Bookmark" are silently dropped
   - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
 
-#### TUI subsystem (`Relego.Cli/Tui/`)
+#### TUI subsystem
 
-> **Deprecated:** The TUI is deprecated in favour of the [web UI](http://localhost:8081). It will be removed in a future release. New users should start with the web UI.
-
-When invoked with no arguments in an interactive terminal (`relego`), the client enters **TUI mode** — a full-screen terminal UI powered by [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) (v2).
-
-**Dual-mode launch** (`Program.cs`): if `args.Length == 0 && !Console.IsInputRedirected`, `TuiApp.RunAsync()` is called; otherwise the Spectre.Console `CommandApp` handles the sub-command (e.g. `relego sync`).
+> **Removed:** The TUI has been removed. Use the [web UI](http://localhost:8081) instead.
 
 ### Server (`relego-server`)
 
@@ -254,8 +250,7 @@ src/Relego.Cli/
 ├── Infrastructure/     # HTTP client, resilience, device detectors
 ├── Parsing/            # My Clippings.txt parser
 ├── Sources/            # Highlight source registry, source readers, resolver
-├── Tui/                # Terminal.Gui TUI (TuiApp, screens, StatusChrome, …)
-└── Program.cs          # Dual-mode entry point (TUI or CLI)
+└── Program.cs          # CLI entry point
 
 src/Relego.Server/
 ├── Data/               # Dapper repositories over SQLite
@@ -270,8 +265,7 @@ src/Relego.Tests/
 ├── Infrastructure/     # Database/bootstrap tests
 ├── Parsing/            # CLI parser tests
 ├── Recap/              # Recap service tests
-├── Sources/            # Highlight source, resolver, and multi-import tests
-└── Tui/                # TUI logic tests (mode detection, search, screen key handling)
+└── Sources/            # Highlight source, resolver, and multi-import tests
 
 src/landing/                # Static marketing landing page (independent from .NET)
 ├── pages/              # Astro pages (index.astro)
