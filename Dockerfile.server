@@ -1,3 +1,12 @@
+FROM node:24-alpine AS web-build
+WORKDIR /web
+
+COPY src/web/package.json src/web/package-lock.json ./
+RUN npm ci
+
+COPY src/web/ ./
+RUN npm run build
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
@@ -12,6 +21,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 COPY --from=build /out/ ./
+COPY --from=web-build /web/dist/ ./wwwroot/
 
 ENV ASPNETCORE_HTTP_PORTS=8080
 

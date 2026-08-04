@@ -9,5 +9,16 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      "/status": "http://localhost:8080",
+      "/books": "http://localhost:8080",
+      "/highlights": "http://localhost:8080",
+      "/imports": "http://localhost:8080",
+      "/settings": "http://localhost:8080",
+      "/recaps": "http://localhost:8080",
+      "/exclusions": "http://localhost:8080",
+      "/authors": "http://localhost:8080",
+      "/healthz": "http://localhost:8080",
+    },
   },
 });

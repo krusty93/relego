@@ -17,10 +17,14 @@ public sealed class RelegoTestApplicationFactory : WebApplicationFactory<SchemaB
 {
     private readonly SqliteConnection _connection;
     private readonly Action<IWebHostBuilder>? _configureWebHost;
+    private readonly string? _webRootPath;
 
-    public RelegoTestApplicationFactory(Action<IWebHostBuilder>? configureWebHost = null)
+    public RelegoTestApplicationFactory(
+        Action<IWebHostBuilder>? configureWebHost = null,
+        string? webRootPath = null)
     {
         _configureWebHost = configureWebHost;
+        _webRootPath = webRootPath;
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
         using var pragma = _connection.CreateCommand();
@@ -32,6 +36,9 @@ public sealed class RelegoTestApplicationFactory : WebApplicationFactory<SchemaB
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        if (!string.IsNullOrWhiteSpace(_webRootPath))
+            builder.UseWebRoot(_webRootPath);
+
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IDbConnection));

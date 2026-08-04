@@ -4,7 +4,7 @@ import { InfoIcon } from "../components/icons";
 import { ThemeSwitch } from "../components/ThemeSwitch";
 import { ErrorNote, Tag } from "../components/ui";
 import { api, ApiError } from "../lib/api";
-import { API_URL } from "../lib/config";
+import { API_LABEL } from "../lib/config";
 import { capitalise, DAYS } from "../lib/format";
 import { useToasts } from "../lib/toasts";
 import type { SettingsResponse, SmtpSettingsResponse } from "../lib/types";
@@ -587,14 +587,12 @@ function ConnectionPanel() {
       </header>
 
       <dl className="dl">
-        <dt>Server URL</dt>
+        <dt>Server</dt>
         <dd>
-          <code>{API_URL}</code>
+          <code>{API_LABEL}</code>
         </dd>
-        <dt>Set by</dt>
-        <dd>
-          <code>RELEGO_API_URL</code> <span className="subtle">in your compose file</span>
-        </dd>
+        <dt>Connection</dt>
+        <dd>Same origin as this web UI</dd>
         <dt>Server version</dt>
         <dd>{status.data?.serverVersion ?? "—"}</dd>
         <dt>Status</dt>

@@ -78,10 +78,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     });
   } catch {
-    throw new ApiError(
-      `Could not reach the Relego server at ${API_URL}. Check that it is running and that this origin is allowed by RELEGO_CORS_ORIGINS.`,
-      0,
-    );
+    throw new ApiError("Could not reach this Relego server. Check that it is running.", 0);
   }
 
   if (!response.ok) {
@@ -187,7 +184,7 @@ export const api = {
       });
 
       xhr.addEventListener("error", () =>
-        reject(new ApiError(`Could not reach the Relego server at ${API_URL}.`, 0)),
+        reject(new ApiError("Could not reach this Relego server.", 0)),
       );
 
       xhr.addEventListener("abort", () => reject(new ApiError("Upload cancelled.", 0)));

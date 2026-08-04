@@ -15,14 +15,17 @@ using Relego.Server.Infrastructure.Smtp;
 using Relego.Server.Jobs;
 using Relego.Server.Services;
 
-const string WebUiCorsPolicy = "relego-web-ui";
-
 SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
 
 var dbPath = ".data/relego.db";
 var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
 
-var builder = WebApplication.CreateBuilder(args);
+var webUiRoot = Environment.GetEnvironmentVariable("RELEGO_WEB_ROOT");
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    WebRootPath = string.IsNullOrWhiteSpace(webUiRoot) ? null : Path.GetFullPath(webUiRoot),
+});
 
 SerilogConfiguration.ConfigureLogging(builder);
 
@@ -31,27 +34,6 @@ if (smtpEnvironmentOverrides.Count > 0)
     builder.Configuration.AddInMemoryCollection(smtpEnvironmentOverrides);
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
-
-// The web UI runs in its own container on a different origin, so it needs an explicit
-// allow-list. RELEGO_CORS_ORIGINS is a comma-separated list of origins; when it is unset
-// no cross-origin request is allowed and only same-origin clients (the CLI) can call the API.
-var corsOrigins = (Environment.GetEnvironmentVariable("RELEGO_CORS_ORIGINS") ?? string.Empty)
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    .Distinct(StringComparer.OrdinalIgnoreCase)
-    .ToArray();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(WebUiCorsPolicy, policy =>
-    {
-        if (corsOrigins.Contains("*"))
-            policy.AllowAnyOrigin();
-        else
-            policy.WithOrigins(corsOrigins);
-
-        policy.AllowAnyHeader().AllowAnyMethod();
-    });
-});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -148,7 +130,8 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseCors(WebUiCorsPolicy);
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.MapRecapEndpoints();
 app.MapProbeEndpoints();
@@ -161,6 +144,7 @@ app.MapExclusionEndpoints();
 app.MapWeightEndpoints();
 app.MapHighlightEndpoints();
 app.MapBookEndpoints();
+app.MapFallbackToFile("index.html");
 
 var schemaBootstrap = new SchemaBootstrap();
 await schemaBootstrap.ApplyAsync(dbPath);

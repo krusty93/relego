@@ -8,20 +8,20 @@
 
 ## System Overview
 
-Relego follows a client/server architecture. The server is the only always-on component; the CLI and the web UI are interchangeable front-ends over the same REST API.
+Relego follows a client/server architecture. The server is the only always-on component and serves both the REST API and the web UI; the CLI is an optional front-end over the same API.
 
 ```
 User Laptop                              Home Server / NAS / Pi
 -----------                              ----------------------
 relego CLI  ── REST HTTP ──────────────▶  relego-server (Docker)
-    │                                    ▲  ├── Scheduler (Quartz.NET)
-    │ USB                                │  ├── SMTP sender (MailKit)
-    │                                    │  └── SQLite (Docker volume)
-    ├── Kindle / My Clippings.txt        │             │
-    └── Kobo / .kobo/KoboReader.sqlite   │             │ SMTP
-                                         │             ▼
-Browser ── HTTP ──▶ relego-web (Docker) ─┘  Send-to-Kindle or inbox email
-                    static SPA, CORS
+    │                                     ├── ASP.NET Core API + React SPA
+    │ USB                                 ├── Scheduler (Quartz.NET)
+    ├── Kindle / My Clippings.txt         ├── SMTP sender (MailKit)
+    └── Kobo / .kobo/KoboReader.sqlite    └── SQLite (Docker volume)
+                                                   │
+Browser ── HTTP ───────────────────────────────────┤ SMTP
+                                                   ▼
+                                      Send-to-Kindle or inbox email
 ```
 
 ---
@@ -117,26 +117,20 @@ Endpoint groups currently implemented:
 
 SMTP settings live in the `smtp_settings` table so they can be changed from the web UI without restarting the container. On first boot, when the table is empty, the `SMTP_*` environment variables seed it. From then on the database is authoritative and the environment variables are ignored; `SmtpConfigurationService` is the single read path used by `MailDeliveryService`. The password is never returned by `GET /settings/smtp`, and omitting it from `PUT /settings/smtp` keeps the stored value.
 
-#### CORS
-
-Browser front-ends are cross-origin, so the server registers a named CORS policy driven by `RELEGO_CORS_ORIGINS` (comma-separated). When the variable is unset, no origin is allowed and only same-origin clients such as the CLI work — the browser UI must be opted in explicitly.
-
----
-
 ### Web UI (`src/web/`)
 
-Single-page application served as static files by Nginx, published as the `relego-web` container. It has full feature parity with the TUI and is the recommended day-to-day surface.
+Single-page application built with Vite and served as static files by `relego-server`. The ASP.NET Core fallback serves client-side routes while API endpoints remain mapped independently, so one container and origin serve the entire product.
 
-- **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer — no CSS framework, so the design system in [DESIGN.md](DESIGN.md) is the only source of truth for visual decisions.
-- **No build-time configuration**: the API URL is read from `window.__RELEGO__.apiUrl`, written into `/config.js` by the container entrypoint from `RELEGO_API_URL`. One image works against any server.
+- **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer and no CSS framework.
+- **Same-origin API**: production API calls are relative paths, eliminating runtime API URL configuration and CORS.
 - **Offline-capable assets**: fonts are bundled (`@fontsource/playfair-display`); nothing is fetched from a CDN at runtime, which matters for a self-hosted tool on an isolated network.
 - **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights · `/recaps` · `/import` · `/settings`
 - **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
 - **Build**: `cd src/web && npm run build` → `src/web/dist/`
-- **Tests**: `cd src/web && npm test` — Playwright starts both `relego-server` (against a throwaway SQLite file) and the Vite dev server, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites
+- **Tests**: `cd src/web && npm test` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds fixtures, then runs behavioural and accessibility suites against the one origin.
 - **Separation**: like the landing page, no shared code or dependencies with the .NET projects
 
-Authentication is deliberately absent, matching the REST API's existing local-network trust model. The web UI raises the stakes because it can write the SMTP password, so the README documents the exposure and both ports are expected to stay on a trusted network.
+Authentication is deliberately absent, matching the REST API's existing local-network trust model. The web UI raises the stakes because it can write the SMTP password, so the README documents the exposure and the published server port is expected to stay on a trusted network.
 
 ---
 

@@ -80,7 +80,7 @@ Each highlight includes the quote, the book title, and the author, making it eas
 
 ## Web UI
 
-`docker compose --profile server up -d` also starts **relego-web** on <http://localhost:8081>. It is the easiest way to run Relego day to day: everything the TUI does, in the browser, on desktop or phone.
+`docker compose --profile app up -d` starts **relego-server** with its built-in web UI on <http://localhost:8080>. It is the easiest way to run Relego day to day: everything the TUI does, in the browser, on desktop or phone.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/web-ui-dark.png">
@@ -95,10 +95,10 @@ Each highlight includes the quote, the book title, and the author, making it eas
 
 It is keyboard-first. `Ctrl`/`⌘` `K` opens the command palette, `/` focuses search, `g` then `l` / `h` / `r` / `i` / `s` jumps between views, `j` / `k` move through lists, `t` cycles light → dark → system, and `?` shows every shortcut. Light, dark, and system themes are all first-class; the default follows your OS.
 
-Point the browser at a different server with `RELEGO_API_URL` on the `relego-web` service, and add that browser origin to `RELEGO_CORS_ORIGINS` on `relego-server`.
+The browser and API share the same origin, so there is no separate UI container, runtime API URL, or CORS configuration.
 
 > [!IMPORTANT]
-> Like the REST API, the web UI has **no authentication**. Anything that can reach the two published ports can read your highlights and change your settings, including the SMTP password. Keep both on a trusted network, or put them behind your own reverse proxy and auth layer. Do not expose them to the public internet.
+> Like the REST API, the web UI has **no authentication**. Anything that can reach the published server port can read your highlights and change your settings, including the SMTP password. Keep it on a trusted network, or put it behind your own reverse proxy and auth layer. Do not expose it to the public internet.
 
 ## Interactive mode
 
@@ -124,10 +124,10 @@ Connect your Kindle or Kobo device to your computer via USB cable.
 Fill in `KINDLE_EMAIL` and the `SMTP_*` variables in `docker-compose.yml`, then:
 
 ```sh
-docker compose --profile server up -d
+docker compose --profile app up -d
 ```
 
-This starts the API on <http://localhost:8080> and the [web UI](#web-ui) on <http://localhost:8081>. Steps 3 to 6 below use the CLI; you can do all of them in the browser instead.
+This starts the API and [web UI](#web-ui) together on <http://localhost:8080>. Steps 3 to 6 below use the CLI; you can do all of them in the browser instead.
 
 > [!IMPORTANT]
 > Amazon Send-to-Kindle only accepts emails from approved senders. Add the email address you are going to use in your Amazon "Approved Personal Document E-mail List" before testing delivery.
@@ -274,7 +274,7 @@ If you've been using the demo mode, open `http://localhost:5000` to view the cap
 |---------|-----|
 | `relego recap trigger` returns an error | Verify the server is up with `docker compose ps`. |
 | Trigger returns `No eligible highlights available` | No highlights imported yet. Run the import step first. |
-| Web UI shows "Disconnected" | The browser cannot reach the API. Check `docker compose ps`, then confirm the origin you opened matches `RELEGO_CORS_ORIGINS` on `relego-server`. |
+| Web UI shows "Disconnected" | The server is unavailable. Check `docker compose ps` and open the UI through the published `relego-server` port. |
 | No email in smtp4dev | Check that the `demo` profile is running, and that the `relego-server` environment block is using `ASPNETCORE_ENVIRONMENT=Development`, `SMTP_HOST=smtp4dev`, and `SMTP_PORT=2525`. |
 | smtp4dev web UI is blank | smtp4dev renders after a moment. Refresh the page. |
 

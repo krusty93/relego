@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
-import { API_URL } from "../lib/config";
+import { API_LABEL } from "../lib/config";
 import { capitalise, formatCount } from "../lib/format";
 import { useHotkeys } from "../lib/hotkeys";
 import { useSearch } from "../lib/search";
@@ -128,7 +128,7 @@ export function AppShell() {
 
   const connected = status.isSuccess;
   const connectionState = status.isSuccess ? "online" : status.isError ? "offline" : "checking";
-  const serverLabel = API_URL.replace(/^https?:\/\//, "");
+  const serverLabel = API_LABEL;
 
   return (
     <>
@@ -172,7 +172,7 @@ export function AppShell() {
               <span className="conn-label">
                 {connected ? "Connected" : status.isError ? "Disconnected" : "Connecting…"}
               </span>
-              <code title={API_URL}>{serverLabel}</code>
+              <code title={API_LABEL}>{serverLabel}</code>
             </div>
 
             <ThemeSwitch />

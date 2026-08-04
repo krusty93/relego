@@ -7,7 +7,7 @@ services:
       SERVER_URL: http://relego-server:8080
     networks:
       - relego
-    profiles: [client]
+    profiles: [cli]
 
   relego-server:
     image: ghcr.io/krusty93/relego.server:latest
@@ -21,39 +21,21 @@ services:
       SMTP_HOST: smtp.example.com
       SMTP_PORT: "587"
 
-      # Browser origins allowed to call this API. Must list the relego-web URL you
-      # open in your browser; add more, comma-separated, for other machines on the LAN.
-      RELEGO_CORS_ORIGINS: http://localhost:8081
-
       # smtp4dev demo mode: replace the four lines above with these
       # SMTP_PASSWORD: ""
       # ASPNETCORE_ENVIRONMENT: Development
       # SMTP_HOST: smtp4dev
       # SMTP_PORT: "2525"
+    build:
+      context: .
+      dockerfile: Dockerfile.server
     ports:
       - "8080:8080"
     volumes:
       - relego-data:/data
     networks:
       - relego
-    profiles: [server, demo]
-
-  relego-web:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
-    restart: unless-stopped
-    environment:
-      # Resolved by the browser, not by this container, so it points at the
-      # published relego-server port on the host.
-      RELEGO_API_URL: http://localhost:8080
-    ports:
-      - "8081:8081"
-    depends_on:
-      - relego-server
-    networks:
-      - relego
-    profiles: [server, demo]
+    profiles: [app, demo]
 
   smtp4dev:
     image: rnwood/smtp4dev:latest
