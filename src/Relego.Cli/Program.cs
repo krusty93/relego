@@ -15,19 +15,12 @@ using Relego.Cli.Commands.Weight;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
 using Relego.Cli.Sources;
-using Relego.Cli.Tui;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-bool isTuiMode = TuiModeDetector.Detect(args, Console.IsInputRedirected) == StartupMode.Tui;
-
-Log.Logger = isTuiMode
-    ? new LoggerConfiguration()
-        .MinimumLevel.Fatal()
-        .CreateLogger()
-    : new LoggerConfiguration()
-        .ReadFrom.Configuration(builder.Configuration)
-        .CreateLogger();
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
 
 builder.Services.AddLogging(loggingBuilder =>
 {
@@ -76,15 +69,6 @@ builder.Services.AddSingleton<HighlightSourceResolver>();
 builder.Services.AddTransient<ClippingsImportWorkflow>();
 
 using IHost host = builder.Build();
-
-if (isTuiMode)
-{
-    var client = host.Services.GetRequiredService<RelegoHttpClient>();
-    var syncWorkflow = host.Services.GetRequiredService<ClippingsImportWorkflow>();
-    var tuiApp = new TuiApp(client, syncWorkflow, normalizedServerUrl, version);
-    await tuiApp.RunAsync(CancellationToken.None);
-    return 0;
-}
 
 var registrar = new TypeRegistrar(host.Services);
 
