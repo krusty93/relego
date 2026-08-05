@@ -42,7 +42,7 @@ That's it. The server is running and will start sending recaps on the default sc
 
 ### Web UI
 
-The server image includes the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
+The server image and self-contained server archive include the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
 
 Once SMTP is saved from the Settings page it lives in the database and the `SMTP_*` environment variables stop being read; they only seed an empty configuration on first boot.
 
@@ -310,7 +310,7 @@ Errors are actionable — they tell the user exactly what to do.
 
 - `relego import` auto-detects Kindle and Kobo sources on macOS, Linux, and Windows. Explicit Kindle file paths are routed by `.txt` extension, while auto-detection still probes the device's `My Clippings.txt` path. Each source owns its own detection rules, and the resolver imports every detected source with per-source failure isolation.
 - Parsing and the source registry live in `Relego.Core`, so the CLI (device attached) and the server (file uploaded) share one implementation. Adding a source adds it to both.
-- The web UI ships as static files with no build-time configuration; the API URL is injected at container start. One image works against any server.
+- The web UI ships as static files with no build-time configuration and calls same-origin API paths. `dotnet publish` builds it through the server's JavaScript project reference, so Docker and executable releases contain the same UI/API artifact.
 - Server authentication is not required — the server is assumed to be on a trusted local network. The web UI inherits that assumption and must not be exposed to the public internet.
 
 ---
@@ -320,20 +320,20 @@ Errors are actionable — they tell the user exactly what to do.
 ```sh
 # terminal 1 — API
 cd src/Relego.Server
-RELEGO_WEB_ROOT=../web/dist dotnet run
+RELEGO_WEB_ROOT=../relego.web/dist dotnet run
 
 # terminal 2 — UI with hot reload
-cd src/web
-npm install
+cd src/relego.web
+npm ci
 npm run dev            # http://localhost:5173
 ```
 
-For local frontend development, Vite proxies API routes to the server. For production-like local testing, build `src/web` and set `RELEGO_WEB_ROOT` to its `dist` directory.
+For local frontend development, Vite proxies API routes to the server. The React source lives in `src/relego.web`; run `npm ci` and `npm run dev` there. For a complete executable-style output, run `dotnet publish src/Relego.Server`: the server project references `Relego.Web.esproj`, which builds Vite and includes its `dist` assets in the published server's `wwwroot` directory. For production-like local testing without publishing, build `src/relego.web` and set `RELEGO_WEB_ROOT` to its `dist` directory.
 
 ```sh
 npm run typecheck      # tsc --noEmit over src, tests and configs
 npm run build          # typecheck + production bundle into dist/
-npm test               # Playwright: boots the API and Vite, seeds fixtures, runs everything
+npm test               # Playwright: builds the SPA, boots the API, seeds fixtures, runs everything
 npm run test:a11y      # axe-core sweep only
 ```
 

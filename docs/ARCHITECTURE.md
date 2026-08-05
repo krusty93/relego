@@ -118,18 +118,18 @@ Endpoint groups currently implemented:
 
 SMTP settings live in the `smtp_settings` table so they can be changed from the web UI without restarting the container. On first boot, when the table is empty, the `SMTP_*` environment variables seed it. From then on the database is authoritative and the environment variables are ignored; `SmtpConfigurationService` is the single read path used by `MailDeliveryService`. The password is never returned by `GET /settings/smtp`, and omitting it from `PUT /settings/smtp` keeps the stored value.
 
-### Web UI (`src/web/`)
+### Web UI (`src/relego.web/`)
 
-Single-page application built with Vite and copied into the `relego-server` image at publish time. ASP.NET Core serves the static assets and SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed. It has full feature parity with the TUI and is the recommended day-to-day surface.
+Single-page application built with Vite and referenced by `Relego.Server` through `Relego.Web.esproj`. During `dotnet publish`, its production build is added to the server's `wwwroot` output as static web assets. ASP.NET Core serves those assets and the SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed. It has full feature parity with the TUI and is the recommended day-to-day surface.
 
-- **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer — no CSS framework, so the design system in [DESIGN.md](DESIGN.md) is the only source of truth for visual decisions.
+- **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer.
 - **Same-origin API calls**: browser requests use relative paths, so the web UI always talks to the server that served it.
 - **Offline-capable assets**: fonts are bundled (`@fontsource/playfair-display`); nothing is fetched from a CDN at runtime, which matters for a self-hosted tool on an isolated network.
 - **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights · `/recaps` · `/import` · `/settings`
 - **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
-- **Build**: `cd src/web && npm run build` → `src/web/dist/`
-- **Tests**: `cd src/web && npm test` — Playwright starts both `relego-server` (against a throwaway SQLite file) and the Vite dev server, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites
-- **Separation**: like the landing page, no shared code or dependencies with the .NET projects
+- **Build**: `dotnet publish src/Relego.Server` restores the locked npm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `cd src/relego.web && npm run build` remains available for frontend-only work.
+- **Tests**: `cd src/relego.web && npm test` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
+- **Integration**: `Relego.Web.esproj` is included in `Relego.slnx` and referenced by the server to define one publishable server-and-web artifact. The React source, dependencies, and frontend test tooling remain independent from the .NET implementation.
 
 Authentication is deliberately absent, matching the REST API's existing local-network trust model. The web UI raises the stakes because it can write the SMTP password, so the README documents the exposure and both ports are expected to stay on a trusted network.
 
@@ -153,14 +153,14 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 |--------------------------|--------------------------------|---------------------------------------------------------|
 | Language / runtime       | .NET 10 (C#)                   | Cross-platform, self-contained binaries, rich ecosystem |
 | Client distribution      | Single-file binary / Docker    | Zero runtime dependency for end users                   |
-| Server distribution      | Docker container               | Self-hosted, single command to deploy                   |
+| Server distribution      | Docker container / self-contained archive | One server-and-web artifact for self-hosted deployment |
 | Storage                  | SQLite (file in Docker volume) | Zero config, single file, no extra container            |
 | Client/server protocol   | REST HTTP                      | Simple, debuggable, universally supported               |
 | Email delivery           | MailKit + SMTP                 | Industry standard, supports Send-to-Kindle              |
 | Logging                  | Serilog (file + SQLite sink)   | Structured logging, persistent, queryable               |
 | Scheduling               | Quartz.NET                     | Mature .NET scheduler, cron-style expressions           |
 | CLI UX                   | Spectre.Console                | Rich terminal output, tables, progress bars             |
-| Web UI                   | Vite + React + plain CSS       | Static build, runtime-configurable API URL, no framework lock-in |
+| Web UI                   | Vite + React + plain CSS       | Static build published with the server, same-origin API |
 | Landing page             | Astro + Tailwind CSS           | Static site generation, minimal JS, fast build          |
 
 ---
@@ -306,12 +306,12 @@ src/Relego.Tests/
 ├── Sources/            # Highlight source, resolver, and multi-import tests
 └── Tui/                # TUI logic tests (mode detection, search, screen key handling)
 
-src/web/                    # Web UI SPA (independent from .NET)
+src/relego.web/             # React/Vite SPA published with Relego.Server
+├── Relego.Web.esproj       # JavaScript SDK project referenced by the server
 ├── src/components/     # App shell, command palette, shortcuts sheet, primitives
 ├── src/routes/         # Library, Highlights, Import, Recaps, Settings
 ├── src/lib/            # API client, theme, hotkeys, toasts, formatting
 ├── src/styles/         # Design tokens and global stylesheet
-├── docker/             # Nginx config and runtime config entrypoint
 └── tests/              # Playwright behavioural and axe-core accessibility suites
 
 src/landing/                # Static marketing landing page (independent from .NET)

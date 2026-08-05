@@ -22,7 +22,7 @@ This file is the shared source of truth for color values used across the landing
 
 ## Product ramp (web UI)
 
-The canonical palette is an identity palette: one background, one text color, one accent, and translucent surfaces. Dense product UI needs more than that — table headers, inputs, and nav need to sit on distinguishable layers, and translucency over a busy page reduces text contrast unpredictably. `src/web/src/styles/tokens.css` therefore extends the canonical values into an opaque ramp. Background, text, and accent are unchanged; everything else is derived.
+The canonical palette is an identity palette: one background, one text color, one accent, and translucent surfaces. Dense product UI needs more than that — table headers, inputs, and nav need to sit on distinguishable layers, and translucency over a busy page reduces text contrast unpredictably. `src/relego.web/src/styles/tokens.css` therefore extends the canonical values into an opaque ramp. Background, text, and accent are unchanged; everything else is derived.
 
 | Token | Light | Dark | Role |
 |---|---|---|---|
@@ -59,4 +59,4 @@ The mode is selected via `RELEGO_THEME`:
 - Status text (`Success`, `Error`, `Warning` on `Background`): WCAG AA for normal text (>= 4.5:1)
 - Accent text in content (`AccentText` on `Background`): WCAG AA for normal text (>= 4.5:1)
 
-Contrast checks are covered by tests in `src/Relego.Tests/Tui/BrandColorsTests.cs`. The web UI is checked end to end instead: `src/web/tests/a11y.spec.ts` runs axe-core over every route in both themes at desktop and mobile widths and fails on any contrast violation.
+Contrast checks are covered by tests in `src/Relego.Tests/Tui/BrandColorsTests.cs`. The web UI is checked end to end instead: `src/relego.web/tests/a11y.spec.ts` runs axe-core over every route in both themes at desktop and mobile widths and fails on any contrast violation.

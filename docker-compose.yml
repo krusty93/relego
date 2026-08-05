@@ -11,9 +11,6 @@ services:
 
   relego-server:
     image: ghcr.io/krusty93/relego.server:latest
-    build:
-      context: .
-      dockerfile: Dockerfile.server
     restart: unless-stopped
     environment:
       SMTP_FROM_ADDRESS: noreply@example.com
