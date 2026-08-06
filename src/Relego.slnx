@@ -1,9 +1,7 @@
 <Solution>
-  <Folder Name="/relego.web/">
-    <Project Path="relego.web/Relego.Web.esproj" />
-  </Folder>
   <Project Path="Relego.Cli/Relego.Cli.csproj" />
   <Project Path="Relego.Core/Relego.Core.csproj" />
   <Project Path="Relego.Server/Relego.Server.csproj" />
   <Project Path="Relego.Tests/Relego.Tests.csproj" />
+  <Project Path="relego.web/relego.web.esproj" />
 </Solution>

@@ -128,6 +128,11 @@ jobs:
             --self-contained true \
             --output publish/${{ matrix.rid }}
 
+      - name: Verify web UI assets
+        run: |
+          test -s publish/${{ matrix.rid }}/wwwroot/index.html
+          find publish/${{ matrix.rid }}/wwwroot -type f -name '*.js' -size +1k -print -quit | grep -q .
+
       - name: Archive Server
         env:
           VERSION: ${{ needs.metadata.outputs.version }}

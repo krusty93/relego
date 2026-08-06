@@ -2,11 +2,11 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
     paths:
       - 'src/Relego.**'
       - 'src/relego.web/**'
       - 'Dockerfile.ci'
+      - 'Dockerfile.server'
       - '.github/workflows/ci.yaml'
 
 permissions:
@@ -78,3 +78,56 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  publish-server:
+    name: Publish server with web UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/relego.web/package-lock.json
+
+      - name: Publish
+        run: dotnet publish src/Relego.Server --configuration Release --output publish/server
+
+      - name: Verify web UI assets
+        run: |
+          test -s publish/server/wwwroot/index.html
+          find publish/server/wwwroot -type f -name '*.js' -size +1k -print -quit | grep -q .
+
+  server-image:
+    name: Build server image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          push: false
+          context: .
+          file: Dockerfile.server
+          tags: relego-server-ci:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify web UI assets
+        run: docker run --rm --entrypoint sh relego-server-ci:latest -c "test -s /app/wwwroot/index.html"

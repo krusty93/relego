@@ -8,7 +8,7 @@ COPY --from=node /usr/local/ /usr/local/
 COPY src/PackageVersions.props ./
 COPY src/Relego.Core/Relego.Core.csproj Relego.Core/
 COPY src/Relego.Server/Relego.Server.csproj Relego.Server/
-COPY src/relego.web/Relego.Web.esproj src/relego.web/package.json src/relego.web/package-lock.json relego.web/
+COPY src/relego.web/relego.web.esproj src/relego.web/package.json src/relego.web/package-lock.json relego.web/
 
 RUN dotnet restore Relego.Server/Relego.Server.csproj
 
