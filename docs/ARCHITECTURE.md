@@ -10,19 +10,28 @@
 
 Relego follows a client/server architecture. The server is the only always-on component; it hosts the React web UI and REST API together, while the CLI remains an optional client.
 
-```
-User Laptop                              Home Server / NAS / Pi
------------                              ----------------------
-relego CLI  ── REST HTTP ──────────────▶  relego-server (Docker)
-    │                                    ▲  ├── Scheduler (Quartz.NET)
-    │ USB                                │  ├── SMTP sender (MailKit)
-    │                                    │  └── SQLite (Docker volume)
-    ├── Kindle / My Clippings.txt        │             │
-    └── Kobo / .kobo/KoboReader.sqlite   │             │ SMTP
-Browser ── HTTP ──────────────────────────▶  Same-origin web UI + API
-                                                       │
-                                                       ▼
-                                        Send-to-Kindle or inbox email
+```mermaid
+flowchart LR
+    subgraph laptop["User laptop"]
+        cli["relego CLI"]
+        sources["Kindle / Kobo highlights"]
+        browser["Browser"]
+    end
+
+    subgraph server["Home server / NAS / Pi"]
+        app["relego-server"]
+        scheduler["Scheduler<br/>(Quartz.NET)"]
+        smtp["SMTP sender<br/>(MailKit)"]
+        database[("SQLite<br/>(Docker volume)")]
+    end
+
+    sources -->|USB| cli
+    cli -->|REST HTTP| app
+    browser -->|HTTP| app
+    app --> scheduler
+    app --> smtp
+    app --> database
+    smtp --> delivery["Send-to-Kindle or inbox email"]
 ```
 
 ---

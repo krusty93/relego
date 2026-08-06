@@ -1,8 +1,8 @@
 # Developer Experience Design — Relego
 
-**Version:** 0.2 — Draft
-**Date:** 2026-03-31
-**Status:** Draft
+**Version:** 1.0
+**Date:** 2026-08-07
+**Status:** Active
 
 ---
 
@@ -43,8 +43,6 @@ That's it. The server is running and will start sending recaps on the default sc
 ### Web UI
 
 The server image and self-contained server archive include the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
-
-Once SMTP is saved from the Settings page it lives in the database and the `SMTP_*` environment variables stop being read; they only seed an empty configuration on first boot.
 
 ### Client CLI
 
@@ -309,7 +307,7 @@ Errors are actionable — they tell the user exactly what to do.
 ## Decisions
 
 - `relego import` auto-detects Kindle and Kobo sources on macOS, Linux, and Windows. Explicit Kindle file paths are routed by `.txt` extension, while auto-detection still probes the device's `My Clippings.txt` path. Each source owns its own detection rules, and the resolver imports every detected source with per-source failure isolation.
-- Parsing and the source registry live in `Relego.Core`, so the CLI (device attached) and the server (file uploaded) share one implementation. Adding a source adds it to both.
+- Parsing and the source registry currently live in `Relego.Core` so the CLI and server can share one implementation. This is transitional: when the TUI is removed, move that logic to `Relego.Server` and have the CLI upload source files without parsing them locally.
 - The web UI ships as static files with no build-time configuration and calls same-origin API paths. `dotnet publish` builds it through the server's JavaScript project reference, so Docker and executable releases contain the same UI/API artifact.
 - Server authentication is not required — the server is assumed to be on a trusted local network. The web UI inherits that assumption and must not be exposed to the public internet.
 
