@@ -69,16 +69,16 @@ All sources are responsible for transforming raw source data into structured dat
 
 - **Entry point**: `ClippingsParser.ParseAsync(string filePath, ILogger? logger = null)` — file-path overload; `ClippingsParser.ParseAsync(TextReader, ILogger? logger = null)` — streaming overload for testability
 - **Output types**:
-    - `ParseResult` — top-level result: list of `ParsedBook`, total entries processed, duplicates removed
-    - `ParsedBook` — `(Title, Author?, IReadOnlyList<ParsedHighlight> Highlights)`
-    - `ParsedHighlight` — `(Text, Location?, AddedOn?)`
+  - `ParseResult` — top-level result: list of `ParsedBook`, total entries processed, duplicates removed
+  - `ParsedBook` — `(Title, Author?, IReadOnlyList<ParsedHighlight> Highlights)`
+  - `ParsedHighlight` — `(Text, Location?, AddedOn?)`
 - **Design decisions**:
-    - Streaming for Kindle text: reads lines one-by-one via `ReadLineAsync()`; no full file in memory
-    - Skip-and-warn: malformed entries are skipped with an `ILogger.LogWarning`; never throws
-    - Deduplication: `HashSet<(Title, Author, Text)>` — exact case-sensitive match, first occurrence kept
-    - Notes as highlights: entries of type "Note" are emitted as highlights with `[my note] ` prefix on their text
-    - Bookmarks: entries of type "Bookmark" are silently dropped
-    - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
+  - Streaming for Kindle text: reads lines one-by-one via `ReadLineAsync()`; no full file in memory
+  - Skip-and-warn: malformed entries are skipped with an `ILogger.LogWarning`; never throws
+  - Deduplication: `HashSet<(Title, Author, Text)>` — exact case-sensitive match, first occurrence kept
+  - Notes as highlights: entries of type "Note" are emitted as highlights with `[my note] ` prefix on their text
+  - Bookmarks: entries of type "Bookmark" are silently dropped
+  - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
 
 #### TUI subsystem (`Relego.Cli/Tui/`)
 
@@ -92,11 +92,11 @@ When invoked with no arguments in an interactive terminal (`relego`), the client
 - Published to GHCR as `ghcr.io/krusty93/relego.server`
 - Always-on, handles all automated operations
 - Responsibilities:
-    - Store highlights, recap history, weights, exclusions, settings in SQLite
-    - Run scheduled recap generation (daily or weekly, configurable time)
-    - Select highlights via spaced repetition algorithm
-    - Compose recap document and send via SMTP to Kindle email address
-    - Serve the React web UI and REST HTTP API from one origin
+  - Store highlights, recap history, weights, exclusions, settings in SQLite
+  - Run scheduled recap generation (daily or weekly, configurable time)
+  - Select highlights via spaced repetition algorithm
+  - Compose recap document and send via SMTP to Kindle email address
+  - Serve the React web UI and REST HTTP API from one origin
 
 #### REST API layer (`Relego.Server/`)
 
