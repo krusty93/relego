@@ -328,7 +328,7 @@ npm ci
 npm run dev            # http://localhost:5173
 ```
 
-For local frontend development, Vite proxies API routes to the server. The React source lives in `src/relego.web`; run `npm ci` and `npm run dev` there. For a complete executable-style output, run `dotnet publish src/Relego.Server`: the server project references `Relego.Web.esproj`, which builds Vite and includes its `dist` assets in the published server's `wwwroot` directory. For production-like local testing without publishing, build `src/relego.web` and set `RELEGO_WEB_ROOT` to its `dist` directory.
+For local frontend development, Vite proxies API routes to the server. The React source lives in `src/relego.web`; run `npm ci` and `npm run dev` there. For a complete executable-style output, run `dotnet publish src/Relego.Server`: the server project references `relego.web.esproj`, which builds Vite and includes its `dist` assets in the published server's `wwwroot` directory. For production-like local testing without publishing, build `src/relego.web` and set `RELEGO_WEB_ROOT` to its `dist` directory.
 
 ```sh
 npm run typecheck      # tsc --noEmit over src, tests and configs

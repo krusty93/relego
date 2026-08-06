@@ -120,7 +120,7 @@ SMTP settings live in the `smtp_settings` table so they can be changed from the 
 
 ### Web UI (`src/relego.web/`)
 
-Single-page application built with Vite and referenced by `Relego.Server` through `Relego.Web.esproj`. During `dotnet publish`, its production build is added to the server's `wwwroot` output as static web assets. ASP.NET Core serves those assets and the SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed.
+Single-page application built with Vite and referenced by `Relego.Server` through `relego.web.esproj`. During `dotnet publish`, its production build is added to the server's `wwwroot` output as static web assets. ASP.NET Core serves those assets and the SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed.
 
 - **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer.
 - **Same-origin API calls**: browser requests use relative paths, so the web UI always talks to the server that served it.
@@ -129,7 +129,7 @@ Single-page application built with Vite and referenced by `Relego.Server` throug
 - **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
 - **Build**: `dotnet publish src/Relego.Server` restores the locked npm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `cd src/relego.web && npm run build` remains available for frontend-only work.
 - **Tests**: `cd src/relego.web && npm test` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
-- **Integration**: `Relego.Web.esproj` is included in `Relego.slnx` and referenced by the server to define one publishable server-and-web artifact. The React source, dependencies, and frontend test tooling remain independent from the .NET implementation.
+- **Integration**: `relego.web.esproj` is included in `Relego.slnx` and referenced by the server to define one publishable server-and-web artifact. The React source, dependencies, and frontend test tooling remain independent from the .NET implementation.
 
 ---
 
@@ -305,7 +305,7 @@ src/Relego.Tests/
 └── Tui/                # TUI logic tests (mode detection, search, screen key handling)
 
 src/relego.web/             # React/Vite SPA published with Relego.Server
-├── Relego.Web.esproj       # JavaScript SDK project referenced by the server
+├── relego.web.esproj # JavaScript SDK project referenced by the server
 ├── src/components/     # App shell, command palette, shortcuts sheet, primitives
 ├── src/routes/         # Library, Highlights, Import, Recaps, Settings
 ├── src/lib/            # API client, theme, hotkeys, toasts, formatting
