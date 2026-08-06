@@ -5,13 +5,15 @@ import { join, resolve } from "node:path";
 
 const API_PORT = 8080;
 export const API_URL = `http://localhost:${API_PORT}`;
+const SERVER_PROJECT = resolve("../Relego.Server/Relego.Server.csproj");
+const PUBLISH_DIRECTORY = join(tmpdir(), "relego-web-e2e-publish");
+const SERVER_DLL = join(PUBLISH_DIRECTORY, "Relego.Server.dll");
 
 // A throwaway database per run, removed here so it is gone before the server boots.
 const DB_PATH = join(tmpdir(), "relego-web-e2e.db");
 for (const suffix of ["", "-wal", "-shm"]) {
   rmSync(DB_PATH + suffix, { force: true });
 }
-
 export default defineConfig({
   testDir: "./tests",
   globalSetup: "./tests/global-setup.ts",
@@ -38,16 +40,15 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command:
-      "npm run build && dotnet run --project ../Relego.Server/Relego.Server.csproj --configuration Release",
+    command: `dotnet publish "${SERVER_PROJECT}" --configuration Release --output "${PUBLISH_DIRECTORY}" && dotnet "${SERVER_DLL}"`,
     url: `${API_URL}/healthz/startup`,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
     stdout: "pipe",
     env: {
       ASPNETCORE_URLS: API_URL,
+      ASPNETCORE_CONTENTROOT: PUBLISH_DIRECTORY,
       RELEGO_DB_PATH: DB_PATH,
-      RELEGO_WEB_ROOT: resolve("./dist"),
       SMTP_HOST: "smtp.example.com",
       SMTP_PORT: "587",
       SMTP_FROM_ADDRESS: "noreply@relego.local",

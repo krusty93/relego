@@ -20,14 +20,7 @@ SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
 var dbPath = ".data/relego.db";
 var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
 
-var webRootPath = Environment.GetEnvironmentVariable("RELEGO_WEB_ROOT");
-var builder = string.IsNullOrWhiteSpace(webRootPath)
-    ? WebApplication.CreateBuilder(args)
-    : WebApplication.CreateBuilder(new WebApplicationOptions
-    {
-        Args = args,
-        WebRootPath = webRootPath,
-    });
+var builder = WebApplication.CreateBuilder(args);
 
 SerilogConfiguration.ConfigureLogging(builder);
 
