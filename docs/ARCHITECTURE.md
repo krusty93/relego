@@ -35,9 +35,9 @@ Browser ── HTTP ────────────────────
 - Optional Docker image for no-install usage: `ghcr.io/krusty93/relego.cli`
 - Reads the server URL from client configuration (`Server:Url`) with runtime override via `SERVER_URL` (no authentication — local network trusted)
 - Responsibilities:
-  - Parse and sync highlights from registered highlight sources to the server (Kindle and Kobo today)
-  - Manage user settings via CLI commands (schedule, count, weights, exclusions)
-  - Display server status
+    - Parse and sync highlights from registered highlight sources to the server (Kindle and Kobo today)
+    - Manage user settings via CLI commands (schedule, count, weights, exclusions)
+    - Display server status
 
 #### Highlight source registry (`Relego.Core/Sources/`)
 
@@ -60,16 +60,16 @@ All sources are responsible for transforming raw source data into structured dat
 
 - **Entry point**: `ClippingsParser.ParseAsync(string filePath, ILogger? logger = null)` — file-path overload; `ClippingsParser.ParseAsync(TextReader, ILogger? logger = null)` — streaming overload for testability
 - **Output types**:
-  - `ParseResult` — top-level result: list of `ParsedBook`, total entries processed, duplicates removed
-  - `ParsedBook` — `(Title, Author?, IReadOnlyList<ParsedHighlight> Highlights)`
-  - `ParsedHighlight` — `(Text, Location?, AddedOn?)`
+    - `ParseResult` — top-level result: list of `ParsedBook`, total entries processed, duplicates removed
+    - `ParsedBook` — `(Title, Author?, IReadOnlyList<ParsedHighlight> Highlights)`
+    - `ParsedHighlight` — `(Text, Location?, AddedOn?)`
 - **Design decisions**:
-  - Streaming for Kindle text: reads lines one-by-one via `ReadLineAsync()`; no full file in memory
-  - Skip-and-warn: malformed entries are skipped with an `ILogger.LogWarning`; never throws
-  - Deduplication: `HashSet<(Title, Author, Text)>` — exact case-sensitive match, first occurrence kept
-  - Notes as highlights: entries of type "Note" are emitted as highlights with `[my note] ` prefix on their text
-  - Bookmarks: entries of type "Bookmark" are silently dropped
-  - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
+    - Streaming for Kindle text: reads lines one-by-one via `ReadLineAsync()`; no full file in memory
+    - Skip-and-warn: malformed entries are skipped with an `ILogger.LogWarning`; never throws
+    - Deduplication: `HashSet<(Title, Author, Text)>` — exact case-sensitive match, first occurrence kept
+    - Notes as highlights: entries of type "Note" are emitted as highlights with `[my note] ` prefix on their text
+    - Bookmarks: entries of type "Bookmark" are silently dropped
+    - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
 
 #### TUI subsystem (`Relego.Cli/Tui/`)
 
@@ -83,11 +83,11 @@ When invoked with no arguments in an interactive terminal (`relego`), the client
 - Published to GHCR as `ghcr.io/krusty93/relego.server`
 - Always-on, handles all automated operations
 - Responsibilities:
-  - Store highlights, recap history, weights, exclusions, settings in SQLite
-  - Run scheduled recap generation (daily or weekly, configurable time)
-  - Select highlights via spaced repetition algorithm
-  - Compose recap document and send via SMTP to Kindle email address
-  - Serve the React web UI and REST HTTP API from one origin
+    - Store highlights, recap history, weights, exclusions, settings in SQLite
+    - Run scheduled recap generation (daily or weekly, configurable time)
+    - Select highlights via spaced repetition algorithm
+    - Compose recap document and send via SMTP to Kindle email address
+    - Serve the React web UI and REST HTTP API from one origin
 
 #### REST API layer (`Relego.Server/`)
 
@@ -120,7 +120,7 @@ SMTP settings live in the `smtp_settings` table so they can be changed from the 
 
 ### Web UI (`src/relego.web/`)
 
-Single-page application built with Vite and referenced by `Relego.Server` through `Relego.Web.esproj`. During `dotnet publish`, its production build is added to the server's `wwwroot` output as static web assets. ASP.NET Core serves those assets and the SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed. It has full feature parity with the TUI and is the recommended day-to-day surface.
+Single-page application built with Vite and referenced by `Relego.Server` through `Relego.Web.esproj`. During `dotnet publish`, its production build is added to the server's `wwwroot` output as static web assets. ASP.NET Core serves those assets and the SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed.
 
 - **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer.
 - **Same-origin API calls**: browser requests use relative paths, so the web UI always talks to the server that served it.
@@ -130,8 +130,6 @@ Single-page application built with Vite and referenced by `Relego.Server` throug
 - **Build**: `dotnet publish src/Relego.Server` restores the locked npm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `cd src/relego.web && npm run build` remains available for frontend-only work.
 - **Tests**: `cd src/relego.web && npm test` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
 - **Integration**: `Relego.Web.esproj` is included in `Relego.slnx` and referenced by the server to define one publishable server-and-web artifact. The React source, dependencies, and frontend test tooling remain independent from the .NET implementation.
-
-Authentication is deliberately absent, matching the REST API's existing local-network trust model. The web UI raises the stakes because it can write the SMTP password, so the README documents the exposure and both ports are expected to stay on a trusted network.
 
 ---
 
@@ -149,19 +147,19 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 
 ## Technology Stack
 
-| Component                | Technology                     | Rationale                                               |
-|--------------------------|--------------------------------|---------------------------------------------------------|
-| Language / runtime       | .NET 10 (C#)                   | Cross-platform, self-contained binaries, rich ecosystem |
-| Client distribution      | Single-file binary / Docker    | Zero runtime dependency for end users                   |
-| Server distribution      | Docker container / self-contained archive | One server-and-web artifact for self-hosted deployment |
-| Storage                  | SQLite (file in Docker volume) | Zero config, single file, no extra container            |
-| Client/server protocol   | REST HTTP                      | Simple, debuggable, universally supported               |
-| Email delivery           | MailKit + SMTP                 | Industry standard, supports Send-to-Kindle              |
-| Logging                  | Serilog (file + SQLite sink)   | Structured logging, persistent, queryable               |
-| Scheduling               | Quartz.NET                     | Mature .NET scheduler, cron-style expressions           |
-| CLI UX                   | Spectre.Console                | Rich terminal output, tables, progress bars             |
-| Web UI                   | Vite + React + plain CSS       | Static build published with the server, same-origin API |
-| Landing page             | Astro + Tailwind CSS           | Static site generation, minimal JS, fast build          |
+| Component | Technology | Rationale |
+| --- | --- | --- |
+| Language / runtime | .NET 10 (C#) | Cross-platform, self-contained binaries, rich ecosystem |
+| Client distribution | Single-file binary / Docker | Zero runtime dependency for end users |
+| Server distribution | Docker container / self-contained archive | One server-and-web artifact for self-hosted deployment |
+| Storage | SQLite (file in Docker volume) | Zero config, single file, no extra container |
+| Client/server protocol | REST HTTP | Simple, debuggable, universally supported |
+| Email delivery | MailKit + SMTP | Industry standard, supports Send-to-Kindle |
+| Logging | Serilog (file + SQLite sink) | Structured logging, persistent, queryable |
+| Scheduling | Quartz.NET | Mature .NET scheduler, cron-style expressions |
+| CLI UX | Spectre.Console | Rich terminal output, tables, progress bars |
+| Web UI | Vite + React + plain CSS | Static build published with the server, same-origin API |
+| Landing page | Astro + Tailwind CSS | Static site generation, minimal JS, fast build |
 
 ---
 
@@ -206,33 +204,33 @@ LIMIT @count
 
 ## REST API Surface
 
-| Method   | Path                              | Description                                 | Tag        |
-|----------|-----------------------------------|---------------------------------------------|------------|
-| `POST`   | `/highlights/import`              | Bulk import highlights from client          | Sync       |
-| `POST`   | `/imports`                        | Upload and parse a clippings or Kobo file   | Import     |
-| `GET`    | `/status`                         | Server status, next recap, highlight stats  | Status     |
-| `GET`    | `/settings`                       | Read current settings                       | Settings   |
-| `PATCH`  | `/settings`                       | Partially update settings                   | Settings   |
-| `POST`   | `/settings/test-kindle-email`     | Send a test email via Send-to-Kindle        | Settings   |
-| `POST`   | `/settings/test-recap-email`      | Send a test HTML email to the inbox address | Settings   |
-| `GET`    | `/settings/smtp`                  | Read SMTP settings (password never returned)| Settings   |
-| `PUT`    | `/settings/smtp`                  | Update SMTP settings                        | Settings   |
-| `POST`   | `/settings/smtp/test`             | Verify the SMTP connection                  | Settings   |
-| `POST`   | `/recaps`                         | Execute a recap immediately                 | Recap      |
-| `GET`    | `/recaps`                         | Recap delivery history                      | Recap      |
-| `GET`    | `/highlights`                     | List/paginate/search highlights             | Highlights |
-| `DELETE` | `/highlights/{id}`                | Delete a highlight                          | Highlights |
-| `PUT`    | `/highlights/{id}/weight`         | Set highlight recap weight                  | Weights    |
-| `GET`    | `/highlights/weights`             | List weighted highlights                    | Weights    |
-| `GET`    | `/books`                          | List books with highlight counts            | Books      |
-| `PUT`    | `/books/{id}/title`               | Rename a book                               | Books      |
-| `POST`   | `/highlights/{id}/exclusions`     | Exclude a highlight                         | Exclusions |
-| `DELETE` | `/highlights/{id}/exclusions`     | Re-include a highlight                      | Exclusions |
-| `POST`   | `/books/{id}/exclusions`          | Exclude a book                              | Exclusions |
-| `DELETE` | `/books/{id}/exclusions`          | Re-include a book                           | Exclusions |
-| `POST`   | `/authors/{id}/exclusions`        | Exclude an author                           | Exclusions |
-| `DELETE` | `/authors/{id}/exclusions`        | Re-include an author                        | Exclusions |
-| `GET`    | `/exclusions`                     | List all exclusions                         | Exclusions |
+| Method | Path | Description | Tag |
+| --- | --- | --- | --- |
+| `POST` | `/highlights/import` | Bulk import highlights from client | Sync |
+| `POST` | `/imports` | Upload and parse a clippings or Kobo file | Import |
+| `GET` | `/status` | Server status, next recap, highlight stats | Status |
+| `GET` | `/settings` | Read current settings | Settings |
+| `PATCH` | `/settings` | Partially update settings | Settings |
+| `POST` | `/settings/test-kindle-email` | Send a test email via Send-to-Kindle | Settings |
+| `POST` | `/settings/test-recap-email` | Send a test HTML email to the inbox address | Settings |
+| `GET` | `/settings/smtp` | Read SMTP settings (password never returned) | Settings |
+| `PUT` | `/settings/smtp` | Update SMTP settings | Settings |
+| `POST` | `/settings/smtp/test` | Verify the SMTP connection | Settings |
+| `POST` | `/recaps` | Execute a recap immediately | Recap |
+| `GET` | `/recaps` | Recap delivery history | Recap |
+| `GET` | `/highlights` | List/paginate/search highlights | Highlights |
+| `DELETE` | `/highlights/{id}` | Delete a highlight | Highlights |
+| `PUT` | `/highlights/{id}/weight` | Set highlight recap weight | Weights |
+| `GET` | `/highlights/weights` | List weighted highlights | Weights |
+| `GET` | `/books` | List books with highlight counts | Books |
+| `PUT` | `/books/{id}/title` | Rename a book | Books |
+| `POST` | `/highlights/{id}/exclusions` | Exclude a highlight | Exclusions |
+| `DELETE` | `/highlights/{id}/exclusions` | Re-include a highlight | Exclusions |
+| `POST` | `/books/{id}/exclusions` | Exclude a book | Exclusions |
+| `DELETE` | `/books/{id}/exclusions` | Re-include a book | Exclusions |
+| `POST` | `/authors/{id}/exclusions` | Exclude an author | Exclusions |
+| `DELETE` | `/authors/{id}/exclusions` | Re-include an author | Exclusions |
+| `GET` | `/exclusions` | List all exclusions | Exclusions |
 
 ### Data access pattern
 
@@ -267,11 +265,11 @@ This keeps the client protocol small, explicit, and aligned with the quickstart 
 
 Transport objects in `Relego.Core/Contracts/` follow these suffixes:
 
-| Suffix      | Usage                                                                                                          |
-|-------------|----------------------------------------------------------------------------------------------------------------|
-| `*Request`  | Inbound root-level request bodies (e.g. `SyncRequest`, `UpdateSettingsRequest`)                                |
-| `*Response` | Outbound root-level response bodies (e.g. `StatusResponse`, `HighlightsResponse`)                              |
-| `*Dto`      | Nested data-transfer objects used as list items or sub-objects within a response (e.g. `WeightedHighlightDto`) |
+| Suffix | Usage |
+| --- | --- |
+| `*Request` | Inbound root-level request bodies (e.g. `SyncRequest`, `UpdateSettingsRequest`) |
+| `*Response` | Outbound root-level response bodies (e.g. `StatusResponse`, `HighlightsResponse`) |
+| `*Dto` | Nested data-transfer objects used as list items or sub-objects within a response (e.g. `WeightedHighlightDto`) |
 
 ## Project structure
 
@@ -328,13 +326,13 @@ src/landing/                # Static marketing landing page (independent from .N
 
 ## ADR Index
 
-| ADR                                                     | Decision                                     |
-|---------------------------------------------------------|----------------------------------------------|
-| [ADR-001](adr/001-client-server-architecture.md)        | Client/server architecture                   |
-| [ADR-002](adr/002-dotnet-core-runtime.md)               | .NET Core as language/runtime                |
-| [ADR-003](adr/003-sqlite-storage.md)                    | SQLite as storage engine                     |
-| [ADR-004](adr/004-rest-http-protocol.md)                | REST HTTP as client/server protocol          |
-| [ADR-005](adr/005-my-clippings-txt-highlight-source.md) | `My Clippings.txt` as MVP highlight source   |
-| [ADR-006](adr/006-docker-only-distribution.md)          | Docker-only server distribution              |
-| [ADR-007](adr/007-dual-channel-email-delivery.md)       | Dual-channel email delivery                  |
-| [ADR-008](adr/008-kobo-reader-sqlite-source.md)         | `KoboReader.sqlite` as Kobo highlight source |
+| ADR | Decision |
+| --- | --- |
+| [ADR-001](adr/001-client-server-architecture.md) | Client/server architecture |
+| [ADR-002](adr/002-dotnet-core-runtime.md) | .NET Core as language/runtime |
+| [ADR-003](adr/003-sqlite-storage.md) | SQLite as storage engine |
+| [ADR-004](adr/004-rest-http-protocol.md) | REST HTTP as client/server protocol |
+| [ADR-005](adr/005-my-clippings-txt-highlight-source.md) | `My Clippings.txt` as MVP highlight source |
+| [ADR-006](adr/006-docker-only-distribution.md) | Docker-only server distribution |
+| [ADR-007](adr/007-dual-channel-email-delivery.md) | Dual-channel email delivery |
+| [ADR-008](adr/008-kobo-reader-sqlite-source.md) | `KoboReader.sqlite` as Kobo highlight source |

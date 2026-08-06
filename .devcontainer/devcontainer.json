@@ -23,7 +23,7 @@
     "set-workspace-as-safe-dir": "git config --global --add safe.directory ${containerWorkspaceFolder}",
     "dotnet-https-cert": "dotnet dev-certs https"
   },
-  "forwardPorts": [8080, 3000, 4321],
+  "forwardPorts": [8080, 3000, 4321, 5173],
   "portsAttributes": {
     "8080": {
       "label": "Server port",
@@ -35,6 +35,10 @@
     },
     "4321": {
       "label": "Astro dev server",
+      "onAutoForward": "openBrowser"
+    },
+    "5173": {
+      "label": "Relego web UI development server",
       "onAutoForward": "openBrowser"
     }
   },
