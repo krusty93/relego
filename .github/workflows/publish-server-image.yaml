@@ -37,6 +37,7 @@ jobs:
     if: needs.check-tag.outputs.is-server == 'true'
     uses: ./.github/workflows/publish-image-reusable.yaml
     permissions:
+      contents: read
       packages: write
       id-token: write
       attestations: write
