@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("settings", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/settings", { waitUntil: "networkidle" });
+    await page.goto("/app/settings", { waitUntil: "networkidle" });
   });
 
   test("delivery addresses survive a reload", async ({ page }) => {

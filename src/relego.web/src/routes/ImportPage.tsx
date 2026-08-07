@@ -190,7 +190,7 @@ export function ImportPage() {
             <dd>{formatCount(result.newAuthors)}</dd>
           </dl>
           <div className="inline dialog-actions">
-            <button className="btn btn--primary" type="button" onClick={() => navigate("/")}>
+            <button className="btn btn--primary" type="button" onClick={() => navigate("/app")}>
               Go to library
             </button>
             <button className="btn" type="button" onClick={() => inputRef.current?.click()}>

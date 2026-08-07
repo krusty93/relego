@@ -172,7 +172,7 @@ export function HighlightsPage() {
     <section className="view" aria-labelledby="hl-h">
       {book ? (
         <nav className="breadcrumb" aria-label="Breadcrumb">
-          <button className="btn btn--ghost btn--sm" type="button" onClick={() => navigate("/")}>
+          <button className="btn btn--ghost btn--sm" type="button" onClick={() => navigate("/app")}>
             Library
           </button>
           <span aria-hidden="true">/</span>
@@ -236,7 +236,7 @@ export function HighlightsPage() {
                 <button
                   className="btn btn--primary"
                   type="button"
-                  onClick={() => navigate("/import")}
+                  onClick={() => navigate("/app/import")}
                 >
                   Import highlights
                 </button>

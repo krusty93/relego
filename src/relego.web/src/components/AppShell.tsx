@@ -22,14 +22,14 @@ import {
 } from "./icons";
 
 const NAV = [
-  { to: "/", label: "Library", Icon: LibraryIcon, chord: "l" },
-  { to: "/highlights", label: "Highlights", Icon: HighlightsIcon, chord: "h" },
-  { to: "/recaps", label: "Recaps", Icon: RecapsIcon, chord: "r" },
-  { to: "/import", label: "Import", Icon: ImportIcon, chord: "i" },
-  { to: "/settings", label: "Settings", Icon: SettingsIcon, chord: "s" },
+  { to: "/app", label: "Library", Icon: LibraryIcon, chord: "l" },
+  { to: "/app/highlights", label: "Highlights", Icon: HighlightsIcon, chord: "h" },
+  { to: "/app/recaps", label: "Recaps", Icon: RecapsIcon, chord: "r" },
+  { to: "/app/import", label: "Import", Icon: ImportIcon, chord: "i" },
+  { to: "/app/settings", label: "Settings", Icon: SettingsIcon, chord: "s" },
 ] as const;
 
-const MOBILE_NAV = NAV.filter((item) => item.to !== "/highlights");
+const MOBILE_NAV = NAV.filter((item) => item.to !== "/app/highlights");
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -148,7 +148,7 @@ export function AppShell() {
 
           <nav className="nav" aria-label="Primary">
             {NAV.map(({ to, label, Icon }) => (
-              <NavLink key={to} to={to} end={to === "/"} className="nav-item">
+              <NavLink key={to} to={to} end={to === "/app"} className="nav-item">
                 <Icon className="icon" />
                 {label}
                 {label === "Library" && status.data ? (
@@ -195,8 +195,8 @@ export function AppShell() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && location.pathname !== "/highlights") {
-                    go("/highlights");
+                  if (event.key === "Enter" && location.pathname !== "/app/highlights") {
+                    go("/app/highlights");
                   }
                 }}
               />
@@ -224,7 +224,7 @@ export function AppShell() {
 
         <nav className="tabbar" aria-label="Primary">
           {MOBILE_NAV.map(({ to, label, Icon }) => (
-            <NavLink key={to} to={to} end={to === "/"}>
+            <NavLink key={to} to={to} end={to === "/app"}>
               <Icon />
               {label}
             </NavLink>

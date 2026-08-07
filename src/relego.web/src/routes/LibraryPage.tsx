@@ -87,7 +87,7 @@ export function LibraryPage() {
         break;
       case "Enter":
         event.preventDefault();
-        navigate(`/books/${book.id}`);
+        navigate(`/app/books/${book.id}`);
         break;
       case "e":
         event.preventDefault();
@@ -119,7 +119,7 @@ export function LibraryPage() {
           </p>
         </div>
         <div className="actions">
-          <button className="btn" type="button" onClick={() => navigate("/import")}>
+          <button className="btn" type="button" onClick={() => navigate("/app/import")}>
             Import highlights
           </button>
         </div>
@@ -140,7 +140,7 @@ export function LibraryPage() {
             <EmptyState
               title="No books yet"
               action={
-                <button className="btn btn--primary" type="button" onClick={() => navigate("/import")}>
+                <button className="btn btn--primary" type="button" onClick={() => navigate("/app/import")}>
                   Import highlights
                 </button>
               }
@@ -171,7 +171,7 @@ export function LibraryPage() {
                   tabIndex={index === cursor ? 0 : -1}
                   aria-selected={index === cursor}
                   onFocus={() => setCursor(index)}
-                  onClick={() => navigate(`/books/${book.id}`)}
+                  onClick={() => navigate(`/app/books/${book.id}`)}
                   onKeyDown={(event) => onRowKeyDown(event, book, index)}
                 >
                   <td className="book-title">{book.title}</td>

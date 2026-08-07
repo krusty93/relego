@@ -2,11 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const ROUTES = [
-  ["library", "/"],
-  ["highlights", "/highlights"],
-  ["recaps", "/recaps"],
-  ["import", "/import"],
-  ["settings", "/settings"],
+  ["library", "/app"],
+  ["highlights", "/app/highlights"],
+  ["recaps", "/app/recaps"],
+  ["import", "/app/import"],
+  ["settings", "/app/settings"],
 ] as const;
 
 const THEMES = ["light", "dark"] as const;
@@ -43,7 +43,7 @@ for (const theme of THEMES) {
       test.skip(isMobile === true, "Overlay chrome is desktop-only.");
       testInfo.setTimeout(90_000);
 
-      await page.goto("/highlights", { waitUntil: "networkidle" });
+      await page.goto("/app/highlights", { waitUntil: "networkidle" });
       await page.locator(".hl-summary").first().click();
       await expect(page.locator(".hl-body").first()).toBeVisible();
       await expectNoViolations(page);
@@ -59,7 +59,7 @@ for (const theme of THEMES) {
       await expectNoViolations(page);
       await page.keyboard.press("Escape");
 
-      await page.goto("/", { waitUntil: "networkidle" });
+      await page.goto("/app", { waitUntil: "networkidle" });
       await page.locator("tbody tr").first().focus();
       await page.keyboard.press("n");
       await expect(page.locator("#rename-title")).toBeVisible();

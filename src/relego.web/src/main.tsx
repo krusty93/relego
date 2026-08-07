@@ -28,13 +28,14 @@ createRoot(document.getElementById("root")!).render(
             <BrowserRouter>
               <Routes>
                 <Route element={<AppShell />}>
-                  <Route path="/" element={<LibraryPage />} />
-                  <Route path="/highlights" element={<HighlightsPage />} />
-                  <Route path="/books/:bookId" element={<HighlightsPage />} />
-                  <Route path="/recaps" element={<RecapsPage />} />
-                  <Route path="/import" element={<ImportPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="/app" element={<LibraryPage />} />
+                  <Route path="/app/highlights" element={<HighlightsPage />} />
+                  <Route path="/app/books/:bookId" element={<HighlightsPage />} />
+                  <Route path="/app/recaps" element={<RecapsPage />} />
+                  <Route path="/app/import" element={<ImportPage />} />
+                  <Route path="/app/settings" element={<SettingsPage />} />
+                  <Route path="/" element={<Navigate to="/app" replace />} />
+                  <Route path="*" element={<Navigate to="/app" replace />} />
                 </Route>
               </Routes>
             </BrowserRouter>

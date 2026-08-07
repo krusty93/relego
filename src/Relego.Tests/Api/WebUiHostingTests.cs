@@ -32,7 +32,7 @@ public sealed class WebUiHostingTests : IDisposable
     [Fact]
     public async Task GetClientRoute_FallsBackToWebUiIndex()
     {
-        var response = await _client.GetAsync("/library/fiction");
+        var response = await _client.GetAsync("/app/books/fiction");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);

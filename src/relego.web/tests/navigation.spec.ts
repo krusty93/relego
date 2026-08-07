@@ -8,11 +8,11 @@ test.describe("navigation and global keys", () => {
   test("g chords jump between views", async ({ page }) => {
     await page.keyboard.press("g");
     await page.keyboard.press("s");
-    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page).toHaveURL(/\/app\/settings$/);
 
     await page.keyboard.press("g");
     await page.keyboard.press("l");
-    await expect(page).toHaveURL(/localhost:\d+\/$/);
+    await expect(page).toHaveURL(/localhost:\d+\/app$/);
   });
 
   test("chords stay inert while typing in search", async ({ page }) => {
@@ -21,7 +21,7 @@ test.describe("navigation and global keys", () => {
     await search.focus();
     await page.keyboard.type("gs");
 
-    await expect(page).toHaveURL(/localhost:\d+\/$/);
+    await expect(page).toHaveURL(/localhost:\d+\/app$/);
     await expect(search).toHaveValue("gs");
 
     await page.keyboard.press("Escape");

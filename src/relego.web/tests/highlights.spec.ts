@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("highlights", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/highlights", { waitUntil: "networkidle" });
+    await page.goto("/app/highlights", { waitUntil: "networkidle" });
   });
 
   test("only one highlight body is expanded at a time", async ({ page }) => {

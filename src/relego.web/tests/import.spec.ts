@@ -6,7 +6,7 @@ const CLIPPINGS = fileURLToPath(
 );
 
 test("re-importing a known file reports its duplicates", async ({ page }) => {
-  await page.goto("/import", { waitUntil: "networkidle" });
+  await page.goto("/app/import", { waitUntil: "networkidle" });
   await page.locator("input[type=file]").setInputFiles(CLIPPINGS);
 
   const panel = page.locator(".import-panel");

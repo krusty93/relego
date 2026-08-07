@@ -438,7 +438,7 @@ kbd {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--surface-sunk);
-  color: var(--ink-subtle);
+  color: var(--ink-muted);
   white-space: nowrap;
 }
 
