@@ -1,9 +1,19 @@
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using MimeKit;
 using Relego.Server.Infrastructure.Smtp;
 
 namespace Relego.Server.Services;
 
+/// <summary>
+/// Sends mail through the effective SMTP configuration.
+/// </summary>
+/// <remarks>
+/// There is deliberately one implementation for every environment. A separate development
+/// service used to exist, reading <c>IOptions&lt;SmtpSettings&gt;</c> — the environment
+/// variables — directly. That silently ignored anything saved from a client, so mail server
+/// settings entered in the UI appeared to save and then had no effect on delivery.
+/// </remarks>
 public sealed class MailDeliveryService(
     SmtpConfigurationService configuration,
     ILogger<MailDeliveryService> logger) : IMailDeliveryService
@@ -72,25 +82,40 @@ public sealed class MailDeliveryService(
     // client takes effect immediately, without restarting the server.
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)
     {
-        var settings = (await configuration.GetEffectiveAsync()).Settings;
+        var settings = (await configuration.GetEffectiveAsync().ConfigureAwait(false)).Settings;
         message.From.Add(new MailboxAddress("Relego", settings.FromAddress));
 
         using var client = new SmtpClient();
 
         try
         {
-            await client.ConnectAsync(settings.Host, settings.Port, useSsl: true, cancellationToken);
+            // Auto is the only option that covers every port a self-hoster will point us at:
+            // implicit TLS on 465, STARTTLS on 587 when the server advertises it, and plain
+            // on 25 / 2525 for a local relay such as smtp4dev. Forcing SSL-on-connect here
+            // fails against 587, which is the most common submission port there is.
+            await client.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.Auto, cancellationToken)
+                .ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(settings.Username))
             {
-                await client.AuthenticateAsync(settings.Username, settings.Password, cancellationToken);
+                await client.AuthenticateAsync(settings.Username, settings.Password, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            await client.SendAsync(message, cancellationToken);
+            await client.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Mail sent via {Host}:{Port} (secure: {Secure}).",
+                settings.Host,
+                settings.Port,
+                client.IsSecure);
         }
         finally
         {
-            await client.DisconnectAsync(quit: true, cancellationToken);
+            if (client.IsConnected)
+            {
+                await client.DisconnectAsync(quit: true, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }

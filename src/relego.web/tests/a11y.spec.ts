@@ -12,6 +12,18 @@ const ROUTES = [
 const THEMES = ["light", "dark"] as const;
 
 async function expectNoViolations(page: Page) {
+  // Dialogs and toasts fade in. Scanning mid-animation blends every colour with whatever
+  // is behind it, which reports contrast failures that never exist on screen. Infinite
+  // animations (the skeleton shimmer) are skipped: they never finish.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+
   const { violations } = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
     .analyze();
