@@ -160,7 +160,7 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 |--------------------------|---------------------------------------------|-----------------------------------------------------------|
 | Language / runtime       | .NET 10 (C#)                   | Cross-platform, self-contained binaries, rich ecosystem |
 | Client distribution      | Single-file binary / Docker    | Zero runtime dependency for end users                   |
-| Server distribution      | Docker container / self-contained archive | One server-and-web artifact for self-hosted deployment |
+| Server distribution      | Docker container | One server-and-web artifact for self-hosted deployment |
 | Storage                  | SQLite (file in Docker volume) | Zero config, single file, no extra container            |
 | Client/server protocol   | REST HTTP                      | Simple, debuggable, universally supported               |
 | Email delivery           | MailKit + SMTP                 | Industry standard, supports Send-to-Kindle              |

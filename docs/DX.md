@@ -42,7 +42,7 @@ That's it. The server is running and will start sending recaps on the default sc
 
 ### Web UI
 
-The server image and self-contained server archive include the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
+The server image includes the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
 
 ### Client CLI
 
