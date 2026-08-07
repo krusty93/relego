@@ -16,9 +16,9 @@ test("re-importing a known file reports its duplicates", async ({ page }) => {
 
 // Import is reachable from both list views, not just the library.
 for (const [name, path] of [
-  ["library", "/"],
-  ["highlights", "/highlights"],
-  ["a book's highlights", "/books/1"],
+  ["library", "/app"],
+  ["highlights", "/app/highlights"],
+  ["a book's highlights", "/app/books/1"],
 ] as const) {
   test(`${name} offers a route to import`, async ({ page }) => {
     await page.goto(path, { waitUntil: "networkidle" });
