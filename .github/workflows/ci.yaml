@@ -99,7 +99,7 @@ jobs:
           path: |
             src/relego.web/playwright-report/
             src/relego.web/test-results/
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
   server-image:
     name: Build server image
