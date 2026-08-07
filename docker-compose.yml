@@ -7,7 +7,7 @@ services:
       SERVER_URL: http://relego-server:8080
     networks:
       - relego
-    profiles: [client]
+    profiles: [cli]
 
   relego-server:
     image: ghcr.io/krusty93/relego.server:latest
@@ -32,13 +32,13 @@ services:
       - relego-data:/data
     networks:
       - relego
-    profiles: [server, demo]
+    profiles: [app, demo]
 
   smtp4dev:
     image: rnwood/smtp4dev:latest
     restart: unless-stopped
     environment:
-      ServerOptions__SmtpPort: "2525"
+      ServerOptions__Port: "2525"
     ports:
       - "5000:80"
     networks:

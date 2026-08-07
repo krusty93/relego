@@ -8,19 +8,30 @@
 
 ## System Overview
 
-Relego follows a client/server architecture with two independently deployable components.
+Relego follows a client/server architecture. The server is the only always-on component; it hosts the React web UI and REST API together, while the CLI remains an optional client.
 
-```
-User Laptop                              Home Server / NAS / Pi
------------                              ----------------------
-relego CLI  ── REST HTTP ──────────────▶  relego-server (Docker)
-    │                                       ├── Scheduler (Quartz.NET)
-    │ USB                                   ├── SMTP sender (MailKit)
-    │                                       └── SQLite (Docker volume)
-    ├── Kindle / My Clippings.txt                      │
-    └── Kobo / .kobo/KoboReader.sqlite                 │ SMTP
-                                                       ▼
-                                            Send-to-Kindle or inbox email
+```mermaid
+flowchart LR
+    subgraph laptop["User laptop"]
+        cli["relego CLI"]
+        sources["Kindle / Kobo highlights"]
+        browser["Browser"]
+    end
+
+    subgraph server["Home server / NAS / Pi"]
+        app["relego-server"]
+        scheduler["Scheduler<br/>(Quartz.NET)"]
+        smtp["SMTP sender<br/>(MailKit)"]
+        database[("SQLite<br/>(Docker volume)")]
+    end
+
+    sources -->|USB| cli
+    cli -->|REST HTTP| app
+    browser -->|HTTP| app
+    app --> scheduler
+    app --> smtp
+    app --> database
+    smtp --> delivery["Send-to-Kindle or inbox email"]
 ```
 
 ---
@@ -37,9 +48,11 @@ relego CLI  ── REST HTTP ──────────────▶  rele
   - Manage user settings via CLI commands (schedule, count, weights, exclusions)
   - Display server status
 
-#### Highlight source registry (`Relego.Cli/Sources/`)
+#### Highlight source registry (`Relego.Core/Sources/`)
 
 The CLI imports through an open source registry rather than a closed source-type enum. Each source implements `IHighlightSource`, owns a stable `SourceDescriptor` (`Id`, `DisplayName`), implements its own `Locate(string? userPath)` detection rules, and returns the existing `ParseResult` from `ReadAsync`. The `HighlightSourceResolver` receives `IEnumerable<IHighlightSource>` from DI, calls each source's `Locate`, and returns every detected source without per-source branching.
+
+The registry, the parsers (`Relego.Core/Parsing/`) and the device detectors live in `Relego.Core` so both front-end paths can use them: the CLI detects a mounted device and reads it locally, while the server parses the same formats from an uploaded file (`POST /imports`). Registering a new source therefore adds it to both surfaces at once.
 
 Current sources:
 
@@ -83,7 +96,7 @@ When invoked with no arguments in an interactive terminal (`relego`), the client
   - Run scheduled recap generation (daily or weekly, configurable time)
   - Select highlights via spaced repetition algorithm
   - Compose recap document and send via SMTP to Kindle email address
-  - Expose REST HTTP API consumed by the client CLI
+  - Serve the React web UI and REST HTTP API from one origin
 
 #### REST API layer (`Relego.Server/`)
 
@@ -100,13 +113,32 @@ The application registers a scoped `IDbConnection` backed by `Microsoft.Data.Sql
 Endpoint groups currently implemented:
 
 - Sync: bulk import via `POST /highlights/import`
+- Import: multipart upload via `POST /imports` — accepts `My Clippings.txt` or `KoboReader.sqlite`, sniffs the format, parses with `Relego.Core`, and returns a per-book summary of added and duplicate highlights
 - Settings: `GET /settings`, `PATCH /settings`, `POST /settings/test-kindle-email`, `POST /settings/test-recap-email`
+- SMTP settings: `GET /settings/smtp`, `PUT /settings/smtp`, `POST /settings/smtp/test`
 - Status: `GET /status`
-- Recap: `POST /recaps`
+- Recap: `POST /recaps`, `GET /recaps` (delivery history)
 - Highlights: `GET /highlights`, `DELETE /highlights/{id}`
-- Books: `PUT /books/{id}/title`
+- Books: `GET /books`, `PUT /books/{id}/title`
 - Exclusions: `*/{id}/exclusions` plus `GET /exclusions`
 - Weights: `PUT /highlights/{id}/weight`, `GET /highlights/weights`
+
+#### SMTP configuration precedence
+
+SMTP settings live in the `smtp_settings` table so they can be changed from the web UI without restarting the container. On first boot, when the table is empty, the `SMTP_*` environment variables seed it. From then on the database is authoritative and the environment variables are ignored; `SmtpConfigurationService` is the single read path used by `MailDeliveryService`. The password is never returned by `GET /settings/smtp`, and omitting it from `PUT /settings/smtp` keeps the stored value.
+
+### Web UI (`src/relego.web/`)
+
+Single-page application built with Vite and referenced by `Relego.Server` through `relego.web.esproj`. During `dotnet publish`, its production build is added to the server's `wwwroot` output as static web assets. ASP.NET Core serves those assets and the SPA fallback from the same origin as the API, so no browser CORS policy or runtime API URL configuration is needed.
+
+- **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer.
+- **Same-origin API calls**: browser requests use relative paths, so the web UI always talks to the server that served it.
+- **Offline-capable assets**: fonts are bundled (`@fontsource/playfair-display`); nothing is fetched from a CDN at runtime, which matters for a self-hosted tool on an isolated network.
+- **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights · `/recaps` · `/import` · `/settings`
+- **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
+- **Build**: `dotnet publish src/Relego.Server` restores the locked npm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `cd src/relego.web && npm run build` remains available for frontend-only work.
+- **Tests**: `cd src/relego.web && npm test` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
+- **Integration**: `relego.web.esproj` is included in `Relego.slnx` and referenced by the server to define one publishable server-and-web artifact. The React source, dependencies, and frontend test tooling remain independent from the .NET implementation.
 
 ---
 
@@ -124,17 +156,18 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 
 ## Technology Stack
 
-| Component                | Technology                     | Rationale                                               |
-|--------------------------|--------------------------------|---------------------------------------------------------|
+| Component                | Technology                                 | Rationale                                                 |
+|--------------------------|---------------------------------------------|-----------------------------------------------------------|
 | Language / runtime       | .NET 10 (C#)                   | Cross-platform, self-contained binaries, rich ecosystem |
 | Client distribution      | Single-file binary / Docker    | Zero runtime dependency for end users                   |
-| Server distribution      | Docker container               | Self-hosted, single command to deploy                   |
+| Server distribution      | Docker container | One server-and-web artifact for self-hosted deployment |
 | Storage                  | SQLite (file in Docker volume) | Zero config, single file, no extra container            |
 | Client/server protocol   | REST HTTP                      | Simple, debuggable, universally supported               |
 | Email delivery           | MailKit + SMTP                 | Industry standard, supports Send-to-Kindle              |
 | Logging                  | Serilog (file + SQLite sink)   | Structured logging, persistent, queryable               |
 | Scheduling               | Quartz.NET                     | Mature .NET scheduler, cron-style expressions           |
 | CLI UX                   | Spectre.Console                | Rich terminal output, tables, progress bars             |
+| Web UI                   | Vite + React + plain CSS       | Static build published with the server, same-origin API |
 | Landing page             | Astro + Tailwind CSS           | Static site generation, minimal JS, fast build          |
 
 ---
@@ -183,16 +216,22 @@ LIMIT @count
 | Method   | Path                              | Description                                 | Tag        |
 |----------|-----------------------------------|---------------------------------------------|------------|
 | `POST`   | `/highlights/import`              | Bulk import highlights from client          | Sync       |
+| `POST`   | `/imports`                        | Upload and parse a clippings or Kobo file   | Import     |
 | `GET`    | `/status`                         | Server status, next recap, highlight stats  | Status     |
 | `GET`    | `/settings`                       | Read current settings                       | Settings   |
 | `PATCH`  | `/settings`                       | Partially update settings                   | Settings   |
 | `POST`   | `/settings/test-kindle-email`     | Send a test email via Send-to-Kindle        | Settings   |
 | `POST`   | `/settings/test-recap-email`      | Send a test HTML email to the inbox address | Settings   |
+| `GET`    | `/settings/smtp`                  | Read SMTP settings (password never returned) | Settings  |
+| `PUT`    | `/settings/smtp`                  | Update SMTP settings                        | Settings   |
+| `POST`   | `/settings/smtp/test`             | Verify the SMTP connection                  | Settings   |
 | `POST`   | `/recaps`                         | Execute a recap immediately                 | Recap      |
+| `GET`    | `/recaps`                         | Recap delivery history                      | Recap      |
 | `GET`    | `/highlights`                     | List/paginate/search highlights             | Highlights |
 | `DELETE` | `/highlights/{id}`                | Delete a highlight                          | Highlights |
 | `PUT`    | `/highlights/{id}/weight`         | Set highlight recap weight                  | Weights    |
 | `GET`    | `/highlights/weights`             | List weighted highlights                    | Weights    |
+| `GET`    | `/books`                          | List books with highlight counts            | Books      |
 | `PUT`    | `/books/{id}/title`               | Rename a book                               | Books      |
 | `POST`   | `/highlights/{id}/exclusions`     | Exclude a highlight                         | Exclusions |
 | `DELETE` | `/highlights/{id}/exclusions`     | Re-include a highlight                      | Exclusions |
@@ -236,7 +275,7 @@ This keeps the client protocol small, explicit, and aligned with the quickstart 
 Transport objects in `Relego.Core/Contracts/` follow these suffixes:
 
 | Suffix      | Usage                                                                                                          |
-|-------------|----------------------------------------------------------------------------------------------------------------|
+|-------------|------------------------------------------------------------------------------------------------------------------|
 | `*Request`  | Inbound root-level request bodies (e.g. `SyncRequest`, `UpdateSettingsRequest`)                                |
 | `*Response` | Outbound root-level response bodies (e.g. `StatusResponse`, `HighlightsResponse`)                              |
 | `*Dto`      | Nested data-transfer objects used as list items or sub-objects within a response (e.g. `WeightedHighlightDto`) |
@@ -245,13 +284,15 @@ Transport objects in `Relego.Core/Contracts/` follow these suffixes:
 
 ```tree
 src/Relego.Core/
-└── Contracts/          # Shared request/response DTOs for CLI and server
+├── Branding/           # Shared wordmark and palette constants
+├── Contracts/          # Shared request/response DTOs for CLI, server and web UI
+├── Parsing/            # My Clippings.txt parser and shared highlight aggregation
+└── Sources/            # Highlight source registry, source readers, resolver, device detectors
 
 src/Relego.Cli/
 ├── Commands/           # Spectre.Console CLI sub-commands (sync, status, config, …)
-├── Infrastructure/     # HTTP client, resilience, device detectors
-├── Parsing/            # My Clippings.txt parser
-├── Sources/            # Highlight source registry, source readers, resolver
+├── Import/             # Device import workflow shared by the CLI and the TUI
+├── Infrastructure/     # HTTP client and resilience
 ├── Tui/                # Terminal.Gui TUI (TuiApp, screens, StatusChrome, …)
 └── Program.cs          # Dual-mode entry point (TUI or CLI)
 
@@ -260,16 +301,25 @@ src/Relego.Server/
 ├── Endpoints/          # Minimal API endpoint modules
 ├── Infrastructure/     # Database bootstrap and logging
 ├── Models/             # Server-side domain models
+├── Services/           # Upload import, SMTP configuration, mail delivery
 └── Program.cs          # Composition root and DI wiring
 
 src/Relego.Tests/
 ├── Api/                # End-to-end HTTP integration tests via WebApplicationFactory
 ├── Cli/                # CLI command tests
 ├── Infrastructure/     # Database/bootstrap tests
-├── Parsing/            # CLI parser tests
+├── Parsing/            # Parser tests
 ├── Recap/              # Recap service tests
 ├── Sources/            # Highlight source, resolver, and multi-import tests
 └── Tui/                # TUI logic tests (mode detection, search, screen key handling)
+
+src/relego.web/             # React/Vite SPA published with Relego.Server
+├── relego.web.esproj # JavaScript SDK project referenced by the server
+├── src/components/     # App shell, command palette, shortcuts sheet, primitives
+├── src/routes/         # Library, Highlights, Import, Recaps, Settings
+├── src/lib/            # API client, theme, hotkeys, toasts, formatting
+├── src/styles/         # Design tokens and global stylesheet
+└── tests/              # Playwright behavioural and axe-core accessibility suites
 
 src/landing/                # Static marketing landing page (independent from .NET)
 ├── pages/              # Astro pages (index.astro)

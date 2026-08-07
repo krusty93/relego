@@ -1,19 +1,19 @@
 # Developer Experience Design — Relego
 
-**Version:** 0.2 — Draft
-**Date:** 2026-03-31
-**Status:** Draft
+**Version:** 1.0
+**Date:** 2026-08-07
+**Status:** Active
 
 ---
 
 ## Overview
 
-Relego consists of two components with distinct installation and usage patterns:
+Relego consists of two deployable components with distinct installation and usage patterns:
 
-- **Server** (`relego-server`) — Always-on Docker container deployed on a home server, NAS, or Raspberry Pi. Handles scheduling, spaced repetition, recap composition, and email delivery.
-- **Client CLI** (`relego`) — Installed on the user's laptop. Used to import highlights from registered sources (Kindle and Kobo today) and manage settings.
+- **Server** (`relego-server`) — Always-on Docker container deployed on a home server, NAS, or Raspberry Pi. Handles scheduling, spaced repetition, recap composition, email delivery, and serves the web UI.
+- **Client CLI** (`relego`) — Installed on the user's laptop. Used to import highlights directly from a connected device (Kindle and Kobo today), to manage settings from the terminal, and for scripting.
 
-The guiding DX principle: **zero friction after a one-time setup**. Onboarding requires one server start, one delivery destination, one import command.
+The guiding DX principle: **zero friction after a one-time setup**. Onboarding requires one server start, one delivery destination, one import.
 
 ---
 
@@ -39,6 +39,10 @@ docker run -d \
 ```
 
 That's it. The server is running and will start sending recaps on the default schedule (daily at 18:00 client's local time).
+
+### Web UI
+
+The server image includes the Vite production build. Open <http://localhost:8080> after starting `relego-server`; the web UI and API share the same origin and require no additional browser configuration.
 
 ### Client CLI
 
@@ -142,6 +146,8 @@ relego import <path>   # Explicit source file or mounted device root
 ```
 
 When both a Kindle and a Kobo are connected, Relego imports both in one run and reports each source separately. If one source fails, the other still imports.
+
+Without a CLI install, open the web UI's **Import** page and drop `My Clippings.txt` or `KoboReader.sqlite` onto it. The server sniffs the format, parses it with the same `Relego.Core` code the CLI uses, and reports per book what was added and what was already there. This is the only import path that works when the device is attached to a machine that has no Relego binary — for example a phone or a locked-down work laptop.
 
 ---
 
@@ -295,39 +301,3 @@ Errors are actionable — they tell the user exactly what to do.
 | `relego weight list`                                   | Show weighted highlights                                                     |
 | `relego recap trigger`                                 | Trigger a recap immediately                                                  |
 | `relego --version`                                     | Print version                                                                |
-
----
-
-## Decisions
-
-- `relego import` auto-detects Kindle and Kobo sources on macOS, Linux, and Windows. Explicit Kindle file paths are routed by `.txt` extension, while auto-detection still probes the device's `My Clippings.txt` path. Each source owns its own detection rules, and the resolver imports every detected source with per-source failure isolation.
-- Server authentication is not required — the server is assumed to be on a trusted local network.
-
----
-
-## Local development (VS Code)
-
-### Configuration philosophy
-
-All application settings live in `appsettings.*.json` — never in `.vscode/launch.json`. The launch configuration contains only the **minimum bootstrapping** needed by the .NET hosting framework:
-
-| File | Purpose |
-|------|---------|
-| `launch.json` | Sets `ASPNETCORE_ENVIRONMENT` / `DOTNET_ENVIRONMENT` to `Development` (selects which config files to load) |
-| `appsettings.json` | Base settings shared across all environments |
-| `appsettings.Development.json` | Dev-only overrides: URLs, ports, logging levels, local SMTP, etc. |
-| `Properties/launchSettings.json` | Used by `dotnet run` (not the debugger); keep in sync with appsettings for consistency |
-
-### Changing a setting
-
-Edit `appsettings.Development.json` in the relevant project — no need to touch `.vscode/`.
-
-**Examples:**
-
-- Change the server port → `src/Relego.Server/appsettings.Development.json` → `"Urls": "http://localhost:9090"`
-- Change SMTP settings → same file, `"Smtp"` section
-- Change CLI log level → `src/Relego.Cli/appsettings.Development.json` → `"Serilog"` section
-
-### Running in debug
-
-Press **F5** and select `Relego.Server` or `Relego.Cli`. Both configurations automatically load `appsettings.Development.json` thanks to the environment variable set in `launch.json`.

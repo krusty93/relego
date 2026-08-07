@@ -35,11 +35,4 @@ public sealed class ProbeEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
 
-    [Fact]
-    public async Task GetRoot_IsRemoved_Returns404()
-    {
-        var response = await _client.GetAsync("/");
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
 }

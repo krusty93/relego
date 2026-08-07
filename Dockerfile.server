@@ -1,8 +1,18 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM node:24-bookworm-slim AS node
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server-build
 WORKDIR /src
 
-COPY src/ ./
+COPY --from=node /usr/local/ /usr/local/
+
+COPY src/PackageVersions.props ./
+COPY src/Relego.Core/Relego.Core.csproj Relego.Core/
+COPY src/Relego.Server/Relego.Server.csproj Relego.Server/
+COPY src/relego.web/relego.web.esproj src/relego.web/package.json src/relego.web/package-lock.json relego.web/
+
 RUN dotnet restore Relego.Server/Relego.Server.csproj
+
+COPY src/ ./
 RUN dotnet publish Relego.Server/Relego.Server.csproj \
     --configuration Release \
     --output /out \
@@ -11,7 +21,7 @@ RUN dotnet publish Relego.Server/Relego.Server.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-COPY --from=build /out/ ./
+COPY --from=server-build /out/ ./
 
 ENV ASPNETCORE_HTTP_PORTS=8080
 

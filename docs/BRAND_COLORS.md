@@ -1,6 +1,6 @@
-# Relego Brand Colors
+# Relego Brand Palette
 
-This file is the shared source of truth for color values used across the landing page and the TUI.
+This document defines Relego's stable identity colors for assets such as the landing page and email. It is not a duplicate token reference for product interfaces.
 
 ## Canonical palette
 
@@ -20,24 +20,17 @@ This file is the shared source of truth for color values used across the landing
 - surface: `rgba(18,14,12,0.82)`
 - border: `rgba(245,238,227,0.14)`
 
-## Semantic mapping in TUI
+## Implementation
 
-`src/Relego.Cli/Tui/TuiTheme.cs` maps the canonical palette to terminal-friendly tokens:
+Implementations derive their own semantic tokens from the canonical palette:
 
-- `Background`, `Text`, `TextMuted`
-- `Accent` and `AccentText` (contrast-safe accent for small text)
-- `Border`, `BorderFocus`
-- `Success`, `Error`, `Warning`
-
-The mode is selected via `RELEGO_THEME`:
-
-- `RELEGO_THEME=dark` (default)
-- `RELEGO_THEME=light`
+- `src/landing/styles/global.css` uses the canonical palette for the public site.
+- `src/relego.web/src/styles/tokens.css` contains the product UI's derived tokens. Its light-mode accent variants preserve contrast because the raw `#b56b39` accent is not suitable for normal-sized text or white button text.
+- `src/Relego.Core/Branding/BrandColors.cs` and `src/Relego.Cli/Tui/TuiTheme.cs` contain the current CLI/TUI mapping. This pointer remains until the TUI is removed.
 
 ## Contrast targets
 
-- Main text (`Text` on `Background`): WCAG AA for normal text (>= 4.5:1)
-- Status text (`Success`, `Error`, `Warning` on `Background`): WCAG AA for normal text (>= 4.5:1)
-- Accent text in content (`AccentText` on `Background`): WCAG AA for normal text (>= 4.5:1)
+- Main and status text meet WCAG AA for normal text (>= 4.5:1).
+- Accent text uses a contrast-safe semantic variant rather than the raw light-mode accent.
 
-Contrast checks are covered by tests in `src/Relego.Tests/Tui/BrandColorsTests.cs`.
+Contrast checks are covered by `src/Relego.Tests/Tui/BrandColorsTests.cs`. The web UI is checked end to end by `src/relego.web/tests/a11y.spec.ts`, which runs axe-core over every route in both themes at desktop and mobile widths.

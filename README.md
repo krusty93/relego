@@ -9,7 +9,7 @@
 <h4 align="center">
 
   ![Maintenance](https://img.shields.io/maintenance/yes/2026)
-  [![GitHub Release](https://img.shields.io/github/v/release/krusty93/relego)](https://github.com/krusty93/relego/releases)
+  [![Server version](https://img.shields.io/github/v/tag/krusty93/relego?filter=server%2Fv%2A&label=server)](https://github.com/krusty93/relego/releases?q=server%2F)
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![CodeQL](https://github.com/krusty93/relego/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/krusty93/relego/actions/workflows/github-code-scanning/codeql)

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6311650">
+
+  <PropertyGroup>
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
+    <ShouldRunNpmAudit>false</ShouldRunNpmAudit>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+  </PropertyGroup>
+
+  <Target
+    Name="RestoreNpmDependencies"
+    BeforeTargets="_RunNpmCommandForPublishAssets"
+    Inputs="$(MSBuildProjectDirectory)\package.json;$(MSBuildProjectDirectory)\package-lock.json"
+    Outputs="$(MSBuildProjectDirectory)\node_modules\.package-lock.json">
+    <Exec Command="npm ci" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+</Project>

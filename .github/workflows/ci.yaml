@@ -4,8 +4,9 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/Relego.**'
+      - 'src/[Rr]elego.**'
       - 'Dockerfile.ci'
+      - 'Dockerfile.server'
       - '.github/workflows/ci.yaml'
 
 permissions:
@@ -56,3 +57,70 @@ jobs:
           name: test-results
           path: test-results/
           if-no-files-found: warn
+
+  web:
+    name: Test published web UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/relego.web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/relego.web
+        run: npm ci
+
+      - name: Install Playwright browser
+        working-directory: src/relego.web
+        run: npx playwright install --with-deps chromium
+
+      - name: Test published server and web UI
+        working-directory: src/relego.web
+        run: npm test
+
+      - name: Upload web test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-test-artifacts
+          path: |
+            src/relego.web/playwright-report/
+            src/relego.web/test-results/
+          if-no-files-found: warn
+
+  server-image:
+    name: Build server image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          push: false
+          context: .
+          file: Dockerfile.server
+          tags: relego-server-ci:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify web UI assets
+        run: docker run --rm --entrypoint sh relego-server-ci:latest -c "test -s /app/wwwroot/index.html"
