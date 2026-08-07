@@ -55,27 +55,36 @@ jobs:
 
           while IFS= read -r component; do
             NAME=$(echo "$component" | jq -r '.name')
-            COMP_PATH=$(echo "$component" | jq -r '.projectPath')
-            CSPROJ=$(echo "$component" | jq -r '.csprojPath')
+            VERSION_FILE=$(echo "$component" | jq -r '.versionFile')
+            VERSION_PROPERTY=$(echo "$component" | jq -r '.versionProperty')
 
             [ -z "$NAME" ] && continue
 
-            if ! echo "$CHANGED" | grep -q "^${COMP_PATH}/"; then
+            MODIFIED=0
+            while IFS= read -r changed_path; do
+              if echo "$CHANGED" | grep -q "^${changed_path}/"; then
+                MODIFIED=1
+                break
+              fi
+            done < <(echo "$component" | jq -r '.changedPaths[]')
+
+            if [ "$MODIFIED" -eq 0 ]; then
               append_report_row "| \`${NAME}\` | - | - | ⏭️ Not modified |"
               continue
             fi
 
-            if [ -z "$CSPROJ" ] || [ "$CSPROJ" = "null" ] || [ ! -f "$CSPROJ" ]; then
-              append_report_row "| \`${NAME}\` | - | - | ❓ ${CSPROJ} not found |"
+            if [ -z "$VERSION_FILE" ] || [ "$VERSION_FILE" = "null" ] || [ ! -f "$VERSION_FILE" ]; then
+              append_report_row "| \`${NAME}\` | - | - | ❓ ${VERSION_FILE} not found |"
               FAILED=1; continue
             fi
 
-            PR_VERSION=$(grep -oP '(?<=<Version>)[^<]+' "$CSPROJ" || echo "")
-            MAIN_VERSION=$(git show origin/main:"$CSPROJ" 2>/dev/null \
-              | grep -oP '(?<=<Version>)[^<]+' || echo "0.0.0")
+            PR_VERSION=$(sed -nE "s|.*<${VERSION_PROPERTY}>([^<]+)</${VERSION_PROPERTY}>.*|\1|p" "$VERSION_FILE" | head -1)
+            MAIN_VERSION=$(git show origin/main:"$VERSION_FILE" 2>/dev/null \
+              | sed -nE "s|.*<${VERSION_PROPERTY}>([^<]+)</${VERSION_PROPERTY}>.*|\1|p" \
+              | head -1)
 
             if [ -z "$PR_VERSION" ]; then
-              append_report_row "| \`${NAME}\` | \`${MAIN_VERSION}\` | - | ❌ \`<Version>\` tag missing |"
+              append_report_row "| \`${NAME}\` | \`${MAIN_VERSION}\` | - | ❌ \`${VERSION_PROPERTY}\` missing |"
               FAILED=1; continue
             fi
 
@@ -83,7 +92,7 @@ jobs:
 
             if [ "$MAIN_VERSION" = "$PR_VERSION" ]; then
               append_report_row "| \`${NAME}\` | \`${MAIN_VERSION}\` | \`${PR_VERSION}\` | ❌ Not bumped |"
-              MISSING_BUMPS="${MISSING_BUMPS}# bump ${NAME} before opening PR — edit <Version> in ${CSPROJ}\n"
+              MISSING_BUMPS="${MISSING_BUMPS}# bump ${NAME} before opening PR — edit ${VERSION_PROPERTY} in ${VERSION_FILE}\n"
               FAILED=1
             elif [ "$LOWER" = "$PR_VERSION" ]; then
               append_report_row "| \`${NAME}\` | \`${MAIN_VERSION}\` | \`${PR_VERSION}\` | ❌ Version regressed |"
@@ -98,7 +107,7 @@ jobs:
             HINT=""
           else
             SUMMARY="❌ **One or more modified components are missing a version bump.**"
-            HINT="\n\nFor each failing component, edit the \`<Version>\` tag in the relevant \`.csproj\` file to a higher semver value, then push again:\n\`\`\`bash\n${MISSING_BUMPS}\`\`\`"
+            HINT="\n\nFor each failing component, increase its centralized version property in \`src/PackageVersions.props\`, then push again:\n\`\`\`bash\n${MISSING_BUMPS}\`\`\`"
           fi
 
           BODY="### 🔖 Version Bump Check\n\n${SUMMARY}${HINT}\n\n| Component | Version on \`main\` | Version in PR | Status |\n|---|---|---|---|\n${REPORT}\n\n---\n*Updated automatically on every push to this PR.*"

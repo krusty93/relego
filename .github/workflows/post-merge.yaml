@@ -39,14 +39,15 @@ jobs:
 
           while IFS= read -r component; do
             NAME=$(echo "$component" | jq -r '.name')
-            CSPROJ=$(echo "$component" | jq -r '.csprojPath')
+            VERSION_FILE=$(echo "$component" | jq -r '.versionFile')
+            VERSION_PROPERTY=$(echo "$component" | jq -r '.versionProperty')
 
             [ -z "$NAME" ] && continue
-            [ -z "$CSPROJ" ] || [ "$CSPROJ" = "null" ] && { echo "⚠️  $NAME: .csproj not configured, skipping"; continue; }
-            [ ! -f "$CSPROJ" ] && { echo "⚠️  $NAME: $CSPROJ not found, skipping"; continue; }
+            [ -z "$VERSION_FILE" ] || [ "$VERSION_FILE" = "null" ] && { echo "⚠️  $NAME: version file not configured, skipping"; continue; }
+            [ ! -f "$VERSION_FILE" ] && { echo "⚠️  $NAME: $VERSION_FILE not found, skipping"; continue; }
 
-            VERSION=$(grep -oP '(?<=<Version>)[^<]+' "$CSPROJ" || echo "")
-            [ -z "$VERSION" ] && { echo "⚠️  $NAME: <Version> not found, skipping"; continue; }
+            VERSION=$(sed -nE "s|.*<${VERSION_PROPERTY}>([^<]+)</${VERSION_PROPERTY}>.*|\1|p" "$VERSION_FILE" | head -1)
+            [ -z "$VERSION" ] && { echo "⚠️  $NAME: ${VERSION_PROPERTY} not found, skipping"; continue; }
 
             TAG="${NAME}/v${VERSION}"
 

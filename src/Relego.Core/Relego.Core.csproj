@@ -3,7 +3,7 @@
   <Import Project="..\PackageVersions.props" />
 
   <PropertyGroup>
-    <Version>0.8.0</Version>
+    <Version>$(RelegoCoreVersion)</Version>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

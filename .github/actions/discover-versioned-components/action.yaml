@@ -1,9 +1,9 @@
 name: "Discover Versioned Components"
-description: "Discover versioned application components from csproj files under src."
+description: "Discover release components."
 
 outputs:
   components_json:
-    description: "JSON array of discovered components with name, projectPath, and csprojPath."
+    description: "JSON array of release components with their project paths and version property locations."
     value: ${{ steps.discover.outputs.components_json }}
 
 runs:
@@ -14,40 +14,48 @@ runs:
       run: |
         set -euo pipefail
 
-        mapfile -t csproj_files < <(find src -mindepth 2 -maxdepth 2 -name '*.csproj' -print | sort)
-
-        if [ ${#csproj_files[@]} -eq 0 ]; then
-          echo 'components_json=[]' >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
         components_json='[]'
+        version_file='src/PackageVersions.props'
 
-        for csproj_path in "${csproj_files[@]}"; do
-          version=$(grep -oPm1 '(?<=<Version>)[^<]+' "$csproj_path" || true)
+        for component in \
+          'core|src/Relego.Core|src/Relego.Core/Relego.Core.csproj|RelegoCoreVersion|src/Relego.Core' \
+          'cli|src/Relego.Cli|src/Relego.Cli/Relego.Cli.csproj|RelegoCliVersion|src/Relego.Cli' \
+          'server|src/Relego.Server|src/Relego.Server/Relego.Server.csproj|RelegoServerVersion|src/Relego.Server,src/relego.web'; do
+          IFS='|' read -r component_name project_path csproj_path version_property changed_paths <<< "$component"
+
+          if [ ! -f "$csproj_path" ]; then
+            echo "Release project not found: $csproj_path" >&2
+            exit 1
+          fi
+
+          if [ ! -f "$version_file" ]; then
+            echo "Centralized version file not found: $version_file" >&2
+            exit 1
+          fi
+
+          version=$(sed -nE "s|.*<${version_property}>([^<]+)</${version_property}>.*|\1|p" "$version_file" | head -1)
           if [ -z "$version" ]; then
-            echo "Skipping non-versioned project: $csproj_path"
-            continue
+            echo "Version property ${version_property} not found in ${version_file}" >&2
+            exit 1
           fi
-
-          project_path=$(dirname "$csproj_path")
-          project_dir=$(basename "$project_path")
-          csproj_name=$(basename "$csproj_path" .csproj)
-
-          raw_name="$project_dir"
-          raw_name="${raw_name#*.}"
-          if [ "$raw_name" = "$project_dir" ]; then
-            raw_name="$csproj_name"
-            raw_name="${raw_name#*.}"
-          fi
-
-          component_name=$(printf '%s' "$raw_name" | tr '[:upper:]' '[:lower:]')
 
           components_json=$(jq \
             --arg name "$component_name" \
             --arg projectPath "$project_path" \
             --arg csprojPath "$csproj_path" \
-            '. + [{ name: $name, projectPath: $projectPath, csprojPath: $csprojPath }]' \
+            --arg versionFile "$version_file" \
+            --arg versionProperty "$version_property" \
+            --arg version "$version" \
+            --argjson changedPaths "$(printf '%s' "$changed_paths" | jq -R 'split(",")')" \
+            '. + [{
+              name: $name,
+              projectPath: $projectPath,
+              csprojPath: $csprojPath,
+              versionFile: $versionFile,
+              versionProperty: $versionProperty,
+              version: $version,
+              changedPaths: $changedPaths
+            }]' \
             <<< "$components_json")
         done
 
