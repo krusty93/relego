@@ -72,7 +72,7 @@ for (const theme of THEMES) {
     }) => {
       test.skip(isMobile !== true, "Covers the touch path; desktop uses chords.");
 
-      await page.goto("/highlights", { waitUntil: "networkidle" });
+      await page.goto("/app/highlights", { waitUntil: "networkidle" });
 
       await page.getByRole("button", { name: "Commands" }).tap();
       await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
@@ -93,8 +93,8 @@ for (const theme of THEMES) {
       test.skip(isMobile === true, "Table rows are stacked on mobile.");
 
       for (const [path, selector] of [
-        ["/highlights", ".hl-summary"],
-        ["/", "tbody tr"],
+        ["/app/highlights", ".hl-summary"],
+        ["/app", "tbody tr"],
       ] as const) {
         await page.goto(path, { waitUntil: "networkidle" });
         await expect(page.locator(selector).first()).toBeVisible();

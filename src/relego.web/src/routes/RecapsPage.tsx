@@ -65,7 +65,7 @@ export function RecapsPage() {
 
       {blockedReason ? (
         <p className="notice" id="rc-blocked">
-          {blockedReason} <Link to="/settings">Open settings</Link> to choose where recaps are
+          {blockedReason} <Link to="/app/settings">Open settings</Link> to choose where recaps are
           delivered.
         </p>
       ) : null}
