@@ -1,4 +1,4 @@
-﻿namespace Relego.Cli.Parsing;
+namespace Relego.Core.Parsing;
 
 internal record RawClipping(
     string Title,

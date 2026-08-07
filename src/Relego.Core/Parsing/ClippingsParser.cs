@@ -1,8 +1,8 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
-namespace Relego.Cli.Parsing;
+namespace Relego.Core.Parsing;
 
 /// <summary>
 /// Parses Kindle "My Clippings.txt" files into structured highlight data.

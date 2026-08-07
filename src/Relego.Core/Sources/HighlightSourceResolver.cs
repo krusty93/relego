@@ -1,4 +1,4 @@
-﻿namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// Resolves an input into the set of highlight sources to import from. Built from the

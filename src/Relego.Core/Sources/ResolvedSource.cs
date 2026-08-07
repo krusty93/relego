@@ -1,4 +1,4 @@
-﻿namespace Relego.Cli.Sources;
+namespace Relego.Core.Sources;
 
 /// <summary>
 /// A source that detection resolved to a concrete file, ready to be read by the

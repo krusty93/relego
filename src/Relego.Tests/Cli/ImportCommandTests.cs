@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RichardSzalay.MockHttp;
 using Spectre.Console.Cli;
 using Relego.Cli.Commands;
 using Relego.Cli.Infrastructure;
 using Relego.Cli.Import;
-using Relego.Cli.Sources;
+using Relego.Core.Sources;
 
 namespace Relego.Tests.Cli;
 
