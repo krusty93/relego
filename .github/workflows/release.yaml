@@ -200,9 +200,9 @@ jobs:
           VERSION="${{ needs.metadata.outputs.version }}"
           TAG="${{ needs.metadata.outputs.tag }}"
 
-          COMP_PATH=$(printf '%s' "$COMPONENTS_JSON" | jq -r --arg name "$COMPONENT" '.[] | select(.name == $name) | .projectPath')
+          mapfile -t CHANGE_PATHS < <(printf '%s' "$COMPONENTS_JSON" | jq -r --arg name "$COMPONENT" '.[] | select(.name == $name) | .changedPaths[]')
 
-          if [ -z "$COMP_PATH" ] || [ "$COMP_PATH" = "null" ]; then
+          if [ "${#CHANGE_PATHS[@]}" -eq 0 ]; then
             echo "Unsupported component: $COMPONENT" >&2
             exit 1
           fi
@@ -219,7 +219,7 @@ jobs:
           if [ -z "$RELEASE_DATE" ]; then
             RELEASE_DATE=$(git log -1 --format=%cs "$TAG")
           fi
-          COMMITS=$(git log --reverse --format='%H' "$RANGE" -- "$COMP_PATH")
+          COMMITS=$(git log --reverse --format='%H' "$RANGE" -- "${CHANGE_PATHS[@]}")
           BODY=""
 
           while IFS= read -r sha; do

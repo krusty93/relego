@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6311650">
 
+  <Import Project="..\PackageVersions.props" />
+
   <PropertyGroup>
+    <Version>$(RelegoServerVersion)</Version>
     <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
     <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
     <ShouldRunNpmAudit>false</ShouldRunNpmAudit>
