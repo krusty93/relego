@@ -1,25 +1,16 @@
-﻿using MailKit.Net.Smtp;
-using Microsoft.Extensions.Options;
+using MailKit.Net.Smtp;
 using MimeKit;
 using Relego.Server.Infrastructure.Smtp;
 
 namespace Relego.Server.Services;
 
-public sealed class MailDeliveryService : IMailDeliveryService
+public sealed class MailDeliveryService(
+    SmtpConfigurationService configuration,
+    ILogger<MailDeliveryService> logger) : IMailDeliveryService
 {
-    private readonly SmtpSettings _settings;
-    private readonly ILogger<MailDeliveryService> _logger;
-
-    public MailDeliveryService(IOptions<SmtpSettings> settings, ILogger<MailDeliveryService> logger)
-    {
-        _settings = settings.Value;
-        _logger = logger;
-    }
-
     public async Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default)
     {
         using var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(toAddress));
         message.Subject = "Your Relego Recap";
 
@@ -36,16 +27,14 @@ public sealed class MailDeliveryService : IMailDeliveryService
             FileName = fileName
         };
 
-        var multipart = new Multipart("mixed") { body, attachment };
-        message.Body = multipart;
+        message.Body = new Multipart("mixed") { body, attachment };
 
-        await SendEmailAsync(message!, cancellationToken);
+        await SendEmailAsync(message, cancellationToken);
     }
 
     public async Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
     {
         using var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(toAddress));
         message.Subject = "Relego - Test Email";
         message.Body = new TextPart("plain")
@@ -53,7 +42,7 @@ public sealed class MailDeliveryService : IMailDeliveryService
             Text = "This is a test email from Relego. If you received this, your SMTP configuration is working correctly."
         };
 
-        await SendEmailAsync(message!, cancellationToken);
+        await SendEmailAsync(message, cancellationToken);
     }
 
     public async Task SendHtmlRecapAsync(
@@ -70,27 +59,31 @@ public sealed class MailDeliveryService : IMailDeliveryService
         };
 
         using var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("Relego", _settings.FromAddress));
         message.To.Add(MailboxAddress.Parse(toAddress));
         message.Subject = subject;
         message.Body = bodyBuilder.ToMessageBody();
 
-        await SendEmailAsync(message!, cancellationToken);
+        await SendEmailAsync(message, cancellationToken);
 
-        _logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
+        logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
     }
 
+    // The sender address and credentials are resolved per send so a change saved from a
+    // client takes effect immediately, without restarting the server.
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)
     {
+        var settings = (await configuration.GetEffectiveAsync()).Settings;
+        message.From.Add(new MailboxAddress("Relego", settings.FromAddress));
+
         using var client = new SmtpClient();
 
         try
         {
-            await client.ConnectAsync(_settings.Host, _settings.Port, useSsl: true, cancellationToken);
+            await client.ConnectAsync(settings.Host, settings.Port, useSsl: true, cancellationToken);
 
-            if (!string.IsNullOrEmpty(_settings.Username))
+            if (!string.IsNullOrEmpty(settings.Username))
             {
-                await client.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
+                await client.AuthenticateAsync(settings.Username, settings.Password, cancellationToken);
             }
 
             await client.SendAsync(message, cancellationToken);

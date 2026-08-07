@@ -1,10 +1,66 @@
 using System.Data;
 using Dapper;
+using Relego.Core.Contracts;
 
 namespace Relego.Server.Data;
 
 public sealed class BookRepository(IDbConnection connection)
 {
+    /// <summary>
+    /// Returns a page of books with their highlight counts and exclusion state.
+    /// </summary>
+    public async Task<BooksResponse> GetBooksAsync(int userId, int page, int pageSize, string? query)
+    {
+        var normalizedQuery = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%";
+
+        const string filter =
+            """
+            FROM books b
+            JOIN authors a ON a.id = b.author_id
+            WHERE b.user_id = @UserId
+              AND (@Query IS NULL OR b.title LIKE @Query OR a.name LIKE @Query)
+            """;
+
+        var total = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) " + filter,
+            new { UserId = userId, Query = normalizedQuery }).ConfigureAwait(false);
+
+        var items = await connection.QueryAsync<BookItemDto>(
+            $"""
+             SELECT
+                 b.id    AS Id,
+                 b.title AS Title,
+                 a.id    AS AuthorId,
+                 a.name  AS AuthorName,
+                 (SELECT COUNT(*) FROM highlights h
+                  WHERE h.book_id = b.id AND h.user_id = @UserId) AS HighlightCount,
+                 (SELECT COUNT(*) FROM highlights h
+                  WHERE h.book_id = b.id AND h.user_id = @UserId AND h.excluded = 1) AS ExcludedHighlightCount,
+                 EXISTS (SELECT 1 FROM excluded_books eb
+                         WHERE eb.book_id = b.id AND eb.user_id = @UserId) AS Excluded,
+                 EXISTS (SELECT 1 FROM excluded_authors ea
+                         WHERE ea.author_id = a.id AND ea.user_id = @UserId) AS AuthorExcluded
+             {filter}
+             ORDER BY b.title COLLATE NOCASE
+             LIMIT @PageSize OFFSET @Offset
+             """,
+            new
+            {
+                UserId = userId,
+                Query = normalizedQuery,
+                PageSize = pageSize,
+                Offset = (page - 1) * pageSize,
+            }).ConfigureAwait(false);
+
+        return new BooksResponse
+        {
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+            Items = [.. items],
+        };
+    }
+
     /// <summary>
     /// Renames a book title.
     /// Returns <see langword="true"/> when the book was found and updated,
