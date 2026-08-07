@@ -1,6 +1,13 @@
 import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { API_URL } from "../playwright.config";
 
+async function updateSettings(data: Record<string, string | null>): Promise<void> {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const response = await api.patch("/settings", { data });
+  expect(response.ok()).toBeTruthy();
+  await api.dispose();
+}
+
 test.describe("recaps", () => {
   test("sending is blocked, with a reason, when no destination is set", async ({ page }) => {
     // The seeded server always has a reader address, so the empty state is
@@ -25,6 +32,7 @@ test.describe("recaps", () => {
   });
 
   test("sending is available once a destination exists", async ({ page }) => {
+    await updateSettings({ kindleEmail: "reader@kindle.com" });
     await page.goto("/app/recaps", { waitUntil: "networkidle" });
 
     await expect(page.getByRole("button", { name: "Send recap now" })).toBeEnabled();
@@ -94,10 +102,12 @@ test.describe("recaps", () => {
   });
 
   test("saving the schedule keeps the delivery address", async ({ page }) => {
+    await updateSettings({
+      kindleEmail: "reader@kindle.com",
+      deliveryEmail: "keeper@inbox.com",
+    });
     await page.goto("/app/settings", { waitUntil: "networkidle" });
-    await page.locator("#inbox").fill("keeper@inbox.com");
-    await page.locator("#s-delivery button[type=submit]").click();
-    await expect(page.locator(".toast")).toContainText("saved");
+    await expect(page.locator("#inbox")).toHaveValue("keeper@inbox.com");
 
     await page.locator("#s-schedule button[type=submit]").click();
     await expect(page.locator(".toast").last()).toContainText("saved");
