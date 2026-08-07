@@ -4,8 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/Relego.**'
-      - 'src/relego.web/**'
+      - 'src/[Rr]elego.**'
       - 'Dockerfile.ci'
       - 'Dockerfile.server'
       - '.github/workflows/ci.yaml'
