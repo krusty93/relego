@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
@@ -29,11 +29,10 @@ const NAV = [
   { to: "/app/settings", label: "Settings", Icon: SettingsIcon, chord: "s" },
 ] as const;
 
-const MOBILE_NAV = NAV.filter((item) => item.to !== "/app/highlights");
-
 export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { cycle } = useTheme();
   const { push } = useToasts();
   const { query, setQuery } = useSearch();
@@ -53,8 +52,31 @@ export function AppShell() {
     refetchInterval: 20_000,
     retry: false,
   });
+  const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings, retry: false });
 
   const go = useCallback((to: string) => navigate(to), [navigate]);
+  const hasDestination = Boolean(
+    settings.data?.kindleEmail?.trim() || settings.data?.deliveryEmail?.trim(),
+  );
+  const sendBlocked = settings.isSuccess && !hasDestination;
+
+  const guardSend = useCallback(
+    (send: () => Promise<unknown>, failure: string) => async () => {
+      if (sendBlocked) {
+        go("/app/settings");
+        push("Add a reader address first — Relego has nowhere to send it.");
+        return;
+      }
+      try {
+        await send();
+      } catch (error) {
+        push(error instanceof Error ? error.message : failure, { tone: "bad" });
+        return;
+      }
+      return true;
+    },
+    [go, push, sendBlocked],
+  );
 
   const commands: Command[] = [
     ...NAV.map((item) => ({
@@ -69,14 +91,11 @@ export function AppShell() {
       group: "Actions",
       label: "Send recap now",
       run: async () => {
-        try {
-          await api.sendRecapNow();
-          push("Recap queued. It will be delivered shortly.");
-        } catch (error) {
-          push(error instanceof Error ? error.message : "Could not send the recap.", {
-            tone: "bad",
-          });
-        }
+        const sent = await guardSend(api.sendRecapNow, "Could not send the recap.")();
+        if (!sent) return;
+        void queryClient.invalidateQueries({ queryKey: ["recaps"] });
+        void queryClient.invalidateQueries({ queryKey: ["status"] });
+        push("Recap queued. It will be delivered shortly.");
       },
     },
     {
@@ -84,14 +103,8 @@ export function AppShell() {
       group: "Actions",
       label: "Send test email to your reader",
       run: async () => {
-        try {
-          await api.testKindleEmail();
-          push("Test email sent to your reader.");
-        } catch (error) {
-          push(error instanceof Error ? error.message : "Could not send the test email.", {
-            tone: "bad",
-          });
-        }
+        const sent = await guardSend(api.testKindleEmail, "Could not send the test email.")();
+        if (sent) push("Test email sent to your reader.");
       },
     },
     { id: "theme", group: "Actions", label: "Cycle theme", hint: "t", run: cycleTheme },
@@ -223,7 +236,7 @@ export function AppShell() {
         </div>
 
         <nav className="tabbar" aria-label="Primary">
-          {MOBILE_NAV.map(({ to, label, Icon }) => (
+          {NAV.map(({ to, label, Icon }) => (
             <NavLink key={to} to={to} end={to === "/app"}>
               <Icon />
               {label}

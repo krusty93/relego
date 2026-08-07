@@ -18,6 +18,7 @@ export function HighlightsPage() {
   const debounced = useDebounced(query);
 
   const [openId, setOpenId] = useState<number | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [cursor, setCursor] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -55,6 +56,12 @@ export function HighlightsPage() {
     setCursor(0);
     setOpenId(null);
   }, [debounced, bookId]);
+
+  // A pending delete confirmation belongs to one open row; collapsing or moving
+  // to another row must not leave a live "Yes, delete" behind.
+  useEffect(() => {
+    setConfirmingId(null);
+  }, [openId]);
 
   function refreshAll() {
     void queryClient.invalidateQueries({ queryKey: ["highlights"] });
@@ -98,6 +105,7 @@ export function HighlightsPage() {
   const removeHighlight = useMutation({
     mutationFn: (id: number) => api.deleteHighlight(id),
     onSuccess: () => {
+      setConfirmingId(null);
       refreshAll();
       push("Highlight deleted. Re-import the file to bring it back.");
     },
@@ -155,7 +163,10 @@ export function HighlightsPage() {
         toggleHighlight.mutate({ id: item.id, excluded });
         break;
       case "Escape":
-        if (openId === item.id) {
+        if (confirmingId === item.id) {
+          event.preventDefault();
+          setConfirmingId(null);
+        } else if (openId === item.id) {
           event.preventDefault();
           setOpenId(null);
         }
@@ -306,13 +317,36 @@ export function HighlightsPage() {
                     >
                       {excluded ? "Include again" : "Exclude highlight"}
                     </button>
-                    <button
-                      className="btn btn--sm btn--danger"
-                      type="button"
-                      onClick={() => removeHighlight.mutate(item.id)}
-                    >
-                      Delete
-                    </button>
+                    {/* Deleting is not reversible on the server, so it takes two
+                        deliberate steps rather than one stray click. */}
+                    {confirmingId === item.id ? (
+                      <span className="confirm" role="group" aria-label="Confirm delete">
+                        <span className="confirm-q">Delete permanently?</span>
+                        <button
+                          className="btn btn--sm btn--danger"
+                          type="button"
+                          disabled={removeHighlight.isPending}
+                          onClick={() => removeHighlight.mutate(item.id)}
+                        >
+                          {removeHighlight.isPending ? "Deleting…" : "Yes, delete"}
+                        </button>
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          type="button"
+                          onClick={() => setConfirmingId(null)}
+                        >
+                          Keep
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        className="btn btn--sm btn--danger"
+                        type="button"
+                        onClick={() => setConfirmingId(item.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>
