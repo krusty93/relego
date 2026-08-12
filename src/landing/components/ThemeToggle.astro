@@ -41,6 +41,8 @@
 		html.setAttribute('data-theme', next);
 		try {
 			localStorage.setItem('theme', next);
+			// Keep the Starlight-powered /docs routes on the same choice.
+			localStorage.setItem('starlight-theme', next);
 		} catch {
 			// localStorage unavailable
 		}

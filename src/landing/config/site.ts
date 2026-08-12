@@ -14,7 +14,7 @@ export const siteConfig = {
 	logotype: 'relego.',
 	tagline: 'Revisit your highlights, delivered to your eReader. For free.',
 	githubUrl: 'https://github.com/Krusty93/relego',
-	docsUrl: 'https://github.com/Krusty93/relego/blob/main/README.md',
+	docsUrl: '/docs/',
 	license: 'MIT',
 	licenseUrl: 'https://github.com/Krusty93/relego/blob/main/LICENSE',
 	contributingUrl: 'https://github.com/Krusty93/relego/blob/main/CONTRIBUTING.md',

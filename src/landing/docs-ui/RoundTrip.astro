@@ -1,0 +1,64 @@
+---
+interface Station {
+	name: string;
+	href: string;
+	what: string;
+}
+
+const stations: Station[] = [
+	{
+		name: 'Capture',
+		href: '/docs/capture/',
+		what: 'You highlight a passage while reading. Your Kindle or Kobo writes it to a file on the device — that file is everything Relego needs.',
+	},
+	{
+		name: 'Import',
+		href: '/docs/import/',
+		what: 'Start the server — your library is a SQLite file you own — then send your reader’s file to it, by dropping it on the web UI or by running one command.',
+	},
+	{
+		name: 'Select',
+		href: '/docs/select/',
+		what: 'On a schedule you set, the server picks a handful of highlights using spaced repetition, weighted by what you told it matters.',
+	},
+	{
+		name: 'Deliver',
+		href: '/docs/deliver/',
+		what: 'Those highlights are bound into an EPUB and mailed to your Kindle, to a regular inbox, or to both.',
+	},
+	{
+		name: 'Revisit',
+		href: '/docs/revisit/',
+		what: 'The recap is waiting on your reader the next time you open it. You read the passage again — and the loop starts over.',
+	},
+];
+---
+
+<!--
+THESIS: Relego's docs are one circuit, not a feature list — the trip a single highlight makes from your reader back to your reader. Refuses the flat "Getting started / Configuration / API" shelf every docs site ships.
+OWN-WORLD: The Relego landing world, unchanged — warm paper ground (#f7f1e8 / #120e0c), terracotta accent (#b56b39 / #d4a05e), Playfair Display Light for display headings, hairline rules instead of card chrome, no filled containers.
+STORY: A reader who just found the project understands the mechanism in one screen, sees that setup is five steps and not a research project, and can enter at the stage they are actually stuck on.
+FIRST VIEWPORT: Serif h1, one lead paragraph, then the five numbered stations on a vertical spine with a dashed accent bracket in the outer gutter closing the loop from Revisit back to Capture. The primary action is the first station.
+FORM: Journey-of-a-highlight spine; candidate 6 of the grounded structural list; staged as a linear read, no staging challenger fused. Seed key 450383ec.
+-->
+
+<ol class="roundtrip not-content">
+	<span class="roundtrip__return" aria-hidden="true"></span>
+	{
+		stations.map((station, index) => (
+			<li class="roundtrip__station">
+				<a class="roundtrip__link" href={station.href}>
+					<span class="roundtrip__marker" aria-hidden="true">
+						{index + 1}
+					</span>
+					<span class="roundtrip__name">{station.name}</span>
+					<span class="roundtrip__what">{station.what}</span>
+				</a>
+			</li>
+		))
+	}
+	<li class="roundtrip__close">
+		Back to <a href="/docs/capture/">Capture</a> — the next passage you underline joins
+		the same circuit.
+	</li>
+</ol>
