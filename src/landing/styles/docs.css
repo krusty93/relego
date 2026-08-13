@@ -85,6 +85,14 @@ body {
 	text-wrap: balance;
 }
 
+.relego-page-subtitle {
+	max-width: 65ch;
+	margin: 0.75rem 0 0;
+	color: var(--sl-color-gray-2);
+	font-size: 1.0625rem;
+	line-height: 1.65;
+}
+
 /* The rule + padding treatment lives on the wrapper, not the heading itself:
    Starlight needs `.sl-heading-wrapper > :first-child` to stay `display: inline`
    so the anchor-link icon sits at the end of the heading line instead of

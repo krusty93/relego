@@ -11,6 +11,7 @@ export const collections = {
 				// visible on the pages readers actually spend their time on.
 				stage: z.number().int().min(1).max(3).optional(),
 				eyebrow: z.string().optional(),
+				subtitle: z.string().optional(),
 			}),
 		}),
 	}),

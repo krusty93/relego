@@ -32,6 +32,19 @@ test.describe('Docs', () => {
 		await expect(stations.last()).toContainText('Revisit');
 	});
 
+	test('round-trip pages promote their opening copy into the title subtitle', async ({ page }) => {
+		const subtitles = {
+			'/docs/import/': 'The trip starts on the device',
+			'/docs/deliver/': 'A library of ten thousand highlights is a graveyard',
+			'/docs/revisit/': 'The last stage is the only one that matters',
+		};
+
+		for (const [path, text] of Object.entries(subtitles)) {
+			await page.goto(path);
+			await expect(page.locator('.relego-page-subtitle')).toContainText(text);
+		}
+	});
+
 	test('the right-hand TOCs hide the synthetic Overview entry', async ({ page }) => {
 		await page.goto('/docs/');
 

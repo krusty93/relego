@@ -2,7 +2,11 @@
 import Default from '@astrojs/starlight/components/PageTitle.astro';
 
 const { entry } = Astro.locals.starlightRoute;
-const { stage, eyebrow } = entry.data as { stage?: number; eyebrow?: string };
+const { stage, eyebrow, subtitle } = entry.data as {
+	stage?: number;
+	eyebrow?: string;
+	subtitle?: string;
+};
 const total = 3;
 ---
 
@@ -26,3 +30,4 @@ const total = 3;
 }
 
 <Default />
+{subtitle && <p class="relego-page-subtitle">{subtitle}</p>}

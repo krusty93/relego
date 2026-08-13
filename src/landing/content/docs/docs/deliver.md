@@ -4,10 +4,8 @@ description: Choose which highlights come back, then configure where Relego send
 stage: 2
 sidebar:
   order: 2
+subtitle: "A library of ten thousand highlights is a graveyard. The point of Relego is that a small, well-chosen handful comes back to you on a rhythm you can live with."
 ---
-
-A library of ten thousand highlights is a graveyard. The point of Relego is that
-a small, well-chosen handful comes back to you on a rhythm you can live with.
 
 ## How the choice is made
 

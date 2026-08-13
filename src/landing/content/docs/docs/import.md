@@ -4,10 +4,8 @@ description: Find the highlight file on your Kindle or Kobo, then move it into t
 stage: 1
 sidebar:
   order: 1
+subtitle: "The trip starts on the device, before Relego is involved at all. Your Kindle or Kobo writes highlights to a file, then Relego reads that file into its library."
 ---
-
-The trip starts on the device, before Relego is involved at all. Your Kindle or
-Kobo writes highlights to a file, then Relego reads that file into its library.
 
 ## Kindle
 

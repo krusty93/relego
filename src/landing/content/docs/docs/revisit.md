@@ -4,10 +4,8 @@ description: Trigger your first recap, see what one looks like, and close the lo
 stage: 3
 sidebar:
   order: 3
+subtitle: "The last stage is the only one that matters: the passage arrives, and you read it again."
 ---
-
-The last stage is the only one that matters: the passage arrives, and you read
-it again.
 
 ## Do not wait for the schedule
 
