@@ -6,7 +6,6 @@ const docsPages = [
 	'/docs/capture/',
 	'/docs/import/',
 	'/docs/select/',
-	'/docs/deliver/',
 	'/docs/revisit/',
 	'/docs/reference/cli/',
 	'/docs/reference/settings/',
@@ -24,18 +23,31 @@ test.describe('Docs', () => {
 		}
 	});
 
-	test('the overview renders all five round-trip stations', async ({ page }) => {
+	test('the overview renders all four round-trip stations', async ({ page }) => {
 		await page.goto('/docs/');
 
 		const stations = page.locator('.roundtrip__station');
-		await expect(stations).toHaveCount(5);
+		await expect(stations).toHaveCount(4);
 		await expect(stations.first()).toContainText('Capture');
+		await expect(stations.nth(2)).toContainText('Select and deliver');
 		await expect(stations.last()).toContainText('Revisit');
 	});
 
 	test('the retired Store route redirects into Import', async ({ page }) => {
 		await page.goto('/docs/store/');
 		await expect(page).toHaveURL(/\/docs\/import\/$/);
+	});
+
+	test('the retired Deliver route redirects into Select and deliver', async ({ page }) => {
+		await page.goto('/docs/deliver/');
+		await expect(page).toHaveURL(/\/docs\/select\/$/);
+	});
+
+	test('Select and deliver combines recap choices with delivery setup', async ({ page }) => {
+		await page.goto('/docs/select/');
+		await expect(page.locator('main h1')).toContainText('Select and deliver');
+		await expect(page.locator('.sl-markdown-content h2', { hasText: 'How the choice is made' })).toBeVisible();
+		await expect(page.locator('.sl-markdown-content h2', { hasText: 'Choose a relay' })).toBeVisible();
 	});
 
 	test('Import leads with the web UI and keeps the CLI as the second path', async ({ page }) => {
@@ -75,7 +87,7 @@ test.describe('Docs', () => {
 	});
 
 	test('no critical or serious axe violations on desktop', async ({ page }) => {
-		for (const path of ['/docs/', '/docs/reference/cli/', '/docs/deliver/']) {
+		for (const path of ['/docs/', '/docs/reference/cli/', '/docs/select/']) {
 			await page.goto(path);
 			const results = await new AxeBuilder({ page }).analyze();
 			const blocking = results.violations.filter(

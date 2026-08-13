@@ -8,9 +8,10 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
 	site: 'https://relego.app/',
 	srcDir: '.',
-	// Store and Import were once separate stops; they are one stop now.
+	// Store and Import were once separate stops; Select and Deliver are one stop now.
 	redirects: {
 		'/docs/store/': '/docs/import/',
+		'/docs/deliver/': '/docs/select/',
 	},
 	integrations: [
 		starlight({
@@ -73,9 +74,8 @@ export default defineConfig({
 						{ label: 'Overview', link: '/docs/' },
 						{ label: '1 · Capture', link: '/docs/capture/' },
 						{ label: '2 · Import', link: '/docs/import/' },
-						{ label: '3 · Select', link: '/docs/select/' },
-						{ label: '4 · Deliver', link: '/docs/deliver/' },
-						{ label: '5 · Revisit', link: '/docs/revisit/' },
+						{ label: '3 · Select and deliver', link: '/docs/select/' },
+						{ label: '4 · Revisit', link: '/docs/revisit/' },
 					],
 				},
 				{

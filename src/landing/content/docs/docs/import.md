@@ -54,7 +54,7 @@ RELEGO_SMTP_PASSWORD=your-relay-password
 ```
 
 You do not need working mail settings to import. Come back to this when you
-reach [Deliver](/docs/deliver/), which covers choosing a relay; the
+reach [Select and deliver](/docs/select/), which covers choosing a relay; the
 [environment variable reference](/docs/reference/environment/) has the full
 list.
 

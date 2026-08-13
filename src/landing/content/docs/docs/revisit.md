@@ -1,9 +1,9 @@
 ---
 title: Revisit
 description: Trigger your first recap, see what one looks like, and close the loop.
-stage: 5
+stage: 4
 sidebar:
-  order: 5
+  order: 4
 ---
 
 The last stage is the only one that matters: the passage arrives, and you read
@@ -49,7 +49,7 @@ The inbox channel sends the same content as HTML.
 | --- | --- |
 | `No eligible highlights available` | The library is empty, or everything is excluded. Run [Import](/docs/import/), then check `relego exclude list` |
 | The command errors | Confirm the server is up with `docker compose ps` |
-| The send succeeds, no mail on the Kindle | The sending address is not on your Amazon approved list — see [Deliver](/docs/deliver/) |
+| The send succeeds, no mail on the Kindle | The sending address is not on your Amazon approved list — see [Select and deliver](/docs/select/) |
 | Nothing in smtp4dev | The `demo` profile is not running, or the server is not pointed at `smtp4dev:2525` |
 
 More cases in [Troubleshooting](/docs/reference/troubleshooting/).

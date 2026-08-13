@@ -119,7 +119,7 @@ line that closes the loop.
 
 The second half of the north star is the circuit. Relego's product truth is a round
 trip: a highlight leaves your reader, passes through hardware you own, and comes back
-to the same screen. The documentation surface makes that literal — five numbered
+to the same screen. The documentation surface makes that literal — four numbered
 stations on a vertical spine, with a dashed return leg in the outer gutter carrying
 the last station back to the first. That geometry is not decoration on one page; a
 stop marker repeats it at the head of every stage page so the reader always knows
@@ -296,14 +296,14 @@ pill or a background block.
 
 ### The Round Trip (signature component)
 
-The system's one signature composition. An ordered list of five stations on a `1px`
+The system's one signature composition. An ordered list of four stations on a `1px`
 vertical spine, each with a Playfair numeral in a circular hairline marker in the
 gutter. A dashed accent bracket runs up the outer gutter from the last station to the
 first, terminating in a chevron, and a ringed accent dot closes the list with the
 return line. Hovering a station tints its background and warms its marker to accent;
 the station itself does not move.
 
-Its companion, the **stop marker**, appears above the `h1` on each of the five stage
+Its companion, the **stop marker**, appears above the `h1` on each of the four stage
 pages: five small dots with the current one filled in accent and haloed, plus a
 `Stop N of 5 on the round trip` label. This is how the circuit survives past the index
 page.
