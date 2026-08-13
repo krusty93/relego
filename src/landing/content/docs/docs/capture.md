@@ -40,7 +40,7 @@ device. `.kobo` is a hidden folder, so you may need to enable hidden files in
 your file manager to see it.
 
 Relego reads the bookmark table and pairs each highlight with its book title and
-author. You do not need any SQLite tooling installed — the CLI reads the file
+author. You do not need any SQLite tooling installed, the CLI reads the file
 directly.
 
 ## What Relego needs from you

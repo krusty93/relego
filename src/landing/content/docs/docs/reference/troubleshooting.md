@@ -13,7 +13,7 @@ Grouped by the stage of the round trip where things went wrong.
 ### `relego import` finds no device
 
 Confirm the reader is mounted and browsable in your file manager first. Kindles
-sometimes mount in charge-only mode — unlock the device after plugging it in.
+sometimes mount in charge-only mode, unlock the device after plugging it in.
 If it is mounted and still not detected, pass the path explicitly:
 
 ```sh
@@ -76,7 +76,7 @@ Personal Document Settings. See [Select and deliver](/docs/select/).
 ### The relay rejects the login
 
 Personal Gmail and Outlook accounts no longer accept SMTP password auth. Use a
-relay with a free tier — the options are listed in
+relay with a free tier, the options are listed in
 [Select and deliver](/docs/select/).
 
 ### Nothing appears in smtp4dev

@@ -28,6 +28,6 @@ gh attestation verify \
 ```
 
 A successful run reports the workflow and commit the image was built from. A
-failure means the image was not built by this repository — do not run it.
+failure means the image was not built by this repository, do not run it.
 
 Pin a released tag instead of `latest` if you want a reproducible check.

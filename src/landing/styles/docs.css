@@ -1,5 +1,5 @@
 /*
-	Relego docs theme — inherits the landing world (docs/BRAND_COLORS.md).
+	Relego docs theme, inherits the landing world (docs/BRAND_COLORS.md).
 	Loaded only by Starlight routes under /docs. No Tailwind here on purpose:
 	Starlight ships its own reset and preflight would fight it.
 */

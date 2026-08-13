@@ -21,24 +21,24 @@ stage you are stuck on.
 You need three things:
 
 - A **Kindle or Kobo** you can plug into your computer over USB. No device
-  handy? Sample files ship with the project — see [Import](/docs/import/).
+  handy? Sample files ship with the project, see [Import](/docs/import/).
 - Somewhere to run **Docker**: a laptop, a NAS, a home server. Relego is
   distributed as a container.
 - An **SMTP relay** to send mail through. Free tiers are plenty. There is a
-  demo relay you can use to test without signing up for anything — see
+  demo relay you can use to test without signing up for anything, see
   [Select and deliver](/docs/select/).
 
 Everything else is covered as you go.
 
 ## In a hurry
 
-If you just want a recap in your inbox today and will read the reasoning later:
+If you just want a demo recap in your inbox today to see how it works:
 
 ```sh wrap
 # 1. Run the server with the built-in demo mail catcher
 RELEGO_SMTP_HOST=smtp4dev RELEGO_SMTP_PORT=2525 docker compose --profile demo up -d
 
-# 2. Import the sample highlights
+# 2. Import the sample highlights (be sure the file is mounted)
 docker compose run --rm relego-cli import "/kindle/My Clippings.txt"
 
 # 3. Force a recap now

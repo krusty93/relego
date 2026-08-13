@@ -58,9 +58,9 @@ Use it sparingly. Weighting everything is the same as weighting nothing.
 
 ## Exclusions
 
-Some highlights you never want to see again — a chapter heading the parser
-picked up, a book you abandoned, an author you have finished with. Exclude at
-whichever level makes sense:
+Some highlights you never want to see again (a chapter heading the parser
+picked up, a book you abandoned, or an author you have finished with). Exclude
+at whichever level makes sense:
 
 ```sh
 relego exclude add highlight 128
@@ -75,8 +75,8 @@ library; it just stops being eligible.
 
 ## Fixing book titles
 
-Kindle and Kobo metadata is often untidy — subtitles, edition numbers, publisher
-noise. Rename a book once and every recap uses the new title:
+Kindle and Kobo metadata is often untidy (subtitles, edition numbers, publisher
+noise). Rename a book once and every recap uses the new title:
 
 ```sh
 relego rename-book 17 "The Pragmatic Programmer"
@@ -89,7 +89,7 @@ Relego sends recaps over SMTP. It does not run a mail server.
 :::caution
 Personal Gmail and Outlook accounts no longer accept SMTP password
 authentication. An app password on a personal account will not work as a general
-solution — use a relay.
+solution, use a relay.
 :::
 
 Any of these have a free tier that comfortably covers one recap a day:

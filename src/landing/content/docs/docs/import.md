@@ -1,19 +1,19 @@
 ---
 title: Import
-description: Run the Relego server, then move highlights from your Kindle or Kobo into the library — from the web UI or the command line.
+description: Run the Relego server, then move highlights from your Kindle or Kobo into the library, from the web UI or the command line.
 stage: 2
 sidebar:
   order: 2
 ---
 
 Two things happen at this stop: the server starts, and your highlights move into
-it. Do them in that order — the library lives inside the server, and every way
+it. Do them in that order, the library lives inside the server, and every way
 of importing talks to it.
 
 ## 1. Start the server
 
 The server is where your highlights live. It is a single Docker container with a
-SQLite database at `/data/relego.db` — one file, on your disk, that you can back
+SQLite database at `/data/relego.db`, one file on your disk that you can back
 up by copying it.
 
 From a checkout of the repository, or any directory containing the project's
@@ -73,22 +73,22 @@ telemetry, no account, and no cloud component.
 
 There are two ways in, and both put highlights in the same library:
 
-- **The web UI** — drag the file from your reader onto a page. Nothing to
+- **The web UI**, drag the file from your reader onto a page. Nothing to
   install. This is the shortest path, and the one to start with.
-- **The command line** — one command, with device auto-detection and something
+- **The command line**, one command with device auto-detection and something
   you can schedule. Worth installing once you import regularly.
 
-Either way, the file you need is the one your reader already wrote — see
+Either way, the file you need is the one your reader already wrote, see
 [Capture](/docs/capture/) for where to find it.
 
-### Option 1 — The web UI
+### Option 1 (The web UI)
 
 With the server running, open <http://localhost:8080> and go to **Import**.
 
 Drop in your reader's file, or click to browse for it:
 
-- Kindle — `documents/My Clippings.txt`
-- Kobo — `.kobo/KoboReader.sqlite`
+- Kindle, `documents/My Clippings.txt`
+- Kobo, `.kobo/KoboReader.sqlite`
 
 Connect the reader over USB and the file is on it. On Kobo, `.kobo` is a hidden
 folder, so turn on hidden files in your file manager first, or copy the file off
@@ -98,9 +98,9 @@ The page reports what it added when the upload finishes. Uploading the same file
 twice does not create duplicates, so re-uploading after a few more reading
 sessions is the normal way to keep the library current.
 
-Files up to 64 MB are accepted — far more than a full clippings file.
+Files up to 64 MB are accepted, far more than a full clippings file.
 
-### Option 2 — The command line
+### Option 2 (The command line)
 
 The CLI talks to the same server over HTTP, so keep the server running. By
 default it looks for `http://localhost:8080`; set `SERVER_URL` if yours lives
@@ -197,7 +197,7 @@ way.
 
 ## No device handy?
 
-The repository ships real sample files you can import instead — upload them in
+The repository ships real sample files you can import instead, upload them in
 the web UI, or:
 
 ```sh
@@ -211,7 +211,7 @@ They are enough to see a full recap end to end.
 
 If a Kindle and a Kobo are both connected, `relego import` imports both in a
 single run. If one source fails, Relego reports that failure and still completes
-the other. The web UI takes one file at a time — upload them one after the
+the other. The web UI takes one file at a time, upload them one after the
 other.
 
 ## Next

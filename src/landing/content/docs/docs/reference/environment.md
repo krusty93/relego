@@ -34,7 +34,7 @@ The server reads these at startup. Put them in a `.env` file next to
 ## A working example
 
 ```ini
-# .env — sits next to docker-compose.yml
+# .env (sits next to docker-compose.yml)
 RELEGO_KINDLE_EMAIL=your-name@kindle.com
 RELEGO_SMTP_HOST=smtp.your-relay.example
 RELEGO_SMTP_PORT=587
@@ -49,6 +49,6 @@ RELEGO_SMTP_HOST=smtp4dev RELEGO_SMTP_PORT=2525 docker compose --profile demo up
 ```
 
 :::caution
-`.env` holds a live mail credential. Keep it out of version control — the
+`.env` holds a live mail credential. Keep it out of version control, the
 project's `.gitignore` already excludes it.
 :::

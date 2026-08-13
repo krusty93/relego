@@ -16,7 +16,7 @@ relego recap trigger
 ```
 
 The server selects, renders, and sends immediately. Everything else stays
-unchanged — this does not shift the next scheduled recap.
+unchanged (this does not shift the next scheduled recap).
 
 ## What arrives
 
@@ -27,19 +27,19 @@ highlight *inside* it, and leave it half-read.
 > #### Relego Daily Recap (2026-05-21 18:00)
 >
 > - _"Care About Your Craft"_
->   — **The Pragmatic Programmer** by David Thomas & Andrew Hunt
+>   (**The Pragmatic Programmer** by David Thomas & Andrew Hunt)
 >
 > - _"Clean code is simple and direct."_
->   — **Clean Code** by Robert C. Martin
+>   (**Clean Code** by Robert C. Martin)
 >
 > - _"In a hole in the ground there lived a hobbit."_
->   — **The Hobbit** by J.R.R. Tolkien
+>   (**The Hobbit** by J.R.R. Tolkien)
 >
 > - _"The only way to do great work is to love what you do."_
->   — **Steve Jobs** by Walter Isaacson
+>   (**Steve Jobs** by Walter Isaacson)
 >
 > - _"Violence is the last refuge of the incompetent."_
->   — **Foundation** by Isaac Asimov
+>   (**Foundation** by Isaac Asimov)
 
 The inbox channel sends the same content as HTML.
 
@@ -49,7 +49,7 @@ The inbox channel sends the same content as HTML.
 | --- | --- |
 | `No eligible highlights available` | The library is empty, or everything is excluded. Run [Import](/docs/import/), then check `relego exclude list` |
 | The command errors | Confirm the server is up with `docker compose ps` |
-| The send succeeds, no mail on the Kindle | The sending address is not on your Amazon approved list — see [Select and deliver](/docs/select/) |
+| The send succeeds, no mail on the Kindle | The sending address is not on your Amazon approved list, see [Select and deliver](/docs/select/) |
 | Nothing in smtp4dev | The `demo` profile is not running, or the server is not pointed at `smtp4dev:2525` |
 
 More cases in [Troubleshooting](/docs/reference/troubleshooting/).
