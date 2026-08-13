@@ -1,51 +1,48 @@
 ---
-title: Relego
-description: Follow one highlight from your reader, through the server, and back to your reader.
+title: Relego documentation
+description: Learn how Relego brings your Kindle and Kobo highlights back to you.
 editUrl: false
 ---
 
-import RoundTrip from '../../../docs-ui/RoundTrip.astro';
+## What is Relego?
 
-# The Round Trip
+Relego is a free, self-hosted way to revisit the passages you highlight while
+reading. It imports highlights from your Kindle or Kobo, selects a small set
+with spaced repetition, and delivers them back to your reader or inbox.
 
-Relego takes the passages you underline while reading and mails them back to
-you, on the device you already read on. No account, no subscription, nothing
-leaving your own hardware.
+Your highlights stay on your own hardware. There is no account, subscription,
+or cloud service involved.
 
-This is the whole system: three stages a highlight passes through, in the order
-you will set them up. Start at the top if Relego is new to you, or jump to the
-stage you are stuck on.
+![Relego's Library page showing imported books, authors, highlight counts, and recap status.](/images/docs/relego-web-library.webp)
 
-<RoundTrip />
+## Set up your first recap
 
-## Before you start
+The shortest path is four actions in the web interface. You will need a Kindle
+or Kobo highlight file, a place to run Docker, and an SMTP relay. The
+[smtp4dev demo profile](/docs/reference/environment/#a-working-example) is
+there if you want to test delivery before choosing a relay.
 
-You need three things:
+<a className="first-recap__start" href="/docs/round-trip/">
+  Set up your first recap <span aria-hidden="true">→</span>
+</a>
 
-- A **Kindle or Kobo** you can plug into your computer over USB. No device
-  handy? Sample files ship with the project, see [Import highlights](/docs/import/).
-- Somewhere to run **Docker**: a laptop, a NAS, a home server. Relego is
-  distributed as a container.
-- An **SMTP relay** to send mail through. Free tiers are plenty. There is a
-  demo relay you can use to test without signing up for anything, see
-  [Deliver](/docs/deliver/).
+<ol className="first-recap__checklist">
+  <li>
+    <strong><a href="/docs/import/">Start the server</a></strong>
+    <span>Open the web interface when it is running. If it does not load, check the Docker command on the Import page.</span>
+  </li>
+  <li>
+    <strong><a href="/docs/import/">Import your highlights</a></strong>
+    <span>Upload the Kindle or Kobo file and confirm the library reports what it added.</span>
+  </li>
+  <li>
+    <strong><a href="/docs/deliver/">Set a delivery address</a></strong>
+    <span>Save your Kindle address or inbox in Settings, then check the relay guidance if saving or sending fails.</span>
+  </li>
+  <li>
+    <strong><a href="/docs/revisit/">Send a recap now</a></strong>
+    <span>Use Recaps to send immediately; the result arrives on Kindle or in the inbox you chose.</span>
+  </li>
+</ol>
 
-Everything else is covered as you go.
-
-## In a hurry
-
-If you just want a demo recap in your inbox today to see how it works:
-
-```sh wrap
-# 1. Run the server with the built-in demo mail catcher
-RELEGO_SMTP_HOST=smtp4dev RELEGO_SMTP_PORT=2525 docker compose --profile demo up -d
-
-# 2. Import the sample highlights (be sure the file is mounted)
-docker compose run --rm relego-cli import "/kindle/My Clippings.txt"
-
-# 3. Force a recap now
-docker compose run --rm relego-cli recap trigger
-```
-
-Then open `http://localhost:5000` to read the captured mail. When that works,
-go back to [Import](/docs/import/) and set it up for real.
+Want the fuller context first? Read [The Round Trip](/docs/round-trip/).

@@ -13,6 +13,7 @@ export default defineConfig({
 		'/docs/store/': '/docs/import/',
 		'/docs/capture/': '/docs/import/',
 		'/docs/select/': '/docs/deliver/',
+		'/docs/reference/settings/': '/docs/reference/cli/#configuration-and-delivery',
 	},
 	integrations: [
 		starlight({
@@ -43,10 +44,10 @@ export default defineConfig({
 				},
 				{
 					// Keep /docs on the same light/dark choice the landing page stores, and
-					// make horizontally scrollable reference tables keyboard reachable.
+					// make overflowing reference content keyboard reachable.
 					tag: 'script',
 					content:
-						"(()=>{const g=k=>{try{return localStorage.getItem(k)}catch{return null}},s=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};const shared=g('theme');if(shared==='dark'||shared==='light'){s('starlight-theme',shared);document.documentElement.dataset.theme=shared}new MutationObserver(()=>{const t=document.documentElement.dataset.theme;if(t==='dark'||t==='light')s('theme',t)}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});const sync=()=>{for(const t of document.querySelectorAll('.sl-markdown-content table')){if(t.scrollWidth>t.clientWidth){t.setAttribute('tabindex','0')}else{t.removeAttribute('tabindex')}}};addEventListener('DOMContentLoaded',sync);addEventListener('resize',sync)})();",
+						"(()=>{const g=k=>{try{return localStorage.getItem(k)}catch{return null}},s=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};const shared=g('theme');if(shared==='dark'||shared==='light'){s('starlight-theme',shared);document.documentElement.dataset.theme=shared}document.documentElement.classList.toggle('relego-cli-reference',location.pathname==='/docs/reference/cli/');new MutationObserver(()=>{const t=document.documentElement.dataset.theme;if(t==='dark'||t==='light')s('theme',t)}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});const sync=()=>{for(const e of document.querySelectorAll('.sl-markdown-content table,.expressive-code .frame pre')){if(e.scrollWidth>e.clientWidth){e.setAttribute('tabindex','0')}else{e.removeAttribute('tabindex')}}};addEventListener('DOMContentLoaded',sync);addEventListener('resize',sync)})();",
 				},
 			],
 			components: {
@@ -69,10 +70,11 @@ export default defineConfig({
 			// The landing site owns the site-wide 404 (pages/404.astro).
 			disable404Route: true,
 			sidebar: [
+				{ label: 'Introduction', link: '/docs/' },
 				{
 					label: 'The round trip',
 					items: [
-						{ label: 'Overview', link: '/docs/' },
+						{ label: 'Overview', link: '/docs/round-trip/' },
 						{ label: '1 · Import highlights', link: '/docs/import/' },
 						{ label: '2 · Deliver', link: '/docs/deliver/' },
 						{ label: '3 · Revisit', link: '/docs/revisit/' },
@@ -82,7 +84,6 @@ export default defineConfig({
 					label: 'Reference',
 					items: [
 						{ label: 'CLI commands', link: '/docs/reference/cli/' },
-						{ label: 'Settings', link: '/docs/reference/settings/' },
 						{ label: 'Environment variables', link: '/docs/reference/environment/' },
 						{ label: 'Troubleshooting', link: '/docs/reference/troubleshooting/' },
 						{ label: 'Verifying releases', link: '/docs/reference/verifying-releases/' },

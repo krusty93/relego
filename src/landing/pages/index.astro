@@ -10,14 +10,13 @@ import GettingStarted from '../components/GettingStarted.astro';
 import FeatureCard from '../components/FeatureCard.astro';
 import Accordion from '../components/Accordion.astro';
 import heroImage from '../assets/hero-kindle.jpg';
-import tuiDemo from '../assets/tui-demo.gif';
 
 const steps = [
 	{
 		number: 1,
 		title: 'Import your highlights',
-		description: 'Connect your Kindle or Kobo and run a single command.',
-		content: 'Plug your Kindle or Kobo via USB and run relego import. The CLI detects My Clippings.txt or KoboReader.sqlite, parses every highlight and note, then stores them locally. No cloud upload, no account required. Your data stays on your machine.',
+		description: 'Connect your Kindle or Kobo and upload its highlight file.',
+		content: 'Plug your Kindle or Kobo in via USB, then upload My Clippings.txt or KoboReader.sqlite in Relego. Every highlight and note stays on your machine. No cloud upload and no account required.',
 	},
 	{
 		number: 2,
@@ -69,16 +68,19 @@ const steps = [
 		<Section id="getting-started" title="Get started quickly" titleAccent="in just 3 steps" subtitle="A fast and frustration-free way to set up Relego and start revisiting your highlights.">
 			<GettingStarted steps={steps} />
 			<div class="mt-10 text-center">
-				<Button href="https://github.com/Krusty93/relego#getting-started" variant="outline" target="_blank" rel="noopener noreferrer">
-					Full setup guide on GitHub
+				<Button href="/docs/round-trip/" variant="outline">
+					Full setup guide
 				</Button>
 			</div>
 		</Section>
 
-		<!-- TUI Demo -->
-		<Section id="tui-demo" title="Interactive" titleAccent="terminal UI" subtitle="Run relego without arguments to open the TUI. Configure, browse, and manage everything from your terminal.">
+		<!-- Web interface -->
+		<Section id="web-interface" title="A calm" titleAccent="web interface" subtitle="Import highlights, choose delivery, and send a recap without leaving the browser.">
 			<div class="mx-auto max-w-4xl overflow-hidden rounded-xl border border-[var(--color-border)] shadow-lg">
-				<Image src={tuiDemo} alt="Relego interactive TUI demo showing navigation between highlights, settings, and exclusions" class="w-full" loading="lazy" />
+				<picture>
+					<source media="(max-width: 50rem)" srcset="/images/docs/relego-web-library-mobile.webp" />
+					<img src="/images/docs/relego-web-library.webp" alt="Relego web interface showing imported books, authors, highlight counts, and recap status" class="w-full" loading="lazy" />
+				</picture>
 			</div>
 		</Section>
 

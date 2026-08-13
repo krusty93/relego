@@ -7,40 +7,20 @@ sidebar:
 subtitle: "The trip starts on the device, before Relego is involved at all. Your Kindle or Kobo writes highlights to a file, then Relego reads that file into its library."
 ---
 
-## Kindle
+## Your reader's file
 
-When you underline a passage on a Kindle, the device appends it to a plain text
-file at `documents/My Clippings.txt` in its internal storage. Every highlight,
-note, and bookmark you have ever made is in there, in the order you made it.
+| Reader | File to import | Note |
+| --- | --- | --- |
+| Kindle | `documents/My Clippings.txt` | Contains device highlights, notes, and bookmarks |
+| Kobo | `.kobo/KoboReader.sqlite` | `.kobo` is a hidden folder |
 
-A single entry looks like this:
-
-```text
-The Pragmatic Programmer (David Thomas & Andrew Hunt)
-- Your Highlight on page 12 | Location 210-211 | Added on Sunday, 3 May 2026 09:14:02
-
-Care About Your Craft
-==========
-```
-
-Relego reads the quote, the book title, and the author. Bookmarks and empty
-entries are skipped.
+Relego reads the quote, book title, and author. You do not need SQLite tooling
+for Kobo, upload the file as-is.
 
 :::note
-`My Clippings.txt` only contains highlights made on the device itself.
-Highlights you made in the Kindle mobile or desktop apps live in Amazon's cloud
-and are not in this file.
+`My Clippings.txt` does not include highlights made in Kindle mobile or desktop
+apps. Those remain in Amazon's cloud.
 :::
-
-## Kobo
-
-Kobo stores highlights in a SQLite database at `.kobo/KoboReader.sqlite` on the
-device. `.kobo` is a hidden folder, so you may need to enable hidden files in
-your file manager to see it.
-
-Relego reads the bookmark table and pairs each highlight with its book title and
-author. You do not need any SQLite tooling installed, the CLI reads the file
-directly.
 
 ## 1. Start the server
 
@@ -103,28 +83,16 @@ telemetry, no account, and no cloud component.
 
 ## 2. Get your highlights in
 
-There are two ways in, and both put highlights in the same library:
+The web interface is the standard way to import. The command line is for
+scheduled or scripted imports, or if you simply prefer a terminal.
 
-- **The web UI**, drag the file from your reader onto a page. Nothing to
-  install. This is the shortest path, and the one to start with.
-- **The command line**, one command with device auto-detection and something
-  you can schedule. Worth installing once you import regularly.
-
-Either way, the file you need is the one your reader already wrote, as described
-above.
-
-### Option 1 (The web UI)
+### In the web interface
 
 With the server running, open <http://localhost:8080> and go to **Import**.
 
-Drop in your reader's file, or click to browse for it:
-
-- Kindle, `documents/My Clippings.txt`
-- Kobo, `.kobo/KoboReader.sqlite`
-
-Connect the reader over USB and the file is on it. On Kobo, `.kobo` is a hidden
-folder, so turn on hidden files in your file manager first, or copy the file off
-the device and upload that copy.
+Drop in the file listed above, or click to browse for it. Connect the reader
+over USB first. For Kobo, enable hidden files in your file manager or copy the
+database off the device before uploading it.
 
 The page reports what it added when the upload finishes. Uploading the same file
 twice does not create duplicates, so re-uploading after a few more reading
@@ -132,11 +100,14 @@ sessions is the normal way to keep the library current.
 
 Files up to 64 MB are accepted, far more than a full clippings file.
 
-### Option 2 (The command line)
+![Relego's web interface open to the Import page, showing the Kindle and Kobo file upload area.](/images/docs/relego-web-import.webp)
 
-The CLI talks to the same server over HTTP, so keep the server running. By
-default it looks for `http://localhost:8080`; set `SERVER_URL` if yours lives
-elsewhere.
+### Prefer the command line?
+
+The CLI talks to the same server over HTTP. Use it to automate regular imports
+or when a terminal suits your workflow better. Keep the server running; by
+default the CLI looks for `http://localhost:8080`. Set `SERVER_URL` if yours
+lives elsewhere.
 
 #### Install it
 
@@ -191,41 +162,8 @@ If auto-detection does not find the device, pass the path yourself:
 relego import "/Volumes/Kindle/documents/My Clippings.txt"
 ```
 
-#### Importing through Docker
-
-The container cannot see your reader unless you mount it. Mount the device
-read-only and give the CLI the path *inside* the container.
-
-**Windows.** WSL does not see USB devices by default. The simplest route is to
-copy `My Clippings.txt` into the directory holding `docker-compose.yml`, then:
-
-```powershell
-docker compose run --rm `
-  -v "$(Get-Location):/kindle:ro" `
-  relego-cli import "/kindle/My Clippings.txt"
-```
-
-To read the device directly instead, follow Microsoft's guide to
-[connecting USB devices to WSL](https://learn.microsoft.com/en-us/windows/wsl/connect-usb).
-
-**macOS.** Kindle mounts at `/Volumes/Kindle`:
-
-```sh
-docker compose run --rm \
-  -v "/Volumes/Kindle/documents:/kindle:ro" \
-  relego-cli import "/kindle/My Clippings.txt"
-```
-
-**Linux.** Kindle usually mounts at `/media/$USER/Kindle`:
-
-```sh
-docker compose run --rm \
-  -v "/media/$USER/Kindle/documents:/kindle:ro" \
-  relego-cli import "/kindle/My Clippings.txt"
-```
-
-For Kobo, mount the device root and point at `.kobo/KoboReader.sqlite` the same
-way.
+If you run the CLI through Docker, mount the reader before importing. See
+[Using Docker with a reader](/docs/reference/cli/#using-docker-with-a-reader).
 
 ## No device handy?
 

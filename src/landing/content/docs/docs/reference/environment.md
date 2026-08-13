@@ -19,12 +19,6 @@ The server reads these at startup. Put them in a `.env` file next to
 | `RELEGO_SMTP_USER` | Usually | Relay username |
 | `RELEGO_SMTP_PASSWORD` | Usually | Relay password or API key |
 
-## CLI
-
-| Variable | Description |
-| --- | --- |
-| `RELEGO_THEME` | Colour theme for the deprecated terminal UI: `dark` (default) or `light` |
-
 ## Runtime
 
 | Variable | Description |

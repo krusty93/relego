@@ -20,37 +20,26 @@ consulted. It is arithmetic over your own database.
 ## Schedule
 
 Recaps go out daily at 18:00 in the server's local time zone unless you say
-otherwise.
-
-```sh
-relego config schedule daily 07:30
-relego config schedule weekly 09:00
-relego config schedule show
-```
+otherwise. Open **Settings** in the web interface, then use **When they go
+out** to choose daily or weekly delivery and a time.
 
 Weekly recaps go out on the same weekday you set them.
 
 ## How many highlights
 
-Five per recap by default. Anything from 1 to 15 works.
-
-```sh
-relego config count 8
-relego config count show
-```
+Five per recap is the default. Anything from 1 to 15 works. Change it under
+**When they go out** in **Settings**.
 
 A larger number is not a better recap. Five is a comfortable e-ink page; fifteen
 starts to feel like homework.
 
+![Relego's Settings page, showing delivery addresses and recap schedule controls.](/images/docs/relego-web-settings.webp)
+
 ## Weights
 
 Give a highlight a weight from 1 to 5 to change how often it comes back. Higher
-means more often.
-
-```sh
-relego weight set 42 5
-relego weight list
-```
+means more often. Select the highlight in the web interface to adjust its
+weight.
 
 Use it sparingly. Weighting everything is the same as weighting nothing.
 
@@ -58,15 +47,7 @@ Use it sparingly. Weighting everything is the same as weighting nothing.
 
 Some highlights you never want to see again (a chapter heading the parser
 picked up, a book you abandoned, or an author you have finished with). Exclude
-at whichever level makes sense:
-
-```sh
-relego exclude add highlight 128
-relego exclude add book 17
-relego exclude add author 4
-relego exclude list
-relego exclude remove book 17
-```
+them from the highlight, book, or author view in the web interface.
 
 Exclusions are reversible and never delete anything. The highlight stays in your
 library; it just stops being eligible.
@@ -74,11 +55,7 @@ library; it just stops being eligible.
 ## Fixing book titles
 
 Kindle and Kobo metadata is often untidy (subtitles, edition numbers, publisher
-noise). Rename a book once and every recap uses the new title:
-
-```sh
-relego rename-book 17 "The Pragmatic Programmer"
-```
+noise). Rename a book in the web interface and every recap uses the new title.
 
 ## Choose a relay
 
@@ -100,28 +77,13 @@ Any of these have a free tier that comfortably covers one recap a day:
 Your own relay works too. Set the host, port, user, and password as
 [environment variables](/docs/reference/environment/) on the server.
 
-## Try it without a relay first
-
-Relego ships a demo profile with [smtp4dev](https://github.com/rnwood/smtp4dev),
-a local mail catcher. Nothing is sent anywhere; you read the message in a web
-UI.
-
-```sh wrap
-RELEGO_SMTP_HOST=smtp4dev RELEGO_SMTP_PORT=2525 docker compose --profile demo up -d
-```
-
-Recaps then land at `http://localhost:5000`, EPUB attachment and all. You can
-download that attachment and forward it to your real Kindle address by hand to
-confirm the document renders the way you expect.
+To test delivery locally before choosing a relay, use the
+[smtp4dev demo profile](/docs/reference/environment/#a-working-example).
 
 ## Kindle: Send-to-Kindle
 
 Amazon gives every Kindle an email address. Documents mailed to it appear on the
-device.
-
-```sh
-relego config email kindle "your-name@kindle.com"
-```
+device. In **Settings**, add it under **Where recaps go**.
 
 :::danger
 Amazon silently drops mail from unknown senders. Before you test delivery, add
@@ -139,31 +101,19 @@ contents rather than as an email.
 ## Inbox: the HTML channel
 
 You can also have the recap delivered to any ordinary mailbox, formatted as
-HTML:
-
-```sh
-relego config email inbox "you@example.com"
-```
-
-Both channels can be active at once. Clear the inbox channel with an empty
-string:
+HTML. Add it under **Where recaps go** in **Settings**. Both channels can be
+active at once:
 
 ```sh
 relego config email inbox ""
 ```
 
 **Kobo owners: use this channel.** Kobo has no Send-to-Kindle-style address, so
-the inbox channel is how recaps reach you. Open the mail on your phone or
-laptop, or send it on to the reader with whatever method you already use.
+the inbox channel is Kobo's normal delivery route. Open the recap in your mail
+app, or send it on to the reader with whatever method you already use.
 
-## Check your settings
-
-```sh
-relego config show
-relego status
-```
-
-`status` also tells you when the next recap is due.
+For command-line automation, see
+[CLI commands](/docs/reference/cli/#configuration-and-delivery).
 
 ## Next
 

@@ -97,6 +97,10 @@ main:has(.relego-stagemark) > .content-panel:first-child {
 	display: contents;
 }
 
+main > .content-panel:first-child:has(h1#_top) + .content-panel {
+	border-top: 0;
+}
+
 /* The rule + padding treatment lives on the wrapper, not the heading itself:
    Starlight needs `.sl-heading-wrapper > :first-child` to stay `display: inline`
    so the anchor-link icon sits at the end of the heading line instead of
@@ -105,6 +109,10 @@ main:has(.relego-stagemark) > .content-panel:first-child {
 	margin-top: 3rem;
 	padding-top: 1.75rem;
 	border-top: 1px solid var(--relego-rule);
+}
+
+.sl-markdown-content > .sl-heading-wrapper.level-h2:first-child {
+	margin-top: 0;
 }
 
 .sl-markdown-content .sl-heading-wrapper.level-h3 {
@@ -129,6 +137,57 @@ main:has(.relego-stagemark) > .content-panel:first-child {
 .sl-markdown-content a:not(:where(.not-content *)) {
 	text-decoration-thickness: 1px;
 	text-underline-offset: 0.2em;
+}
+
+/* ── First recap launchpad ───────────────────────────────────────────────── */
+
+.first-recap__start {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.5rem 0 1.5rem;
+	padding: 0.7rem 1rem;
+	border: 1px solid var(--relego-accent);
+	border-radius: 0.5rem;
+	background: var(--relego-accent);
+	color: var(--sl-color-black);
+	font-weight: 600;
+	text-decoration: none;
+	transition:
+		background-color 160ms ease-out,
+		color 160ms ease-out;
+}
+
+.first-recap__start:hover,
+.first-recap__start:focus-visible {
+	background: transparent;
+	color: var(--sl-color-white);
+}
+
+.first-recap__checklist {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--relego-rule);
+}
+
+.first-recap__checklist li {
+	display: grid;
+	grid-template-columns: minmax(11rem, 0.85fr) minmax(0, 1.4fr);
+	gap: 0.75rem 1.5rem;
+	max-width: none;
+	padding: 1rem 0;
+	border-bottom: 1px solid var(--relego-rule);
+}
+
+.first-recap__checklist strong {
+	font-size: 0.9375rem;
+}
+
+.first-recap__checklist span {
+	color: var(--sl-color-gray-3);
+	font-size: 0.9375rem;
+	line-height: 1.55;
 }
 
 /* ── Chrome ─────────────────────────────────────────────────────────────── */
@@ -200,6 +259,11 @@ mobile-starlight-toc a {
 	padding-inline-start: calc(1rem * var(--depth, 0) + 1rem);
 }
 
+/* Starlight's synthetic top entry reads "Overview", not the current page. */
+mobile-starlight-toc .display-current {
+	display: none;
+}
+
 /* The page title is not a section, so its synthetic top link does not belong
    in either desktop or mobile on-page contents list. */
 starlight-toc li:has(> a[href='#_top']),
@@ -252,6 +316,27 @@ starlight-toc a[aria-current='true']:hover {
 	sections a floor width scaled to the column count.
 */
 @media (max-width: 50rem) {
+	/*
+		The Markdown renderer keeps image semantics but strips responsive-source
+		attributes. Swap the illustrative desktop captures for native phone captures
+		so UI labels remain readable on the devices people use to read the docs.
+	*/
+	.sl-markdown-content img[src='/images/docs/relego-web-library.webp'] {
+		content: url('/images/docs/relego-web-library-mobile.webp');
+	}
+
+	.sl-markdown-content img[src='/images/docs/relego-web-import.webp'] {
+		content: url('/images/docs/relego-web-import-mobile.webp');
+	}
+
+	.sl-markdown-content img[src='/images/docs/relego-web-settings.webp'] {
+		content: url('/images/docs/relego-web-settings-mobile.webp');
+	}
+
+	.sl-markdown-content img[src='/images/docs/relego-web-recaps.webp'] {
+		content: url('/images/docs/relego-web-recaps-mobile.webp');
+	}
+
 	.sl-markdown-content table:not(:where(.not-content *)) {
 		display: block;
 		overflow-x: auto;
@@ -259,6 +344,11 @@ starlight-toc a[aria-current='true']:hover {
 	}
 
 	.sl-markdown-content table:not(:where(.not-content *)):focus-visible {
+		outline: 2px solid var(--relego-accent);
+		outline-offset: 3px;
+	}
+
+	.expressive-code .frame pre:focus-visible {
 		outline: 2px solid var(--relego-accent);
 		outline-offset: 3px;
 	}
@@ -279,6 +369,119 @@ starlight-toc a[aria-current='true']:hover {
 	.sl-markdown-content table:not(:where(.not-content *)):has(th:nth-child(4)) > thead,
 	.sl-markdown-content table:not(:where(.not-content *)):has(th:nth-child(4)) > tbody {
 		min-width: 52rem;
+	}
+
+	/*
+		The CLI is a lookup tool on a phone, not a spreadsheet. Keep the accessible
+		table headers, but reflow each row into labeled terms and definitions so a
+		reader can scan a command without panning across three columns.
+	*/
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *)) {
+		overflow: visible;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		> thead {
+		display: block;
+		position: absolute;
+		width: 1px;
+		min-width: 0;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		> thead
+		tr {
+		display: block;
+		min-width: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		> tbody {
+		display: block;
+		width: auto;
+		min-width: 0;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		tr {
+		display: block;
+		padding-block: 1rem;
+		border-bottom: 1px solid var(--relego-rule);
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td {
+		display: grid;
+		grid-template-columns: minmax(7.5rem, 0.8fr) minmax(0, 1.2fr);
+		gap: 0.75rem;
+		padding: 0.3rem 0;
+		border: 0;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td::before {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--sl-color-gray-3);
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:nth-child(1)::before {
+		content: 'Command';
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:nth-child(2)::before {
+		content: 'Accepted parameters';
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:nth-child(3)::before {
+		content: 'Description';
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:not(:where(.not-content *))
+		> code:first-child:last-child,
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:not(:where(.not-content *))
+		code {
+		min-width: 0;
+		white-space: normal;
+		word-break: break-word;
+		overflow-wrap: anywhere;
 	}
 }
 
@@ -511,6 +714,29 @@ starlight-toc a[aria-current='true']:hover {
 /* ── Small screens ──────────────────────────────────────────────────────── */
 
 @media (max-width: 30rem) {
+	header.header site-search button[data-open-modal] {
+		display: grid;
+		place-items: center;
+		width: 2.75rem;
+		min-width: 2.75rem;
+		height: 2.75rem;
+	}
+
+	.sidebar-content ul.top-level > li > details > summary {
+		min-height: 2.75rem;
+		padding-block: 0.5rem;
+	}
+
+	.first-recap__start {
+		width: 100%;
+		justify-content: center;
+	}
+
+	.first-recap__checklist li {
+		grid-template-columns: 1fr;
+		gap: 0.25rem;
+	}
+
 	.roundtrip {
 		--station: 1.9rem;
 		padding-inline-start: calc(var(--station) + 1rem);
