@@ -49,6 +49,16 @@ test.describe('Docs', () => {
 			.toBe(true);
 	});
 
+	test('the right-hand TOC indents nested headings', async ({ page }) => {
+		await page.goto('/docs/import/');
+
+		const nestedHeading = page.locator('starlight-toc a[href="#option-1-the-web-ui"]');
+		await expect(nestedHeading).toContainText('Option 1');
+		await expect
+			.poll(() => nestedHeading.evaluate((link) => parseFloat(getComputedStyle(link).paddingInlineStart)))
+			.toBeGreaterThan(12);
+	});
+
 	test('the retired Store route redirects into Import', async ({ page }) => {
 		await page.goto('/docs/store/');
 		await expect(page).toHaveURL(/\/docs\/import\/$/);

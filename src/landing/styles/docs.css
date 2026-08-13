@@ -176,12 +176,16 @@ mobile-starlight-toc h2 {
 }
 
 starlight-toc a {
-	padding-inline-start: 0.75rem;
+	padding-inline-start: calc(1rem * var(--depth, 0) + 0.75rem);
 	/* Square ends so the per-item hairlines join into one continuous rule. */
 	border-radius: 0;
 	border-inline-start: 1px solid var(--relego-rule);
 	color: var(--sl-color-gray-3);
 	transition: color 160ms ease-out;
+}
+
+mobile-starlight-toc a {
+	padding-inline-start: calc(1rem * var(--depth, 0) + 1rem);
 }
 
 /* The page title is not a section, so its synthetic top link does not belong
