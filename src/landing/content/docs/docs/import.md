@@ -1,14 +1,48 @@
 ---
-title: Import
-description: Run the Relego server, then move highlights from your Kindle or Kobo into the library, from the web UI or the command line.
-stage: 2
+title: Import highlights
+description: Find the highlight file on your Kindle or Kobo, then move it into the Relego library.
+stage: 1
 sidebar:
-  order: 2
+  order: 1
 ---
 
-Two things happen at this stop: the server starts, and your highlights move into
-it. Do them in that order, the library lives inside the server, and every way
-of importing talks to it.
+The trip starts on the device, before Relego is involved at all. Your Kindle or
+Kobo writes highlights to a file, then Relego reads that file into its library.
+
+## Kindle
+
+When you underline a passage on a Kindle, the device appends it to a plain text
+file at `documents/My Clippings.txt` in its internal storage. Every highlight,
+note, and bookmark you have ever made is in there, in the order you made it.
+
+A single entry looks like this:
+
+```text
+The Pragmatic Programmer (David Thomas & Andrew Hunt)
+- Your Highlight on page 12 | Location 210-211 | Added on Sunday, 3 May 2026 09:14:02
+
+Care About Your Craft
+==========
+```
+
+Relego reads the quote, the book title, and the author. Bookmarks and empty
+entries are skipped.
+
+:::note
+`My Clippings.txt` only contains highlights made on the device itself.
+Highlights you made in the Kindle mobile or desktop apps live in Amazon's cloud
+and are not in this file.
+:::
+
+## Kobo
+
+Kobo stores highlights in a SQLite database at `.kobo/KoboReader.sqlite` on the
+device. `.kobo` is a hidden folder, so you may need to enable hidden files in
+your file manager to see it.
+
+Relego reads the bookmark table and pairs each highlight with its book title and
+author. You do not need any SQLite tooling installed, the CLI reads the file
+directly.
 
 ## 1. Start the server
 
@@ -54,7 +88,7 @@ RELEGO_SMTP_PASSWORD=your-relay-password
 ```
 
 You do not need working mail settings to import. Come back to this when you
-reach [Select and deliver](/docs/select/), which covers choosing a relay; the
+reach [Deliver](/docs/deliver/), which covers choosing a relay; the
 [environment variable reference](/docs/reference/environment/) has the full
 list.
 
@@ -78,8 +112,8 @@ There are two ways in, and both put highlights in the same library:
 - **The command line**, one command with device auto-detection and something
   you can schedule. Worth installing once you import regularly.
 
-Either way, the file you need is the one your reader already wrote, see
-[Capture](/docs/capture/) for where to find it.
+Either way, the file you need is the one your reader already wrote, as described
+above.
 
 ### Option 1 (The web UI)
 
@@ -216,4 +250,4 @@ other.
 
 ## Next
 
-You have a library. [Decide what comes back to you →](/docs/select/)
+You have a library. [Deliver your first recap →](/docs/deliver/)

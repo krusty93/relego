@@ -71,13 +71,13 @@ relego exclude list
 
 Almost always Amazon's approved sender list. The address your relay sends
 **from** must be listed under Manage Your Content and Devices → Preferences →
-Personal Document Settings. See [Select and deliver](/docs/select/).
+Personal Document Settings. See [Deliver](/docs/deliver/).
 
 ### The relay rejects the login
 
 Personal Gmail and Outlook accounts no longer accept SMTP password auth. Use a
 relay with a free tier, the options are listed in
-[Select and deliver](/docs/select/).
+[Deliver](/docs/deliver/).
 
 ### Nothing appears in smtp4dev
 

@@ -1,9 +1,9 @@
 ---
-title: Select and deliver
+title: Deliver
 description: Choose which highlights come back, then configure where Relego sends the recap.
-stage: 3
+stage: 2
 sidebar:
-  order: 3
+  order: 2
 ---
 
 A library of ten thousand highlights is a graveyard. The point of Relego is that

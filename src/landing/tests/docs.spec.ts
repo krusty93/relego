@@ -3,9 +3,8 @@ import AxeBuilder from '@axe-core/playwright';
 
 const docsPages = [
 	'/docs/',
-	'/docs/capture/',
 	'/docs/import/',
-	'/docs/select/',
+	'/docs/deliver/',
 	'/docs/revisit/',
 	'/docs/reference/cli/',
 	'/docs/reference/settings/',
@@ -19,17 +18,17 @@ test.describe('Docs', () => {
 		for (const path of docsPages) {
 			const response = await page.goto(path);
 			expect(response?.status(), `${path} should resolve`).toBe(200);
-			await expect(page.locator('main h1')).toBeVisible();
+			await expect(page.locator('main h1').first()).toBeVisible();
 		}
 	});
 
-	test('the overview renders all four round-trip stations', async ({ page }) => {
+	test('the overview renders all three round-trip stations', async ({ page }) => {
 		await page.goto('/docs/');
 
 		const stations = page.locator('.roundtrip__station');
-		await expect(stations).toHaveCount(4);
-		await expect(stations.first()).toContainText('Capture');
-		await expect(stations.nth(2)).toContainText('Select and deliver');
+		await expect(stations).toHaveCount(3);
+		await expect(stations.first()).toContainText('Import highlights');
+		await expect(stations.nth(1)).toContainText('Deliver');
 		await expect(stations.last()).toContainText('Revisit');
 	});
 
@@ -64,14 +63,19 @@ test.describe('Docs', () => {
 		await expect(page).toHaveURL(/\/docs\/import\/$/);
 	});
 
-	test('the retired Deliver route redirects into Select and deliver', async ({ page }) => {
-		await page.goto('/docs/deliver/');
-		await expect(page).toHaveURL(/\/docs\/select\/$/);
+	test('the retired Capture route redirects into Import highlights', async ({ page }) => {
+		await page.goto('/docs/capture/');
+		await expect(page).toHaveURL(/\/docs\/import\/$/);
 	});
 
-	test('Select and deliver combines recap choices with delivery setup', async ({ page }) => {
+	test('the retired Select route redirects into Deliver', async ({ page }) => {
 		await page.goto('/docs/select/');
-		await expect(page.locator('main h1')).toContainText('Select and deliver');
+		await expect(page).toHaveURL(/\/docs\/deliver\/$/);
+	});
+
+	test('Deliver combines recap choices with delivery setup', async ({ page }) => {
+		await page.goto('/docs/deliver/');
+		await expect(page.locator('main h1')).toContainText('Deliver');
 		await expect(page.locator('.sl-markdown-content h2', { hasText: 'How the choice is made' })).toBeVisible();
 		await expect(page.locator('.sl-markdown-content h2', { hasText: 'Choose a relay' })).toBeVisible();
 	});
@@ -88,7 +92,7 @@ test.describe('Docs', () => {
 
 		// The server has to be running before either path works.
 		const steps = page.locator('.sl-markdown-content h2');
-		await expect(steps.first()).toContainText('Start the server');
+		await expect(steps.filter({ hasText: 'Start the server' })).toBeVisible();
 	});
 
 	test('the landing page links into the docs', async ({ page }) => {
@@ -113,7 +117,7 @@ test.describe('Docs', () => {
 	});
 
 	test('no critical or serious axe violations on desktop', async ({ page }) => {
-		for (const path of ['/docs/', '/docs/reference/cli/', '/docs/select/']) {
+		for (const path of ['/docs/', '/docs/reference/cli/', '/docs/deliver/']) {
 			await page.goto(path);
 			const results = await new AxeBuilder({ page }).analyze();
 			const blocking = results.violations.filter(

@@ -7,18 +7,13 @@ interface Station {
 
 const stations: Station[] = [
 	{
-		name: 'Capture',
-		href: '/docs/capture/',
-		what: 'You highlight a passage while reading. Your Kindle or Kobo writes it to a file on the device, and that file is everything Relego needs.',
-	},
-	{
-		name: 'Import',
+		name: 'Import highlights',
 		href: '/docs/import/',
-		what: 'Start the server first. Your library is a SQLite file you own. Then send your reader’s file to it by dropping it on the web UI or by running one command.',
+		what: 'Your Kindle or Kobo writes highlights to a file. Start the server, then send that file to it by dropping it on the web UI or by running one command.',
 	},
 	{
-		name: 'Select and deliver',
-		href: '/docs/select/',
+		name: 'Deliver',
+		href: '/docs/deliver/',
 		what: 'On a schedule you set, the server chooses a handful of highlights, binds them into an EPUB or HTML recap, and sends them to your Kindle, inbox, or both.',
 	},
 	{
@@ -32,8 +27,8 @@ const stations: Station[] = [
 <!--
 THESIS: Relego's docs are one circuit, not a feature list, the trip a single highlight makes from your reader back to your reader. Refuses the flat "Getting started / Configuration / API" shelf every docs site ships.
 OWN-WORLD: The Relego landing world, unchanged, with warm paper ground (#f7f1e8 / #120e0c), terracotta accent (#b56b39 / #d4a05e), Playfair Display Light for display headings, hairline rules instead of card chrome, no filled containers.
-STORY: A reader who just found the project understands the mechanism in one screen, sees that setup is four steps and not a research project, and can enter at the stage they are actually stuck on.
-FIRST VIEWPORT: Serif h1, one lead paragraph, then the four numbered stations on a vertical spine with a dashed accent bracket in the outer gutter closing the loop from Revisit back to Capture. The primary action is the first station.
+STORY: A reader who just found the project understands the mechanism in one screen, sees that setup is three steps and not a research project, and can enter at the stage they are actually stuck on.
+FIRST VIEWPORT: Serif h1, one lead paragraph, then the three numbered stations on a vertical spine with a dashed accent bracket in the outer gutter closing the loop from Revisit back to Import highlights. The primary action is the first station.
 FORM: Journey-of-a-highlight spine; candidate 6 of the grounded structural list; staged as a linear read, no staging challenger fused. Seed key 450383ec.
 -->
 
@@ -53,7 +48,7 @@ FORM: Journey-of-a-highlight spine; candidate 6 of the grounded structural list;
 		))
 	}
 	<li class="roundtrip__close">
-		Back to <a href="/docs/capture/">Capture</a>, the next passage you underline joins
+		Back to <a href="/docs/import/">Import highlights</a>, the next passage you underline joins
 		the same circuit.
 	</li>
 </ol>

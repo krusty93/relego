@@ -1,9 +1,9 @@
 ---
 title: Revisit
 description: Trigger your first recap, see what one looks like, and close the loop.
-stage: 4
+stage: 3
 sidebar:
-  order: 4
+  order: 3
 ---
 
 The last stage is the only one that matters: the passage arrives, and you read
@@ -47,9 +47,9 @@ The inbox channel sends the same content as HTML.
 
 | What you see | What to do |
 | --- | --- |
-| `No eligible highlights available` | The library is empty, or everything is excluded. Run [Import](/docs/import/), then check `relego exclude list` |
+| `No eligible highlights available` | The library is empty, or everything is excluded. Run [Import highlights](/docs/import/), then check `relego exclude list` |
 | The command errors | Confirm the server is up with `docker compose ps` |
-| The send succeeds, no mail on the Kindle | The sending address is not on your Amazon approved list, see [Select and deliver](/docs/select/) |
+| The send succeeds, no mail on the Kindle | The sending address is not on your Amazon approved list, see [Deliver](/docs/deliver/) |
 | Nothing in smtp4dev | The `demo` profile is not running, or the server is not pointed at `smtp4dev:2525` |
 
 More cases in [Troubleshooting](/docs/reference/troubleshooting/).
@@ -66,4 +66,4 @@ that stops you, weight it up. The library gets better the longer you use it.
 ## The loop closes
 
 The passage you just re-read is back in the rotation, its clock reset. The next
-book you underline joins the same circuit at [Capture](/docs/capture/).
+book you underline joins the same circuit at [Import highlights](/docs/import/).

@@ -52,7 +52,7 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "h3 and round-trip station names. Sans — this is where the serif stops."
+        "purpose": "h3 and round-trip station names. Sans, this is where the serif stops."
       },
       "body": {
         "displayName": "Body",
@@ -141,8 +141,8 @@
       "name": "Round Trip Station",
       "kind": "custom",
       "refersTo": "station-marker",
-      "description": "One stop on the four-stage circuit: a Playfair numeral in a circular hairline marker, on a 1px spine.",
-      "html": "<ol class=\"ds-roundtrip\"><li class=\"ds-station\"><a href=\"#\"><span class=\"ds-marker\">2</span><span class=\"ds-name\">Store</span><span class=\"ds-what\">Run the server. It keeps your library in a SQLite file you own, on hardware you control.</span></a></li></ol>",
+      "description": "One stop on the three-stage circuit: a Playfair numeral in a circular hairline marker, on a 1px spine.",
+      "html": "<ol class=\"ds-roundtrip\"><li class=\"ds-station\"><a href=\"#\"><span class=\"ds-marker\">2</span><span class=\"ds-name\">Deliver</span><span class=\"ds-what\">Choose which highlights return, then send the recap where you read it.</span></a></li></ol>",
       "css": ".ds-roundtrip { --station: 2.25rem; position: relative; list-style: none; margin: 0; padding-left: calc(var(--station) + 1.5rem); } .ds-roundtrip::before { content: ''; position: absolute; top: calc(var(--station)/2); bottom: calc(var(--station)/2); left: calc(var(--station)/2); width: 1px; background: rgba(23,19,17,0.12); } .ds-station { position: relative; } .ds-station a { display: block; padding: 0.9rem 1rem 1rem; margin-left: -1rem; border-radius: 0.6rem; color: inherit; text-decoration: none; transition: background-color 160ms cubic-bezier(0.16,1,0.3,1), transform 160ms cubic-bezier(0.16,1,0.3,1); } .ds-station a:hover { background: rgba(255,255,255,0.6); transform: translateX(2px); } .ds-marker { position: absolute; left: calc(-1 * (var(--station) + 1.5rem)); top: 0.85rem; display: grid; place-items: center; width: var(--station); height: var(--station); border-radius: 50%; border: 1px solid rgba(23,19,17,0.12); background: #f7f1e8; font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; color: #3c322b; } .ds-station a:hover .ds-marker { border-color: #b56b39; color: #171311; } .ds-name { display: block; font-size: 1.0625rem; font-weight: 600; color: #171311; } .ds-what { display: block; margin-top: 0.2rem; font-size: 0.9375rem; line-height: 1.55; color: #665748; max-width: 52ch; }"
     },
     {
@@ -150,7 +150,7 @@
       "kind": "custom",
       "refersTo": "stagemark",
       "description": "Sits above the h1 on each stage page so the circuit stays visible past the index.",
-      "html": "<p class=\"ds-stagemark\"><span class=\"ds-dots\"><span class=\"ds-dot\"></span><span class=\"ds-dot is-here\"></span><span class=\"ds-dot\"></span><span class=\"ds-dot\"></span><span class=\"ds-dot\"></span><span class=\"ds-dot\"></span></span><span>Stop 2 of 6 on the round trip</span></p>",
+      "html": "<p class=\"ds-stagemark\"><span class=\"ds-dots\"><span class=\"ds-dot\"></span><span class=\"ds-dot is-here\"></span><span class=\"ds-dot\"></span></span><span>Stop 2 of 3 on the round trip</span></p>",
       "css": ".ds-stagemark { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 0.75rem; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #665748; } .ds-dots { display: flex; align-items: center; gap: 0.3125rem; } .ds-dot { width: 0.3125rem; height: 0.3125rem; border-radius: 50%; background: #b6a48f; } .ds-dot.is-here { background: #b56b39; box-shadow: 0 0 0 3px color-mix(in srgb, #b56b39 18%, transparent); }"
     },
     {
@@ -166,13 +166,13 @@
       "kind": "nav",
       "refersTo": "table-header-cell",
       "description": "Current page is marked with an inset accent bar, never a filled pill.",
-      "html": "<ul class=\"ds-nav\"><li><a href=\"#\">1 &middot; Capture</a></li><li><a href=\"#\" aria-current=\"page\">2 &middot; Store</a></li></ul>",
+      "html": "<ul class=\"ds-nav\"><li><a href=\"#\">1 &middot; Import highlights</a></li><li><a href=\"#\" aria-current=\"page\">2 &middot; Deliver</a></li></ul>",
       "css": ".ds-nav { list-style: none; margin: 0; padding: 0; } .ds-nav a { display: block; padding: 0.35rem 0.75rem; color: #3c322b; text-decoration: none; } .ds-nav a[aria-current='page'] { background: transparent; color: #171311; font-weight: 600; box-shadow: inset 2px 0 0 #b56b39; }"
     }
   ],
   "narrative": {
     "northStar": "The Paper Circuit",
-    "overview": "Relego is a tool for people who underline books and want those sentences back, and its interface behaves like the object it serves: warm paper stock, a serif that belongs on a title page, and nothing that looks like a SaaS dashboard. The ground is a cream-to-espresso paper tone that flips wholesale between light and dark; the single accent is a fired terracotta that warms to amber at night, spent sparingly on the thing you are meant to do next and on the line that closes the loop.\n\nThe second half of the north star is the circuit. Relego's product truth is a round trip: a highlight leaves your reader, passes through hardware you own, and comes back to the same screen. The documentation surface makes that literal with four numbered stations on a vertical spine and a dashed return leg in the outer gutter, and a stop marker repeats the geometry at the head of every stage page.\n\nStructurally the system is subtractive. Separation is done with hairline rules and generous vertical space, not with cards, panels, or filled containers. Surfaces are flat; where a conventional docs theme reaches for a boxed callout, Relego reaches for a rule and more air.",
+    "overview": "Relego is a tool for people who underline books and want those sentences back, and its interface behaves like the object it serves: warm paper stock, a serif that belongs on a title page, and nothing that looks like a SaaS dashboard. The ground is a cream-to-espresso paper tone that flips wholesale between light and dark; the single accent is a fired terracotta that warms to amber at night, spent sparingly on the thing you are meant to do next and on the line that closes the loop.\n\nThe second half of the north star is the circuit. Relego's product truth is a round trip: a highlight leaves your reader, passes through hardware you own, and comes back to the same screen. The documentation surface makes that literal with three numbered stations on a vertical spine and a dashed return leg in the outer gutter, and a stop marker repeats the geometry at the head of every stage page.\n\nStructurally the system is subtractive. Separation is done with hairline rules and generous vertical space, not with cards, panels, or filled containers. Surfaces are flat; where a conventional docs theme reaches for a boxed callout, Relego reaches for a rule and more air.",
     "keyCharacteristics": [
       "Warm paper ground in both themes; never neutral gray, never pure white or black",
       "One accent, used at low density, mostly on next-actions and the return leg",

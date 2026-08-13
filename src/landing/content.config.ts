@@ -9,7 +9,7 @@ export const collections = {
 			extend: z.object({
 				// Which stop on the round trip this page is, so the circuit stays
 				// visible on the pages readers actually spend their time on.
-				stage: z.number().int().min(1).max(4).optional(),
+				stage: z.number().int().min(1).max(3).optional(),
 				eyebrow: z.string().optional(),
 			}),
 		}),
