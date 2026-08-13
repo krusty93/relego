@@ -33,6 +33,22 @@ test.describe('Docs', () => {
 		await expect(stations.last()).toContainText('Revisit');
 	});
 
+	test('the right-hand TOCs hide the synthetic Overview entry', async ({ page }) => {
+		await page.goto('/docs/');
+
+		const overviewLinks = page.locator(
+			'starlight-toc a[href="#_top"], mobile-starlight-toc a[href="#_top"]',
+		);
+		await expect(overviewLinks).toHaveCount(2);
+		await expect
+			.poll(() =>
+				overviewLinks.evaluateAll((links) =>
+					links.every((link) => getComputedStyle(link.parentElement!).display === 'none'),
+				),
+			)
+			.toBe(true);
+	});
+
 	test('the retired Store route redirects into Import', async ({ page }) => {
 		await page.goto('/docs/store/');
 		await expect(page).toHaveURL(/\/docs\/import\/$/);

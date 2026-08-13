@@ -184,6 +184,13 @@ starlight-toc a {
 	transition: color 160ms ease-out;
 }
 
+/* The page title is not a section, so its synthetic top link does not belong
+   in either desktop or mobile on-page contents list. */
+starlight-toc li:has(> a[href='#_top']),
+mobile-starlight-toc li:has(> a[href='#_top']) {
+	display: none;
+}
+
 starlight-toc a:hover {
 	color: var(--sl-color-white);
 }
