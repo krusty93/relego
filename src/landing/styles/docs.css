@@ -93,8 +93,8 @@ body {
 	line-height: 1.65;
 }
 
-main:has(.relego-stagemark) > .content-panel:has(.sl-markdown-content) {
-	border-top: 0;
+main:has(.relego-stagemark) > .content-panel:first-child {
+	display: contents;
 }
 
 /* The rule + padding treatment lives on the wrapper, not the heading itself:

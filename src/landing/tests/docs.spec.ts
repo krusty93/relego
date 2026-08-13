@@ -45,7 +45,7 @@ test.describe('Docs', () => {
 		}
 	});
 
-	test('round-trip pages keep one separator around the title', async ({ page }) => {
+	test('round-trip pages keep the content separator after the title', async ({ page }) => {
 		for (const path of ['/docs/import/', '/docs/deliver/', '/docs/revisit/']) {
 			await page.goto(path);
 			await expect
@@ -54,7 +54,7 @@ test.describe('Docs', () => {
 						.locator('main > .content-panel:has(.sl-markdown-content)')
 						.evaluate((panel) => getComputedStyle(panel).borderTopStyle),
 				)
-				.toBe('none');
+				.toBe('solid');
 		}
 	});
 
