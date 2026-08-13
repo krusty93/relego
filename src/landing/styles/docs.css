@@ -93,6 +93,10 @@ body {
 	line-height: 1.65;
 }
 
+main:has(.relego-stagemark) > .content-panel:has(.sl-markdown-content) {
+	border-top: 0;
+}
+
 /* The rule + padding treatment lives on the wrapper, not the heading itself:
    Starlight needs `.sl-heading-wrapper > :first-child` to stay `display: inline`
    so the anchor-link icon sits at the end of the heading line instead of

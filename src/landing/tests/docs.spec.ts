@@ -45,6 +45,19 @@ test.describe('Docs', () => {
 		}
 	});
 
+	test('round-trip pages keep one separator around the title', async ({ page }) => {
+		for (const path of ['/docs/import/', '/docs/deliver/', '/docs/revisit/']) {
+			await page.goto(path);
+			await expect
+				.poll(() =>
+					page
+						.locator('main > .content-panel:has(.sl-markdown-content)')
+						.evaluate((panel) => getComputedStyle(panel).borderTopStyle),
+				)
+				.toBe('none');
+		}
+	});
+
 	test('the right-hand TOCs hide the synthetic Overview entry', async ({ page }) => {
 		await page.goto('/docs/');
 
