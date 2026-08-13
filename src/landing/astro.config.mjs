@@ -71,7 +71,6 @@ export default defineConfig({
 				{
 					label: 'The round trip',
 					items: [
-						{ label: 'Overview', link: '/docs/' },
 						{ label: '1 · Capture', link: '/docs/capture/' },
 						{ label: '2 · Import', link: '/docs/import/' },
 						{ label: '3 · Select and deliver', link: '/docs/select/' },

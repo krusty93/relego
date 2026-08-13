@@ -33,6 +33,11 @@ test.describe('Docs', () => {
 		await expect(stations.last()).toContainText('Revisit');
 	});
 
+	test('the round-trip sidebar has no Overview entry', async ({ page }) => {
+		await page.goto('/docs/capture/');
+		await expect(page.locator('.sidebar-content a', { hasText: 'Overview' })).toHaveCount(0);
+	});
+
 	test('the retired Store route redirects into Import', async ({ page }) => {
 		await page.goto('/docs/store/');
 		await expect(page).toHaveURL(/\/docs\/import\/$/);
