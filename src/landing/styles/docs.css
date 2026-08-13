@@ -333,7 +333,7 @@ starlight-toc a[aria-current='true']:hover {
 
 /*
 	The return leg: a dashed bracket in the outer gutter running from the last
-	station back up to the first, closing the loop the six stations describe.
+	station back up to the first, closing the loop the three stations describe.
 */
 .roundtrip__return {
 	position: absolute;
