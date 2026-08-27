@@ -9,6 +9,11 @@ sidebar:
 The server reads these at startup. Put them in a `.env` file next to
 `docker-compose.yml`, or export them in the shell you launch Compose from.
 
+:::caution
+`.env` holds a live mail credential. Keep it out of version control.
+:::
+
+
 ## Mail
 
 | Variable | Required | Description |
@@ -18,31 +23,3 @@ The server reads these at startup. Put them in a `.env` file next to
 | `RELEGO_SMTP_PORT` | Yes | Relay port, commonly `587` |
 | `RELEGO_SMTP_USER` | Usually | Relay username |
 | `RELEGO_SMTP_PASSWORD` | Usually | Relay password or API key |
-
-## Runtime
-
-| Variable | Description |
-| --- | --- |
-| `ASPNETCORE_ENVIRONMENT` | `Production` normally. The demo profile expects `Development` |
-
-## A working example
-
-```ini
-# .env (sits next to docker-compose.yml)
-RELEGO_KINDLE_EMAIL=your-name@kindle.com
-RELEGO_SMTP_HOST=smtp.your-relay.example
-RELEGO_SMTP_PORT=587
-RELEGO_SMTP_USER=relego
-RELEGO_SMTP_PASSWORD=your-relay-password
-```
-
-And the demo relay, which needs no credentials at all:
-
-```sh wrap
-RELEGO_SMTP_HOST=smtp4dev RELEGO_SMTP_PORT=2525 docker compose --profile demo up -d
-```
-
-:::caution
-`.env` holds a live mail credential. Keep it out of version control, the
-project's `.gitignore` already excludes it.
-:::

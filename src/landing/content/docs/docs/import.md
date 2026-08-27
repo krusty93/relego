@@ -70,119 +70,33 @@ reach [Deliver](/docs/deliver/), which covers choosing a relay; the
 [environment variable reference](/docs/reference/environment/) has the full
 list.
 
-### Your data
-
-| What | Where | Notes |
-| --- | --- | --- |
-| Highlight library | `/data/relego.db` inside the container | Mount a volume so it survives a container rebuild |
-| Settings | Same database | Changed in the web UI or with `relego config`, not by editing the file |
-| Logs | Container stdout | `docker compose logs -f relego-server` |
-
-Nothing is sent anywhere except the recap emails you configure. There is no
-telemetry, no account, and no cloud component.
-
 ## 2. Get your highlights in
 
-The web interface is the standard way to import. The command line is for
-scheduled or scripted imports, or if you simply prefer a terminal.
-
-### In the web interface
-
-With the server running, open <http://localhost:8080> and go to **Import**.
-
-Drop in the file listed above, or click to browse for it. Connect the reader
-over USB first. For Kobo, enable hidden files in your file manager or copy the
-database off the device before uploading it.
+Now it's time to import higlights into Relego. You can
+drag and drop them to the web interface or, if you prefer a terminal,
+you can use the [CLI](/docs/reference/cli/).
 
 The page reports what it added when the upload finishes. Uploading the same file
 twice does not create duplicates, so re-uploading after a few more reading
 sessions is the normal way to keep the library current.
 
-Files up to 64 MB are accepted, far more than a full clippings file.
+### Kindle
+
+Connect your Kindle over USB and wait for it to appear on your computer. Open
+<http://localhost:8080>, go to **Import**, then drop in
+`documents/My Clippings.txt` or click to browse for it.
+
+`My Clippings.txt` does not include highlights made in Kindle mobile or desktop
+apps. Those remain in Amazon's cloud.
 
 ![Relego's web interface open to the Import page, showing the Kindle and Kobo file upload area.](/images/docs/relego-web-import.webp)
 
-### Prefer the command line?
+### Kobo
 
-The CLI talks to the same server over HTTP. Use it to automate regular imports
-or when a terminal suits your workflow better. Keep the server running; by
-default the CLI looks for `http://localhost:8080`. Set `SERVER_URL` if yours
-lives elsewhere.
-
-#### Install it
-
-You have three options. Docker needs no install at all; the native binary is
-faster to run and easier to script.
-
-**Docker.** Nothing to install. Every command in these docs has a
-`docker compose run --rm relego-cli …` form.
-
-**Windows.**
-
-```powershell
-winget install Krusty93.Relego
-```
-
-Or, without winget:
-
-```powershell
-irm https://raw.githubusercontent.com/Krusty93/relego/main/install.ps1 | iex
-```
-
-The installer detects your architecture and prints where `relego.exe` was saved.
-
-**macOS and Linux.**
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/Krusty93/relego/main/install.sh | sh
-```
-
-The installer prints where `relego` was saved. If `~/.local/bin` is not on your
-`PATH`, add this to `~/.zshrc`, `~/.bashrc`, or `~/.profile` and open a new
-terminal:
-
-```sh
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-#### Import
-
-Connect the reader over USB, wait for it to mount, then:
-
-```sh
-relego import
-```
-
-Relego looks for a connected Kindle or Kobo, reads the source file, and adds
-anything new to the library. Running it twice does not create duplicates.
-
-If auto-detection does not find the device, pass the path yourself:
-
-```sh
-relego import "/Volumes/Kindle/documents/My Clippings.txt"
-```
-
-If you run the CLI through Docker, mount the reader before importing. See
-[Using Docker with a reader](/docs/reference/cli/#using-docker-with-a-reader).
-
-## No device handy?
-
-The repository ships real sample files you can import instead, upload them in
-the web UI, or:
-
-```sh
-relego import docs/examples/kindle-highlights.txt
-relego import docs/examples/kobo-highlights.sqlite
-```
-
-They are enough to see a full recap end to end.
-
-## Both devices at once
-
-If a Kindle and a Kobo are both connected, `relego import` imports both in a
-single run. If one source fails, Relego reports that failure and still completes
-the other. The web UI takes one file at a time, upload them one after the
-other.
+Connect your Kobo over USB and wait for it to appear on your computer. Because
+`.kobo` is hidden, enable hidden files in your file manager or copy the database
+off the device before uploading it. In the web UI, go to **Import**, then drop
+in `.kobo/KoboReader.sqlite` or click to browse for it.
 
 ## Next
 

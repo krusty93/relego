@@ -11,7 +11,7 @@ can confirm an image came from this repository's CI before you run it.
 
 You need the [GitHub CLI](https://cli.github.com/).
 
-## Server image
+## Server Docker image
 
 ```sh
 gh attestation verify \
@@ -19,7 +19,7 @@ gh attestation verify \
   --owner Krusty93
 ```
 
-## CLI image
+## CLI Docker image
 
 ```sh
 gh attestation verify \

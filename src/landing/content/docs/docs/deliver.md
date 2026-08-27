@@ -9,13 +9,10 @@ subtitle: "A library of ten thousand highlights is a graveyard. The point of Rel
 
 ## How the choice is made
 
-On each scheduled run the server picks a subset of your highlights using spaced
-repetition: passages you have seen recently are unlikely to return, and
+On each scheduled run the server picks a subset of your highlights using _spaced
+repetition_: passages you have seen recently are unlikely to return, and
 passages you have not seen in a long time move to the front. Your own weights
 tilt that ordering.
-
-Nothing about the selection leaves your server, and no model or service is
-consulted. It is arithmetic over your own database.
 
 ## Schedule
 
@@ -101,19 +98,14 @@ contents rather than as an email.
 ## Inbox: the HTML channel
 
 You can also have the recap delivered to any ordinary mailbox, formatted as
-HTML. Add it under **Where recaps go** in **Settings**. Both channels can be
-active at once:
+HTML. Add it under **Where recaps go** in **Settings**.
 
-```sh
-relego config email inbox ""
-```
-
-**Kobo owners: use this channel.** Kobo has no Send-to-Kindle-style address, so
+**Kobo users:** use this channel. Kobo has no Send-to-Kindle-style address, so
 the inbox channel is Kobo's normal delivery route. Open the recap in your mail
 app, or send it on to the reader with whatever method you already use.
 
 For command-line automation, see
-[CLI commands](/docs/reference/cli/#configuration-and-delivery).
+[CLI](/docs/reference/cli/#configuration-and-delivery).
 
 ## Next
 

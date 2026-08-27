@@ -136,21 +136,21 @@ test.describe('Docs', () => {
 		await expect(page.locator('.sl-markdown-content h2', { hasText: 'Choose a relay' })).toBeVisible();
 	});
 
-	test('Import makes the web interface primary and the CLI optional', async ({ page }) => {
+	test('Import separates Kindle and Kobo web instructions and links to the CLI', async ({ page }) => {
 		await page.goto('/docs/import/');
 
 		await expect(page.locator('#your-readers-file')).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Start the server' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'In the web interface' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Prefer the command line?' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Kindle' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Kobo' })).toBeVisible();
 		await expect(
 			page.locator('.sl-markdown-content').getByText(
-				'The web interface is the standard way to import.',
+				'If you prefer a terminal, you can use the',
 			),
 		).toBeVisible();
 		await expect(
-			page.getByRole('link', { name: 'Using Docker with a reader' }),
-		).toHaveAttribute('href', '/docs/reference/cli/#using-docker-with-a-reader');
+			page.getByRole('link', { name: 'CLI' }).first(),
+		).toHaveAttribute('href', '/docs/reference/cli/');
 	});
 
 	test('the web interface carries first-time readers through their first recap', async ({ page }) => {
@@ -185,6 +185,8 @@ test.describe('Docs', () => {
 		await expect(page.getByRole('heading', { name: 'Try it without a relay first' })).toHaveCount(0);
 
 		await page.goto('/docs/reference/cli/');
+		await expect(page.getByRole('heading', { name: 'CLI', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Install the CLI' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Using Docker with a reader' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Configuration and delivery' })).toBeVisible();
 		await expect(page.getByText('Integer from 1 to 15')).toBeVisible();

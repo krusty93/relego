@@ -1,25 +1,52 @@
 ---
-title: CLI commands
-description: Every Relego CLI command, its accepted parameters, and where it fits in the round trip.
+title: Relego CLI
+description: Install and use the Relego CLI, with every command and its accepted parameters.
 eyebrow: Reference
 sidebar:
   order: 1
 ---
 
-Every command works the same whether you installed the binary or run it through
-Docker. The Docker form is the same command with a prefix:
+## CLI Installation
+
+CLI is available as Docker image as well as native binaries.
+
+### Docker
+
+Nothing to install. Use the `docker-compose` file to run the CLI as:
 
 ```sh
-relego status
-docker compose run --rm relego-cli status
+docker compose run --rm relego-cli <command>
+```
+
+### Windows
+
+```powershell
+winget install Krusty93.Relego
+```
+
+Or, without winget:
+
+```powershell
+irm https://raw.githubusercontent.com/Krusty93/relego/main/install.ps1 | iex
+```
+
+The installer detects your architecture and prints where `relego.exe` is saved.
+
+### macOS/Linux
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Krusty93/relego/main/install.sh | sh
+```
+
+The installer prints where `relego` is saved. If `~/.local/bin` is not on your
+`PATH`, add this to `~/.zshrc`, `~/.bashrc`, or `~/.profile` and open a new
+terminal:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 The rest of this page uses the short form.
-
-## Command notation
-
-`<value>` is required. `[value]` is optional. The CLI uses your local
-`http://localhost:8080` server unless you set `SERVER_URL`.
 
 ## Using Docker with a reader
 
@@ -55,7 +82,9 @@ docker compose run --rm \
 
 For Kobo, mount the device root and import `.kobo/KoboReader.sqlite`.
 
-## Library
+## CLI Command Reference
+
+### Library
 
 | Command | Accepted parameters | Description |
 | --- | --- | --- |
@@ -63,13 +92,6 @@ For Kobo, mount the device root and import `.kobo/KoboReader.sqlite`.
 | `relego rename-book <id> <title>` | Numeric book ID; non-empty title | Renames a book so recaps use a clean title |
 | `relego status` | None | Shows server health, library totals, delivery configuration, and the next recap |
 | `relego --version` | None | Prints the CLI version |
-
-## Configuration and delivery
-
-The web interface is the normal place to set these values. These commands are
-useful when you automate Relego or prefer a terminal. Relego stores them in its
-database, so they persist across restarts. The defaults are a daily recap at
-`18:00` in the server's local time zone and five highlights per recap.
 
 ### Schedule
 
