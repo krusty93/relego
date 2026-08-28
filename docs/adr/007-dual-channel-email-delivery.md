@@ -61,7 +61,7 @@ The regular email channel sends highlights as inline HTML in the email body with
 
 ### Context
 
-After feature 009 shipped, early users reported friction: the model still treated `kindle_email` as a conceptual required field (seeded as empty string, prominent in the TUI), while the dual-channel intention allows users with only a regular inbox to use Relego without a Kindle. The original spec also failed silently when neither destination was configured — recaps were queued but never delivered.
+After feature 009 shipped, early users reported friction: the model still treated `kindle_email` as a conceptual required field (seeded as empty string, prominent in the client), while the dual-channel intention allows users with only a regular inbox to use Relego without a Kindle. The original spec also failed silently when neither destination was configured — recaps were queued but never delivered.
 
 ### Additional decisions
 
@@ -72,10 +72,8 @@ After feature 009 shipped, early users reported friction: the model still treate
 - `POST /recaps`: returns HTTP 422 with a clear, actionable message if neither destination is configured at trigger time.
 - `RecapService.ExecuteAsync`: defense-in-depth guard; marks the job failed with a human-readable reason if neither is set at execution time.
 
-**C.** ~~Server logs a WARNING at startup~~ — **Removed.** The startup warning was found to add noise with no actionable value; the 422 guard on `POST /recaps` and the TUI persistent warning (see E) are sufficient to surface the misconfiguration.
+**C.** ~~Server logs a WARNING at startup~~ — **Removed.** The startup warning was found to add noise with no actionable value; the 422 guard on `POST /recaps` is sufficient to surface the misconfiguration.
 
 **D. CLI `config email kindle|inbox` replaces the old `config kindle-email`/`config delivery-email` commands.** The new surface makes the peer relationship explicit. `relego config email kindle <addr>` sets the Send-to-Kindle address; `relego config email inbox <addr>` sets the inbox address (pass `""` to clear). `relego recap trigger` performs a client-side pre-check and returns exit code 1 with a clear message before calling the server if neither address is set.
 
-**E. TUI StatusChrome warning fires when *neither* destination is configured.** Text: `⚠ No recap delivery destination configured`. The previous Kindle-only warning is replaced. The TUI Settings screen groups both fields under a "Recap Delivery Settings" entry that opens a "Deliver recap to…" popup with independent **Send to Kindle** and **Send to inbox** fields.
-
-**F. No DB migration.** `kindle_email` remains `NOT NULL` in the schema and is seeded as `''`; the empty-string-as-unset convention is preserved. No column type change is needed.
+**E. No DB migration.** `kindle_email` remains `NOT NULL` in the schema and is seeded as `''`; the empty-string-as-unset convention is preserved. No column type change is needed.

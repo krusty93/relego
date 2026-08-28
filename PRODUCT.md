@@ -40,7 +40,6 @@ E-ink first and self-hosted. Recaps arrive as native documents on the reading de
 - Default schedule is daily at 18:00 server local time; recap size defaults to 5 highlights and is configurable from 1 to 15.
 - Exclusions can be set per highlight, book, or author; highlights can be weighted 1–5; books can be renamed.
 - Docker image provenance is verifiable with `gh attestation verify`.
-- The interactive TUI has been removed; it must not be documented as a current capability.
 - The marketing site lives in `src/landing` (Astro 7, Tailwind 4, Vercel Analytics/Speed Insights, Playwright tests including axe accessibility checks). The end-user documentation belongs on the same site at `/docs`.
 - License: MIT.
 
@@ -54,7 +53,7 @@ E-ink first and self-hosted. Recaps arrive as native documents on the reading de
 ## Evidence on Hand
 
 - `README.md` — the current end-user documentation being moved to the site (install, configure, CLI reference, troubleshooting, supply-chain verification).
-- `docs/assets/` — `tui-demo.gif`, `tui.png` (both tied to the removed TUI), `web-ui-light.png`, `web-ui-dark.png`, `relego-logo-banner.png`.
+- `docs/assets/` — `web-ui-light.png`, `web-ui-dark.png`, `relego-logo-banner.png`.
 - `docs/examples/kindle-highlights.txt` and `docs/examples/kobo-highlights.sqlite` — real sample data users can run against with no device.
 - `src/landing/assets/hero-kindle.jpg`.
 - No testimonials, customer names, install counts, benchmarks, pricing, or uptime claims exist. None may be invented.

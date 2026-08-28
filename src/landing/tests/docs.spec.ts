@@ -228,7 +228,6 @@ test.describe('Docs', () => {
 			'currentSrc',
 			'http://localhost:4321/images/docs/relego-web-library-mobile.webp',
 		);
-		await expect(page.locator('img[src*="tui-demo"]')).toHaveCount(0);
 	});
 
 	test('the docs site title links back to the landing page', async ({ page }) => {
