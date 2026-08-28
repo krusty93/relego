@@ -26,7 +26,7 @@ export interface HotkeyHandlers {
 /**
  * Installs the global keyboard layer.
  *
- * `g` opens a 1.2s chord window so `g l` / `g s` work like they do in the TUI, and every
+ * `g` opens a 1.2s chord window so `g l` / `g s` work as go-to chords, and every
  * handler is suppressed while focus sits in a text field so typing is never intercepted.
  */
 export function useHotkeys(handlers: HotkeyHandlers): void {

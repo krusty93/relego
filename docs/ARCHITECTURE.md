@@ -80,13 +80,9 @@ All sources are responsible for transforming raw source data into structured dat
   - Bookmarks: entries of type "Bookmark" are silently dropped
   - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
 
-#### TUI subsystem (`Relego.Cli/Tui/`)
+#### TUI subsystem
 
-> **Deprecated:** The TUI is deprecated in favour of the `relego.web` project. It will be removed in a future release.
-
-When invoked with no arguments in an interactive terminal (`relego`), the client enters **TUI mode** — a full-screen terminal UI powered by [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) (v2).
-
-**Dual-mode launch** (`Program.cs`): if `args.Length == 0 && !Console.IsInputRedirected`, `TuiApp.RunAsync()` is called; otherwise the Spectre.Console `CommandApp` handles the sub-command (e.g. `relego sync`).
+> **Removed:** The TUI has been removed. Use the [web UI](http://localhost:8081) instead.
 
 ### Server (`relego-server`)
 
@@ -186,7 +182,7 @@ excluded_authors (id, user_id, author_id, excluded_at)
 settings         (user_id, schedule['daily'|'weekly'], delivery_day, delivery_time[default:'18:00'], count[1-15, default:3])
 ```
 
-> **Delivery destinations:** both `kindle_email` and `delivery_email` are optional; at least one must be set for recap delivery. `POST /recaps` returns HTTP 422 when neither is configured; the TUI shows a persistent warning.
+> **Delivery destinations:** both `kindle_email` and `delivery_email` are optional; at least one must be set for recap delivery. `POST /recaps` returns HTTP 422 when neither is configured.
 
 > **MVP note:** Single-user only. The server auto-creates or reuses user `id = 1` on demand for every API request.
 
@@ -293,10 +289,9 @@ src/Relego.Core/
 
 src/Relego.Cli/
 ├── Commands/           # Spectre.Console CLI sub-commands (sync, status, config, …)
-├── Import/             # Device import workflow shared by the CLI and the TUI
+├── Import/             # Device import workflow
 ├── Infrastructure/     # HTTP client and resilience
-├── Tui/                # Terminal.Gui TUI (TuiApp, screens, StatusChrome, …)
-└── Program.cs          # Dual-mode entry point (TUI or CLI)
+└── Program.cs          # CLI entry point
 
 src/Relego.Server/
 ├── Data/               # Dapper repositories over SQLite
@@ -312,8 +307,7 @@ src/Relego.Tests/
 ├── Infrastructure/     # Database/bootstrap tests
 ├── Parsing/            # Parser tests
 ├── Recap/              # Recap service tests
-├── Sources/            # Highlight source, resolver, and multi-import tests
-└── Tui/                # TUI logic tests (mode detection, search, screen key handling)
+└── Sources/            # Highlight source, resolver, and multi-import tests
 
 src/relego.web/             # React/Vite SPA published with Relego.Server
 ├── relego.web.esproj # JavaScript SDK project referenced by the server

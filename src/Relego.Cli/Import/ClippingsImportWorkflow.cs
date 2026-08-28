@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Relego.Cli.Infrastructure;
 using Relego.Core.Parsing;
 using Relego.Core.Sources;
@@ -43,7 +43,7 @@ public sealed class ClippingsImportWorkflow(
             return (resolution, null);
         }
 
-        // Nothing detected — give the interactive prompt (CLI/TUI) a chance to supply a path.
+        // Nothing detected — give the interactive prompt a chance to supply a path.
         if (options.ResolvePathAsync is not null)
         {
             var prompted = await options

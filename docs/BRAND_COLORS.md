@@ -26,11 +26,11 @@ Implementations derive their own semantic tokens from the canonical palette:
 
 - `src/landing/styles/global.css` uses the canonical palette for the public site.
 - `src/relego.web/src/styles/tokens.css` contains the product UI's derived tokens. Its light-mode accent variants preserve contrast because the raw `#b56b39` accent is not suitable for normal-sized text or white button text.
-- `src/Relego.Core/Branding/BrandColors.cs` and `src/Relego.Cli/Tui/TuiTheme.cs` contain the current CLI/TUI mapping. This pointer remains until the TUI is removed.
+- `src/Relego.Core/Branding/BrandColors.cs` contains the CLI mapping.
 
 ## Contrast targets
 
 - Main and status text meet WCAG AA for normal text (>= 4.5:1).
 - Accent text uses a contrast-safe semantic variant rather than the raw light-mode accent.
 
-Contrast checks are covered by `src/Relego.Tests/Tui/BrandColorsTests.cs`. The web UI is checked end to end by `src/relego.web/tests/a11y.spec.ts`, which runs axe-core over every route in both themes at desktop and mobile widths.
+The web UI is checked end to end by `src/relego.web/tests/a11y.spec.ts`, which runs axe-core over every route in both themes at desktop and mobile widths.
