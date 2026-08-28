@@ -101,8 +101,8 @@ test.describe('Docs', () => {
 	test('the right-hand TOC indents nested headings', async ({ page }) => {
 		await page.goto('/docs/import/');
 
-		const nestedHeading = page.locator('starlight-toc a[href="#in-the-web-interface"]');
-		await expect(nestedHeading).toContainText('In the web interface');
+		const nestedHeading = page.locator('starlight-toc a[href="#kindle"]');
+		await expect(nestedHeading).toContainText('Kindle');
 		await expect
 			.poll(() => nestedHeading.evaluate((link) => parseFloat(getComputedStyle(link).paddingInlineStart)))
 			.toBeGreaterThan(12);
@@ -185,10 +185,10 @@ test.describe('Docs', () => {
 		await expect(page.getByRole('heading', { name: 'Try it without a relay first' })).toHaveCount(0);
 
 		await page.goto('/docs/reference/cli/');
-		await expect(page.getByRole('heading', { name: 'CLI', exact: true })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Install the CLI' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Relego CLI', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'CLI Installation', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Using Docker with a reader' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Configuration and delivery' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'CLI Command Reference', exact: true })).toBeVisible();
 		await expect(page.getByText('Integer from 1 to 15')).toBeVisible();
 	});
 

@@ -10,13 +10,14 @@ test.describe('Navigation', () => {
 		await expect(logotype).toHaveText('relego.');
 	});
 
-	test('"View on GitHub" link points to configured GitHub URL', async ({ page }) => {
+	test('GitHub icon link points to configured GitHub URL', async ({ page }) => {
 		const githubLink = page.locator('nav a[href*="github.com"]').first();
 		await expect(githubLink).toBeVisible();
 		await expect(githubLink).toHaveAttribute('href', 'https://github.com/Krusty93/relego');
+		await expect(githubLink).toHaveAttribute('aria-label', 'View on GitHub');
 	});
 
-	test('"View on GitHub" link opens in a new tab', async ({ page }) => {
+	test('GitHub icon link opens in a new tab', async ({ page }) => {
 		const githubLink = page.locator('nav a[href*="github.com"]').first();
 		await expect(githubLink).toHaveAttribute('target', '_blank');
 		await expect(githubLink).toHaveAttribute('rel', /noopener/);
