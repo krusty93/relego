@@ -1,0 +1,40 @@
+---
+import { siteConfig } from '../config/site';
+---
+
+<a href="/" class="relego-sitetitle" aria-label={`${siteConfig.name} home`}>
+	<span class="relego-sitetitle__mark">{siteConfig.logotype}</span>
+	<span class="relego-sitetitle__section">docs</span>
+</a>
+
+<style>
+	.relego-sitetitle {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		text-decoration: none;
+		color: var(--sl-color-white);
+		overflow: hidden;
+	}
+
+	.relego-sitetitle__mark {
+		font-family: 'Playfair Display', Georgia, serif;
+		font-weight: 300;
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+
+	.relego-sitetitle__section {
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--sl-color-gray-3);
+		padding-inline-start: 0.5rem;
+		border-inline-start: 1px solid var(--relego-rule);
+	}
+
+	.relego-sitetitle:hover .relego-sitetitle__section {
+		color: var(--sl-color-white);
+	}
+</style>

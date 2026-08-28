@@ -95,9 +95,16 @@
  *   --stop --key K               kill a daemonized question.
  *   --update --key K --payload F deliver the next hand after a re-roll: the
  *              live page swaps to loading cards when the user re-rolls, and
- *              reloads into this new payload the moment it lands.
+ *              reloads into this new payload the moment it lands. Always the
+ *              same key the round started with; a second --start serves a new
+ *              URL and strands the open tab on a hand that never arrives.
  *
- *   node serve-question.mjs --payload question.json [--timeout 900] [--no-open] [--port 0]
+ * --timeout bounds the wait for a page to arrive, never the user's decision:
+ * once the page heartbeats, the server lives while the page does, and exits
+ * only after --idle-grace seconds (default 600) pass with no beat, wide
+ * enough to survive a closed laptop lid mid-decision.
+ *
+ *   node serve-question.mjs --payload question.json [--timeout 900] [--idle-grace 600] [--no-open] [--port 0]
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -120,11 +127,13 @@ if (process.env.IMPECCABLE_QUESTION_DISABLED) {
 }
 // Headless self-detection, applied only where a browser is actually wanted.
 // --no-open means the caller opens the URL itself, and --wait / --stop /
-// --schema never open anything: --wait polls a daemon whose browser question
-// was already settled at --start, --stop kills one, --schema prints text. A
-// spurious exit 2 from those breaks the documented loop, which polls --wait
-// while it exits 3 and reads --schema before building a payload.
-const wantsBrowser = !hasFlag('no-open') && !hasFlag('wait') && !hasFlag('stop') && !hasFlag('schema');
+// --schema / --update never open anything: --wait polls a daemon whose
+// browser question was already settled at --start, --stop kills one,
+// --schema prints text, and --update hands the next round to a page that is
+// already open. A spurious exit 2 from those breaks the documented loop,
+// which polls --wait while it exits 3, reads --schema before building a
+// payload, and delivers re-rolled hands with --update.
+const wantsBrowser = !hasFlag('no-open') && !hasFlag('wait') && !hasFlag('stop') && !hasFlag('schema') && !hasFlag('update');
 if (wantsBrowser && !process.env.IMPECCABLE_QUESTION_FORCE) {
   const headless =
     process.env.CI ||
@@ -161,8 +170,12 @@ function printAnswer(raw) {
       console.log('FOLLOWUP OPEN: the table stays open and the page is showing a loading hand. Deliver the next round now with --update --key <key> --payload <file>, then collect it with --wait; never leave the page waiting on a round you have not sent.');
     }
     if (a.buildPath === 'comp' || a.buildPath === 'code') {
+      // The page never writes the flip itself, but "never write it" overstated
+      // that into a rule the agent then applied to new-work's one-time offer,
+      // which exists for exactly this case: a flip on a project that had no
+      // recorded default is the only moment the preference is ever asked for.
       const origin = a.buildPathFlipped
-        ? 'flipped on the page, so it binds this session only; never write it to settings'
+        ? 'flipped on the page, so it binds this session only, and the page never writes it back; the sole exception is new-work’s one-time offer, on a project that had no recorded default at all, which asks after the round closes and writes the answer to .impeccable/config.json'
         : 'the round’s recorded default';
       console.log(`BUILD PATH: ${a.buildPath} (${origin}). ${a.buildPath === 'comp'
         ? 'Comp-led: the chosen card’s comp is law; generate it before building when it does not exist yet, and the finish review audits the build against it.'
@@ -172,7 +185,20 @@ function printAnswer(raw) {
 }
 
 const payloadPath = arg('payload');
-const timeoutSec = Number(arg('timeout', '900'));
+// --timeout bounds only the wait for a page to open; 0 is the explicit
+// wait-forever. A negative or unparseable value takes the default, so a
+// typo cannot disarm the no-page exit and leak the daemon.
+const timeoutArg = Number(arg('timeout', '900'));
+const timeoutSec = Number.isFinite(timeoutArg) && timeoutArg >= 0 ? timeoutArg : 900;
+// How long the server (and the page's own delivery deadline) outlive the
+// last heartbeat; a zero, negative, or unparseable value takes the default.
+const idleGraceArg = Number(arg('idle-grace', '600'));
+const idleGraceMs = (Number.isFinite(idleGraceArg) && idleGraceArg > 0 ? idleGraceArg : 600) * 1000;
+// How long a delivered next hand may sit unclaimed before it means no page
+// is coming back: --wait reads it to keep a stalled page from counting as
+// closed mid-delivery, and the daemon reads it to survive until the page's
+// watch claims a hand delivered moments before the idle deadline.
+const NEXT_CLAIM_GRACE_MS = 10000;
 const portArg = Number(arg('port', '0'));
 const QUESTION_DIR = path.join(process.cwd(), '.impeccable', 'questions');
 const stateFile = (key) => path.join(QUESTION_DIR, `${key}.state.json`);
@@ -199,7 +225,7 @@ if (hasFlag('schema')) {
     canonCard: { label: 'The category standard', thesis: 'What this category ships, executed impeccably.', palette: ['#ffffff', '#111827', '#2563eb'], materials: ['clean grid', 'product photography'], viewport: 'The arrangement a visitor expects, at full craft.', risk: 'Indistinguishable from the competition by design.', comp: '.impeccable/mocks/decision/canon.webp' },
     steer: true,
   }, null, 2));
-  console.log('\nOption ids return verbatim in ANSWER; "reroll" and "canon" are reserved. hero/board/comp accept URLs or local paths; comp slots may point at files that do not exist yet (serve first, generate after; the page polls until they land, so never block serving on generation). hero on a challenger is the inspiration it draws from and renders picture-in-picture beside the comp, never as the promise of the build. verdict routes rendering: "wins" and "competitive" challengers keep full cards, "declined" ones render demoted after them (narrow, quiet, art as a labeled thumb, "Adopt anyway"), with their kept line on the front; the page reorders declined cards to the end on its own. raised on the assigned card renders each donation as a named raise line. Salience parity: when the assigned card declares no comp (no image generation this round), catalog art on every card demotes to a labeled thumb, so what looks important is the verdict’s call, never rendering luck. canonCard renders the standing exit as a subordinate card with the same anatomy; without it, canon stays a quiet footer action. Include canon only for visual-direction rounds; never present it as your own recommendation. The pick card is a kicker convention, not a field: kicker "IMPECCABLE’S PICK" on your top-ranked grounded candidate, one at most, never in the lead slot. Every card gets the full anatomy, challengers, canon, and declined included: thesis, palette, materials, viewport, risk; the seed already hands you each challenger’s system rules, so a card with no palette chips is an authoring gap, not a data gap. Keep thesis and each fact to one short sentence: the card front shows thesis, identity, and a two-line risk, while first viewport and the case read on the card back behind the Details chip, so long facts cost the reader a flip, not the page its scanability. A card with no imagery at all has no back; its full read renders on the front, so a text-only round loses nothing. A card may instead declare "wireframe" ({"cols":12,"rows":10,"regions":[{"label":"nav rail","x":0,"y":0,"w":3,"h":10,"accent":true}]}): the page draws it as a layout schematic in the media slot; surface-scope rounds use it on code-led builds, it never counts toward salience, and the card keeps its full read on the front. The comp slot carries the card’s full-fidelity direction comp (the legacy key "sketch" is accepted as an alias). Comp aspect follows the surface: portrait at device viewport for native or mobile-first surfaces, landscape otherwise; the page adapts its cards to either. reroll accepts true or { "registers": ["safer", "bolder"] }: the register buttons steer the next hand along the familiar-to-bold axis, the answer carries "register", and you re-run concept-seed with --register <value> for the next round; offer the registers on direction rounds, and never pre-select one. buildPath rides the payload as { "value": "comp"|"code", "toggle": true }: the value is the recorded default (.impeccable/settings.json, or a PRODUCT.md standing commitment as fallback) and the toggle renders a footer switch whose flip binds that session only; the ANSWER then carries buildPath plus buildPathFlipped. On a code-led round each card still declares its comp path as a flip reserve: wireframes render, and a flip to comp makes --wait return once with BUILD PATH FLIPPED so you generate the comps into the declared slots while the round stays open; a flip back to code is free, and a comp that already landed stays as the critique reference. Offer the toggle only when image generation exists. followup: true keeps the table open after a pick for a second round via --update; send the next payload immediately, the page is waiting on it.');
+  console.log('\nOption ids return verbatim in ANSWER; "reroll" and "canon" are reserved. hero/board/comp accept URLs or local paths; comp slots may point at files that do not exist yet (serve first, generate after; the page polls until they land, so never block serving on generation). hero on a challenger is the inspiration it draws from and renders picture-in-picture beside the comp, never as the promise of the build. verdict routes rendering: "wins" and "competitive" challengers keep full cards, "declined" ones render demoted after them (narrow, quiet, art as a labeled thumb, "Adopt anyway"), with their kept line on the front; the page reorders declined cards to the end on its own. raised on the assigned card renders each donation as a named raise line. Salience parity: when the assigned card declares no comp (no image generation this round), catalog art on every card demotes to a labeled thumb, so what looks important is the verdict’s call, never rendering luck. canonCard renders the standing exit as a subordinate card with the same anatomy; without it, canon stays a quiet footer action. Include canon only for visual-direction rounds; never present it as your own recommendation. The pick card is a kicker convention, not a field: kicker "IMPECCABLE’S PICK" on your top-ranked grounded candidate, one at most, never in the lead slot. Every card gets the full anatomy, challengers, canon, and declined included: thesis, palette, materials, viewport, risk; the seed already hands you each challenger’s system rules, so a card with no palette chips is an authoring gap, not a data gap. Keep thesis and each fact to one short sentence: the card front shows thesis, identity, and a two-line risk, while first viewport and the case read on the card back behind the Details chip, so long facts cost the reader a flip, not the page its scanability. A card with no imagery at all has no back; its full read renders on the front, so a text-only round loses nothing. A card may instead declare "wireframe" ({"cols":12,"rows":10,"regions":[{"label":"nav rail","x":0,"y":0,"w":3,"h":10,"accent":true}]}): the page draws it as a layout schematic in the media slot; surface-scope rounds use it on code-led builds, it never counts toward salience, and the card keeps its full read on the front. The comp slot carries the card’s full-fidelity direction comp (the legacy key "sketch" is accepted as an alias). Comp aspect follows the surface: portrait at device viewport for native or mobile-first surfaces, landscape otherwise; the page adapts its cards to either. reroll accepts true or { "registers": ["safer", "bolder"] }: the register buttons steer the next hand along the familiar-to-bold axis, the answer carries "register", and you re-run concept-seed with --register <value> for the next round; offer the registers on direction rounds, and never pre-select one. buildPath rides the payload as { "value": "comp"|"code", "toggle": true }: the value is the recorded default (.impeccable/config.json buildPath, or .impeccable/config.local.json where one machine differs) and the toggle renders a footer switch whose flip binds that session only; the ANSWER then carries buildPath plus buildPathFlipped. On a code-led round each card still declares its comp path as a flip reserve: wireframes render, and a flip to comp makes --wait return once with BUILD PATH FLIPPED so you generate the comps into the declared slots while the round stays open; a flip back to code is free, and a comp that already landed stays as the critique reference. The toggle may only be offered when image generation exists: a harness with no image tool and no API key never sets toggle: true, so the choice never renders where comps cannot be made, and code-led simply rides as the untoggleable value. followup: true keeps the table open after a pick for a second round via --update; send the next payload immediately, the page is waiting on it.');
   process.exit(0);
 }
 
@@ -239,7 +265,19 @@ if (hasFlag('wait')) {
     }
     try {
       const state = JSON.parse(fs.readFileSync(stateFile(key), 'utf8'));
-      if (state.lastBeat && Date.now() - state.lastBeat > 15000) { sawClose = true; break; }
+      // A silent page is not a closed one while a freshly delivered next
+      // hand sits unclaimed: a stalled page stops beating by design and its
+      // watch reloads, beating again, within seconds of the file landing.
+      // The suppression is age-bound because a closed tab never claims the
+      // hand: a file still there after the grace means no page is coming.
+      const midDelivery = (() => {
+        try { if (Date.now() - fs.statSync(path.join(QUESTION_DIR, `${key}.next.json`)).mtimeMs < NEXT_CLAIM_GRACE_MS) return true; }
+        catch { /* nothing delivered */ }
+        // The claim deletes that file before the reloaded page can beat: the
+        // claim stamp the server persisted covers the same bounded gap.
+        return Boolean(state.claimedAt) && Date.now() - state.claimedAt < NEXT_CLAIM_GRACE_MS;
+      })();
+      if (!midDelivery && state.lastBeat && Date.now() - state.lastBeat > 15000) { sawClose = true; break; }
     } catch { /* state mid-write */ }
     await new Promise((r) => setTimeout(r, 1000));
   }
@@ -276,10 +314,33 @@ if (hasFlag('stop')) {
 if (hasFlag('update')) {
   const key = arg('key');
   if (!key || !payloadPath) { console.error('serve-question: --update needs --key and --payload'); process.exit(1); }
-  JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
-  try { process.kill(JSON.parse(fs.readFileSync(stateFile(key), 'utf8')).pid, 0); }
-  catch { console.error('serve-question: no live question server for that key'); process.exit(2); }
-  fs.copyFileSync(payloadPath, path.join(QUESTION_DIR, `${key}.next.json`));
+  // A hand the server cannot load must fail here, at the sender: delivered
+  // anyway, the page would see ready:true for a round that never renders.
+  const nextRound = JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
+  if (!nextRound || !Array.isArray(nextRound.options) || nextRound.options.length === 0) {
+    console.error('serve-question: --update payload needs an options array; nothing was delivered. Fix the payload and rerun --update on the same key.');
+    process.exit(1);
+  }
+  // Liveness mirrors --wait: a fresh page heartbeat is the primary proof, the
+  // kill probe is secondary, and EPERM means a sandbox blocked the signal,
+  // never a dead server. This is the documented re-roll delivery step, so a
+  // false "no live server" here strands the page mid-shuffle.
+  const live = (() => {
+    try {
+      const state = JSON.parse(fs.readFileSync(stateFile(key), 'utf8'));
+      if (state.lastBeat && Date.now() - state.lastBeat < 12000) return true;
+      try { process.kill(state.pid, 0); return true; }
+      catch (err) { return err.code === 'EPERM'; }
+    } catch { return false; }
+  })();
+  if (!live) { console.error('serve-question: no live question server for that key; the page it served is gone too. Re-present the round with --start and a fresh key, or fall back to the structured question tool.'); process.exit(2); }
+  const deliveredFile = path.join(QUESTION_DIR, `${key}.next.json`);
+  fs.copyFileSync(payloadPath, deliveredFile);
+  // The file's mtime is the delivery clock --wait's grace reads: stamp it
+  // here, because a copy that preserves the source payload's older mtime
+  // would start the grace already spent.
+  const deliveredAt = new Date();
+  fs.utimesSync(deliveredFile, deliveredAt, deliveredAt);
   console.log('next round delivered; the page reloads itself');
   process.exit(0);
 }
@@ -297,7 +358,8 @@ if (hasFlag('start')) {
   const logFd = fs.openSync(logFile, 'a');
   const child = spawn(process.execPath, [
     fileURLToPath(import.meta.url), '--payload', payloadPath, '--detached-serve', '--key', key,
-    '--timeout', String(timeoutSec), ...(hasFlag('open') ? [] : ['--no-open']),
+    '--timeout', String(timeoutSec), ...(arg('idle-grace') ? ['--idle-grace', arg('idle-grace')] : []),
+    ...(hasFlag('open') ? [] : ['--no-open']),
   ], { detached: true, stdio: ['ignore', logFd, logFd] });
   child.unref();
   fs.closeSync(logFd);
@@ -334,6 +396,13 @@ let localImages = [];
 // even when the round never rendered a toggle.
 let buildPathDefault = null;
 let liveBuildPath = null;
+// True between a collected re-roll or followup answer and the --update that
+// replaces the round: the window where GET / must serve the wait, not the
+// answered cards. The timestamp anchors the delivery deadline server-side,
+// so a native refresh re-enters the wait with the time already spent, never
+// with a fresh allowance.
+let awaitingNext = false;
+let awaitingNextSince = 0;
 
 function loadRound(json) {
   const parsed = JSON.parse(json);
@@ -383,6 +452,9 @@ function loadRound(json) {
     ? { value: parsed.buildPath.value, toggle: parsed.buildPath.toggle === true }
     : null;
   liveBuildPath = buildPathDefault?.value ?? null;
+  // Last: a round that failed to load anywhere above must leave the waiting
+  // window open, never resurrect the answered cards.
+  awaitingNext = false;
 }
 try { loadRound(raw); } catch (error) { console.error(`serve-question: ${error.message}`); process.exit(1); }
 const detachedKey = hasFlag('detached-serve') ? arg('key') : null;
@@ -390,7 +462,11 @@ const nextFile = () => detachedKey ? path.join(QUESTION_DIR, `${detachedKey}.nex
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-function page() {
+function page(waiting = false) {
+  // The delivery deadline survives refreshes: a waiting page gets whatever
+  // remains of the original allowance, so reloading cannot renew it. Spent
+  // means the page renders already stalled and never starts a heartbeat.
+  const waitBudgetMs = waiting ? Math.max(0, awaitingNextSince + idleGraceMs - Date.now()) : idleGraceMs;
   const flipChip = (label) => `<button type="button" class="chip flip" aria-label="Flip the card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 1-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 5.5V12h6.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${label}</span></button>`;
   const expandChip = `<button type="button" class="chip expand" aria-label="Expand the image"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   // Structured anatomy: chips and one-line facts render when the payload
@@ -483,8 +559,9 @@ function page() {
     option.body && option.thesis ? `<p class="detail more">${esc(option.body)}</p>` : '',
   ].filter(Boolean).join('\n            ');
   const media = (option) => {
-    const inspiration = option.heroSrc ? `<figure class="pip" title="Inspiration: the world this direction draws from. Your page will not look like this image.">
-              <img src="${esc(option.heroSrc)}" alt="">
+    const inspirationSrc = option.heroSrc || option.boardSrc;
+    const inspiration = inspirationSrc ? `<figure class="pip" title="Inspiration: the world this direction draws from. Your page will not look like this image.">
+              <img src="${esc(inspirationSrc)}" alt="">
               <figcaption>inspiration</figcaption>
             </figure>` : '';
     const details = hasBack(option) ? flipChip('Details') : '';
@@ -492,10 +569,12 @@ function page() {
     // and a declined card's comp slot is ignored outright.
     if (thumbOnly(option)) return '';
     if (faceComp(option)) {
+      const textOnlyFacts = backFacts(option);
       return `<div class="media comp-pending" data-comp="${esc(option.compSrc)}">
             <div class="shimmer"><span class="comp-note">rendering&hellip;</span></div>
             <img class="comp" alt="" hidden>
             ${inspiration}
+            <template class="text-only-facts">${textOnlyFacts}</template>
             <div class="chips">${expandChip}${details}</div>
           </div>`;
     }
@@ -605,7 +684,7 @@ function page() {
   .brand { display: flex; align-items: center; gap: .55rem; color: var(--ks-kinpaku); }
   .brand svg { width: 22px; height: 22px; }
   .wordmark { font-family: var(--ks-font-display); font-weight: 400; font-size: 1.125rem; letter-spacing: 0.15em; text-transform: uppercase; line-height: 1; color: var(--ks-kinpaku); }
-  .headline { display: flex; align-items: center; gap: .9rem; }
+  .headline { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; }
   .headline-die { flex: none; width: 34px; height: 34px; color: var(--ks-kinpaku); }
   h1 { font-family: var(--ks-font-display); font-weight: 100; font-size: clamp(2.6rem, 5vw, 4.2rem); letter-spacing: -0.01em; line-height: 1.02; color: var(--ks-champagne); }
   .question { color: var(--ks-text-muted); margin-top: .7rem; max-width: 52rem; }
@@ -820,16 +899,32 @@ function page() {
   #steer { flex: 1; min-width: 16rem; background: var(--ks-lacquer-raised); color: var(--ks-text); border: 1px solid var(--ks-rule); border-radius: 7px; padding: .6rem .85rem; font: inherit; }
   #steer:focus { outline: none; border-color: var(--ks-patina); }
   /* Build-path toggle: a workflow preference surfaced as a quiet segmented
-     control, its trade stated in one line that changes with the selection.
-     The default comes from the payload (settings); flipping binds this
-     session only, and the agent learns about a code-to-comp flip live. */
-  #build-path { display: flex; flex-direction: column; gap: 4px; }
-  .bp-switch { display: inline-flex; border: 1px solid var(--ks-rule); border-radius: 6px; overflow: hidden; align-self: flex-start; }
+     control on the headline row, right-aligned opposite the title, its trade stated in
+     one line that changes with the selection. The default comes from the
+     payload (settings); flipping binds this session only, and the agent
+     learns about a code-to-comp flip live. Rendered only when the payload
+     offers it, which the agent does only when image generation exists. */
+  #build-path { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex: none; margin-left: auto; }
+  .bp-switch { display: inline-flex; border: 1px solid var(--ks-rule); border-radius: 6px; overflow: hidden; }
+  .bp-note { text-align: right; }
   .bp-opt { font-family: var(--ks-mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; background: transparent; border: 0; color: var(--ks-text-faint); cursor: pointer; transition: color .2s ease, background-color .2s ease; }
   .bp-opt + .bp-opt { border-left: 1px solid var(--ks-rule); }
   .bp-opt.active { color: var(--ks-dark-ink); background: var(--ks-kinpaku-rich); }
   .bp-opt:not(.active):hover { color: var(--ks-text); }
   .bp-note { font-family: var(--ks-mono); font-size: .58rem; letter-spacing: .04em; color: var(--ks-text-faint); max-width: 21rem; line-height: 1.5; }
+  /* Flipping to comp starts billed, minutes-long generation, so it asks
+     first; flipping back is free and never does. */
+  #bp-confirm { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: oklch(4% 0.004 95 / 0.72); opacity: 0; transition: opacity .2s ease; }
+  #bp-confirm[hidden] { display: none; }
+  #bp-confirm.open { opacity: 1; }
+  .bp-confirm-panel { max-width: 26rem; margin: 1rem; background: var(--ks-lacquer-raised); border: 1px solid var(--ks-rule); border-radius: 10px; padding: 1.4rem 1.5rem 1.3rem; box-shadow: 0 30px 80px oklch(0% 0 0 / 0.55); }
+  .bp-confirm-panel h2 { font-family: var(--ks-font); font-size: 1.125rem; font-weight: 500; color: var(--ks-champagne); margin-bottom: .55rem; }
+  .bp-confirm-panel p { font-size: .875rem; line-height: 1.55; color: var(--ks-text-muted); }
+  .bp-confirm-actions { display: flex; gap: .6rem; margin-top: 1.1rem; }
+  .bp-confirm-go { background: var(--ks-kinpaku); color: var(--ks-dark-ink); border: 0; font: inherit; font-weight: 500; padding: 9px 22px; border-radius: 6px; cursor: pointer; }
+  .bp-confirm-go:hover { background: var(--ks-kinpaku-pale); }
+  .bp-confirm-stay { background: transparent; color: var(--ks-text-muted); border: 1px solid var(--ks-rule); font: inherit; padding: 9px 18px; border-radius: 6px; cursor: pointer; }
+  .bp-confirm-stay:hover { color: var(--ks-text); border-color: var(--ks-text-faint); }
   .reroll-btn { display: inline-flex; align-items: center; align-self: stretch; gap: 8px; padding: 0 16px; font-family: var(--ks-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ks-kinpaku); background: transparent; border: 1px solid var(--ks-rule); border-radius: 6px; cursor: pointer; transition: border-color .2s ease, color .2s ease; }
   .reroll-btn:hover { color: var(--ks-kinpaku-pale); border-color: var(--ks-kinpaku-deep); }
   .reroll-btn svg { width: 15px; height: 15px; }
@@ -843,6 +938,7 @@ function page() {
      not a recommendation. */
   #canon { align-self: center; padding: 0 4px; font-family: var(--ks-mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: inherit; opacity: .45; background: transparent; border: none; border-bottom: 1px dotted currentColor; cursor: pointer; transition: opacity .2s ease; }
   #canon:hover { opacity: .85; }
+  #canon[disabled] { opacity: .18; cursor: default; }
   .card.skeleton .media { background: var(--ks-graphite); }
   .shimmer { width: 100%; height: 100%; background: linear-gradient(100deg, var(--ks-graphite) 35%, var(--ks-graphite-2) 50%, var(--ks-graphite) 65%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
   .card.skeleton .line { height: 11px; border-radius: 4px; background: linear-gradient(100deg, var(--ks-graphite) 35%, var(--ks-graphite-2) 50%, var(--ks-graphite) 65%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
@@ -854,10 +950,23 @@ function page() {
   @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -80% 0; } }
   @media (prefers-reduced-motion: reduce) { .shimmer, .card.skeleton .line { animation: none; } }
   .done { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 7rem 1rem; font-family: var(--ks-font-display); font-size: 1.4rem; color: var(--ks-champagne); text-align: center; }
+  .stall { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 1.2rem; padding: 4.5rem 1rem; font-family: var(--ks-font-display); font-size: 1.4rem; color: var(--ks-champagne); text-align: center; }
+  .stall .choose { align-self: center; margin-top: 0; }
 </style>
 <div id="ambient" aria-hidden="true"></div>
 <div id="scrim" aria-hidden="true"></div>
 <div id="lightbox" hidden><img alt=""></div>
+<template id="tpl-expand-chip">${expandChip}</template>
+${buildPath?.toggle ? `<div id="bp-confirm" role="dialog" aria-modal="true" aria-labelledby="bp-confirm-title" hidden>
+  <div class="bp-confirm-panel">
+    <h2 id="bp-confirm-title">Flip to comp-first?</h2>
+    <p>The agent starts rendering a comp for every open card right away, about a minute or two per card on your image provider, and the images land on the cards as they finish. This flip binds this session only.</p>
+    <div class="bp-confirm-actions">
+      <button type="button" class="bp-confirm-go" data-confirm>Render comps</button>
+      <button type="button" class="bp-confirm-stay" data-cancel>Keep code-first</button>
+    </div>
+  </div>
+</div>` : ''}
 <header>
   <div class="brand">
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 2.5 L13.5 2.5 L5.5 21.5 L5 21.5 Q2.5 21.5 2.5 19 L2.5 5 Q2.5 2.5 5 2.5 Z"/><path d="M16.5 2.5 L19 2.5 Q21.5 2.5 21.5 5 L21.5 19 Q21.5 21.5 19 21.5 L8.5 21.5 Z"/></svg>
@@ -869,6 +978,13 @@ function page() {
     <div class="headline">
       <svg class="headline-die" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.4" cy="8.4" r="1.5" fill="currentColor"/><circle cx="15.6" cy="8.4" r="1.5" fill="currentColor"/><circle cx="8.4" cy="15.6" r="1.5" fill="currentColor"/><circle cx="15.6" cy="15.6" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
       <h1>${esc(payload.title || 'Choose a direction')}</h1>
+      ${buildPath?.toggle ? `<div id="build-path" data-default="${buildPath.value}">
+        <div class="bp-switch" role="radiogroup" aria-label="Build path">
+          <button type="button" class="bp-opt" data-bp="comp" role="radio" aria-checked="false">Comp first</button>
+          <button type="button" class="bp-opt" data-bp="code" role="radio" aria-checked="false">Code first</button>
+        </div>
+        <p class="bp-note" data-bp-note></p>
+      </div>` : ''}
     </div>
     ${payload.question ? `<p class="question">${esc(payload.question)}</p>` : ''}
     <div class="deck-shell">
@@ -882,13 +998,6 @@ function page() {
 </main>
 <footer>
   ${payload.steer ? '<input id="steer" placeholder="Optional steer: what should be different or kept?">' : ''}
-  ${buildPath?.toggle ? `<div id="build-path" data-default="${buildPath.value}">
-    <div class="bp-switch" role="radiogroup" aria-label="Build path">
-      <button type="button" class="bp-opt" data-bp="comp" role="radio" aria-checked="false">Comp first</button>
-      <button type="button" class="bp-opt" data-bp="code" role="radio" aria-checked="false">Code first</button>
-    </div>
-    <p class="bp-note" data-bp-note></p>
-  </div>` : ''}
   ${(() => {
     if (!payload.reroll) return '';
     const die = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.4" cy="8.4" r="1.5" fill="currentColor"/><circle cx="15.6" cy="8.4" r="1.5" fill="currentColor"/><circle cx="8.4" cy="15.6" r="1.5" fill="currentColor"/><circle cx="15.6" cy="15.6" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>';
@@ -910,12 +1019,25 @@ function page() {
   // exits on any pick and has no update channel, so a followup payload there
   // still gets the goodbye screen, never a loading hand nothing will resolve.
   const FOLLOWUP = ${payload.followup === true && Boolean(detachedKey) ? 'true' : 'false'};
-  const beat = () => { try { navigator.sendBeacon('/heartbeat'); } catch { fetch('/heartbeat', { method: 'POST' }); } };
-  beat();
-  setInterval(beat, 5000);
+  const KEY = ${JSON.stringify(detachedKey || '')};
+  const keyQ = KEY ? '?key=' + encodeURIComponent(KEY) : '';
+  const beat = () => { try { navigator.sendBeacon('/heartbeat' + keyQ); } catch { fetch('/heartbeat' + keyQ, { method: 'POST' }); } };
+  ${waiting && waitBudgetMs <= 0 ? '' : 'beat();'}
+  const beatTimer = setInterval(beat, 5000);
+  // A dead server must fail loudly: awaiting a rejected fetch here used to
+  // swallow the click and never print the confirmation, so the user believed
+  // a choice had landed that no one would ever collect.
   async function answer(optionId) {
-    await fetch('/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optionId, steer: steer() }) });
-    if (FOLLOWUP) { await awaitNextRound(); return; }
+    // Quiet at the click: a re-roll or canon posted while this pick's POST
+    // is in flight would overwrite the answer being collected.
+    document.querySelectorAll('.reroll-btn, #canon').forEach(b => b.setAttribute('disabled', ''));
+    try {
+      await fetch('/answer' + keyQ, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optionId, steer: steer() }) });
+    } catch {
+      document.body.innerHTML = '<div class="done">The question server went away before this choice could land.<br>Tell the agent your pick in the chat instead.</div>';
+      return;
+    }
+    if (FOLLOWUP) { await awaitNextRound(true); return; }
     document.body.innerHTML = '<div class="done"><svg viewBox="0 0 24 24" width="38" height="38" fill="oklch(84% 0.19 80.46)" aria-hidden="true"><path d="M5 2.5 L13.5 2.5 L5.5 21.5 L5 21.5 Q2.5 21.5 2.5 19 L2.5 5 Q2.5 2.5 5 2.5 Z"/><path d="M16.5 2.5 L19 2.5 Q21.5 2.5 21.5 5 L21.5 19 Q21.5 21.5 19 21.5 L8.5 21.5 Z"/></svg>Choice recorded. The agent is resuming; you can close this tab.</div>';
   }
   document.querySelectorAll('button.choose').forEach(b => b.addEventListener('click', () => answer(b.dataset.id)));
@@ -986,32 +1108,77 @@ function page() {
   const landTracker = { last: Date.now() };
   const pollComp = (m) => {
     const url = m.dataset.comp;
+    // A converted slot is the SAME node across flip cycles, so a probe from an
+    // earlier cycle can still be in flight when the next one starts. Without a
+    // generation stamp its late onload settles the new slot: shimmer stripped,
+    // pending state cleared, comp still hidden, live poll stopped.
+    const generation = String(Number(m.dataset.pollGen || 0));
+    const current = () => String(Number(m.dataset.pollGen || 0)) === generation;
     const img = m.querySelector('img.comp');
     const note = m.querySelector('.comp-note');
     const started = Date.now();
     // A live elapsed count is the difference between "working" and "frozen".
     const tick = setInterval(() => { if (note) note.textContent = 'rendering · ' + Math.round((Date.now() - started) / 1000) + 's'; }, 1000);
     const settle = () => { clearInterval(tick); m.classList.remove('comp-pending', 'stand-in'); m.querySelector('.shimmer')?.remove(); m.querySelector('.stand-in-label')?.remove(); };
-    const standIn = () => {
+    const fallback = () => {
       const pip = m.querySelector('.pip img');
-      if (!pip || m.classList.contains('stand-in')) return;
-      img.src = pip.getAttribute('src'); img.hidden = false;
-      m.classList.add('stand-in');
-      m.querySelector('.shimmer')?.remove();
-      clearInterval(tick);
-      const label = document.createElement('p');
-      label.className = 'stand-in-label';
-      label.textContent = 'inspiration · comp pending';
-      m.appendChild(label);
+      if (pip) {
+        if (m.classList.contains('stand-in')) return false;
+        img.src = pip.getAttribute('src'); img.hidden = false;
+        m.classList.add('stand-in');
+        m.querySelector('.shimmer')?.remove();
+        clearInterval(tick);
+        const label = document.createElement('p');
+        label.className = 'stand-in-label';
+        label.textContent = 'inspiration · comp pending';
+        m.appendChild(label);
+        return false;
+      }
+
+      // No comp and no inspiration is the text-only card the payload would
+      // have rendered without a comp declaration. Bring the complete read
+      // forward before removing the now-unreachable back face.
+      const card = m.closest('.card');
+      const front = card?.querySelector('.face.front');
+      const body = front?.querySelector('.body');
+      const back = card?.querySelector('.face.back');
+      const textOnlyFacts = m.querySelector('template.text-only-facts');
+      const choose = body?.querySelector(':scope > button.choose');
+      if (body && textOnlyFacts && choose) {
+        const plainDetail = body.querySelector(':scope > .detail:not(.more)');
+        [...body.children].filter((el) => el.classList.contains('fact') || el.matches('.detail.more')).forEach((el) => el.remove());
+        choose.before(textOnlyFacts.content.cloneNode(true));
+        if (plainDetail) choose.before(plainDetail);
+      }
+      card?.classList.remove('flipped');
+      front?.classList.add('text-only');
+      back?.remove();
+      settle();
+      m.remove();
+      return true;
     };
     const tryLoad = () => {
-      // A slot the user flipped back out of leaves the DOM; let its loop die.
-      if (!m.isConnected) { clearInterval(tick); return; }
+      // A slot the user flipped back out of either leaves the DOM or, when it
+      // was an inspiration face converted in place, stays and loses its
+      // pending state. Either way its loop is done.
+      if (!m.isConnected || !m.classList.contains('comp-pending') || !current()) { clearInterval(tick); return; }
       const probe = new Image();
-      probe.onload = () => { landTracker.last = Date.now(); img.src = probe.src; img.hidden = false; settle(); };
+      probe.onload = () => {
+        // A stale generation also ends this run's clock. tryLoad clears it on
+        // re-entry, and an in-flight probe that finishes stale schedules no
+        // re-entry, so returning without clearing ran the interval for the rest
+        // of the page's life.
+        if (!current()) { clearInterval(tick); return; }
+        landTracker.last = Date.now();
+        const target = m.querySelector('img.comp') || img;
+        target.src = probe.src;
+        target.hidden = false;
+        settle();
+      };
       probe.onerror = () => {
+        if (!current()) { clearInterval(tick); return; }
         const quiet = Date.now() - landTracker.last > 240000;
-        if (Date.now() - started > 240000 && quiet) standIn();
+        if (Date.now() - started > 240000 && quiet && fallback()) return;
         setTimeout(tryLoad, m.classList.contains('stand-in') ? 5000 : 2500);
       };
       probe.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
@@ -1043,17 +1210,58 @@ function page() {
       if (noteEl) noteEl.textContent = notes[value];
     };
     set(current);
+    const INSPO_TITLE = 'Inspiration: the world this direction draws from. Your page will not look like this image.';
+    // Every media slot carries the expand affordance. A slot built here after
+    // the deal used to ship without one, so a comp the user waited minutes for
+    // could not be opened.
+    const ensureChips = (m) => {
+      if (m.querySelector('.chips')) return;
+      const tpl = document.getElementById('tpl-expand-chip');
+      if (!tpl) return;
+      const chips = document.createElement('div');
+      chips.className = 'chips';
+      chips.appendChild(tpl.content.cloneNode(true));
+      m.appendChild(chips);
+    };
+    const shimmerHtml = '<div class="shimmer"><span class="comp-note">rendering&hellip;</span></div><img class="comp" alt="" hidden>';
     const enterComp = () => {
       document.querySelectorAll('.card[data-comp-slot]').forEach(card => {
         const front = card.querySelector('.face.front');
         if (!front || front.querySelector('.media.comp-pending') || front.querySelector('.media img.comp:not([hidden])')) return;
-        const m = document.createElement('div');
-        m.className = 'media comp-pending';
-        m.dataset.comp = card.dataset.compSlot;
-        m.innerHTML = '<div class="shimmer"><span class="comp-note">rendering&hellip;</span></div><img class="comp" alt="" hidden>';
-        const wireEl = front.querySelector('.media.wire');
-        if (wireEl) { wireEl.hidden = true; front.insertBefore(m, wireEl); }
-        else { front.classList.remove('text-only'); front.insertBefore(m, front.querySelector('.body')); }
+        // On a code-led card the inspiration IS the face. Comp-first demotes it
+        // to the corner, so convert that slot in place rather than inserting a
+        // second one: two stacked images say the catalog art and the comp are
+        // peers, and the whole point of the corner is that they are not.
+        const inspo = front.querySelector('.media:not(.wire):not(.comp-pending)');
+        let m;
+        if (inspo) {
+          m = inspo;
+          m.dataset.compRestore = 'inspiration';
+          m.dataset.comp = card.dataset.compSlot;
+          m.classList.add('comp-pending');
+          m.removeAttribute('title');
+          m.querySelector('.media-label')?.remove();
+          const art = m.querySelector(':scope > img');
+          if (art) {
+            const pip = document.createElement('figure');
+            pip.className = 'pip';
+            pip.title = INSPO_TITLE;
+            const cap = document.createElement('figcaption');
+            cap.textContent = 'inspiration';
+            pip.append(art, cap);
+            m.appendChild(pip);
+          }
+          m.insertAdjacentHTML('afterbegin', shimmerHtml);
+        } else {
+          m = document.createElement('div');
+          m.className = 'media comp-pending';
+          m.dataset.comp = card.dataset.compSlot;
+          m.innerHTML = shimmerHtml;
+          const wireEl = front.querySelector('.media.wire');
+          if (wireEl) { wireEl.hidden = true; front.insertBefore(m, wireEl); }
+          else { front.classList.remove('text-only'); front.insertBefore(m, front.querySelector('.body')); }
+        }
+        ensureChips(m);
         pollComp(m);
       });
     };
@@ -1062,18 +1270,62 @@ function page() {
         const front = card.querySelector('.face.front');
         const pending = front?.querySelector('.media.comp-pending');
         if (!pending) return; // landed comps stay; they exist either way
+        // A converted slot is restored, not removed: the inspiration goes back
+        // to being the face, so flipping back leaves the card as it was dealt.
+        if (pending.dataset.compRestore === 'inspiration') {
+          // Everything the pending state added has to leave, presentation
+          // included: a slot that reached stand-in kept its "inspiration comp
+          // pending" label beside a fresh one, and a slot whose art had failed
+          // came back still marked unavailable.
+          pending.classList.remove('comp-pending', 'stand-in');
+          delete pending.dataset.compRestore;
+          delete pending.dataset.comp;
+          pending.dataset.pollGen = String(Number(pending.dataset.pollGen || 0) + 1);
+          pending.querySelector('.shimmer')?.remove();
+          pending.querySelector('img.comp')?.remove();
+          pending.querySelector('.stand-in-label')?.remove();
+          pending.querySelectorAll('.media-label').forEach((el) => el.remove());
+          const pip = pending.querySelector('.pip');
+          const art = pip?.querySelector('img');
+          if (art) pending.insertBefore(art, pending.firstChild);
+          pip?.remove();
+          // No art means the image failed to load before the flip, so hand the
+          // slot back to the same honest treatment rather than calling it art.
+          const label = document.createElement('p');
+          label.className = 'media-label';
+          label.textContent = art ? 'inspiration' : 'artwork unavailable';
+          pending.insertBefore(label, pending.querySelector('.chips'));
+          if (art) pending.title = INSPO_TITLE; else pending.classList.add('unavailable');
+          return;
+        }
         pending.remove();
         const wireEl = front.querySelector('.media.wire');
         if (wireEl) wireEl.hidden = false;
         else if (!front.querySelector('.media')) front.classList.add('text-only');
       });
     };
+    const apply = (value) => {
+      set(value);
+      fetch('/build-path' + keyQ, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ value }) });
+      if (value === 'comp') enterComp(); else exitComp();
+    };
+    // Flipping to comp starts real generation, so it confirms first; the
+    // flip back is free and applies immediately.
+    const confirm = document.getElementById('bp-confirm');
+    const closeConfirm = () => { confirm.classList.remove('open'); confirm.hidden = true; };
+    confirm.querySelector('[data-confirm]').addEventListener('click', () => { closeConfirm(); apply('comp'); });
+    confirm.querySelector('[data-cancel]').addEventListener('click', closeConfirm);
+    confirm.addEventListener('click', (e) => { if (e.target === confirm) closeConfirm(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !confirm.hidden) closeConfirm(); });
     bp.querySelectorAll('.bp-opt').forEach(b => b.addEventListener('click', () => {
       const value = b.dataset.bp;
       if (value === current) return;
-      set(value);
-      fetch('/build-path', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ value }) });
-      if (value === 'comp') enterComp(); else exitComp();
+      if (value === 'comp') {
+        confirm.hidden = false;
+        requestAnimationFrame(() => confirm.classList.add('open'));
+        return;
+      }
+      apply(value);
     }));
   }
 
@@ -1107,15 +1359,42 @@ function page() {
     else img.addEventListener('error', gone, { once: true });
   });
 
-  // Inspiration PIP or body thumb opens the full catalog card in the lightbox.
-  document.querySelectorAll('.pip, .inspo').forEach(p => p.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const img = p.querySelector('img');
-    if (!img) return;
-    lightboxImg.src = img.getAttribute('src');
-    lightbox.hidden = false;
-    requestAnimationFrame(() => lightbox.classList.add('open'));
-  }));
+  // Every zoom target resolves in ONE delegated listener, in priority order.
+  // Delegation is what lets a slot built by a build-path flip work at all, and
+  // a single listener is what keeps the targets from fighting: stopPropagation
+  // ends bubbling, not other listeners on the same target, so split across two
+  // handlers a click on the corner inspiration opened the inspiration and then
+  // the comp overwrote it in the lightbox. Per-element handlers elsewhere (the
+  // flip chip, the raise cycler) still stop bubbling before the event lands
+  // here, so they keep their own behavior.
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!target || !target.closest) return;
+    // The corner inspiration wins over the slot it sits inside.
+    const pip = target.closest('.pip, .inspo');
+    if (pip) {
+      const art = pip.querySelector('img');
+      if (art) openLightbox(art);
+      return;
+    }
+    const chip = target.closest('.chip');
+    if (chip) {
+      // Only expand zooms. Any other chip owns its click and must not fall
+      // through to the media underneath it.
+      if (!chip.classList.contains('expand')) return;
+      const card = chip.closest('.card');
+      const face = card && card.classList.contains('flipped') ? '.face.back' : '.face.front';
+      const shown = card && card.querySelector(face + ' .media img:not([hidden])');
+      if (shown && shown.getAttribute('src')) openLightbox(shown);
+      return;
+    }
+    // The whole image is the zoom target, not just the chip; the chip stays as
+    // the visible affordance.
+    const media = target.closest('.media');
+    if (!media) return;
+    const art = media.querySelector(':scope > img:not([hidden])');
+    if (art && art.getAttribute('src')) openLightbox(art);
+  });
 
   // Deck paging: arrows appear only when the deck overflows its axis, page
   // one card at a time, and follow the aspect-ratio flip between row and column.
@@ -1165,16 +1444,13 @@ function page() {
   // Expand: lightbox for whichever face is showing.
   const lightbox = document.getElementById('lightbox');
   const lightboxImg = lightbox.querySelector('img');
-  document.querySelectorAll('.expand').forEach(b => b.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const card = b.closest('.card');
-    const face = card.classList.contains('flipped') ? '.face.back' : '.face.front';
-    const img = card.querySelector(face + ' .media img:not([hidden])');
-    if (!img || !img.getAttribute('src')) return;
+  // Declared, not assigned to a const, so the delegated handlers above can call
+  // it wherever they sit in this file.
+  function openLightbox(img) {
     lightboxImg.src = img.getAttribute('src');
     lightbox.hidden = false;
     requestAnimationFrame(() => lightbox.classList.add('open'));
-  }));
+  }
   // Portrait art (native / mobile-first surfaces): the slot takes the
   // image's own ratio so nothing crops, and the whole deck narrows so
   // portrait cards sit side by side. Load events don't bubble; capture.
@@ -1188,31 +1464,67 @@ function page() {
       document.querySelector('.grid')?.classList.add('portrait-media');
     }
   }, true);
-
-  // The whole image is the zoom target, not just the expand chip; the chip
-  // stays as the visible affordance. Chip and PIP handlers stop propagation,
-  // so this fires only for clicks on the art itself.
-  document.querySelectorAll('.media').forEach(m => m.addEventListener('click', () => {
-    const img = m.querySelector(':scope > img:not([hidden])');
-    if (!img || !img.getAttribute('src')) return;
-    lightboxImg.src = img.getAttribute('src');
-    lightbox.hidden = false;
-    requestAnimationFrame(() => lightbox.classList.add('open'));
-  }));
   const closeLightbox = () => { lightbox.classList.remove('open'); setTimeout(() => { lightbox.hidden = true; }, 250); };
   lightbox.addEventListener('click', closeLightbox);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lightbox.hidden) closeLightbox(); });
   document.getElementById('canon')?.addEventListener('click', () => answer('canon'));
   const dealAgain = async (register) => {
-    await fetch('/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optionId: 'reroll', steer: steer(), ...(register ? { register } : {}) }) });
-    await awaitNextRound();
+    // Quiet at the click, not after the fly-out: the POST round-trip plus
+    // the 700ms animation was a window where a second click posted another
+    // re-roll and renewed the delivery deadline.
+    document.querySelectorAll('.reroll-btn, #canon').forEach(b => b.setAttribute('disabled', ''));
+    try {
+      await fetch('/answer' + keyQ, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optionId: 'reroll', steer: steer(), ...(register ? { register } : {}) }) });
+    } catch {
+      document.body.innerHTML = '<div class="done">The question server went away before this choice could land.<br>Tell the agent your pick in the chat instead.</div>';
+      return;
+    }
+    await awaitNextRound(true);
   };
-  async function awaitNextRound() {
+  async function awaitNextRound(animate, budgetMs = ${idleGraceMs}) {
     const grid = document.querySelector('.grid');
+    let poll;
+    let misses = 0;
+    const shuffleStart = Date.now();
+    const stall = (message) => {
+      clearInterval(poll);
+      // A stalled page is an abandoned flow: keep heartbeating and the
+      // daemon never reaches its idle grace, so --wait spins on WAITING
+      // forever. Go silent and let the server reclaim itself. Reload must
+      // not undo that silence: an unconditional reload re-serves the same
+      // unresolved round and its fresh page beats again, so check for a
+      // delivered hand first and only reload when one exists. The re-roll
+      // buttons and the canon exit go too: a stalled page served already
+      // expired never disabled them, a re-roll would renew the deadline the
+      // stall just enforced, and a canon pick would overwrite a re-roll
+      // --wait already collected, closing the table under the agent.
+      clearInterval(beatTimer);
+      document.querySelectorAll('.reroll-btn, #canon').forEach(b => b.setAttribute('disabled', ''));
+      // Silence is for heartbeats only: a hand delivered after the deadline
+      // must still land without a click, so a beat-free watch keeps checking
+      // and reloads into it. /next-status never beats, so the daemon's idle
+      // grace still reclaims a flow nobody resumes.
+      const watch = setInterval(async () => {
+        try { if ((await (await fetch('/next-status')).json()).ready) { clearInterval(watch); location.reload(); } } catch { /* server gone; the screen already says so */ }
+      }, 1500);
+      grid.innerHTML = '<div class="stall"><p>' + message + '</p><button type="button" class="choose">Reload</button></div>';
+      grid.querySelector('.stall .choose').addEventListener('click', async () => {
+        try {
+          if ((await (await fetch('/next-status')).json()).ready) { location.reload(); return; }
+          grid.querySelector('.stall p').textContent = 'Still nothing to deal. Check the agent session, or answer in the chat instead.';
+        } catch {
+          grid.querySelector('.stall p').textContent = 'The question server went away. Ask the agent to restart it, or answer in the chat instead.';
+        }
+      });
+    };
+    // A refresh that lands after the delivery deadline has nothing left to
+    // wait for: stall before the heartbeat timer's first tick can fire, so
+    // the served page stays silent.
+    if (budgetMs <= 0) { stall('The next hand never arrived. Check the agent session, then reload.'); return; }
     const cardsNow = [...grid.querySelectorAll('.card')];
-    const g = grid.getBoundingClientRect();
-    const cx = g.left + g.width / 2, cy = g.top + g.height / 2;
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const g = grid.getBoundingClientRect();
+      const cx = g.left + g.width / 2, cy = g.top + g.height / 2;
       cardsNow.forEach((card, i) => {
         const r = card.getBoundingClientRect();
         card.style.transition = 'transform .5s cubic-bezier(.5,0,.75,0) ' + (i * 60) + 'ms, opacity .4s ease ' + (i * 60 + 120) + 'ms, filter .45s ease ' + (i * 60) + 'ms';
@@ -1224,32 +1536,100 @@ function page() {
     }
     const cardHeight = cardsNow[0] ? cardsNow[0].getBoundingClientRect().height : 0;
     grid.innerHTML = cardsNow.map(() => '<article class="card skeleton"' + (cardHeight ? ' style="height:' + cardHeight + 'px"' : '') + '><div class="card-inner"><div class="face front"><div class="media"><div class="shimmer"></div></div><div class="body"><div class="line tier w40"></div><div class="line title w70"></div><div class="line w90"></div><div class="line w80"></div><div class="line w60"></div><div class="line button"></div></div></div></div></article>').join('');
-    document.querySelectorAll('.reroll-btn').forEach(b => b.setAttribute('disabled', ''));
-    const poll = setInterval(async () => {
+    // Canon goes quiet with the re-roll buttons: a pick posted mid-wait can
+    // never be collected once --wait has the re-roll, only close the table.
+    document.querySelectorAll('.reroll-btn, #canon').forEach(b => b.setAttribute('disabled', ''));
+    // The wait must be able to end: a dead server rejects every tick and a
+    // round nobody delivers stays ready:false forever, and both used to spin
+    // the skeletons indefinitely. Distinguish them, say so, and offer a way
+    // out. The delivery deadline is the server's own idle grace, so the page
+    // never gives up on a server that would still accept the hand.
+    poll = setInterval(async () => {
       try {
         const status = await (await fetch('/next-status')).json();
+        misses = 0;
         if (status.ready) { clearInterval(poll); location.reload(); }
-      } catch { /* server briefly busy */ }
+        else if (Date.now() - shuffleStart > budgetMs) stall('The next hand never arrived. Check the agent session, then reload.');
+      } catch {
+        misses += 1;
+        if (misses >= 8) stall('The question server went away. Ask the agent to restart it, or answer in the chat instead.');
+      }
     }, 1200);
   }
   document.getElementById('reroll')?.addEventListener('click', () => dealAgain());
   document.getElementById('reroll-safer')?.addEventListener('click', () => dealAgain('safer'));
   document.getElementById('reroll-bolder')?.addEventListener('click', () => dealAgain('bolder'));
+  // A native refresh must not resurrect an answered round: while the server
+  // holds a collected re-roll or followup pick with no replacement delivered,
+  // it serves the page in waiting mode and the refresh re-enters the same
+  // bounded wait, with only the time the original deadline has left, instead
+  // of showing dead cards whose heartbeat props the daemon forever.
+  ${waiting ? `awaitNextRound(false, ${waitBudgetMs});` : ''}
 </script>`;
 }
 
+// Browsers omit the :80 suffix on the default HTTP port, so a server on
+// --port 80 sees bare loopback hosts and origins.
+function allowedHost(host, port) {
+  if (host === `127.0.0.1:${port}` || host === `localhost:${port}`) return true;
+  return port === 80 && (host === '127.0.0.1' || host === 'localhost');
+}
+
+function allowedOrigin(origin, port) {
+  if (origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`) return true;
+  return port === 80 && (origin === 'http://127.0.0.1' || origin === 'http://localhost');
+}
+
+function rejectDetachedPost(req, res, url, port) {
+  if (detachedKey && url.searchParams.get('key') !== detachedKey) {
+    res.writeHead(401); res.end(); return true;
+  }
+  const origin = req.headers.origin;
+  if (origin && !allowedOrigin(origin, port)) {
+    res.writeHead(403); res.end(); return true;
+  }
+  return false;
+}
+
 const server = http.createServer((req, res) => {
-  if (req.method === 'GET' && req.url === '/') {
+  const { port } = server.address();
+  if (!allowedHost(req.headers.host, port)) {
+    res.writeHead(403); res.end(); return;
+  }
+  let url;
+  try { url = new URL(req.url, 'http://127.0.0.1'); }
+  catch { res.writeHead(400); res.end(); return; }
+  const pathname = url.pathname;
+  if (req.method === 'GET' && pathname === '/') {
     const pending = nextFile();
     if (pending && fs.existsSync(pending)) {
-      try { loadRound(fs.readFileSync(pending, 'utf8')); fs.rmSync(pending); } catch { /* keep current round */ }
+      // A next file the round cannot load has to leave the disk either way:
+      // kept, /next-status stays ready:true and the waiting page reloads
+      // into the same failure without bound.
+      try { loadRound(fs.readFileSync(pending, 'utf8')); } catch { /* keep current round */ }
+      try { fs.rmSync(pending); } catch { /* already gone */ }
+      // The claim consumes the file the idle-exit hold reads, and the
+      // reloading page cannot beat until it has parsed: stamp the claim so
+      // the same bounded grace covers the gap between them. Persisted too,
+      // because --wait watches the same gap from outside this process and
+      // would otherwise read the stale beat as a closed page.
+      server.lastClaimAt = Date.now();
+      if (detachedKey) {
+        try {
+          const state = JSON.parse(fs.readFileSync(stateFile(detachedKey), 'utf8'));
+          state.claimedAt = server.lastClaimAt;
+          fs.writeFileSync(stateFile(detachedKey), JSON.stringify(state));
+        } catch { /* state file recreated on next beat */ }
+      }
     }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    res.end(page());
+    res.end(page(awaitingNext));
     return;
   }
-  if (req.method === 'POST' && req.url === '/heartbeat') {
+  if (req.method === 'POST' && pathname === '/heartbeat') {
+    if (rejectDetachedPost(req, res, url, port)) return;
     res.writeHead(204); res.end();
+    server.lastBeatSeen = Date.now();
     if (detachedKey) {
       const now = Date.now();
       if (!server.lastBeatWrite || now - server.lastBeatWrite > 4000) {
@@ -1263,13 +1643,13 @@ const server = http.createServer((req, res) => {
     }
     return;
   }
-  if (req.method === 'GET' && req.url === '/next-status') {
+  if (req.method === 'GET' && pathname === '/next-status') {
     const pending = nextFile();
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ready: Boolean(pending && fs.existsSync(pending)) }));
     return;
   }
-  const imageMatch = req.method === 'GET' && req.url?.match(/^\/img\/(\d+)(?:\?.*)?$/);
+  const imageMatch = req.method === 'GET' && pathname.match(/^\/img\/(\d+)$/);
   if (imageMatch) {
     const abs = localImages[Number(imageMatch[1])];
     if (!abs || !fs.existsSync(abs)) { res.writeHead(404); res.end(); return; }
@@ -1282,27 +1662,34 @@ const server = http.createServer((req, res) => {
     fs.createReadStream(abs).pipe(res);
     return;
   }
-  if (req.method === 'POST' && req.url === '/build-path') {
+  if (req.method === 'POST' && pathname === '/build-path') {
+    if (rejectDetachedPost(req, res, url, port)) return;
     let body = '';
     req.on('data', (chunk) => { body += chunk; });
     req.on('end', () => {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end('{"ok":true}');
       let value = null;
       try { value = JSON.parse(body).value; } catch { /* ignore */ }
-      if (value !== 'comp' && value !== 'code') return;
-      const wasComp = liveBuildPath === 'comp';
-      liveBuildPath = value;
-      // Only a flip TO comp needs the agent mid-round: comps must start
-      // rendering into the declared slots. The reverse is free.
-      if (detachedKey && value === 'comp' && !wasComp) {
-        fs.mkdirSync(QUESTION_DIR, { recursive: true });
-        fs.writeFileSync(flipFile(detachedKey), JSON.stringify({ buildPath: 'comp' }) + '\n');
+      if (value === 'comp' || value === 'code') {
+        const wasComp = liveBuildPath === 'comp';
+        liveBuildPath = value;
+        // Only a flip TO comp needs the agent mid-round: comps must start
+        // rendering into the declared slots. The reverse is free.
+        if (detachedKey && value === 'comp' && !wasComp) {
+          fs.mkdirSync(QUESTION_DIR, { recursive: true });
+          fs.writeFileSync(flipFile(detachedKey), JSON.stringify({ buildPath: 'comp' }) + '\n');
+        }
       }
+      // Answer only once the flip is on disk. Responding first raced the
+      // caller: the 200 reached the client (a separate process) while this
+      // one could still be preempted before the write landed, so a poller
+      // that trusted the 200 could look for the flip file and miss it.
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{"ok":true}');
     });
     return;
   }
-  if (req.method === 'POST' && req.url === '/answer') {
+  if (req.method === 'POST' && pathname === '/answer') {
+    if (rejectDetachedPost(req, res, url, port)) return;
     let body = '';
     req.on('data', (chunk) => { body += chunk; });
     req.on('end', () => {
@@ -1325,6 +1712,11 @@ const server = http.createServer((req, res) => {
         ...((chosen?.comp ?? chosen?.sketch) ? { comp: chosen.comp ?? chosen.sketch } : {}),
         ...(liveBuildPath && !isReroll ? { buildPath: liveBuildPath, buildPathFlipped: liveBuildPath !== (buildPathDefault?.value ?? null) } : {}),
       });
+      // The delivery deadline is single-issue: a duplicate answer racing the
+      // page's disable must not restamp the allowance already inherited.
+      const wasAwaiting = awaitingNext;
+      awaitingNext = (isReroll || followupOpen) && Boolean(detachedKey);
+      if (awaitingNext && !wasAwaiting) awaitingNextSince = Date.now();
       if (detachedKey) {
         fs.mkdirSync(QUESTION_DIR, { recursive: true });
         fs.writeFileSync(answerFile(detachedKey), answer + '\n');
@@ -1354,10 +1746,38 @@ server.listen(portArg, '127.0.0.1', () => {
   if (!hasFlag('no-open')) {
     openSystemBrowser(url);
   }
-  if (timeoutSec > 0) {
-    setTimeout(() => {
-      console.log('serve-question: timed out with no answer');
-      process.exit(2);
-    }, timeoutSec * 1000).unref?.();
-  }
+  // The timeout bounds the wait for a page, never the user's decision: an
+  // absolute guillotine counted from start used to kill the server under a
+  // still-open tab (a slow re-rolled round easily outlived it), leaving the
+  // page polling skeletons that could never resolve. Once the page beats,
+  // the server's lifetime tracks the beats, and it exits only after the idle
+  // grace passes with none, long enough to survive a closed laptop lid.
+  // --timeout 0 waits for a page forever, but the idle grace still applies
+  // once one has beat: a page that arrived and went silent is a closed tab,
+  // and no timeout setting should let that daemon leak.
+  const startedAt = Date.now();
+  const lifetime = setInterval(() => {
+    if (!server.lastBeatSeen) {
+      if (timeoutSec > 0 && Date.now() - startedAt > timeoutSec * 1000) {
+        console.log('serve-question: timed out with no answer');
+        process.exit(2);
+      }
+    } else if (Date.now() - server.lastBeatSeen > idleGraceMs) {
+      // A hand delivered moments before this deadline still gets its claim
+      // window: the stalled page's watch reloads into it and beats again
+      // within seconds, while a file unclaimed past the grace means no page
+      // is coming back (the same verdict --wait reads from its age). The
+      // claim itself holds the daemon too: GET / deletes the file before the
+      // reloaded page can beat, so a tick in that gap must not exit under
+      // the hand just claimed.
+      const pending = nextFile();
+      let deliveredAt = 0;
+      if (pending) { try { deliveredAt = fs.statSync(pending).mtimeMs; } catch { /* nothing delivered */ } }
+      if (Date.now() - Math.max(deliveredAt, server.lastClaimAt || 0) > NEXT_CLAIM_GRACE_MS) {
+        console.log('serve-question: the page stopped beating and never came back; exiting');
+        process.exit(2);
+      }
+    }
+  }, 2000);
+  lifetime.unref?.();
 });

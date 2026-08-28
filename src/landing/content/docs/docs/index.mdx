@@ -1,0 +1,47 @@
+---
+title: Relego documentation
+description: Learn how Relego brings your Kindle and Kobo highlights back to you.
+editUrl: false
+---
+
+## What is Relego?
+
+Relego is a free, self-hosted way to revisit the passages you highlight while
+reading. It imports highlights from your Kindle or Kobo, selects a small set
+with spaced repetition, and delivers them back to your reader or inbox.
+
+Your highlights stay on your own hardware. There is no account, subscription,
+or cloud service involved.
+
+![Relego's Library page showing imported books, authors, highlight counts, and recap status.](/images/docs/relego-web-library.webp)
+
+## Set up your first recap
+
+You will need a Kindle or Kobo highlight file, Docker, and an SMTP relay.
+The [smtp4dev demo profile](/docs/reference/environment/#a-working-example)
+is there if you want to test delivery before choosing a relay.
+
+<a className="first-recap__start" href="/docs/round-trip/">
+  Set up your first recap <span aria-hidden="true">→</span>
+</a>
+
+<ol className="first-recap__checklist">
+  <li>
+    <strong><a href="/docs/import/">Start the server</a></strong>
+    <span>Open the web interface when it is running. If it does not load, check the Docker command on the Import page.</span>
+  </li>
+  <li>
+    <strong><a href="/docs/import/">Import your highlights</a></strong>
+    <span>Upload the Kindle or Kobo file and confirm the library reports what it added.</span>
+  </li>
+  <li>
+    <strong><a href="/docs/deliver/">Set a delivery address</a></strong>
+    <span>Save your Kindle address or inbox in Settings, then check the relay guidance if saving or sending fails.</span>
+  </li>
+  <li>
+    <strong><a href="/docs/revisit/">Send a recap now</a></strong>
+    <span>Use Recaps to send immediately; the result arrives on Kindle or in the inbox you chose.</span>
+  </li>
+</ol>
+
+Want the fuller context first? Read [The Round Trip](/docs/round-trip/).

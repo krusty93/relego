@@ -35,6 +35,7 @@ import {
   ensureHookGitExcludes,
   normalizeIgnoreValue,
   normalizeIgnoreValueEntries,
+  extractFindingIgnoreValue,
 } from './hook-lib.mjs';
 
 const ACTIONS = new Set(['status', 'on', 'off', 'ignore-rule', 'ignore-file', 'ignore-value', 'reset']);
@@ -75,11 +76,11 @@ const HOOK_MANIFEST_TARGETS = [
     destRel: '.claude/settings.local.json',
     sharedDestRel: '.claude/settings.json',
     manifest: () => ({
-      description: 'Impeccable design detector: immediate-tier checks after Edit/Write/MultiEdit on UI files, full-rule deep pass on Stop.',
+      description: 'Impeccable design detector: immediate-tier checks after Edit/Write on UI files, full-rule deep pass on Stop.',
       hooks: {
         PostToolUse: [
           {
-            matcher: 'Edit|Write|MultiEdit',
+            matcher: 'Edit|Write',
             hooks: [
               {
                 type: 'command',
@@ -711,6 +712,10 @@ function addIgnoreValue(cwd, args) {
       ? `${IMPECCABLE_COMMAND} hooks ignore-rule ${parsed.rule} --all-values`
       : `${IMPECCABLE_COMMAND} hooks ignore-rule ${parsed.rule}`;
     throw new Error(`Wildcard value ignores must be scoped with --file <glob>, e.g. ${IMPECCABLE_COMMAND} hooks ignore-value design-system-font-size "*" --file "src/widget.js". To suppress the rule project-wide use ${projectWide}.`);
+  }
+
+  if (parsed.value !== '*' && !extractFindingIgnoreValue({ antipattern: parsed.rule, ignoreValue: parsed.value })) {
+    throw new Error(`${parsed.rule} has no extractable ignore value. Use ${IMPECCABLE_COMMAND} hooks ignore-value ${parsed.rule} "*" --file <glob> to suppress it in matching files.`);
   }
 
   const local = parsed.local;

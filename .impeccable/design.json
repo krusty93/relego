@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2025-01-01T00:00:00.000Z",
+  "title": "Design System: Relego",
+  "extensions": {
+    "colorMeta": {
+      "terracotta": {
+        "role": "primary",
+        "displayName": "Fired Terracotta",
+        "canonical": "#b56b39",
+        "tonalRamp": ["#efdfcd", "#b56b39", "#8f4c18", "#5f3417"]
+      },
+      "amber": {
+        "role": "primary",
+        "displayName": "Lamp Amber",
+        "canonical": "#d4a05e",
+        "tonalRamp": ["#e6c193", "#e0ab6b", "#d4a05e", "#402a17"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#f7f1e8",
+        "tonalRamp": ["#f7f1e8", "#f0e8dc", "#e4d8c6", "#b6a48f"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#171311",
+        "tonalRamp": ["#171311", "#241d19", "#3c322b", "#665748", "#7b6656"]
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Espresso",
+        "canonical": "#120e0c",
+        "tonalRamp": ["#120e0c", "#1a1512", "#251e1a", "#40372f"]
+      },
+      "bone": {
+        "role": "neutral",
+        "displayName": "Bone",
+        "canonical": "#f5eee3",
+        "tonalRamp": ["#f5eee3", "#e7ddd0", "#cabbaa", "#9d8d7d", "#7d6f64"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page h1 only, one per page. Playfair Display Light with negative tracking."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section h2. Always preceded by a full-width hairline rule."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "h3 and round-trip station names. Sans, this is where the serif stops."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running prose at line-height 1.75, capped at 72ch inside a 48rem column."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase micro-type: sidebar groups, table headers, the round-trip stop marker."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Commands, paths, environment variables and settings keys. Never wraps inside a table cell."
+      }
+    },
+    "rules": [
+      {
+        "name": "Hairline Rule",
+        "value": "1px solid rgba(23, 19, 17, 0.12)",
+        "darkValue": "1px solid rgba(245, 238, 227, 0.14)",
+        "purpose": "The only divider in the system. Replaces cards, panels, and cell borders."
+      }
+    ],
+    "shadows": [
+      {
+        "name": "page-wash",
+        "value": "radial-gradient(90ch 40ch at 50% -8ch, rgba(181,107,57,0.14), transparent 70%)",
+        "purpose": "Atmospheric accent wash behind the top of the page. Not elevation; the only ambient depth in the docs surface."
+      },
+      {
+        "name": "header-blur",
+        "value": "backdrop-filter: blur(12px)",
+        "purpose": "Sticky header legibility over scrolling content. Structural, not decorative."
+      },
+      {
+        "name": "current-page-marker",
+        "value": "inset 2px 0 0 var(--relego-accent)",
+        "purpose": "Marks the active sidebar item. Used instead of a filled pill."
+      },
+      {
+        "name": "stop-halo",
+        "value": "0 0 0 3px color-mix(in srgb, var(--relego-accent) 18%, transparent)",
+        "purpose": "Halo on the current dot in the round-trip stop marker."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Station hover: background tint and 2px horizontal shift over 160ms."
+      },
+      {
+        "name": "ease-out",
+        "value": "ease-out",
+        "purpose": "Station marker border and text warming to accent over 160ms."
+      },
+      {
+        "name": "duration-quick",
+        "value": "160ms",
+        "purpose": "Every interactive state change in the docs surface. There is no slower tier."
+      }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "30rem" },
+      { "name": "tablet", "value": "50rem" },
+      { "name": "content", "value": "48rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single next action on a landing section.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Read the docs</a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; background: #b56b39; color: #fff; padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: opacity 160ms ease-out; } .ds-btn-primary:hover { opacity: 0.9; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The secondary action beside a primary. Hairline only, no fill at rest.",
+      "html": "<a class=\"ds-btn-outline\" href=\"#\">View on GitHub</a>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #171311; border: 1px solid rgba(23,19,17,0.12); padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; text-decoration: none; } .ds-btn-outline:hover { background: rgba(255,255,255,0.72); }"
+    },
+    {
+      "name": "Round Trip Station",
+      "kind": "custom",
+      "refersTo": "station-marker",
+      "description": "One stop on the three-stage circuit: a Playfair numeral in a circular hairline marker, on a 1px spine.",
+      "html": "<ol class=\"ds-roundtrip\"><li class=\"ds-station\"><a href=\"#\"><span class=\"ds-marker\">2</span><span class=\"ds-name\">Deliver</span><span class=\"ds-what\">Choose which highlights return, then send the recap where you read it.</span></a></li></ol>",
+      "css": ".ds-roundtrip { --station: 2.25rem; position: relative; list-style: none; margin: 0; padding-left: calc(var(--station) + 1.5rem); } .ds-roundtrip::before { content: ''; position: absolute; top: calc(var(--station)/2); bottom: calc(var(--station)/2); left: calc(var(--station)/2); width: 1px; background: rgba(23,19,17,0.12); } .ds-station { position: relative; } .ds-station a { display: block; padding: 0.9rem 1rem 1rem; margin-left: -1rem; border-radius: 0.6rem; color: inherit; text-decoration: none; transition: background-color 160ms cubic-bezier(0.16,1,0.3,1), transform 160ms cubic-bezier(0.16,1,0.3,1); } .ds-station a:hover { background: rgba(255,255,255,0.6); transform: translateX(2px); } .ds-marker { position: absolute; left: calc(-1 * (var(--station) + 1.5rem)); top: 0.85rem; display: grid; place-items: center; width: var(--station); height: var(--station); border-radius: 50%; border: 1px solid rgba(23,19,17,0.12); background: #f7f1e8; font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; color: #3c322b; } .ds-station a:hover .ds-marker { border-color: #b56b39; color: #171311; } .ds-name { display: block; font-size: 1.0625rem; font-weight: 600; color: #171311; } .ds-what { display: block; margin-top: 0.2rem; font-size: 0.9375rem; line-height: 1.55; color: #665748; max-width: 52ch; }"
+    },
+    {
+      "name": "Stop Marker",
+      "kind": "custom",
+      "refersTo": "stagemark",
+      "description": "Sits above the h1 on each stage page so the circuit stays visible past the index.",
+      "html": "<p class=\"ds-stagemark\"><span class=\"ds-dots\"><span class=\"ds-dot\"></span><span class=\"ds-dot is-here\"></span><span class=\"ds-dot\"></span></span><span>Stop 2 of 3 on the round trip</span></p>",
+      "css": ".ds-stagemark { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 0.75rem; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #665748; } .ds-dots { display: flex; align-items: center; gap: 0.3125rem; } .ds-dot { width: 0.3125rem; height: 0.3125rem; border-radius: 50%; background: #b6a48f; } .ds-dot.is-here { background: #b56b39; box-shadow: 0 0 0 3px color-mix(in srgb, #b56b39 18%, transparent); }"
+    },
+    {
+      "name": "Reference Table",
+      "kind": "custom",
+      "refersTo": "table-header-cell",
+      "description": "Rules only, no striping or container. Becomes its own focusable scroll box below 50rem.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>Command</th><th>Description</th></tr></thead><tbody><tr><td><code>relego status</code></td><td>Show server status and when the next recap is due</td></tr></tbody></table>",
+      "css": ".ds-table { width: 100%; border-collapse: collapse; font-size: 0.925rem; } .ds-table th, .ds-table td { border: 0; border-bottom: 1px solid rgba(23,19,17,0.12); padding: 0.65rem 1rem 0.65rem 0; vertical-align: top; text-align: start; } .ds-table th { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #665748; } .ds-table code { white-space: nowrap; background: #f0e8dc; border: 1px solid rgba(23,19,17,0.12); border-radius: 0.3rem; padding: 0.1em 0.35em; font-size: 0.9em; }"
+    },
+    {
+      "name": "Sidebar Item",
+      "kind": "nav",
+      "refersTo": "table-header-cell",
+      "description": "Current page is marked with an inset accent bar, never a filled pill.",
+      "html": "<ul class=\"ds-nav\"><li><a href=\"#\">1 &middot; Import highlights</a></li><li><a href=\"#\" aria-current=\"page\">2 &middot; Deliver</a></li></ul>",
+      "css": ".ds-nav { list-style: none; margin: 0; padding: 0; } .ds-nav a { display: block; padding: 0.35rem 0.75rem; color: #3c322b; text-decoration: none; } .ds-nav a[aria-current='page'] { background: transparent; color: #171311; font-weight: 600; box-shadow: inset 2px 0 0 #b56b39; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Paper Circuit",
+    "overview": "Relego is a tool for people who underline books and want those sentences back, and its interface behaves like the object it serves: warm paper stock, a serif that belongs on a title page, and nothing that looks like a SaaS dashboard. The ground is a cream-to-espresso paper tone that flips wholesale between light and dark; the single accent is a fired terracotta that warms to amber at night, spent sparingly on the thing you are meant to do next and on the line that closes the loop.\n\nThe second half of the north star is the circuit. Relego's product truth is a round trip: a highlight leaves your reader, passes through hardware you own, and comes back to the same screen. The documentation surface makes that literal with three numbered stations on a vertical spine and a dashed return leg in the outer gutter, and a stop marker repeats the geometry at the head of every stage page.\n\nStructurally the system is subtractive. Separation is done with hairline rules and generous vertical space, not with cards, panels, or filled containers. Surfaces are flat; where a conventional docs theme reaches for a boxed callout, Relego reaches for a rule and more air.",
+    "keyCharacteristics": [
+      "Warm paper ground in both themes; never neutral gray, never pure white or black",
+      "One accent, used at low density, mostly on next-actions and the return leg",
+      "Playfair Display Light for display and headline; system sans for everything read at length",
+      "Hairline rules (1px, 12-14% ink) instead of card chrome",
+      "The round trip is a first-class visual device, not an illustration"
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "There is exactly one accent per theme. No success green, no danger red, no info blue. Status is carried by the aside's icon and label, not by a second hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warm Neutral Rule",
+        "body": "Every neutral in the ramp carries the paper's hue. A neutral that reads as cool gray is out of system, including borders and dividers.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sparing Accent Rule",
+        "body": "Accent coverage stays under roughly 5% of any viewport. When two things on a screen both want it, one of them is not the next action.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Voices Rule",
+        "body": "Serif for display and headline, sans for everything read at length. A serif h3 or a sans h1 is out of system.",
+        "section": "typography"
+      },
+      {
+        "name": "The Nowrap Command Rule",
+        "body": "Inline code inside a table cell never wraps. If the table no longer fits, the table scrolls; the command does not break across lines.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Surface Rule",
+        "body": "Content surfaces cast no shadow at rest or on hover. If an element needs to feel interactive, it changes tone and shifts 2px, it does not lift.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use hairline rules and vertical space to separate sections, at the exact values recorded (1px rule token, 3rem above h2, 1.75rem between rule and heading).",
+      "Do set every page h1 and section h2 in Playfair Display 300 with -0.015em tracking and balanced wrapping.",
+      "Do keep the accent under roughly 5% of any viewport, reserved for the next action, the current position, and the return leg.",
+      "Do use the link colors (#8f4c18 light, #e0ab6b dark) for underlined running text and the raw accent for surfaces and markers.",
+      "Do let wide tables scroll inside their own focusable box rather than shrinking or wrapping the commands inside them.",
+      "Do carry the round-trip geometry onto any page that belongs to a stage."
+    ],
+    "donts": [
+      "Don't introduce a second accent hue for status, category, or emphasis.",
+      "Don't put content in cards, filled panels, or bordered boxes; the aside is the only permitted container and it is a rule plus a tint, not a card.",
+      "Don't add box-shadow to content surfaces, including on hover.",
+      "Don't use cool or pure neutrals - no #000, no #fff as a ground, no gray that has lost the paper's warmth.",
+      "Don't set body copy, h3, or UI labels in the serif.",
+      "Don't override the code frame's corner radius on its own; the frame and its title bar are one object."
+    ]
+  }
+}

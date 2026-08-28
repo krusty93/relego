@@ -1,0 +1,33 @@
+---
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+
+const { entry } = Astro.locals.starlightRoute;
+const { stage, eyebrow, subtitle } = entry.data as {
+	stage?: number;
+	eyebrow?: string;
+	subtitle?: string;
+};
+const total = 3;
+---
+
+{
+	stage ? (
+		<p class="relego-stagemark">
+			<span class="relego-stagemark__dots" aria-hidden="true">
+				{Array.from({ length: total }, (_, index) => (
+					<span class:list={['relego-stagemark__dot', index + 1 === stage && 'is-here']} />
+				))}
+			</span>
+			<span class="relego-stagemark__label">
+				Stop {stage} of {total} on the round trip
+			</span>
+		</p>
+	) : eyebrow ? (
+		<p class="relego-stagemark relego-stagemark--plain">
+			<span class="relego-stagemark__label">{eyebrow}</span>
+		</p>
+	) : null
+}
+
+<Default />
+{subtitle && <p class="relego-page-subtitle">{subtitle}</p>}

@@ -1,0 +1,54 @@
+---
+interface Station {
+	name: string;
+	href: string;
+	what: string;
+}
+
+const stations: Station[] = [
+	{
+		name: 'Import highlights',
+		href: '/docs/import/',
+		what: 'Your Kindle or Kobo writes highlights to a file. Start the server, then upload that file in the web interface.',
+	},
+	{
+		name: 'Deliver',
+		href: '/docs/deliver/',
+		what: 'On a schedule you set, the server sends an EPUB to a Kindle or an HTML recap to a Kobo reader’s inbox.',
+	},
+	{
+		name: 'Revisit',
+		href: '/docs/revisit/',
+		what: 'Use the web interface to send your first recap now, then read it on your Kindle or in your Kobo inbox.',
+	},
+];
+---
+
+<!--
+THESIS: Relego's docs are one circuit, not a feature list, the trip a single highlight makes from your reader back to your reader. Refuses the flat "Getting started / Configuration / API" shelf every docs site ships.
+OWN-WORLD: The Relego landing world, unchanged, with warm paper ground (#f7f1e8 / #120e0c), terracotta accent (#b56b39 / #d4a05e), Playfair Display Light for display headings, hairline rules instead of card chrome, no filled containers.
+STORY: A reader who just found the project understands the mechanism in one screen, sees that setup is three steps and not a research project, and can enter at the stage they are actually stuck on.
+FIRST VIEWPORT: Serif h1, one lead paragraph, then the three numbered stations on a vertical spine with a dashed accent bracket in the outer gutter closing the loop from Revisit back to Import highlights. The primary action is the first station.
+FORM: Journey-of-a-highlight spine; candidate 6 of the grounded structural list; staged as a linear read, no staging challenger fused. Seed key 450383ec.
+-->
+
+<ol class="roundtrip not-content">
+	<span class="roundtrip__return" aria-hidden="true"></span>
+	{
+		stations.map((station, index) => (
+			<li class="roundtrip__station">
+				<a class="roundtrip__link" href={station.href}>
+					<span class="roundtrip__marker" aria-hidden="true">
+						{index + 1}
+					</span>
+					<span class="roundtrip__name">{station.name}</span>
+					<span class="roundtrip__what">{station.what}</span>
+				</a>
+			</li>
+		))
+	}
+	<li class="roundtrip__close">
+		Back to <a href="/docs/import/">Import highlights</a>, the next passage you underline joins
+		the same circuit.
+	</li>
+</ol>

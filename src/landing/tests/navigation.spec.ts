@@ -10,13 +10,14 @@ test.describe('Navigation', () => {
 		await expect(logotype).toHaveText('relego.');
 	});
 
-	test('"View on GitHub" link points to configured GitHub URL', async ({ page }) => {
+	test('GitHub icon link points to configured GitHub URL', async ({ page }) => {
 		const githubLink = page.locator('nav a[href*="github.com"]').first();
 		await expect(githubLink).toBeVisible();
 		await expect(githubLink).toHaveAttribute('href', 'https://github.com/Krusty93/relego');
+		await expect(githubLink).toHaveAttribute('aria-label', 'View on GitHub');
 	});
 
-	test('"View on GitHub" link opens in a new tab', async ({ page }) => {
+	test('GitHub icon link opens in a new tab', async ({ page }) => {
 		const githubLink = page.locator('nav a[href*="github.com"]').first();
 		await expect(githubLink).toHaveAttribute('target', '_blank');
 		await expect(githubLink).toHaveAttribute('rel', /noopener/);
@@ -47,10 +48,10 @@ test.describe('Navigation', () => {
 		await expect(section).toBeInViewport({ timeout: 3000 });
 	});
 
-	test('Explore section renders "View on GitHub" and "Read the docs" buttons', async ({ page }) => {
+	test('Explore section renders "View on GitHub" and "Documentation" buttons', async ({ page }) => {
 		const explore = page.locator('#explore');
 		await expect(explore.locator('a:has-text("View on GitHub")')).toBeVisible();
-		await expect(explore.locator('a:has-text("Read the docs")')).toBeVisible();
+		await expect(explore.locator('a:has-text("Documentation")')).toBeVisible();
 	});
 
 	test('Explore "View on GitHub" links to the configured GitHub URL', async ({ page }) => {

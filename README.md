@@ -40,7 +40,7 @@ Capabilities:
 
 ## See it
 
-![tui demo](docs/assets/tui-demo.gif)
+![Relego Library showing imported books, authors, highlight counts, and recap status](src/landing/public/images/docs/relego-web-library.webp)
 
 ---
 

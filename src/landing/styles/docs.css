@@ -1,0 +1,770 @@
+/*
+	Relego docs theme, inherits the landing world (docs/BRAND_COLORS.md).
+	Loaded only by Starlight routes under /docs. No Tailwind here on purpose:
+	Starlight ships its own reset and preflight would fight it.
+*/
+
+/* ── Dark is Starlight's :root default; light overrides below ───────────── */
+:root {
+	--sl-color-white: #f5eee3;
+	--sl-color-gray-1: #e7ddd0;
+	--sl-color-gray-2: #cabbaa;
+	--sl-color-gray-3: #9d8d7d;
+	--sl-color-gray-4: #7d6f64;
+	--sl-color-gray-5: #40372f;
+	--sl-color-gray-6: #251e1a;
+	--sl-color-gray-7: #1a1512;
+	--sl-color-black: #120e0c;
+
+	--sl-color-accent-low: #402a17;
+	--sl-color-accent: #b56b39;
+	--sl-color-accent-high: #e6c193;
+
+	--sl-color-text-accent: #e0ab6b;
+	--sl-color-bg-accent: #d4a05e;
+
+	--relego-accent: #d4a05e;
+	--relego-accent-ink: #120e0c;
+	--relego-rule: rgba(245, 238, 227, 0.14);
+	--relego-paper: rgba(245, 238, 227, 0.04);
+	--relego-wash: rgba(212, 160, 94, 0.13);
+	--relego-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -12px rgba(0, 0, 0, 0.7);
+}
+
+:root[data-theme='light'] {
+	--sl-color-white: #171311;
+	--sl-color-gray-1: #241d19;
+	--sl-color-gray-2: #3c322b;
+	--sl-color-gray-3: #665748;
+	--sl-color-gray-4: #7b6656;
+	--sl-color-gray-5: #b6a48f;
+	--sl-color-gray-6: #e4d8c6;
+	--sl-color-gray-7: #f0e8dc;
+	--sl-color-black: #f7f1e8;
+
+	--sl-color-accent-low: #efdfcd;
+	--sl-color-accent: #b56b39;
+	--sl-color-accent-high: #5f3417;
+
+	--sl-color-text-accent: #8f4c18;
+	--sl-color-bg-accent: #b56b39;
+
+	--relego-accent: #b56b39;
+	--relego-accent-ink: #171311;
+	--relego-rule: rgba(23, 19, 17, 0.12);
+	--relego-paper: rgba(255, 255, 255, 0.6);
+	--relego-wash: rgba(181, 107, 57, 0.14);
+	--relego-shadow: 0 1px 2px rgba(23, 19, 17, 0.06), 0 12px 32px -14px rgba(23, 19, 17, 0.22);
+}
+
+/* ── Type ───────────────────────────────────────────────────────────────── */
+
+:root {
+	--sl-font:
+		ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+		Arial, sans-serif;
+	--sl-font-mono:
+		ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', 'SF Mono', Menlo, Consolas,
+		monospace;
+	--sl-content-width: 48rem;
+	--sl-text-h1: clamp(2.25rem, 1.6rem + 2.4vw, 3.25rem);
+	--sl-text-h2: clamp(1.5rem, 1.28rem + 0.9vw, 1.9rem);
+	--sl-text-h3: 1.25rem;
+}
+
+body {
+	background:
+		radial-gradient(90ch 40ch at 50% -8ch, var(--relego-wash), transparent 70%),
+		var(--sl-color-black);
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.content-panel h1 {
+	font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+	font-weight: 300;
+	letter-spacing: -0.015em;
+	text-wrap: balance;
+}
+
+.relego-page-subtitle {
+	max-width: 65ch;
+	margin: 0.75rem 0 0;
+	color: var(--sl-color-gray-2);
+	font-size: 1.0625rem;
+	line-height: 1.65;
+}
+
+main:has(.relego-stagemark) > .content-panel:first-child {
+	display: contents;
+}
+
+main > .content-panel:first-child:has(h1#_top) + .content-panel {
+	border-top: 0;
+}
+
+/* The rule + padding treatment lives on the wrapper, not the heading itself:
+   Starlight needs `.sl-heading-wrapper > :first-child` to stay `display: inline`
+   so the anchor-link icon sits at the end of the heading line instead of
+   dropping onto a line of its own. */
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+	margin-top: 3rem;
+	padding-top: 1.75rem;
+	border-top: 1px solid var(--relego-rule);
+}
+
+.sl-markdown-content > .sl-heading-wrapper.level-h2:first-child {
+	margin-top: 0;
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h3 {
+	margin-top: 2.25rem;
+}
+
+/* A heading belongs to the text under it, so it sits close to it. */
+.sl-markdown-content .sl-heading-wrapper + *:not(.sl-heading-wrapper) {
+	margin-top: 0.5rem;
+}
+
+.sl-markdown-content h3 {
+	font-weight: 600;
+	letter-spacing: -0.005em;
+}
+
+.sl-markdown-content p,
+.sl-markdown-content li {
+	max-width: 72ch;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.2em;
+}
+
+/* ── First recap launchpad ───────────────────────────────────────────────── */
+
+.first-recap__start {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.5rem 0 1.5rem;
+	padding: 0.7rem 1rem;
+	border: 1px solid var(--relego-accent);
+	border-radius: 0.5rem;
+	background: var(--relego-accent);
+	color: var(--relego-accent-ink);
+	font-weight: 600;
+	text-decoration: none;
+	transition:
+		background-color 160ms ease-out,
+		color 160ms ease-out;
+}
+
+.first-recap__start:hover,
+.first-recap__start:focus-visible {
+	background: transparent;
+	color: var(--sl-color-white);
+}
+
+.first-recap__checklist {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--relego-rule);
+}
+
+.first-recap__checklist li {
+	display: grid;
+	grid-template-columns: minmax(11rem, 0.85fr) minmax(0, 1.4fr);
+	gap: 0.75rem 1.5rem;
+	max-width: none;
+	padding: 1rem 0;
+	border-bottom: 1px solid var(--relego-rule);
+}
+
+.first-recap__checklist strong {
+	font-size: 0.9375rem;
+}
+
+.first-recap__checklist span {
+	color: var(--sl-color-gray-3);
+	font-size: 0.9375rem;
+	line-height: 1.55;
+}
+
+/* ── Chrome ─────────────────────────────────────────────────────────────── */
+
+.page {
+	background: transparent;
+}
+
+header.header {
+	background: color-mix(in srgb, var(--sl-color-black) 82%, transparent);
+	backdrop-filter: blur(12px);
+	border-bottom: 1px solid var(--relego-rule);
+}
+
+.sidebar-pane {
+	background: transparent;
+	border-inline-end: 1px solid var(--relego-rule);
+}
+
+.sidebar-content ul.top-level > li > details > summary > .group-label > .large,
+.sidebar-content > ul > li > span.large {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--sl-color-gray-3);
+}
+
+.sidebar-content a[aria-current='page'] {
+	background: transparent;
+	color: var(--sl-color-white);
+	font-weight: 600;
+}
+
+/* The nested list already forms the sidebar's continuous reading rail. */
+.sidebar-content ul ul li {
+	border-inline-start-color: var(--relego-rule);
+}
+
+.sidebar-content ul ul li:has(> a[aria-current='page']) {
+	border-inline-start-color: var(--relego-accent);
+}
+
+/* ── Right rail: on-page contents ───────────────────────────────────────── */
+
+.right-sidebar {
+	border-inline-start: 1px solid var(--relego-rule);
+}
+
+starlight-toc h2,
+mobile-starlight-toc h2 {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--sl-color-gray-3);
+}
+
+starlight-toc a {
+	padding-inline-start: calc(1rem * var(--depth, 0) + 0.75rem);
+	/* Square ends so the per-item hairlines join into one continuous rule. */
+	border-radius: 0;
+	border-inline-start: 1px solid var(--relego-rule);
+	color: var(--sl-color-gray-3);
+	transition: color 160ms ease-out;
+}
+
+mobile-starlight-toc a {
+	padding-inline-start: calc(1rem * var(--depth, 0) + 1rem);
+}
+
+/* Starlight's synthetic top entry reads "Overview", not the current page. */
+mobile-starlight-toc .display-current {
+	display: none;
+}
+
+/* The page title is not a section, so its synthetic top link does not belong
+   in either desktop or mobile on-page contents list. */
+starlight-toc li:has(> a[href='#_top']),
+mobile-starlight-toc li:has(> a[href='#_top']) {
+	display: none;
+}
+
+starlight-toc a:hover {
+	color: var(--sl-color-white);
+}
+
+/* The rail marks your position the same way the left sidebar marks the page. */
+starlight-toc a[aria-current='true'],
+starlight-toc a[aria-current='true']:hover {
+	color: var(--sl-color-white);
+	font-weight: 600;
+	border-inline-start-color: var(--relego-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	starlight-toc a {
+		transition: none;
+	}
+}
+
+/* ── Code, tables, asides ───────────────────────────────────────────────── */
+
+.sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
+	background: var(--relego-paper);
+	border: 1px solid var(--relego-rule);
+	border-radius: 0.3rem;
+	padding: 0.1em 0.35em;
+	font-size: 0.9em;
+	color: var(--sl-color-white);
+}
+
+.expressive-code .frame pre {
+	border-radius: 0;
+}
+
+.sl-markdown-content table:not(:where(.not-content *)) {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.925rem;
+}
+
+/*
+	Below the tablet breakpoint a four-column reference table shreds into one
+	word per line. Turn the table itself into the scroll box and give its
+	sections a floor width scaled to the column count.
+*/
+@media (max-width: 50rem) {
+	/*
+		The Markdown renderer keeps image semantics but strips responsive-source
+		attributes. Swap the illustrative desktop captures for native phone captures
+		so UI labels remain readable on the devices people use to read the docs.
+	*/
+	.sl-markdown-content img[src='/images/docs/relego-web-library.webp'] {
+		content: url('/images/docs/relego-web-library-mobile.webp');
+	}
+
+	.sl-markdown-content img[src='/images/docs/relego-web-import.webp'] {
+		content: url('/images/docs/relego-web-import-mobile.webp');
+	}
+
+	.sl-markdown-content img[src='/images/docs/relego-web-settings.webp'] {
+		content: url('/images/docs/relego-web-settings-mobile.webp');
+	}
+
+	.sl-markdown-content img[src='/images/docs/relego-web-recaps.webp'] {
+		content: url('/images/docs/relego-web-recaps-mobile.webp');
+	}
+
+	.sl-markdown-content table:not(:where(.not-content *)) {
+		display: block;
+		overflow-x: auto;
+		overscroll-behavior-inline: contain;
+	}
+
+	.sl-markdown-content table:not(:where(.not-content *)):focus-visible {
+		outline: 2px solid var(--relego-accent);
+		outline-offset: 3px;
+	}
+
+	.expressive-code .frame pre:focus-visible {
+		outline: 2px solid var(--relego-accent);
+		outline-offset: 3px;
+	}
+
+	.sl-markdown-content table:not(:where(.not-content *)) > thead,
+	.sl-markdown-content table:not(:where(.not-content *)) > tbody {
+		display: table;
+		width: 100%;
+		min-width: 30rem;
+		table-layout: fixed;
+	}
+
+	.sl-markdown-content table:not(:where(.not-content *)):has(th:nth-child(3)) > thead,
+	.sl-markdown-content table:not(:where(.not-content *)):has(th:nth-child(3)) > tbody {
+		min-width: 40rem;
+	}
+
+	.sl-markdown-content table:not(:where(.not-content *)):has(th:nth-child(4)) > thead,
+	.sl-markdown-content table:not(:where(.not-content *)):has(th:nth-child(4)) > tbody {
+		min-width: 52rem;
+	}
+
+	/*
+		The CLI is a lookup tool on a phone, not a spreadsheet. Keep the accessible
+		table headers, but reflow each row into labeled terms and definitions so a
+		reader can scan a command without panning across three columns.
+	*/
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *)) {
+		overflow: visible;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		> thead {
+		display: block;
+		position: absolute;
+		width: 1px;
+		min-width: 0;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		> thead
+		tr {
+		display: block;
+		min-width: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		> tbody {
+		display: block;
+		width: auto;
+		min-width: 0;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		tr {
+		display: block;
+		padding-block: 1rem;
+		border-bottom: 1px solid var(--relego-rule);
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td {
+		display: grid;
+		grid-template-columns: minmax(7.5rem, 0.8fr) minmax(0, 1.2fr);
+		gap: 0.75rem;
+		padding: 0.3rem 0;
+		border: 0;
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td::before {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--sl-color-gray-3);
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:nth-child(1)::before {
+		content: 'Command';
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:nth-child(2)::before {
+		content: 'Accepted parameters';
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:nth-child(3)::before {
+		content: 'Description';
+	}
+
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:not(:where(.not-content *))
+		> code:first-child:last-child,
+	html.relego-cli-reference
+		.sl-markdown-content
+		table:not(:where(.not-content *))
+		td:not(:where(.not-content *))
+		code {
+		min-width: 0;
+		white-space: normal;
+		word-break: break-word;
+		overflow-wrap: anywhere;
+	}
+}
+
+/* Keep commands and variable names on one line; the table scrolls instead. */
+.sl-markdown-content td:not(:where(.not-content *)) > code:first-child:last-child,
+.sl-markdown-content td:not(:where(.not-content *)) code {
+	white-space: nowrap;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)),
+.sl-markdown-content td:not(:where(.not-content *)) {
+	border: 0;
+	border-bottom: 1px solid var(--relego-rule);
+	padding: 0.65rem 1rem 0.65rem 0;
+	vertical-align: top;
+	text-align: start;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--sl-color-gray-3);
+}
+
+.sl-markdown-content .starlight-aside {
+	border-inline-start-width: 1px;
+	border-radius: 0 0.5rem 0.5rem 0;
+	background: var(--relego-paper);
+}
+
+/* ── The round trip ─────────────────────────────────────────────────────── */
+
+.roundtrip {
+	--station: 2.25rem;
+	position: relative;
+	list-style: none;
+	margin: 2.5rem 0 0;
+	padding: 0 0 0 calc(var(--station) + 1.5rem);
+	counter-reset: station;
+}
+
+.roundtrip::before {
+	content: '';
+	position: absolute;
+	inset-block: calc(var(--station) / 2) calc(var(--station) / 2);
+	inset-inline-start: calc(var(--station) / 2);
+	width: 1px;
+	background: var(--relego-rule);
+}
+
+/*
+	The return leg: a dashed bracket in the outer gutter running from the last
+	station back up to the first, closing the loop the three stations describe.
+*/
+.roundtrip__return {
+	position: absolute;
+	inset-block: 1.05rem 0.6rem;
+	inset-inline-start: -1.25rem;
+	width: 1.35rem;
+	border: 1px dashed var(--relego-accent);
+	border-inline-end: 0;
+	border-start-start-radius: 0.7rem;
+	border-end-start-radius: 0.7rem;
+	opacity: 0.55;
+	pointer-events: none;
+}
+
+.roundtrip__return::after {
+	content: '';
+	position: absolute;
+	inset-block-start: -0.24rem;
+	inset-inline-end: -0.05rem;
+	width: 0.42rem;
+	height: 0.42rem;
+	border-block-start: 1px solid var(--relego-accent);
+	border-inline-end: 1px solid var(--relego-accent);
+	transform: rotate(45deg);
+}
+
+.roundtrip__station {
+	position: relative;
+	margin: 0 0 0.25rem;
+	padding: 0;
+}
+
+.roundtrip__link {
+	display: block;
+	padding: 0.9rem 1rem 1rem;
+	margin-inline-start: -1rem;
+	border-radius: 0.6rem;
+	color: inherit;
+	text-decoration: none;
+	transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hover reads as the marker lighting up, not as the station moving. */
+.roundtrip__link:hover,
+.roundtrip__link:focus-visible {
+	background: var(--relego-paper);
+}
+
+.roundtrip__marker {
+	position: absolute;
+	inset-inline-start: calc(-1 * (var(--station) + 1.5rem));
+	inset-block-start: 0.85rem;
+	display: grid;
+	place-items: center;
+	width: var(--station);
+	height: var(--station);
+	border-radius: 50%;
+	border: 1px solid var(--relego-rule);
+	background: var(--sl-color-black);
+	font-family: 'Playfair Display', Georgia, serif;
+	font-size: 1.05rem;
+	line-height: 1;
+	color: var(--sl-color-gray-2);
+	transition:
+		border-color 160ms ease-out,
+		color 160ms ease-out;
+}
+
+.roundtrip__link:hover .roundtrip__marker,
+.roundtrip__link:focus-visible .roundtrip__marker {
+	border-color: var(--relego-accent);
+	color: var(--sl-color-white);
+}
+
+.roundtrip__name {
+	display: block;
+	font-size: 1.0625rem;
+	font-weight: 600;
+	letter-spacing: -0.005em;
+	color: var(--sl-color-white);
+}
+
+.roundtrip__what {
+	display: block;
+	margin-top: 0.2rem;
+	font-size: 0.9375rem;
+	line-height: 1.55;
+	color: var(--sl-color-gray-3);
+	max-width: 52ch;
+}
+
+.roundtrip__close {
+	position: relative;
+	margin-top: 1.25rem;
+	padding-inline-start: 0;
+	font-size: 0.9375rem;
+	color: var(--sl-color-gray-2);
+}
+
+.roundtrip__close a {
+	color: var(--relego-accent);
+	text-underline-offset: 0.2em;
+}
+
+.roundtrip__close::before {
+	content: '';
+	position: absolute;
+	inset-inline-start: calc(-1 * (var(--station) + 1.5rem) + var(--station) / 2 - 0.3rem);
+	inset-block-start: 0.35rem;
+	width: 0.95rem;
+	height: 0.95rem;
+	border-radius: 50%;
+	border: 1px solid var(--relego-accent);
+	background: transparent;
+}
+
+.roundtrip__close::after {
+	content: '';
+	position: absolute;
+	inset-inline-start: calc(-1 * (var(--station) + 1.5rem) + var(--station) / 2 - 0.02rem);
+	inset-block-start: 0.63rem;
+	width: 0.375rem;
+	height: 0.375rem;
+	border-radius: 50%;
+	background: var(--relego-accent);
+}
+
+/* The stop marker on each stage page: the round trip's spine, carried onto
+   the pages the reader actually works from. */
+.relego-stagemark {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin: 0 0 0.75rem;
+	font-family: var(--sl-font);
+	font-size: 0.75rem;
+	font-weight: 500;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--sl-color-gray-3);
+}
+
+.relego-stagemark__dots {
+	display: flex;
+	align-items: center;
+	gap: 0.3125rem;
+}
+
+.relego-stagemark__dot {
+	width: 0.3125rem;
+	height: 0.3125rem;
+	border-radius: 50%;
+	background: var(--sl-color-gray-5);
+}
+
+.relego-stagemark__dot.is-here {
+	background: var(--relego-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--relego-accent) 18%, transparent);
+}
+
+@media (max-width: 30rem) {
+	.relego-stagemark {
+		gap: 0.625rem;
+		font-size: 0.6875rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.roundtrip__link,
+	.roundtrip__marker {
+		transition: none;
+	}
+}
+
+/* ── Small screens ──────────────────────────────────────────────────────── */
+
+@media (max-width: 30rem) {
+	header.header site-search button[data-open-modal] {
+		display: grid;
+		place-items: center;
+		width: 2.75rem;
+		min-width: 2.75rem;
+		height: 2.75rem;
+	}
+
+	.sidebar-content ul.top-level > li > details > summary {
+		min-height: 2.75rem;
+		padding-block: 0.5rem;
+	}
+
+	.first-recap__start {
+		width: 100%;
+		justify-content: center;
+	}
+
+	.first-recap__checklist li {
+		grid-template-columns: 1fr;
+		gap: 0.25rem;
+	}
+
+	.roundtrip {
+		--station: 1.9rem;
+		padding-inline-start: calc(var(--station) + 1rem);
+	}
+
+	.roundtrip__marker {
+		inset-inline-start: calc(-1 * (var(--station) + 1rem));
+		font-size: 0.9rem;
+	}
+
+	.roundtrip__close::before {
+		inset-inline-start: calc(-1 * (var(--station) + 1rem) + var(--station) / 2 - 0.3rem);
+	}
+
+	.roundtrip__close::after {
+		inset-inline-start: calc(-1 * (var(--station) + 1rem) + var(--station) / 2 - 0.02rem);
+	}
+
+	/* No room for the outer gutter; the closing line carries the loop instead. */
+	.roundtrip__return {
+		display: none;
+	}
+}
+
+@media (min-width: 30.0625rem) {
+	.roundtrip {
+		margin-inline-start: 1.5rem;
+	}
+}

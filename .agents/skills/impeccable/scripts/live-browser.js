@@ -4902,6 +4902,13 @@
     saveSession();
   }
 
+  function completeParameterGenerationIfReady() {
+    if (expectedVariants <= 0 || arrivedVariants < expectedVariants) return;
+    if (parameterGenerationState === 'pending' || parameterGenerationState === 'loading') {
+      completeParameterPublication();
+    }
+  }
+
   function toggleTunePopover() {
     if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (tuneOpen) { closeTunePopover(); return; }
@@ -5796,7 +5803,7 @@
         setLiveState('CYCLING');
         showOrUpdateCyclingBar();
         saveSession();
-        if (parameterGenerationState === 'loading') completeParameterPublication();
+        completeParameterGenerationIfReady();
         return;
       }
 
@@ -5884,7 +5891,7 @@
       refreshParamsPanel();
       positionBar();
       saveSession();
-      if (parameterGenerationState === 'loading') completeParameterPublication();
+      completeParameterGenerationIfReady();
       console.log('[impeccable] Mounted ' + arrivedVariants + ' ' + manifest.framework + ' component variants.');
     } catch (err) {
       console.error('[impeccable] Failed to mount component-preview variants:', err);
@@ -6329,7 +6336,7 @@
         refreshParamsPanel();
         positionBar();
         saveSession();
-        if (parameterGenerationState === 'loading') completeParameterPublication();
+        completeParameterGenerationIfReady();
         console.log('[impeccable] Injected ' + arrivedVariants + ' variants from source file.');
       })
       .catch(err => {
@@ -6836,6 +6843,7 @@
 
       const expected = parseInt(wrapper.dataset.impeccableVariantCount || '0');
       if (expected > 0) expectedVariants = expected;
+      completeParameterGenerationIfReady();
 
       if (arrivedVariants > 0) {
         setLiveState('CYCLING');
@@ -11135,10 +11143,36 @@ void main() {
     const scanId = String(++detectScanSeq);
     activeDetectScanId = scanId;
     pendingDetectScanId = scanId;
+    // Send the project's detector waivers with the scan so the overlay
+    // filters the same findings the CLI and the edit hook do (issue #639).
+    // live-browser-ignores.js resolves .impeccable config for this page:
+    // ignoreRules suppress outright, wildcard ignoreValues suppress their
+    // rule in the files they name, ignoreFiles that name the page skip the
+    // scan wholesale, and the rest match on the finding's own value inside
+    // the detector. Guarded twice: a stale cached live.js without the
+    // resolver part still scans, and a resolver that throws must not brick
+    // the detect toggle; both degrade to an unfiltered scan.
+    const ignoresApi = window.__IMPECCABLE_LIVE_IGNORES__;
+    let ignores = { disabledRules: [], disabledValues: [], skipScan: false };
+    if (typeof ignoresApi?.resolveDetectIgnores === 'function') {
+      try {
+        ignores = ignoresApi.resolveDetectIgnores({
+          ignores: window.__IMPECCABLE_PROJECT_IGNORES__,
+          pathname: location.pathname,
+        }) || ignores;
+      } catch (e) {
+        ignores = { disabledRules: [], disabledValues: [], skipScan: false };
+      }
+    }
     window.postMessage({
       source: 'impeccable-command',
       action: 'scan',
-      config: { scanId },
+      config: {
+        scanId,
+        disabledRules: ignores.disabledRules || [],
+        disabledValues: ignores.disabledValues || [],
+        skipScan: ignores.skipScan === true,
+      },
     }, '*');
   }
 
