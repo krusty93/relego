@@ -121,3 +121,7 @@ Task descriptions must be self-contained: an agent must be able to implement a t
 ## Versioning conventions
 
 Refer to the canonical versioning guide in [VERSIONING.md](../VERSIONING.md).
+
+## About commits
+
+Do NOT use conventional commits, nor in PR. NEVER co-author any AI tool like Copilot.
