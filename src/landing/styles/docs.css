@@ -24,6 +24,7 @@
 	--sl-color-bg-accent: #d4a05e;
 
 	--relego-accent: #d4a05e;
+	--relego-accent-ink: #120e0c;
 	--relego-rule: rgba(245, 238, 227, 0.14);
 	--relego-paper: rgba(245, 238, 227, 0.04);
 	--relego-wash: rgba(212, 160, 94, 0.13);
@@ -49,6 +50,7 @@
 	--sl-color-bg-accent: #b56b39;
 
 	--relego-accent: #b56b39;
+	--relego-accent-ink: #171311;
 	--relego-rule: rgba(23, 19, 17, 0.12);
 	--relego-paper: rgba(255, 255, 255, 0.6);
 	--relego-wash: rgba(181, 107, 57, 0.14);
@@ -150,7 +152,7 @@ main > .content-panel:first-child:has(h1#_top) + .content-panel {
 	border: 1px solid var(--relego-accent);
 	border-radius: 0.5rem;
 	background: var(--relego-accent);
-	color: var(--sl-color-black);
+	color: var(--relego-accent-ink);
 	font-weight: 600;
 	text-decoration: none;
 	transition:
