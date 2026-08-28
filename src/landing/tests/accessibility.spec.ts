@@ -34,7 +34,7 @@ test.describe('Accessibility', () => {
 			'#hero a:has-text("Get started")',                   // hero CTA
 			'#faq details summary',                              // first accordion
 			'#explore a:has-text("View on GitHub")',             // explore primary CTA
-			'#explore a:has-text("Read the docs")',              // explore outline CTA
+			'#explore a:has-text("Documentation")',              // explore outline CTA
 		];
 
 		for (const selector of interactiveSelectors) {

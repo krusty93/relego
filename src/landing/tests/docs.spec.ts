@@ -194,7 +194,7 @@ test.describe('Docs', () => {
 
 	test('the landing page links into the docs', async ({ page }) => {
 		await page.goto('/');
-		await page.click('nav a:has-text("Docs")');
+		await page.click('nav a:has-text("Documentation")');
 		await expect(page).toHaveURL(/\/docs\/$/);
 	});
 
