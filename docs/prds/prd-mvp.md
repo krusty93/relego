@@ -1,8 +1,11 @@
 # Product Requirements Document — MVP
 
-**Version:** 0.3 — Draft
+**Version:** 0.3 — Completed
 **Date:** 2026-03-30
-**Status:** Draft
+**Status:** Implemented
+**Completion recorded:** 2026-09-30
+
+The MVP has shipped. This document preserves its original scope and requirements as a historical baseline; completion does not make its original exclusions or architectural assumptions constraints on subsequent product work. The recording date above is not the release date.
 
 ---
 
