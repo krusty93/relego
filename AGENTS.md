@@ -1,6 +1,6 @@
-# Copilot Instructions — Relego
+# Relego
 
-> Quick links: [Architecture](../docs/ARCHITECTURE.md) · [DX](../docs/DX.md) · [PRD](../docs/prds/prd-mvp.md)
+> Quick links: [Architecture](./docs/ARCHITECTURE.md) · [DX](./docs/DX.md) · [PRDs](./docs/prds/)
 
 ## Project overview
 
