@@ -8,15 +8,47 @@ Self-hosted tool that delivers Kindle highlight recaps to the user's Kindle via 
 
 **Stack:** C# / .NET 10 · SQLite (`/data/relego.db`) · Serilog · MailKit · Quartz.NET · Spectre.Console · REST HTTP (no auth, MVP)
 
-**Solution:** `src/Relego.slnx` → Core · Server · Cli · Tests
+**Solution:** `src/Relego.slnx` → Core · Server · Cli · Tests. Web UI in `src/relego.web` (React/Vite); landing page in `src/landing` (Astro)
 
-## Coding conventions
+## Build and test commands
 
-- Follow existing .NET and C# conventions and use the repository's installed language and framework guidance where applicable.
+Prerequisites: .NET 10 SDK and Docker. Node.js/npm only when touching `src/relego.web` or `src/landing`. Full setup details in [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+**Build:**
+
+- Whole solution: `dotnet build src/Relego.slnx`; single components: `dotnet build src/Relego.Server/Relego.Server.csproj`, `dotnet build src/Relego.Cli/Relego.Cli.csproj`
+- Landing page: `cd src/landing && npm install && npm run build`
+- Docker: `docker compose up --build`; the `ci.yaml` Build step builds the `Dockerfile.ci` image only
+
+**Test:**
+
+- .NET: `dotnet test src/Relego.Tests/Relego.Tests.csproj`
+- Web UI (Playwright): `cd src/relego.web && npm ci && npx playwright install --with-deps chromium && npm test` (typecheck: `npm run typecheck`)
+- CI: the `ci.yaml` Run tests step runs `dotnet test --configuration Release --no-build` inside the CI image; a separate job runs the Playwright web tests
+
+## Code style guidelines
+
+- Follow existing .NET and C# conventions; formatting and analyzers are enforced at build time via `.editorconfig` and `src/Directory.Build.props` (`TreatWarningsAsErrors`, `EnforceCodeStyleInBuild`, `AnalysisLevel=latest`, XML docs on public members; projects enable `Nullable` and `ImplicitUsings`).
+- Naming: `_camelCase` private fields, PascalCase public/static/readonly fields and constants, camelCase locals and parameters, `Async` suffix on async methods.
+- 4-space indent and UTF-8 BOM in C# files; `System.*` usings first; no `this.`; no multiple blank lines; async all the way (no blocking calls).
 - All REST endpoints return JSON; errors must be actionable.
-- Use TDD where applicable, especially for API endpoints, parsers, and other behavior-heavy changes. Tests are not required for purely mechanical changes such as NuGet updates or `.csproj` edits.
 - When adding new .NET projects: `dotnet sln src/Relego.slnx add src/<Project>/<Project>.csproj` in the same PR
 - Diagrams: Mermaid preferred; ASCII only for spatial layouts
+
+## Testing instructions
+
+- xUnit tests live in `src/Relego.Tests/`, mirroring source folders (`Api/`, `Cli/`, `Parsing/`, `Sources/`, `Recap/`, `Services/`, `Infrastructure/`).
+- API tests use `Microsoft.AspNetCore.Mvc.Testing` via `RelegoTestApplicationFactory`; HTTP is mocked with `RichardSzalay.MockHttp`; fixtures live in `src/Relego.Tests/Fixtures/`, and SQLite sources use the `KoboTestDatabase` helper.
+- Use TDD where applicable, especially for API endpoints, parsers, and other behavior-heavy changes. Tests are not required for purely mechanical changes such as NuGet updates or `.csproj` edits.
+- New highlight sources: add focused tests under `src/Relego.Tests/Sources/` plus a fixture; see [CONTRIBUTING.md](./CONTRIBUTING.md) for the full checklist.
+
+## Security considerations
+
+- Assume a trusted local network; never expose the server publicly without a reverse proxy and auth (ADR-004).
+- Never log or commit secrets; SMTP credentials and delivery addresses seed from env vars on first boot and are stored server-side in SQLite.
+- SQLite data lives at `/data/relego.db` (Docker volume) — back it up; Kobo databases are copied to a temp file, opened read-only, and deleted so device files are never modified (ADR-008).
+- Report vulnerabilities privately via GitHub Security Advisories (see [SECURITY.md](./SECURITY.md)), never in public issues.
+- Supply chain: NuGet audit with a documented `GHSA-2m69-gcr7-jv3q` suppression, OSSF Scorecard and CodeQL in CI, GitHub Actions pinned by SHA.
 
 ## Spec Kit integration
 
@@ -124,4 +156,8 @@ Refer to the canonical versioning guide in [VERSIONING.md](../VERSIONING.md).
 
 ## About commits
 
-Do NOT use conventional commits, nor in PR. NEVER co-author any AI tool like Copilot.
+Do NOT use conventional commits, nor in PR.
+
+## Maintaining this file
+
+Keep `AGENTS.md` within 200 lines. Move package/subdomain-specific detail into a nested `AGENTS.md` in that folder (e.g. `src/relego.web/AGENTS.md`) instead of growing this file; nested files apply to their subtree.
