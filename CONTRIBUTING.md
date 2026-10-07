@@ -1,6 +1,6 @@
 # Contributing to Relego
 
-Thank you for your interest in contributing. Relego uses an issue-first workflow: work starts from a GitHub issue, moves through the project board, and lands in a pull request that closes that issue.
+Thank you for your interest in contributing. Relego uses an issue-first workflow: work starts from a GitHub issue or a tracked spec package, and lands in a pull request that references it.
 
 If you are changing user-facing behavior, review [README.md](README.md) and [docs/DX.md](docs/DX.md) first so the implementation, wording, and examples stay aligned.
 
@@ -13,7 +13,7 @@ For a first contribution, prefer a small issue labeled `documentation` or `good 
 3. Create a branch from `main`.
 4. Make one focused change.
 5. Run the smallest relevant validation.
-6. Open a PR to `main` with `Closes #<issue-number>` in the body.
+6. Open a PR to `main` using the pull request template, closing the issue with `Closes #<issue-number>` in the body.
 
 ```sh
 git checkout main
@@ -28,24 +28,22 @@ Use `TXXX` as the issue or task number and keep the branch name short and descri
 Use the repository templates when opening a new issue:
 
 - [Bug report](https://github.com/Krusty93/relego/issues/new?template=bug_report.md) issues default to the `bug` label.
-- [Feature request](https://github.com/Krusty93/relego/issues/new?template=feature_request.md) issues default to the `enhancement` label.
+- [Feature request](https://github.com/Krusty93/relego/issues/new?template=feature_request.md) issues default to `enhancement`.
 - [Documentation](https://github.com/Krusty93/relego/issues/new?template=documentation.md) issues default to the `documentation` label.
 
-Planned product work also uses feature labels such as `feature:003-highlight-parser`. Those labels map to the design artifacts in `specs/` and should stay aligned between the parent issue, its subtasks, and the final PR.
+Feature work is tracked as a spec package under `specs/` with one linked issue; feature issues carry the `enhancement` label. Add every issue to the GitHub Project kanban right after creating it.
 
 ### Spec Kit workflow for tracked features
 
-This repository uses [GitHub Spec Kit](https://github.com/github/spec-kit) with the Copilot skills integration. Use Spec Kit only for tracked feature work under a `feature:00X-name` label, not for routine bug fixes, docs changes, or chores.
+This repository uses [GitHub Spec Kit](https://github.com/github/spec-kit) with the Copilot skills integration. Use Spec Kit for tracked feature work, not for routine bug fixes, docs changes, or chores. Run every spec-kit operation through the `specify` CLI; never hand-edit `.specify/` internals or generated artifacts.
 
-The complete workflow can be invoked from the repository root:
+PRDs in `docs/prds/` define milestones and contain no user stories. Once a PRD is merged to `main`, create its features as spec packages under `specs/` by running the workflow from the repository root:
 
 ```sh
 specify workflow run speckit -i spec="Describe the feature to build"
 ```
 
-The workflow pauses after specification and planning for review. The Relego-specific `relego-review` overlay adds a final gate before implementation. Approve that gate only after the design PR has merged and the GitHub Project implementation subtasks have been created.
-
-Inspect or resume a paused run with:
+The workflow pauses after specification and planning for review. Inspect or resume a paused run with:
 
 ```sh
 specify workflow status
@@ -53,38 +51,44 @@ specify workflow status <run-id>
 specify workflow resume <run-id>
 ```
 
-1. Create the Design subtask and the Implementation subtask under the parent feature issue.
-2. Move the Design subtask to `In progress` before writing spec artifacts.
-3. Run the Spec Kit workflow, or run `/speckit-specify`, `/speckit-plan`, and `/speckit-tasks` in order.
-4. Capture user or maintainer decisions at each step instead of letting the tool guess scope or behavior.
-5. Treat the resulting `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and `tasks.md` files in `specs/00X/` as the feature design package, and open a PR.
-6. Iterate on the design package until the implementation phase is ready, then merge the design PR to `main` before starting implementation.
-7. **After the design PR merges**, create one implementation phase subtask per phase defined in `tasks.md`. Make each phase subtask a child of the Implementation subtask, apply the parent feature label, add it to the GitHub Project Kanban, and leave it in `Backlog`.
-8. Move the Implementation subtask to `In progress`, then implement the phase subtasks incrementally.
-9. When a task is completed on a branch, mark it `[X]` in `tasks.md` on that same branch before pushing.
+1. Review at each checkpoint and capture user or maintainer decisions instead of letting the tool guess scope or behavior.
+2. After `spec.md` is ready, create exactly one GitHub issue for the spec and add it to the kanban. Feature issues carry the `enhancement` label, and the issue links the spec on `main`:
 
-Do not add ad-hoc files under `specs/` or run spec-kit for work that is not tied to a tracked feature issue.
+   ```sh
+   gh issue create --title "<feature name>" --label enhancement --body "Spec: https://github.com/Krusty93/relego/blob/main/specs/00X-name/spec.md"
+   gh project item-add 2 --owner Krusty93 --url <issue-url>
+   ```
 
-If a non-feature task does not match an existing label, ask a maintainer before starting broad work.
+3. Merge the spec package to `main` before implementation starts.
+4. Implement one task per PR. `/speckit-implement` runs as designed; deliver the stack in the dependency and execution order from `tasks.md`.
+5. When a task is completed on a branch, mark it `[X]` in `tasks.md` on that same branch before pushing.
+
+The spec package is the single source of truth for the feature; issues and PRs link to it and never restate requirements. Do not add ad-hoc files under `specs/` or run spec-kit for work that is not tied to a tracked feature. Ask the user whether to record an ADR whenever a significant decision is made during spec generation.
+
+If a non-feature task is not covered by an existing label, ask a maintainer before starting broad work.
 
 ## Project workflow
 
-Issues use these statuses: `Backlog`, `Ready`, `In progress`, `In review`, `Done`.
-
-If you have project access:
-
-- Move the issue to `In progress` before you start.
-- Move it to `In review` when the PR is open.
-- Move it to `Done` after merge.
+Every issue is added to the GitHub Project kanban right after creation.
 
 Every PR should:
 
 - Target `main`.
-- Close its linked issue via `Closes #<issue-number>`.
-- Carry the same label as the linked issue.
-- Stay focused on one logical change.
+- Use `.github/pull_request_template.md` and reference the right issue: `Relates to #<spec issue>` for spec PRs, `Closes #<tracking issue>` for everything else.
+- Stay focused on one task.
 
-For larger feature work, follow the spec-kit flow above instead of hand-editing a partial `specs/` package or opening an untracked implementation PR.
+Stacked delivery uses the [`gh-stack`](https://github.com/github/gh-stack) extension (preinstalled in the dev container); layers follow the dependency and execution order in `tasks.md`:
+
+```sh
+gh stack init task/TXXX-short-description   # first task
+gh stack add task/TXXX-short-description    # each following task
+gh stack submit                             # open the chained PRs
+gh stack sync                               # after merges
+```
+
+Parallel `[P]` tasks may run concurrently with parallel agents or separate git worktrees.
+
+For larger feature work, follow the spec-kit flow above instead of hand-editing a partial `specs/` package.
 
 ## Adding a new highlight source
 
@@ -107,6 +111,7 @@ Do not edit `HighlightSourceResolver`, `ClippingsImportWorkflow`, `ImportCommand
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://docs.docker.com/get-docker/)
+- [GitHub CLI](https://cli.github.com/) with the [`gh-stack`](https://github.com/github/gh-stack) extension for stacked PRs; the dev container installs it automatically
 - [Node.js](https://nodejs.org/) and `npm` only if you touch `src/landing`
 
 ### Common commands
@@ -129,6 +134,7 @@ Docs-only changes usually only need a careful proofread and link/path check.
 
 ## Pull request guidelines
 
+- Fill in `.github/pull_request_template.md`: a short changes summary plus the related issue or spec.
 - Add or update tests when behavior changes.
 - Update living docs when workflow, architecture, or user-facing behavior changes.
 - Keep the PR description short and factual: what changed, why it changed, and how you validated it.

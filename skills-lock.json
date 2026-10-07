@@ -7,6 +7,12 @@
       "skillPath": "skills/caveman/SKILL.md",
       "computedHash": "e9192d111aa44ea90bd214d5aa2b4f640195b0717faedd881e4b3927da9d88e2"
     },
+    "gh-stack": {
+      "source": "github/gh-stack",
+      "sourceType": "github",
+      "skillPath": "skills/gh-stack/SKILL.md",
+      "computedHash": "a102ecd37c82098e634bbc7393a5f8fb2dba4b37e8f85d98a1606b1ce938f4c5"
+    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",

@@ -18,7 +18,12 @@
       "version": "latest"
     }
 	},
-  "postCreateCommand": "uv tool install specify-cli --from git+https://github.com/github/spec-kit.git && dotnet tool install -g Rnwood.Smtp4dev",
+  "postCreateCommand": [
+    "uv tool install specify-cli --from git+https://github.com/github/spec-kit.git",
+    "dotnet tool install -g Rnwood.Smtp4dev",
+    "gh extension install github/gh-stack",
+    "git config rerere.enabled true"
+  ],
   "postStartCommand": {
     "set-workspace-as-safe-dir": "git config --global --add safe.directory ${containerWorkspaceFolder}",
     "dotnet-https-cert": "dotnet dev-certs https"
@@ -51,9 +56,6 @@
         "github.vscode-github-actions",
         "github.vscode-pull-request-github",
         "EditorConfig.EditorConfig",
-        "redhat.vscode-yaml",
-        "github.copilot",
-        "github.copilot-chat",
         "yzhang.markdown-all-in-one",
         "DavidAnson.vscode-markdownlint",
         "ionutvmi.path-autocomplete",

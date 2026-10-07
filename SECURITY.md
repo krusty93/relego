@@ -4,14 +4,6 @@
 
 Relego uses independent semantic versioning for each component. Security fixes are applied to the **latest released version** of each component. Older versions are not actively patched.
 
-| Component | Latest Version | Supported |
-| --------- | -------------- | --------- |
-| `server`  | 0.16.x         | ✅        |
-| `cli`     | 0.13.x         | ✅        |
-| `core`    | 0.7.x          | ✅        |
-
-Versions below the latest minor release for each component are **not supported**.
-
 ## Reporting a Vulnerability
 
 **Please do not report security vulnerabilities through public GitHub issues.**
