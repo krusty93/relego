@@ -53,7 +53,7 @@ Prerequisites: .NET 10 SDK and Docker. Node.js/npm only when touching `src/releg
 
 ## Spec Kit integration
 
-This repository uses GitHub Spec Kit with the Copilot skills integration. Run every spec-kit operation through the `specify` CLI and never hand-edit `.specify/` internals or generated artifacts. Spec Kit skills live under `.github/skills/speckit-<command>/SKILL.md` and run inside the CLI workflow.
+This repository uses GitHub Spec Kit with the Copilot skills integration.
 
 Core commands:
 
@@ -70,19 +70,7 @@ Optional quality commands:
 - `/speckit-analyze`
 - `/speckit-converge`
 
-PRDs in `docs/prds/` define milestones and contain no user stories. Once a PRD is merged to `main`, create its features as spec packages under `specs/` by running the workflow from the repository root:
-
-```sh
-specify workflow run speckit -i spec="Describe the feature to build"
-```
-
-The workflow pauses after specification and planning for review. Inspect and resume runs with:
-
-```sh
-specify workflow status
-specify workflow status <run-id>
-specify workflow resume <run-id>
-```
+PRDs in `docs/prds/` define milestones and contain no user stories. Once a PRD is merged to `main`, create its features as spec packages under `specs/`.
 
 **Feature flow**
 

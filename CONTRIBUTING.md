@@ -35,21 +35,8 @@ Feature work is tracked as a spec package under `specs/` with one linked issue; 
 
 ### Spec Kit workflow for tracked features
 
-This repository uses [GitHub Spec Kit](https://github.com/github/spec-kit) with the Copilot skills integration. Use Spec Kit for tracked feature work, not for routine bug fixes, docs changes, or chores. Run every spec-kit operation through the `specify` CLI; never hand-edit `.specify/` internals or generated artifacts.
+This repository uses [GitHub Spec Kit](https://github.com/github/spec-kit) with the Copilot skills integration. Use Spec Kit for tracked feature work, not for routine bug fixes, docs changes, or chores.
 
-PRDs in `docs/prds/` define milestones and contain no user stories. Once a PRD is merged to `main`, create its features as spec packages under `specs/` by running the workflow from the repository root:
-
-```sh
-specify workflow run speckit -i spec="Describe the feature to build"
-```
-
-The workflow pauses after specification and planning for review. Inspect or resume a paused run with:
-
-```sh
-specify workflow status
-specify workflow status <run-id>
-specify workflow resume <run-id>
-```
 
 1. Review at each checkpoint and capture user or maintainer decisions instead of letting the tool guess scope or behavior.
 2. After `spec.md` is ready, create exactly one GitHub issue for the spec and add it to the kanban. Feature issues carry the `enhancement` label, and the issue links the spec on `main`:
