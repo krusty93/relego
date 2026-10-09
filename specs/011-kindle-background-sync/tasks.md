@@ -33,9 +33,9 @@ description: "Task list for feature 011 Kindle Background Synchronization"
 
 **Purpose**: Create the new browser-extension project and wire it into build/CI.
 
-- [ ] T001 Create `src/relego.extension` TypeScript project: `src/relego.extension/manifest.json` (Manifest V3, Chrome + Firefox; permissions `storage` and `alarms`; `host_permissions` empty at install; no `cookies`/`webRequest`/`<all_urls>`), `package.json`, `tsconfig.json`, and Vite + Vitest config per plan
-- [ ] T002 [P] Scaffold extension modules `src/relego.extension/src/{background,notebook-parser,client,profile}.ts` and `src/relego.extension/tests/` with the test runner wired up
-- [ ] T003 [P] Add the extension to CI in `.github/workflows/ci.yaml`: `npm ci` + typecheck + unit tests (mirrors the existing `relego.web` job)
+- [X] T001 Create `src/relego.extension` TypeScript project: `src/relego.extension/manifest.json` (Manifest V3, Chrome + Firefox; permissions `storage` and `alarms`; `host_permissions` empty at install; no `cookies`/`webRequest`/`<all_urls>`), `package.json`, `tsconfig.json`, and Vite + Vitest config per plan
+- [X] T002 [P] Scaffold extension modules `src/relego.extension/src/{background,notebook-parser,client,profile}.ts` and `src/relego.extension/tests/` with the test runner wired up
+- [X] T003 [P] Add the extension to CI in `.github/workflows/ci.yaml`: `npm ci` + typecheck + unit tests (mirrors the existing `relego.web` job)
 
 **Checkpoint**: Extension project builds and runs an empty test suite in CI.
 
