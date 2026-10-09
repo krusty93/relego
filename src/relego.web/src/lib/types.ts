@@ -136,3 +136,93 @@ export interface RecapHistoryItem {
 export interface RecapHistoryResponse {
   items: RecapHistoryItem[];
 }
+
+export interface SyncProviderCapabilities {
+  pushIngest: boolean;
+  fullResync: boolean;
+  progressReporting: boolean;
+}
+
+export interface SyncProviderSummary {
+  providerId: string;
+  displayName: string;
+  capabilities: SyncProviderCapabilities;
+  inactivityReminderDays: number;
+  disclosureVersion: string;
+}
+
+export interface SyncRegion {
+  id: string;
+  displayName: string;
+  host: string;
+}
+
+export interface SyncSchedule {
+  intervalMinutes: number;
+  allowedIntervalMinutes: number[];
+  nextRunAt: string | null;
+  applied: boolean;
+  pendingCommand: string;
+}
+
+export interface SyncConnection {
+  state: string;
+  connectedAt: string | null;
+  lastHeartbeatAt: string | null;
+  browserReporting: boolean;
+  region: SyncRegion | null;
+}
+
+export interface SyncJob {
+  id: number;
+  mode: string;
+  status: string;
+  phase: string | null;
+  booksTotal: number | null;
+  booksDone: number | null;
+  highlightsSeen: number;
+  highlightsNew: number;
+  highlightsDuplicate: number;
+  truncatedBooks: number;
+  startedAt: string | null;
+  endedAt: string | null;
+}
+
+export interface SyncFailure {
+  code: string;
+  detail: string | null;
+  recoverySteps: string[];
+  occurredAt: string | null;
+}
+
+export interface SyncDisclosureItem {
+  kind: string;
+  title: string;
+  body: string;
+}
+
+export interface SyncDisclosure {
+  version: string;
+  items: SyncDisclosureItem[];
+}
+
+export interface SyncReminder {
+  id: number;
+  quietSince: string;
+  thresholdDays: number;
+  createdAt: string | null;
+  dismissed: boolean;
+}
+
+export interface SyncStatusResponse {
+  providerId: string;
+  status: string;
+  connection: SyncConnection;
+  schedule: SyncSchedule;
+  currentJob: SyncJob | null;
+  lastCompletedJob: SyncJob | null;
+  failure: SyncFailure | null;
+  reminder: SyncReminder | null;
+  disclosure: SyncDisclosure;
+  prerequisites: string[];
+}

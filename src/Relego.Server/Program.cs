@@ -14,6 +14,7 @@ using Relego.Server.Infrastructure.Logging;
 using Relego.Server.Infrastructure.Smtp;
 using Relego.Server.Jobs;
 using Relego.Server.Services;
+using Relego.Server.Sync;
 
 SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
 
@@ -76,6 +77,13 @@ builder.Services.AddScoped<SmtpSettingsRepository>();
 builder.Services.AddScoped<SmtpConfigurationService>();
 builder.Services.AddScoped<UploadImportService>();
 
+builder.Services.AddSingleton<ICloudSyncProvider, KindleCloudProvider>();
+builder.Services.AddScoped<SyncConnectionRepository>();
+builder.Services.AddScoped<SyncJobRepository>();
+builder.Services.AddScoped<ProvenanceRepository>();
+builder.Services.AddScoped<SyncTokenService>();
+builder.Services.AddScoped<SyncService>();
+
 builder.Services.AddQuartz(q =>
 {
     q.UseTimeZoneConverter();
@@ -127,6 +135,7 @@ app.UseStaticFiles();
 app.MapRecapEndpoints();
 app.MapProbeEndpoints();
 app.MapSyncEndpoints();
+app.MapCloudSyncEndpoints();
 app.MapImportEndpoints();
 app.MapSettingsEndpoints();
 app.MapSmtpSettingsEndpoints();
