@@ -12,6 +12,7 @@ import type {
   SyncCommandResponse,
   SyncProviderSummary,
   SyncRegionsResponse,
+  SyncScheduleChangeResponse,
   SyncStatusResponse,
   UpdateSettingsRequest,
   UpdateSmtpSettingsRequest,
@@ -202,9 +203,8 @@ export const api = {
 
 /**
  * Cloud sync channel calls. `status` reads the provider status payload used by the Sync page;
- * `createConnection` starts (or re-keys) the pairing, `command` queues work for the extension and
- * `disconnect` revokes the pairing. The schedule and region calls are added with the user-story
- * work.
+ * `createConnection` starts (or re-keys) the pairing, `command` queues work for the extension,
+ * `regions` lists the validated Amazon regions and `disconnect` revokes the pairing.
  */
 export const syncApi = {
   providers: () => request<SyncProviderSummary[]>("/sync/providers"),
@@ -215,6 +215,13 @@ export const syncApi = {
   /** The validated regions the connection may read; fixed per server, so it is fetched once. */
   regions: (providerId: string) =>
     request<SyncRegionsResponse>(`/sync/${encodeURIComponent(providerId)}/regions`),
+
+  /** Stores a routine-sync frequency; the extension applies it on its next heartbeat. */
+  schedule: (providerId: string, intervalMinutes: number) =>
+    request<SyncScheduleChangeResponse>(`/sync/${encodeURIComponent(providerId)}/schedule`, {
+      method: "PUT",
+      body: JSON.stringify({ intervalMinutes }),
+    }),
 
   createConnection: (providerId: string) =>
     request<CreateSyncConnectionResponse>(`/sync/${encodeURIComponent(providerId)}/connection`, {
