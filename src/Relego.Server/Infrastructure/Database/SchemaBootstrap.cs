@@ -91,6 +91,94 @@ public sealed class SchemaBootstrap
 
         CREATE UNIQUE INDEX IF NOT EXISTS uq_recap_jobs_user_slot
             ON recap_jobs(user_id, scheduled_for);
+
+        CREATE TABLE IF NOT EXISTS sync_connections (
+            id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id                  INTEGER NOT NULL REFERENCES users(id),
+            provider_id              TEXT    NOT NULL,
+            token_hash               TEXT    NOT NULL,
+            state                    TEXT    NOT NULL,
+            disclosure_version       TEXT    NOT NULL,
+            profile_version          TEXT    NULL,
+            region_id                TEXT    NULL,
+            region_changed_at        TEXT    NULL,
+            sync_interval_minutes    INTEGER NOT NULL DEFAULT 360 CHECK(sync_interval_minutes IN (15,30,45,60,120,240,360,720,1080,1440)),
+            schedule_updated_at      TEXT    NULL,
+            applied_interval_minutes INTEGER NULL,
+            next_sync_due_at         TEXT    NULL,
+            pending_command          TEXT    NULL,
+            connected_at             TEXT    NULL,
+            last_heartbeat_at        TEXT    NULL,
+            last_sync_started_at     TEXT    NULL,
+            last_sync_completed_at   TEXT    NULL,
+            last_new_content_at      TEXT    NULL,
+            last_auth_expired_at     TEXT    NULL,
+            created_at               TEXT    NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS sync_jobs (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            connection_id        INTEGER NOT NULL REFERENCES sync_connections(id),
+            user_id              INTEGER NOT NULL REFERENCES users(id),
+            idempotency_key      TEXT    NOT NULL,
+            mode                 TEXT    NOT NULL,
+            trigger              TEXT    NOT NULL,
+            status               TEXT    NOT NULL,
+            phase                TEXT    NULL,
+            books_total          INTEGER NULL,
+            books_done           INTEGER NULL,
+            highlights_seen      INTEGER NOT NULL DEFAULT 0,
+            highlights_new       INTEGER NOT NULL DEFAULT 0,
+            highlights_duplicate INTEGER NOT NULL DEFAULT 0,
+            truncated_books      INTEGER NOT NULL DEFAULT 0,
+            failure_code         TEXT    NULL,
+            failure_detail       TEXT    NULL,
+            recovery_steps       TEXT    NULL,
+            started_at           TEXT    NULL,
+            ended_at             TEXT    NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS sync_job_batches (
+            job_id               INTEGER NOT NULL REFERENCES sync_jobs(id),
+            batch_index          INTEGER NOT NULL,
+            new_highlights       INTEGER NOT NULL DEFAULT 0,
+            duplicate_highlights INTEGER NOT NULL DEFAULT 0,
+            new_books            INTEGER NOT NULL DEFAULT 0,
+            new_authors          INTEGER NOT NULL DEFAULT 0,
+            received_at          TEXT    NOT NULL,
+            PRIMARY KEY (job_id, batch_index)
+        );
+
+        CREATE TABLE IF NOT EXISTS highlight_provenance (
+            highlight_id  INTEGER PRIMARY KEY REFERENCES highlights(id),
+            connection_id INTEGER NULL REFERENCES sync_connections(id),
+            source_id     TEXT    NOT NULL,
+            region_id     TEXT    NULL,
+            external_id   TEXT    NULL,
+            truncated     INTEGER NOT NULL DEFAULT 0,
+            location      TEXT    NULL,
+            note          TEXT    NULL,
+            color         TEXT    NULL,
+            first_seen_at TEXT    NOT NULL,
+            last_seen_at  TEXT    NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS sync_reminders (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            connection_id  INTEGER NOT NULL REFERENCES sync_connections(id),
+            user_id        INTEGER NOT NULL REFERENCES users(id),
+            quiet_since    TEXT    NOT NULL,
+            threshold_days INTEGER NOT NULL,
+            created_at     TEXT    NOT NULL,
+            emailed_at     TEXT    NULL,
+            dismissed_at   TEXT    NULL,
+            resolved_at    TEXT    NULL
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_connections_user_provider ON sync_connections(user_id, provider_id) WHERE state <> 'disconnected';
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_jobs_user_idempotency ON sync_jobs(user_id, idempotency_key);
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_highlight_provenance_external ON highlight_provenance(source_id, region_id, external_id) WHERE external_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_reminders_connection_quiet ON sync_reminders(connection_id, quiet_since);
         """;
 
     public async Task ApplyAsync(SqliteConnection connection, CancellationToken cancellationToken = default)

@@ -8,6 +8,8 @@ import type {
   SmtpSettingsResponse,
   SmtpTestResponse,
   StatusResponse,
+  SyncProviderSummary,
+  SyncStatusResponse,
   UpdateSettingsRequest,
   UpdateSmtpSettingsRequest,
   WeightedHighlight,
@@ -193,4 +195,15 @@ export const api = {
 
       xhr.send(form);
     }),
+};
+
+/**
+ * Cloud sync channel calls. `status` reads the provider status payload used by the Sync page; the
+ * connect, schedule and command calls are added with the user-story work.
+ */
+export const syncApi = {
+  providers: () => request<SyncProviderSummary[]>("/sync/providers"),
+
+  status: (providerId: string) =>
+    request<SyncStatusResponse>(`/sync/${encodeURIComponent(providerId)}`),
 };

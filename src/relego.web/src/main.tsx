@@ -11,6 +11,7 @@ import { ImportPage } from "./routes/ImportPage";
 import { LibraryPage } from "./routes/LibraryPage";
 import { RecapsPage } from "./routes/RecapsPage";
 import { SettingsPage } from "./routes/SettingsPage";
+import { SyncPage } from "./routes/SyncPage";
 import "./styles/global.css";
 
 const queryClient = new QueryClient({
@@ -33,6 +34,7 @@ createRoot(document.getElementById("root")!).render(
                   <Route path="/app/books/:bookId" element={<HighlightsPage />} />
                   <Route path="/app/recaps" element={<RecapsPage />} />
                   <Route path="/app/import" element={<ImportPage />} />
+                  <Route path="/app/sync" element={<SyncPage />} />
                   <Route path="/app/settings" element={<SettingsPage />} />
                   <Route path="/" element={<Navigate to="/app" replace />} />
                   <Route path="*" element={<Navigate to="/app" replace />} />

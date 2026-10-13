@@ -67,6 +67,17 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
+export function SyncIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M20 11a8 8 0 0 0-13.7-5.6L4 8" />
+      <path d="M4 4v4h4" />
+      <path d="M4 13a8 8 0 0 0 13.7 5.6L20 16" />
+      <path d="M20 20v-4h-4" />
+    </svg>
+  );
+}
+
 export function KeyboardIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
