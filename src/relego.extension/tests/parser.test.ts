@@ -198,6 +198,21 @@ describe("notebook parser - book page", () => {
     expect(book?.highlights[2]?.color).toBeNull();
   });
 
+  it("reduces a highlight to plain text, dropping markup and keeping escaped brackets", () => {
+    const html = fixture("book.html").replace(
+      '<span id="highlight">Care about your craft.</span>',
+      '<span id="highlight">Care <b>about</b> &lt;your&gt; <i>craft</i>.</span>',
+    );
+
+    const outcome = parseBookPage(html, us, "fallback");
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    // Highlight text only ever reaches the server and is rendered as text, so an escaped bracket
+    // stays a bracket while the markup around it goes away.
+    expect(outcome.result.books[0]?.highlights[0]?.text).toBe("Care about <your> craft.");
+  });
+
   it("marks a book truncated when the export limit is shown (invariant 4)", () => {
     const outcome = parseBookPage(fixture("truncation-warning.html"), us, "fallback");
 

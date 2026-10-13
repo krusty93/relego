@@ -325,9 +325,27 @@ function attribute(html: string, name: string): string | null {
   return match === null ? null : decodeEntities((match[1] as string).trim());
 }
 
+/**
+ * Strips tags from a fragment, repeating the replacement until the fragment stops changing.
+ *
+ * Removing a whole tag in one pass is only safe while the removal cannot join the text on both
+ * sides of it back into a tag, so the replacement runs to a fixed point instead of assuming it.
+ */
+function stripTags(html: string): string {
+  let stripped = html;
+  let previous: string;
+
+  do {
+    previous = stripped;
+    stripped = stripped.replace(/<[^>]*>/g, "");
+  } while (stripped !== previous);
+
+  return stripped;
+}
+
 /** Strips tags from a fragment and decodes entities. */
 function textOf(html: string): string {
-  return decodeEntities(html.replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim();
+  return decodeEntities(stripTags(html)).replace(/\s+/g, " ").trim();
 }
 
 function decodeEntities(value: string): string {
