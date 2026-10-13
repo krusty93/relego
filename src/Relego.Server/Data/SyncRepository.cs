@@ -6,6 +6,12 @@ namespace Relego.Server.Data;
 
 public sealed class SyncRepository(IDbConnection connection)
 {
+    /// <summary>Author name stored when a source reports none; shared with provenance writes.</summary>
+    /// <param name="author">Author as reported by the source, or <c>null</c>.</param>
+    /// <returns>The author name used by the import path.</returns>
+    public static string ResolveAuthorName(string? author) =>
+        string.IsNullOrWhiteSpace(author) ? "Unknown Author" : author;
+
     public async Task<SyncResponse> ImportAsync(int userId, SyncRequest request)
     {
         var response = new SyncResponse();
@@ -14,7 +20,7 @@ public sealed class SyncRepository(IDbConnection connection)
 
         foreach (var book in request.Books)
         {
-            var authorName = string.IsNullOrWhiteSpace(book.Author) ? "Unknown Author" : book.Author;
+            var authorName = ResolveAuthorName(book.Author);
 
             var newAuthors = await connection.ExecuteAsync(
                 "INSERT OR IGNORE INTO authors (name) VALUES (@Name)",

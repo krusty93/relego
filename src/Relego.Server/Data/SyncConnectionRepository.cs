@@ -51,6 +51,19 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             $"{SelectColumns} WHERE id = @Id",
             new { Id = id });
 
+    /// <summary>
+    /// Replaces the stored token hash of an existing connection and returns it to
+    /// <c>pending_pairing</c>, keeping its region, schedule and history. Used when the user pairs
+    /// again and a new one-time token is issued.
+    /// </summary>
+    /// <param name="id">Connection to re-arm.</param>
+    /// <param name="tokenHash">Hash of the newly issued pairing token.</param>
+    /// <returns>A task that completes when the hash has been replaced.</returns>
+    public Task RotateTokenAsync(long id, string tokenHash) =>
+        connection.ExecuteAsync(
+            "UPDATE sync_connections SET token_hash = @TokenHash, state = 'pending_pairing' WHERE id = @Id",
+            new { Id = id, TokenHash = tokenHash });
+
     /// <summary>Creates a new connection in the <c>pending_pairing</c> state and returns it.</summary>
     public async Task<SyncConnection> CreateAsync(
         int userId,

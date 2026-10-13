@@ -14,6 +14,7 @@ public sealed class SyncService(
     SyncConnectionRepository connections,
     SyncJobRepository jobs,
     SyncRepository syncRepository,
+    ProvenanceRepository provenance,
     IEnumerable<ICloudSyncProvider> providers,
     ILogger<SyncService> logger)
 {
@@ -56,7 +57,7 @@ public sealed class SyncService(
 
         var existing = await jobs.GetByKeyAsync(userId, request.IdempotencyKey);
         if (existing is not null)
-            return new SyncJobStartResult { Job = existing, Reused = true };
+            return await BuildStartResultAsync(existing, connection, provider, reused: true);
 
         var running = await jobs.GetRunningAsync(connection.Id);
         if (running is not null)
@@ -64,7 +65,7 @@ public sealed class SyncService(
             if (request.Mode == ModeFullResync)
                 throw new SyncOperationException($"A sync job ({running.Id}) is already running.", StatusCodes.Status409Conflict);
 
-            return new SyncJobStartResult { Job = running, Reused = true };
+            return await BuildStartResultAsync(running, connection, provider, reused: true);
         }
 
         if (request.Mode == ModeFullResync && connection.State != "active")
@@ -85,7 +86,7 @@ public sealed class SyncService(
             job.Mode,
             job.Trigger);
 
-        return new SyncJobStartResult { Job = job };
+        return await BuildStartResultAsync(job, connection, provider, reused: false);
     }
 
     /// <summary>
@@ -129,7 +130,50 @@ public sealed class SyncService(
             throw new SyncOperationException(string.Join(" ", normalization.Errors), StatusCodes.Status422UnprocessableEntity);
 
         var request = provider.ToSyncRequest(normalization);
+        var normalized = normalization.NormalizedBatch!;
+        var connection = await connections.GetByIdAsync(job.ConnectionId);
+
+        // Re-observation by provider external id within the region is matched before the shared text
+        // dedup, so a highlight whose text changed upstream is not imported a second time.
+        var observed = await provenance.ListObservedAsync(
+            providerId,
+            connection?.RegionId,
+            normalized.Books.SelectMany(book => book.Highlights).Select(highlight => highlight.ExternalId));
+
+        var reobserved = 0;
+
+        for (var bookIndex = 0; bookIndex < request.Books.Count; bookIndex++)
+        {
+            var sourceHighlights = normalized.Books[bookIndex].Highlights;
+            var kept = new List<SyncHighlightRequest>(request.Books[bookIndex].Highlights.Count);
+
+            for (var highlightIndex = 0; highlightIndex < sourceHighlights.Count; highlightIndex++)
+            {
+                var externalId = sourceHighlights[highlightIndex].ExternalId;
+
+                if (externalId is not null && observed.ContainsKey(externalId))
+                {
+                    reobserved++;
+                    continue;
+                }
+
+                kept.Add(request.Books[bookIndex].Highlights[highlightIndex]);
+            }
+
+            request.Books[bookIndex].Highlights = kept;
+        }
+
         var response = await syncRepository.ImportAsync(userId, request);
+        response.DuplicateHighlights += reobserved;
+
+        await provenance.RecordBatchAsync(
+            userId,
+            providerId,
+            connection?.RegionId,
+            job.ConnectionId,
+            normalized.Books,
+            observed,
+            DateTimeOffset.UtcNow.ToString("o"));
 
         await jobs.SaveBatchAsync(new SyncJobBatchRecord
         {
@@ -239,6 +283,25 @@ public sealed class SyncService(
         }
 
         return stale.Count;
+    }
+
+    /// <summary>
+    /// Builds the start result, attaching the known-book fingerprint to routine runs only: a
+    /// routine run compares each library book's advertised highlight count against the fingerprint
+    /// and skips books whose count is unchanged, while a full resync deliberately re-reads every
+    /// book.
+    /// </summary>
+    private async Task<SyncJobStartResult> BuildStartResultAsync(
+        SyncJobRecord job,
+        SyncConnection connection,
+        ICloudSyncProvider provider,
+        bool reused)
+    {
+        var knownBooks = job.Mode == ModeRoutine
+            ? await provenance.ListKnownBooksAsync(connection.UserId, provider.Descriptor.Id, connection.RegionId)
+            : [];
+
+        return new SyncJobStartResult { Job = job, KnownBooks = knownBooks, Reused = reused };
     }
 
     private ICloudSyncProvider ResolveProvider(string providerId) =>
