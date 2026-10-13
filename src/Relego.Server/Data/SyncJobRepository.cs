@@ -68,6 +68,16 @@ public sealed class SyncJobRepository(IDbConnection connection)
             """,
             new { ConnectionId = connectionId });
 
+    /// <summary>Returns the most recent successfully completed job, or <c>null</c>.</summary>
+    public Task<SyncJobRecord?> GetLatestCompletedAsync(long connectionId) =>
+        connection.QuerySingleOrDefaultAsync<SyncJobRecord>(
+            $"""
+            {SelectColumns}
+            WHERE connection_id = @ConnectionId AND status LIKE 'completed%'
+            ORDER BY id DESC LIMIT 1
+            """,
+            new { ConnectionId = connectionId });
+
     /// <summary>Inserts a new running job and returns it.</summary>
     public async Task<SyncJobRecord> InsertAsync(
         long connectionId,

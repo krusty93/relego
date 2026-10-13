@@ -17,6 +17,7 @@ export default defineConfig({
       "/recaps": "http://localhost:8080",
       "/settings": "http://localhost:8080",
       "/status": "http://localhost:8080",
+      "/sync": "http://localhost:8080",
     },
   },
 });
