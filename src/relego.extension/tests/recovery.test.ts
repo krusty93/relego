@@ -132,11 +132,13 @@ interface Recorded {
 function installFetch(state: ServerState): Recorded {
   const server: Recorded = { starts: [], failures: [], completions: [], heartbeats: [], batches: 0, statusCalls: 0 };
   const region = { id: "us", displayName: "United States", host: us.notebookHost };
+  // Exact hostnames, so `evilamazon.com` is never mistaken for the notebook.
+  const amazonHosts = new Set<string>([us.notebookHost, ...us.signInHostPatterns]);
 
   vi.stubGlobal("fetch", (input: string | URL, init?: RequestInit): Promise<FakeResponse> => {
     const url = new URL(typeof input === "string" ? input : input.toString());
 
-    if (url.hostname.endsWith("amazon.com")) {
+    if (amazonHosts.has(url.hostname)) {
       if (!state.signedIn) return Promise.resolve(pageResponse(fixture("sign-in.html"), "https://www.amazon.com/ap/signin"));
 
       const key = url.searchParams.get("bookKey");
