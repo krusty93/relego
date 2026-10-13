@@ -23,6 +23,7 @@ import {
   resolveRegion,
 } from "./profile";
 import type { KindleRegion } from "./profile";
+import { isConfiguredMessage } from "./messages";
 import { readConfig } from "./storage";
 import { runSync } from "./sync-runner";
 import type { PageResponse, SyncMode, SyncRunOutcome, SyncTrigger } from "./sync-runner";
@@ -216,6 +217,24 @@ export async function heartbeat(): Promise<void> {
 }
 
 /**
+ * Applies a configuration change made in the popup.
+ *
+ * The popup owns the choice, because only a user gesture can request host access, but the worker
+ * owns the schedule: this recreates the alarms, applies the frequency the server reported, and runs
+ * one heartbeat. That heartbeat is what starts the full resync a region change queued, instead of
+ * leaving it for the next sixty-second tick.
+ *
+ * @param intervalMinutes Frequency the server reported, or `null` when the popup learned none.
+ * @returns A task that completes once the change has been applied.
+ */
+export async function applyConfiguration(intervalMinutes: number | null): Promise<void> {
+  await ensureAlarms();
+  if (intervalMinutes !== null) await applyInterval(intervalMinutes);
+
+  await heartbeat();
+}
+
+/**
  * Registers the alarm listener and creates the alarms.
  *
  * @returns A task that completes once the worker is listening.
@@ -225,6 +244,10 @@ export async function start(): Promise<void> {
     if (alarm.name === SYNC_ALARM) void syncNow("scheduled");
     else if (alarm.name === HEARTBEAT_ALARM) void heartbeat();
     else if (alarm.name === AUTH_RETRY_ALARM) void syncNow("retry");
+  });
+
+  chrome.runtime.onMessage.addListener((message: unknown) => {
+    if (isConfiguredMessage(message)) void applyConfiguration(message.intervalMinutes ?? null);
   });
 
   await ensureAlarms();

@@ -31,6 +31,12 @@ public interface ICloudSyncProvider
     /// <summary>Parse profile with the region allowlist.</summary>
     ParseProfile Profile { get; }
 
+    /// <summary>
+    /// Text stating that only the hosts in <see cref="Profile"/> are supported. Served with the
+    /// allowlist and shown verbatim wherever the region list is presented.
+    /// </summary>
+    string RegionDisclosure { get; }
+
     /// <summary>Frequency policy used for validation and defaults only.</summary>
     SyncFrequencyPolicy Frequency { get; }
 

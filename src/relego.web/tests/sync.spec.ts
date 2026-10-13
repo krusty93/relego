@@ -49,6 +49,21 @@ const DISCLOSURE_ITEMS = [
 
 type Payload = Record<string, unknown>;
 
+// Mirrors the server's allowlist and disclosure; the page must state the limits, never offer a host.
+const REGIONS = [
+  { id: "us", displayName: "United States", host: "read.amazon.com" },
+  { id: "ca", displayName: "Canada", host: "read.amazon.ca" },
+  { id: "uk", displayName: "United Kingdom", host: "read.amazon.co.uk" },
+  { id: "de", displayName: "Germany", host: "lesen.amazon.de" },
+  { id: "fr", displayName: "France", host: "lire.amazon.fr" },
+  { id: "it", displayName: "Italy", host: "leggi.amazon.it" },
+  { id: "es", displayName: "Spain", host: "leer.amazon.es" },
+  { id: "br", displayName: "Brazil", host: "ler.amazon.com.br" },
+];
+
+const REGION_DISCLOSURE =
+  "Only these validated hosts are supported; other Amazon regions are unsupported until validated.";
+
 function statusResponse(status: string, overrides: Payload = {}): Payload {
   const connected = status !== "not_connected" && status !== "awaiting_pairing";
 
@@ -143,6 +158,11 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
         status: 202,
         json: { providerId: "kindle-cloud", pendingCommand: body.command ?? "none" },
       });
+      return;
+    }
+
+    if (path.endsWith("/regions")) {
+      await route.fulfill({ json: { regions: REGIONS, disclosure: REGION_DISCLOSURE } });
       return;
     }
 
@@ -444,5 +464,42 @@ test.describe("sync", () => {
     // Away from the Sync page the user still sees that something needs them.
     await expect(rail.locator(".attention")).toBeVisible();
     await expect(rail).toContainText("Amazon sign-in needed");
+  });
+
+  test("the region is shown read-only, with the supported list stated", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/sync", { waitUntil: "networkidle" });
+
+    await expect(page.getByTestId("sync-region")).toHaveText("United Kingdom (read.amazon.co.uk)");
+
+    // The whole allowlist is stated up front, not only the region in use.
+    const notice = page.getByTestId("supported-regions");
+    await expect(notice).toContainText(
+      "Supported regions: United States, Canada, United Kingdom, Germany, France, Italy, Spain, Brazil.",
+    );
+    await expect(notice).toContainText("other Amazon regions are unsupported until validated");
+
+    // Changing the region is the extension's job, and the page says where to do it.
+    await expect(page.getByText("Your region is set in the Relego extension")).toBeVisible();
+
+    // A region is never something the user types: the surface has no form control at all.
+    await expect(page.locator('section[aria-labelledby="sync-h"] input')).toHaveCount(0);
+    await expect(page.locator('section[aria-labelledby="sync-h"] select')).toHaveCount(0);
+    await expect(page.locator('section[aria-labelledby="sync-h"] textarea')).toHaveCount(0);
+    expect(mock.requests).not.toContain("PUT /sync/kindle-cloud/region");
+    expect(mock.requests).not.toContain("POST /sync/kindle-cloud/region");
+  });
+
+  test("before a browser pairs, the region is named as the extension's choice", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("awaiting_pairing"));
+    await page.goto("/app/sync", { waitUntil: "networkidle" });
+
+    await expect(page.getByTestId("pairing-region")).toContainText("Chosen in the extension");
+    await expect(page.getByTestId("pairing-region")).toContainText(
+      "you pick one from a list rather than typing a host",
+    );
+    await expect(page.getByTestId("supported-regions")).toBeVisible();
+
+    expect(mock.requests).not.toContain("PUT /sync/kindle-cloud/region");
   });
 });
