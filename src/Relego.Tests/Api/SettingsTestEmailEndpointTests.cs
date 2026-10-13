@@ -147,5 +147,13 @@ public sealed class SettingsTestEmailEndpointTests : IDisposable
 
         public Task SendHtmlRecapAsync(string toAddress, string htmlBody, string plainTextBody, string subject = "Your Relego Recap", CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task SendNotificationAsync(
+            string toAddress,
+            string subject,
+            string htmlBody,
+            string plainTextBody,
+            CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }
