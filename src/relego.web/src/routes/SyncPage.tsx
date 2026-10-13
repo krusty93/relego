@@ -104,6 +104,13 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
       query.state.data?.status === "syncing" ? POLL_RUNNING_MS : POLL_IDLE_MS,
   });
 
+  // The allowlist is fixed for a given server and version, so it is read once per session.
+  const regions = useQuery({
+    queryKey: ["sync", "regions"],
+    queryFn: () => syncApi.regions(provider.providerId),
+    staleTime: Infinity,
+  });
+
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ["sync", provider.providerId] });
   }
@@ -213,6 +220,11 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
         />
       )}
 
+      <SupportedRegions
+        regions={regions.data?.regions ?? []}
+        disclosure={regions.data?.disclosure}
+      />
+
       <Disclosures disclosure={data.disclosure} prerequisites={data.prerequisites} />
 
       {isFirstRun ? (
@@ -286,6 +298,18 @@ function StatusPanel({
       {!running && lastCompletedJob ? <Outcome job={lastCompletedJob} /> : null}
 
       <dl className="dl">
+        <dt>Region</dt>
+        <dd data-testid="sync-region">
+          {connection.region ? (
+            <>
+              {connection.region.displayName}{" "}
+              <span className="subtle">({connection.region.host})</span>
+            </>
+          ) : (
+            <span className="subtle">Chosen in the extension</span>
+          )}
+        </dd>
+
         <dt>Last synced</dt>
         <dd>
           {lastCompletedJob?.endedAt ? (
@@ -308,6 +332,11 @@ function StatusPanel({
           )}
         </dd>
       </dl>
+
+      <p className="subtle hint-line">
+        Your region is set in the Relego extension, which offers only the validated Amazon regions.
+        Change it there and the next sync reads the new store.
+      </p>
 
       <div className="confirm disconnect" role="group" aria-label="Disconnect">
         {confirming ? (
@@ -621,6 +650,14 @@ function PairingPanel({
         )}
       </div>
 
+      <div className="field">
+        <span className="label">Region</span>
+        <p className="subtle" data-testid="pairing-region">
+          Chosen in the extension. The popup lists the validated Amazon regions, so you pick one
+          from a list rather than typing a host.
+        </p>
+      </div>
+
       <ol className="steps">
         <li>Install the Relego extension in Chrome or Firefox and open its popup.</li>
         <li>Paste the server URL and the one-time code, then save.</li>
@@ -664,6 +701,29 @@ function PairingPanel({
 }
 
 const COVERAGE_KINDS = ["Coverage", "Sideloaded", "ExportLimit", "Availability"];
+
+/**
+ * The allowlist is the whole story about regions, so the page states it plainly and offers no way
+ * to type a host: the server rejects anything outside this list.
+ */
+function SupportedRegions({
+  regions,
+  disclosure,
+}: {
+  regions: SyncRegion[];
+  disclosure?: string;
+}) {
+  if (regions.length === 0) {
+    return null;
+  }
+
+  return (
+    <p className="notice" data-testid="supported-regions">
+      Supported regions: {regions.map((region) => region.displayName).join(", ")}.{" "}
+      {disclosure ?? "Only these validated hosts are supported."}
+    </p>
+  );
+}
 
 function Disclosures({
   disclosure,

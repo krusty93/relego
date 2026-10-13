@@ -28,6 +28,22 @@ export interface RelegoRegion {
   readonly host: string;
 }
 
+/** The region list as the server serves it, with the disclosure that must accompany it. */
+export interface RelegoRegionList {
+  /** Every supported region, in allowlist order. */
+  readonly regions: readonly RelegoRegion[];
+  /** Text stating that only the listed hosts are supported. */
+  readonly disclosure: string;
+}
+
+/** Result of switching the region of an existing connection. */
+export interface RelegoRegionChange {
+  /** The region the connection now reads. */
+  readonly region: RelegoRegion | null;
+  /** Command the change queued; always `full_resync`. */
+  readonly pendingCommand: string;
+}
+
 /** The subset of the provider status the extension consumes. */
 export interface RelegoStatus {
   /** Provider id, for example `kindle-cloud`. */
@@ -201,6 +217,11 @@ export class RelegoClient {
     return this.getJson<RelegoStatus>(`/sync/${encodeURIComponent(providerId)}`);
   }
 
+  /** Lists the validated notebook regions, with the disclosure that travels with them. */
+  getRegions(): Promise<RelegoRegionList> {
+    return this.getJson<RelegoRegionList>(`/sync/${PROVIDER_ID}/regions`);
+  }
+
   /** Sends a GET request with the bearer token. */
   getJson<T>(path: string): Promise<T> {
     return this.send<T>(path, "GET");
@@ -209,6 +230,16 @@ export class RelegoClient {
   /** Sends a POST request with a JSON body and the bearer token. */
   postJson<T>(path: string, body?: unknown): Promise<T> {
     return this.send<T>(path, "POST", body);
+  }
+
+  /** Sends a PUT request with a JSON body and the bearer token. */
+  putJson<T>(path: string, body?: unknown): Promise<T> {
+    return this.send<T>(path, "PUT", body);
+  }
+
+  /** Switches the connection to another allowlisted region without re-pairing. */
+  setRegion(regionId: string): Promise<RelegoRegionChange> {
+    return this.putJson<RelegoRegionChange>(`/sync/${PROVIDER_ID}/region`, { regionId });
   }
 
   /** Activates the connection using the stored pairing token as the bearer credential. */
