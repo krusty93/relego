@@ -62,6 +62,7 @@ public static class CloudSyncEndpoints
         MapConnectionEndpoints(app);
         MapPairingEndpoint(app);
         MapRegionEndpoints(app);
+        MapScheduleEndpoint(app);
         MapHeartbeatEndpoint(app);
         MapCommandEndpoint(app);
         MapJobEndpoints(app);
@@ -305,6 +306,56 @@ public static class CloudSyncEndpoints
         .WithSummary("Change the region the extension reads.")
         .WithDescription("Switches the connection to another allowlisted region without re-pairing: the connection, token, frequency and history are kept, a running job becomes interrupted, and exactly one full resync is queued.")
         .Produces<SyncRegionChangeResponse>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapScheduleEndpoint(WebApplication app)
+    {
+        app.MapPut("/sync/{providerId}/schedule", async (
+            HttpContext http,
+            string providerId,
+            SyncScheduleChangeRequest? request,
+            [FromServices] IEnumerable<ICloudSyncProvider> providers,
+            [FromServices] UserRepository userRepo,
+            [FromServices] SyncConnectionRepository connections,
+            [FromServices] SyncTokenService tokens) =>
+        {
+            if (ResolveProvider(providers, providerId) is not { } provider)
+                return UnknownProvider(providers, providerId);
+
+            var userId = await userRepo.EnsureUserAsync();
+            var connection = await AuthenticateAsync(http, tokens, userId, providerId);
+            if (connection is null)
+                return Unauthorized();
+
+            if (request is null)
+                return ValidationProblem("body", "A JSON body with intervalMinutes is required.");
+
+            if (!provider.Frequency.IsAllowed(request.IntervalMinutes))
+                return ValidationProblem("intervalMinutes", UnsupportedInterval(provider));
+
+            await connections.SetScheduleAsync(
+                connection.Id, request.IntervalMinutes, DateTimeOffset.UtcNow.ToString("o"));
+
+            // The server does not schedule routine sync, so the new period is only in force once the
+            // extension reports having replaced its alarm. Until then the stored due time still
+            // belongs to the previous period and must not be presented as this frequency's next run.
+            var applied = connection.State == "active"
+                && connection.AppliedIntervalMinutes == request.IntervalMinutes;
+
+            return Results.Ok(new SyncScheduleChangeResponse
+            {
+                IntervalMinutes = request.IntervalMinutes,
+                Applied = applied,
+                NextRunAt = applied ? connection.NextSyncDueAt : null
+            });
+        })
+        .WithTags("Sync")
+        .WithSummary("Change how often routine sync runs.")
+        .WithDescription("Stores the requested frequency after checking it against the provider's allowed values. The extension applies it on its next heartbeat; no server-side schedule is created or changed.")
+        .Produces<SyncScheduleChangeResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status404NotFound);
@@ -794,12 +845,18 @@ public static class CloudSyncEndpoints
             };
         }
 
+        var applied = connection.State == "active"
+            && connection.AppliedIntervalMinutes == connection.SyncIntervalMinutes;
+
         return new SyncScheduleDto
         {
             IntervalMinutes = connection.SyncIntervalMinutes,
             AllowedIntervalMinutes = provider.Frequency.AllowedMinutes,
-            NextRunAt = connection.State == "active" ? connection.NextSyncDueAt : null,
-            Applied = connection.AppliedIntervalMinutes == connection.SyncIntervalMinutes,
+
+            // The stored due time belongs to the frequency the extension is still running, so it is
+            // only this frequency's next run once the extension has reported applying it.
+            NextRunAt = applied ? connection.NextSyncDueAt : null,
+            Applied = applied,
             PendingCommand = connection.PendingCommand ?? NoCommand
         };
     }
@@ -882,6 +939,9 @@ public static class CloudSyncEndpoints
 
     private static string UnsupportedRegion(ICloudSyncProvider provider) =>
         $"regionId must be one of: {string.Join(", ", provider.Profile.Regions.Select(region => region.Id))}. Hosts are never accepted.";
+
+    private static string UnsupportedInterval(ICloudSyncProvider provider) =>
+        $"intervalMinutes must be one of: {string.Join(", ", provider.Frequency.AllowedMinutes)}.";
 
     private static string? NormalizeText(string? value, int maxLength)
     {
