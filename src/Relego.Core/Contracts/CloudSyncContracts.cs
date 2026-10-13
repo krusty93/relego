@@ -79,7 +79,8 @@ public sealed record SyncScheduleDto
 
     /// <summary>
     /// Next due time of the extension's sync alarm as last reported in a heartbeat, or <c>null</c>
-    /// when not reported or not connected. Display-only.
+    /// when not reported, not connected, or not yet applied to <see cref="IntervalMinutes"/>.
+    /// Display-only.
     /// </summary>
     public string? NextRunAt { get; init; }
 
@@ -432,6 +433,35 @@ public sealed record SyncRegionChangeResponse
 
     /// <summary>Command queued by the change; always <c>full_resync</c>.</summary>
     public string PendingCommand { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// A request to change how often routine sync runs. The extension applies it on its next heartbeat;
+/// the server never schedules routine sync itself.
+/// </summary>
+public sealed record SyncScheduleChangeRequest
+{
+    /// <summary>Requested frequency in minutes; must be one of the provider's allowed values.</summary>
+    public int IntervalMinutes { get; init; }
+}
+
+/// <summary>
+/// The stored frequency after a change, with the extension-reported schedule it will be applied to.
+/// </summary>
+public sealed record SyncScheduleChangeResponse
+{
+    /// <summary>Frequency now stored, which is the requested value when it was accepted.</summary>
+    public int IntervalMinutes { get; init; }
+
+    /// <summary>
+    /// True when the extension has already reported applying <see cref="IntervalMinutes"/>. False
+    /// means the change waits for the next heartbeat, so the previous frequency's due time is not
+    /// reported and <see cref="NextRunAt"/> is <c>null</c>.
+    /// </summary>
+    public bool Applied { get; init; }
+
+    /// <summary>Extension-reported next due time, or <c>null</c> while the extension has not applied it.</summary>
+    public string? NextRunAt { get; init; }
 }
 
 /// <summary>

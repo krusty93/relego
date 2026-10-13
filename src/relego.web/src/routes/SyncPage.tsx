@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { AsyncSection, EmptyState, ErrorNote, SkeletonRows, Tag } from "../components/ui";
 import { syncApi } from "../lib/api";
-import { formatCount, formatDateTime, plural } from "../lib/format";
+import { describeFrequency, formatCount, formatDateTime, plural } from "../lib/format";
 import { useToasts } from "../lib/toasts";
 import type {
   SyncDisclosure,
@@ -159,6 +159,33 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
       }),
   });
 
+  // The frequency is the extension's to apply, so a stored value is written into the status cache
+  // straight away: the page can then say whether the browser has picked it up yet.
+  const schedule = useMutation({
+    mutationFn: (intervalMinutes: number) =>
+      syncApi.schedule(provider.providerId, intervalMinutes),
+    onSuccess: (response) => {
+      queryClient.setQueryData<SyncStatusResponse>(["sync", provider.providerId], (current) =>
+        current
+          ? {
+              ...current,
+              schedule: {
+                ...current.schedule,
+                intervalMinutes: response.intervalMinutes,
+                applied: response.applied,
+                nextRunAt: response.nextRunAt,
+              },
+            }
+          : current,
+      );
+      refresh();
+    },
+    onError: (error) =>
+      push(error instanceof Error ? error.message : "Could not change the sync frequency.", {
+        tone: "bad",
+      }),
+  });
+
   async function copy(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -217,6 +244,14 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           disconnecting={disconnect.isPending}
           onCommand={(value) => command.mutate(value)}
           pendingCommand={command.isPending ? (command.variables ?? null) : null}
+          onSchedule={async (intervalMinutes) => {
+            try {
+              await schedule.mutateAsync(intervalMinutes);
+            } catch {
+              // Reported by the mutation's onError; the stored frequency is unchanged.
+            }
+          }}
+          scheduling={schedule.isPending}
         />
       )}
 
@@ -260,6 +295,8 @@ function StatusPanel({
   disconnecting,
   onCommand,
   pendingCommand,
+  onSchedule,
+  scheduling,
 }: {
   data: SyncStatusResponse;
   confirming: boolean;
@@ -269,10 +306,30 @@ function StatusPanel({
   disconnecting: boolean;
   onCommand: (command: "sync" | "full_resync") => void;
   pendingCommand: "sync" | "full_resync" | null;
+  onSchedule: (intervalMinutes: number) => Promise<void>;
+  scheduling: boolean;
 }) {
-  const { status, connection, currentJob, lastCompletedJob, failure } = data;
+  const { status, connection, currentJob, lastCompletedJob, failure, schedule } = data;
   const running = status === "syncing" && currentJob !== null;
   const needsSignIn = status === "auth_expired";
+
+  // The choice is an overlay on the stored frequency: it covers the round trip to the server and
+  // clears once that settles, so an accepted value shows as the stored one and a rejected value
+  // falls back to the frequency the server kept.
+  const [chosen, setChosen] = useState<number | null>(null);
+  const frequency = chosen ?? schedule.intervalMinutes;
+
+  async function choose(intervalMinutes: number) {
+    setChosen(intervalMinutes);
+    await onSchedule(intervalMinutes);
+    setChosen(null);
+  }
+
+  const nextRun = schedule.applied
+    ? schedule.nextRunAt
+      ? `Next sync ${formatDateTime(schedule.nextRunAt)}, as reported by your browser.`
+      : "Your browser has not reported when the next sync is due."
+    : "Applies when your browser next reports.";
 
   return (
     <div className="panel">
@@ -337,6 +394,29 @@ function StatusPanel({
         Your region is set in the Relego extension, which offers only the validated Amazon regions.
         Change it there and the next sync reads the new store.
       </p>
+
+      <div className="field">
+        <label htmlFor="sync-frequency">Sync frequency</label>
+        <select
+          className="control"
+          id="sync-frequency"
+          data-testid="sync-frequency"
+          value={frequency}
+          disabled={scheduling}
+          aria-busy={scheduling || undefined}
+          onChange={(event) => void choose(Number(event.target.value))}
+        >
+          {schedule.allowedIntervalMinutes.map((minutes) => (
+            <option key={minutes} value={minutes}>
+              {describeFrequency(minutes)}
+            </option>
+          ))}
+        </select>
+        <span className="help" data-testid="sync-next-run">
+          {nextRun} Relego's server does not schedule it; your browser holds the timer and runs the
+          sync.
+        </span>
+      </div>
 
       <div className="confirm disconnect" role="group" aria-label="Disconnect">
         {confirming ? (

@@ -5,7 +5,8 @@
  *
  * - `kindle-sync` fires at the user's chosen frequency and runs a routine sync. Its period is
  *   re-applied on every service-worker and browser start and whenever the server reports a
- *   different stored frequency.
+ *   different stored frequency. A period missed while the browser was away costs one catch-up run,
+ *   never a backlog.
  * - `kindle-heartbeat` fires every sixty seconds, reports liveness and the applied frequency, and
  *   executes at most one user-requested command. A heartbeat never starts a routine sync.
  *
@@ -98,6 +99,29 @@ export async function applyInterval(minutes: number): Promise<void> {
 export async function appliedIntervalMinutes(): Promise<number> {
   const alarm = await chrome.alarms.get(SYNC_ALARM);
   return alarm?.periodInMinutes ?? DEFAULT_INTERVAL_MINUTES;
+}
+
+/**
+ * Runs at most one catch-up sync when the browser was away across one or more due runs.
+ *
+ * Chrome persists alarms, so a period that elapsed while the browser was closed leaves the alarm
+ * overdue. Recreating it makes the next run a full period away, and the single run below is keyed
+ * on the current period, so a firing the browser delivers late replays the same job instead of
+ * importing twice. Missing ten periods therefore costs one sync, never ten.
+ *
+ * @param now Current time in milliseconds since the epoch.
+ * @returns True when a catch-up sync was started.
+ */
+export async function catchUpIfDue(now = Date.now()): Promise<boolean> {
+  const alarm = await chrome.alarms.get(SYNC_ALARM);
+
+  if (alarm === undefined || alarm.scheduledTime > now) return false;
+
+  await chrome.alarms.create(SYNC_ALARM, {
+    periodInMinutes: alarm.periodInMinutes ?? DEFAULT_INTERVAL_MINUTES,
+  });
+  await syncNow("scheduled");
+  return true;
 }
 
 /**
@@ -235,7 +259,8 @@ export async function applyConfiguration(intervalMinutes: number | null): Promis
 }
 
 /**
- * Registers the alarm listener and creates the alarms.
+ * Registers the alarm listener, creates the alarms and runs one catch-up sync when a period
+ * elapsed while the browser was away.
  *
  * @returns A task that completes once the worker is listening.
  */
@@ -251,6 +276,7 @@ export async function start(): Promise<void> {
   });
 
   await ensureAlarms();
+  await catchUpIfDue();
 }
 
 /**

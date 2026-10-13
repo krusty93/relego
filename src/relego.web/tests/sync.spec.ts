@@ -64,6 +64,24 @@ const REGIONS = [
 const REGION_DISCLOSURE =
   "Only these validated hosts are supported; other Amazon regions are unsupported until validated.";
 
+// The ten choices of FR-025, in the order the page offers them.
+const ALLOWED_INTERVALS = [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440];
+
+const FREQUENCY_LABELS = [
+  "15 minutes",
+  "30 minutes",
+  "45 minutes",
+  "1 hour",
+  "2 hours",
+  "4 hours",
+  "6 hours",
+  "12 hours",
+  "18 hours",
+  "24 hours",
+];
+
+const NEXT_RUN_AT = "2024-05-01T16:05:00Z";
+
 function statusResponse(status: string, overrides: Payload = {}): Payload {
   const connected = status !== "not_connected" && status !== "awaiting_pairing";
 
@@ -81,8 +99,8 @@ function statusResponse(status: string, overrides: Payload = {}): Payload {
     },
     schedule: {
       intervalMinutes: 360,
-      allowedIntervalMinutes: [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440],
-      nextRunAt: connected ? "2024-05-01T16:05:00Z" : null,
+      allowedIntervalMinutes: ALLOWED_INTERVALS,
+      nextRunAt: connected ? NEXT_RUN_AT : null,
       applied: connected,
       pendingCommand: "none",
     },
@@ -114,16 +132,48 @@ function job(overrides: Payload = {}): Payload {
   };
 }
 
+/**
+ * Records that the extension has reported applying `minutes`, as its next heartbeat would. The
+ * page only learns the new period from a status read, never from the change request itself.
+ */
+function reportApplied(mock: SyncMock, minutes: number): void {
+  mock.appliedInterval = minutes;
+  mock.status = {
+    ...mock.status,
+    schedule: {
+      ...(mock.status.schedule as Payload),
+      intervalMinutes: minutes,
+      applied: true,
+      nextRunAt: NEXT_RUN_AT,
+    },
+  };
+}
+
 interface SyncMock {
   status: Payload;
   requests: string[];
   commands: string[];
   statusCalls: number;
+  /** Frequencies the page has sent, in order. */
+  scheduleRequests: number[];
+  /** The frequency the extension has reported applying; the server only echoes it back. */
+  appliedInterval: number | null;
+  /** A value the server refuses even though the page offered it, standing in for a server-side change. */
+  rejectInterval: number | null;
 }
 
 /** Serves the sync surface from a stub so every state is reachable without the extension. */
 async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
-  const mock: SyncMock = { status: initial, requests: [], commands: [], statusCalls: 0 };
+  const initialSchedule = initial.schedule as { intervalMinutes: number; applied: boolean };
+  const mock: SyncMock = {
+    status: initial,
+    requests: [],
+    commands: [],
+    statusCalls: 0,
+    scheduleRequests: [],
+    appliedInterval: initialSchedule.applied ? initialSchedule.intervalMinutes : null,
+    rejectInterval: null,
+  };
 
   await page.route("**/sync/**", async (route) => {
     const request = route.request();
@@ -163,6 +213,44 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
 
     if (path.endsWith("/regions")) {
       await route.fulfill({ json: { regions: REGIONS, disclosure: REGION_DISCLOSURE } });
+      return;
+    }
+
+    // The server stores a frequency and the extension applies it on its next heartbeat, so the
+    // reply reports `applied` only once the extension has reported the same period.
+    if (path.endsWith("/schedule")) {
+      const body = request.postDataJSON() as { intervalMinutes?: number };
+      const requested = body.intervalMinutes ?? 0;
+      mock.scheduleRequests.push(requested);
+
+      if (!ALLOWED_INTERVALS.includes(requested) || requested === mock.rejectInterval) {
+        await route.fulfill({
+          status: 422,
+          json: {
+            title: "One or more validation errors occurred.",
+            status: 422,
+            errors: {
+              intervalMinutes: [`intervalMinutes must be one of: ${ALLOWED_INTERVALS.join(", ")}.`],
+            },
+          },
+        });
+        return;
+      }
+
+      const applied = mock.appliedInterval === requested;
+      const nextRunAt = applied ? NEXT_RUN_AT : null;
+
+      mock.status = {
+        ...mock.status,
+        schedule: {
+          ...(mock.status.schedule as Payload),
+          intervalMinutes: requested,
+          applied,
+          nextRunAt,
+        },
+      };
+
+      await route.fulfill({ json: { intervalMinutes: requested, applied, nextRunAt } });
       return;
     }
 
@@ -482,10 +570,12 @@ test.describe("sync", () => {
     // Changing the region is the extension's job, and the page says where to do it.
     await expect(page.getByText("Your region is set in the Relego extension")).toBeVisible();
 
-    // A region is never something the user types: the surface has no form control at all.
+    // A region is never something the user types: the region row holds no control, and nothing on
+    // the surface takes a host. The frequency selector is the only control here.
+    await expect(page.getByTestId("sync-region").locator("input, select, textarea")).toHaveCount(0);
     await expect(page.locator('section[aria-labelledby="sync-h"] input')).toHaveCount(0);
-    await expect(page.locator('section[aria-labelledby="sync-h"] select')).toHaveCount(0);
     await expect(page.locator('section[aria-labelledby="sync-h"] textarea')).toHaveCount(0);
+    await expect(page.locator('section[aria-labelledby="sync-h"] select')).toHaveCount(1);
     expect(mock.requests).not.toContain("PUT /sync/kindle-cloud/region");
     expect(mock.requests).not.toContain("POST /sync/kindle-cloud/region");
   });
@@ -501,5 +591,73 @@ test.describe("sync", () => {
     await expect(page.getByTestId("supported-regions")).toBeVisible();
 
     expect(mock.requests).not.toContain("PUT /sync/kindle-cloud/region");
+  });
+});
+
+test.describe("sync frequency", () => {
+  test("offers the ten validated frequencies, in order", async ({ page }) => {
+    await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/sync", { waitUntil: "networkidle" });
+
+    const select = page.getByTestId("sync-frequency");
+    await expect(select).toHaveValue("360");
+
+    // Every choice is named in words a person reads, not in minutes alone.
+    await expect(select.locator("option")).toHaveText(FREQUENCY_LABELS);
+  });
+
+  test("says the server does not schedule, and names the browser's next run", async ({ page }) => {
+    await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/sync", { waitUntil: "networkidle" });
+
+    const note = page.getByTestId("sync-next-run");
+    await expect(note).toContainText("Relego's server does not schedule it");
+    await expect(note).toContainText("Next sync");
+    await expect(note).toContainText("as reported by your browser");
+  });
+
+  test("holds a new frequency as pending until the browser reports it", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/sync", { waitUntil: "networkidle" });
+
+    const select = page.getByTestId("sync-frequency");
+    const note = page.getByTestId("sync-next-run");
+
+    // The stored period was applied by the extension long ago, so it is shown as settled.
+    await expect(note).toContainText("Next sync");
+
+    await select.selectOption("120");
+
+    expect(mock.scheduleRequests).toEqual([120]);
+    expect(mock.requests).toContain("PUT /sync/kindle-cloud/schedule");
+    await expect(select).toHaveValue("120");
+    await expect(note).toContainText("Applies when your browser next reports.");
+    await expect(note).not.toContainText("Next sync");
+
+    // The extension applies the period on its next heartbeat; the page learns it from a status
+    // read, which is what a return to the page performs.
+    reportApplied(mock, 120);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await expect(page.getByTestId("sync-frequency")).toHaveValue("120");
+    await expect(page.getByTestId("sync-next-run")).toContainText(
+      "as reported by your browser",
+    );
+  });
+
+  test("keeps the stored frequency when the server refuses the change", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("connected"));
+    mock.rejectInterval = 120;
+    await page.goto("/app/sync", { waitUntil: "networkidle" });
+
+    const select = page.getByTestId("sync-frequency");
+    await select.selectOption("120");
+
+    expect(mock.scheduleRequests).toEqual([120]);
+
+    // The refusal is named where the choice was made, and the choice falls back to what is stored.
+    await expect(page.locator(".toast")).toContainText("intervalMinutes must be one of");
+    await expect(select).toHaveValue("360");
+    await expect(page.getByTestId("sync-next-run")).toContainText("Next sync");
   });
 });
