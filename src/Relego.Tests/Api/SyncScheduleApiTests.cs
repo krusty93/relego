@@ -72,8 +72,7 @@ public sealed class SyncScheduleApiTests
             client,
             HttpMethod.Put,
             $"/sync/{Provider}/schedule",
-            new SyncScheduleChangeRequest { IntervalMinutes = intervalMinutes },
-            token);
+            new SyncScheduleChangeRequest { IntervalMinutes = intervalMinutes });
 
         var (_, summary) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
         elapsed.Stop();
@@ -99,22 +98,20 @@ public sealed class SyncScheduleApiTests
     {
         using var factory = new RelegoTestApplicationFactory();
         using var client = factory.CreateClient();
-        var token = await PairAsync(client);
+        await PairAsync(client);
 
         var (accepted, _) = await SendAsync<SyncScheduleChangeResponse>(
             client,
             HttpMethod.Put,
             $"/sync/{Provider}/schedule",
-            new SyncScheduleChangeRequest { IntervalMinutes = 120 },
-            token);
+            new SyncScheduleChangeRequest { IntervalMinutes = 120 });
         Assert.Equal(HttpStatusCode.OK, accepted);
 
         var (status, problem) = await SendAsync<ProblemPayload>(
             client,
             HttpMethod.Put,
             $"/sync/{Provider}/schedule",
-            new SyncScheduleChangeRequest { IntervalMinutes = rejected },
-            token);
+            new SyncScheduleChangeRequest { IntervalMinutes = rejected });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
 
@@ -145,8 +142,7 @@ public sealed class SyncScheduleApiTests
             client,
             HttpMethod.Put,
             $"/sync/{Provider}/schedule",
-            new SyncScheduleChangeRequest { IntervalMinutes = 15 },
-            token);
+            new SyncScheduleChangeRequest { IntervalMinutes = 15 });
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Equal(15, body!.IntervalMinutes);
@@ -186,8 +182,7 @@ public sealed class SyncScheduleApiTests
             client,
             HttpMethod.Put,
             $"/sync/{Provider}/schedule",
-            new SyncScheduleChangeRequest { IntervalMinutes = intervalMinutes },
-            token);
+            new SyncScheduleChangeRequest { IntervalMinutes = intervalMinutes });
         Assert.Equal(intervalMinutes, change!.IntervalMinutes);
 
         var heartbeat = await HeartbeatAsync(client, token, intervalMinutes, null);
@@ -215,8 +210,7 @@ public sealed class SyncScheduleApiTests
             client,
             HttpMethod.Put,
             $"/sync/{Provider}/schedule",
-            new SyncScheduleChangeRequest { IntervalMinutes = 1440 },
-            token);
+            new SyncScheduleChangeRequest { IntervalMinutes = 1440 });
 
         Assert.Equal(HttpStatusCode.OK, status);
 
@@ -233,7 +227,7 @@ public sealed class SyncScheduleApiTests
     {
         using var factory = new RelegoTestApplicationFactory();
         using var client = factory.CreateClient();
-        var token = await PairAsync(client);
+        await PairAsync(client);
 
         var scheduler = await factory.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         var jobsBefore = await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
@@ -243,8 +237,7 @@ public sealed class SyncScheduleApiTests
             client,
             HttpMethod.Put,
             $"/sync/{Provider}/schedule",
-            new SyncScheduleChangeRequest { IntervalMinutes = 15 },
-            token);
+            new SyncScheduleChangeRequest { IntervalMinutes = 15 });
         Assert.Equal(HttpStatusCode.OK, status);
 
         var jobsAfter = await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
@@ -279,8 +272,7 @@ public sealed class SyncScheduleApiTests
                     client,
                     HttpMethod.Put,
                     $"/sync/{Provider}/schedule",
-                    new SyncScheduleChangeRequest { IntervalMinutes = 45 },
-                    token);
+                    new SyncScheduleChangeRequest { IntervalMinutes = 45 });
                 Assert.Equal(HttpStatusCode.OK, status);
             }
 
@@ -317,10 +309,36 @@ public sealed class SyncScheduleApiTests
     }
 
     [Fact]
-    public async Task PutSchedule_WithoutToken_Returns401()
+    public async Task PutSchedule_WithoutToken_SucceedsBecauseTheWebUiSetsIt()
     {
         using var factory = new RelegoTestApplicationFactory();
         using var client = factory.CreateClient();
+        await PairAsync(client);
+
+        var (status, body) = await SendAsync<SyncScheduleChangeResponse>(
+            client,
+            HttpMethod.Put,
+            $"/sync/{Provider}/schedule",
+            new SyncScheduleChangeRequest { IntervalMinutes = 60 });
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(60, body!.IntervalMinutes);
+        Assert.Equal(60, await ReadStoredIntervalAsync(factory));
+    }
+
+    [Fact]
+    public async Task PutSchedule_AfterDisconnect_Returns409()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        await PairAsync(client);
+
+        var (disconnected, _) = await SendAsync<object>(
+            client,
+            HttpMethod.Delete,
+            $"/sync/{Provider}/connection");
+
+        Assert.Equal(HttpStatusCode.NoContent, disconnected);
 
         var (status, _) = await SendAsync<SyncScheduleChangeResponse>(
             client,
@@ -328,7 +346,8 @@ public sealed class SyncScheduleApiTests
             $"/sync/{Provider}/schedule",
             new SyncScheduleChangeRequest { IntervalMinutes = 60 });
 
-        Assert.Equal(HttpStatusCode.Unauthorized, status);
+        Assert.Equal(HttpStatusCode.Conflict, status);
+        Assert.Equal(DefaultInterval, await ReadStoredIntervalAsync(factory));
     }
 
     [Fact]
