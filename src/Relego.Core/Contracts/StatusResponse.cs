@@ -43,4 +43,10 @@ public sealed record StatusResponse
 
     /// <summary>Informational build version of the running server, e.g. "0.18.0".</summary>
     public string? ServerVersion { get; set; }
+
+    /// <summary>
+    /// Kindle cloud synchronization state, or <c>null</c> when no Kindle cloud provider is
+    /// registered on the server.
+    /// </summary>
+    public KindleCloudStatus? KindleCloud { get; set; }
 }
