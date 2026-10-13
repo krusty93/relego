@@ -104,18 +104,18 @@ description: "Task list for feature 011 Kindle Background Synchronization"
 
 ### Tests for User Story 2
 
-- [ ] T032 [P] [US2] API tests in `src/Relego.Tests/Api/SyncRecoveryApiTests.cs`: `auth_expired` surfaced within one sync cycle; `full_resync` over imported content yields `newHighlights = 0`/`completed_no_changes`; failure reports carry `recoverySteps`; `GET /jobs?limit=20` returns history
-- [ ] T033 [P] [US2] Extension tests in `src/relego.extension/tests/recovery.test.ts`: sign-in redirect → `fail(code=auth_expired)`; heartbeat command pickup executes `sync`/`full_resync`; a closed browser leaves an in-flight job to be marked `interrupted`
+- [X] T032 [P] [US2] API tests in `src/Relego.Tests/Api/SyncRecoveryApiTests.cs`: `auth_expired` surfaced within one sync cycle; `full_resync` over imported content yields `newHighlights = 0`/`completed_no_changes`; failure reports carry `recoverySteps`; `GET /jobs?limit=20` returns history
+- [X] T033 [P] [US2] Extension tests in `src/relego.extension/tests/recovery.test.ts`: sign-in redirect → `fail(code=auth_expired)`; heartbeat command pickup executes `sync`/`full_resync`; a closed browser leaves an in-flight job to be marked `interrupted`
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Handle `auth_expired` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`: set connection state `auth_expired` + `last_auth_expired_at` on `POST /jobs/{jobId}/fail` with `code = auth_expired`, clear it on the next successful pairing/sync
-- [ ] T035 [US2] Implement `POST /sync/{providerId}/commands` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs` (queue `sync` or `full_resync`, at most one pending; `sync` never overwrites `full_resync`) and consume the single command in the heartbeat response
-- [ ] T036 [US2] Implement `POST /jobs/{jobId}/fail` diagnostics validation (accept only `profileVersion`/`check`/counts; reject page free text) and `GET /sync/{providerId}/jobs?limit=20` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`
+- [X] T034 [US2] Handle `auth_expired` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`: set connection state `auth_expired` + `last_auth_expired_at` on `POST /jobs/{jobId}/fail` with `code = auth_expired`, clear it on the next successful pairing/sync
+- [X] T035 [US2] Implement `POST /sync/{providerId}/commands` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs` (queue `sync` or `full_resync`, at most one pending; `sync` never overwrites `full_resync`), return the command in the heartbeat response and acknowledge it only when matching work starts
+- [X] T036 [US2] Implement `POST /jobs/{jobId}/fail` diagnostics validation (accept only `profileVersion`/`check`/counts; reject page free text) and `GET /sync/{providerId}/jobs?limit=20` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`
 - [X] T037 [US2] Implement stale-job handling in `src/Relego.Server/Sync/SyncService.cs`: mark a job `interrupted` after the 15-minute window without progress; ensure `interrupted`/`failed` never set `last_sync_completed_at`. Delivered in the US1 layer during PR #475 review so abandoned-job recovery is safe before US2 builds on it.
-- [ ] T038 [US2] Implement auth detection and command execution in `src/relego.extension/src/background.ts` (open notebook tab and wait when sign-in is needed; execute the heartbeat-returned command; retry is idempotent via the job idempotency key)
-- [ ] T039 [US2] Implement the recovery UI in `src/relego.web/src/routes/SyncPage.tsx` and `src/relego.web/src/AppShell.tsx`: `auth_expired` banner + AppShell indicator, **Retry**, **Full resync**, failure report (code, plain-language detail, recovery steps), disconnect confirmation stating highlights are kept
-- [ ] T040 [P] [US2] Add Playwright specs for `auth_expired`, `failed` and resync states in `src/relego.web/tests/sync.spec.ts`
+- [X] T038 [US2] Implement auth detection and command execution in `src/relego.extension/src/background.ts` (open notebook tab and wait when sign-in is needed; execute the heartbeat-returned command; retry is idempotent via the job idempotency key)
+- [X] T039 [US2] Implement the recovery UI in `src/relego.web/src/routes/SyncPage.tsx` and `src/relego.web/src/AppShell.tsx`: `auth_expired` banner + AppShell indicator, **Retry**, **Full resync**, failure report (code, plain-language detail, recovery steps), disconnect confirmation stating highlights are kept
+- [X] T040 [P] [US2] Add Playwright specs for `auth_expired`, `failed` and resync states in `src/relego.web/tests/sync.spec.ts`
 
 **Checkpoint**: User Stories 1 and 2 both work independently.
 

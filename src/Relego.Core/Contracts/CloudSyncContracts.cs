@@ -140,6 +140,15 @@ public sealed record SyncJobDto
 
     /// <summary>Job end time, or <c>null</c> while running.</summary>
     public string? EndedAt { get; init; }
+
+    /// <summary>Stable failure code for a failed, interrupted or auth-expired job, or <c>null</c>.</summary>
+    public string? FailureCode { get; init; }
+
+    /// <summary>Plain-language, sanitized failure detail, or <c>null</c>.</summary>
+    public string? FailureDetail { get; init; }
+
+    /// <summary>Ordered recovery steps for the failure code; empty when the job did not fail.</summary>
+    public IReadOnlyList<string> RecoverySteps { get; init; } = [];
 }
 
 /// <summary>
@@ -370,6 +379,31 @@ public sealed record SyncHeartbeatResponse
 
     /// <summary>Fixed heartbeat cadence in seconds; never derived from the sync frequency.</summary>
     public int HeartbeatSeconds { get; init; }
+}
+
+/// <summary>
+/// A user-requested command queued for the extension: a retry (<c>sync</c>) or a full resync.
+/// </summary>
+public sealed record SyncCommandRequest
+{
+    /// <summary>Requested command: <c>sync</c> or <c>full_resync</c>.</summary>
+    public string Command { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// The command left pending after a queue request, so the caller can state what will happen next.
+/// </summary>
+public sealed record SyncCommandResponse
+{
+    /// <summary>Provider the command was queued for.</summary>
+    public string ProviderId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The pending command after this request: <c>sync</c> or <c>full_resync</c>. A <c>sync</c>
+    /// request never downgrades an already pending <c>full_resync</c>, so this can differ from the
+    /// requested command.
+    /// </summary>
+    public string PendingCommand { get; init; } = "none";
 }
 
 /// <summary>

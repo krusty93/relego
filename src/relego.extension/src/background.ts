@@ -19,7 +19,10 @@ import {
   HEARTBEAT_SECONDS,
   PROFILE_VERSION,
   clampIntervalMinutes,
+  notebookUrl,
+  resolveRegion,
 } from "./profile";
+import type { KindleRegion } from "./profile";
 import { readConfig } from "./storage";
 import { runSync } from "./sync-runner";
 import type { PageResponse, SyncMode, SyncRunOutcome, SyncTrigger } from "./sync-runner";
@@ -32,6 +35,17 @@ export const HEARTBEAT_ALARM = "kindle-heartbeat";
 
 /** Period of the liveness alarm, in minutes. */
 export const HEARTBEAT_MINUTES = HEARTBEAT_SECONDS / 60;
+
+/** Name of the alarm that keeps retrying while the user completes Amazon sign-in. */
+export const AUTH_RETRY_ALARM = "kindle-auth-retry";
+
+/**
+ * Minutes between retries while Amazon sign-in is pending.
+ *
+ * A run that hits the sign-in page is not a dead end: the user signs in on Amazon's own page and
+ * the next retry picks the sync up, so the wait is short instead of the whole sync frequency.
+ */
+export const AUTH_RETRY_MINUTES = 5;
 
 /** Reports whether the extension has been paired with a Relego server. */
 export async function isConfigured(): Promise<boolean> {
@@ -101,10 +115,79 @@ export async function syncNow(
 
   const interval = await appliedIntervalMinutes();
 
-  return runSync(
+  const outcome = await runSync(
     { client, fetchPage: fetchNotebookPage },
     { mode, trigger, idempotencyKey: idempotencyKey(trigger, interval) },
   );
+
+  await reactToOutcome(client, outcome);
+  return outcome;
+}
+
+/**
+ * Reacts to a run outcome that needs the user.
+ *
+ * Only `auth_expired` needs the user: the extension opens the region's Kindle notebook so they can
+ * sign in on Amazon's own page — it never fills credentials — and arms the short retry alarm so
+ * the sync resumes by itself once they are signed in. Any other outcome ends the waiting period.
+ *
+ * @param client Client for the run, used to resolve the region that needs signing in.
+ * @param outcome Outcome of the run that just finished.
+ * @returns A task that completes once the reaction has been applied.
+ */
+async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome): Promise<void> {
+  if (outcome.kind === "completed") {
+    await clearAuthRetry();
+    return;
+  }
+
+  if (outcome.kind !== "failed") return;
+
+  if (outcome.code !== "auth_expired") {
+    await clearAuthRetry();
+    return;
+  }
+
+  const alreadyWaiting = (await chrome.alarms.get(AUTH_RETRY_ALARM)) !== undefined;
+
+  if (!alreadyWaiting) {
+    const status = await client.getStatus(PROVIDER_ID);
+    const region = resolveRegion(status.region?.id ?? null);
+
+    if (region !== null) await openNotebookForSignIn(region);
+  }
+
+  await scheduleAuthRetry();
+}
+
+/**
+ * Opens the region's Kindle notebook in a tab so the user can sign in on Amazon.
+ *
+ * Creating a tab needs no extra permission — the extension never reads tab URLs or titles — and the
+ * page stays on Amazon's own origin, where only the user types their credentials.
+ *
+ * @param region Region whose notebook host needs a signed-in session.
+ * @returns A task that completes once the tab has been opened.
+ */
+export async function openNotebookForSignIn(region: KindleRegion): Promise<void> {
+  await chrome.tabs.create({ url: notebookUrl(region), active: true });
+}
+
+/** Arms the short retry alarm that keeps a run moving while sign-in is pending. */
+export async function scheduleAuthRetry(): Promise<void> {
+  const existing = await chrome.alarms.get(AUTH_RETRY_ALARM);
+
+  if (existing === undefined) {
+    await chrome.alarms.create(AUTH_RETRY_ALARM, {
+      delayInMinutes: AUTH_RETRY_MINUTES,
+      periodInMinutes: AUTH_RETRY_MINUTES,
+    });
+  }
+}
+
+/** Disarms the retry alarm once a run succeeds or fails for a reason the user cannot fix by signing in. */
+export async function clearAuthRetry(): Promise<void> {
+  await chrome.alarms.clear(AUTH_RETRY_ALARM);
 }
 
 /**
@@ -141,6 +224,7 @@ export async function start(): Promise<void> {
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === SYNC_ALARM) void syncNow("scheduled");
     else if (alarm.name === HEARTBEAT_ALARM) void heartbeat();
+    else if (alarm.name === AUTH_RETRY_ALARM) void syncNow("retry");
   });
 
   await ensureAlarms();
@@ -149,14 +233,20 @@ export async function start(): Promise<void> {
 /**
  * Builds the replay key for a run.
  *
- * A scheduled run is keyed on its alarm period, so a firing retried after a worker restart replays
- * the same server-side job instead of importing twice; manual runs are always distinct.
+ * A scheduled run is keyed on its alarm period and a sign-in retry on the retry period, so a firing
+ * replayed after a worker restart replays the same server-side job instead of importing twice;
+ * user-requested runs are always distinct.
  */
 function idempotencyKey(trigger: SyncTrigger, intervalMinutes: number): string {
+  if (trigger === "retry") return `${PROVIDER_ID}-retry-${bucket(AUTH_RETRY_MINUTES)}`;
   if (trigger !== "scheduled") return `${trigger}-${crypto.randomUUID()}`;
 
-  const bucket = Math.floor(Date.now() / (intervalMinutes * 60_000));
-  return `${PROVIDER_ID}-scheduled-${bucket}`;
+  return `${PROVIDER_ID}-scheduled-${bucket(intervalMinutes)}`;
+}
+
+/** Buckets the current time by an alarm period, so one firing maps to one replay key. */
+function bucket(minutes: number): number {
+  return Math.floor(Date.now() / (minutes * 60_000));
 }
 
 /** Fetches a notebook page inside the user's own Amazon session. */
