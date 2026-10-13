@@ -59,6 +59,10 @@ public sealed class SyncService(
         if (existing is not null)
             return await BuildStartResultAsync(existing, connection, provider, reused: true);
 
+        // A job abandoned by a closed browser is swept before the single-flight check so a new run
+        // never adopts it as if it were still alive.
+        await MarkStaleJobsAsync();
+
         var running = await jobs.GetRunningAsync(connection.Id);
         if (running is not null)
         {

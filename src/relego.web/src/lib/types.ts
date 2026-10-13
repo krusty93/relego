@@ -171,6 +171,12 @@ export interface SyncSchedule {
   pendingCommand: string;
 }
 
+export interface SyncCommandResponse {
+  providerId: string;
+  /** Command waiting for the extension's next heartbeat. */
+  pendingCommand: string;
+}
+
 export interface SyncConnection {
   state: string;
   connectedAt: string | null;
