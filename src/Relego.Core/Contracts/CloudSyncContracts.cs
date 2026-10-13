@@ -54,6 +54,19 @@ public sealed record SyncRegionDto
 }
 
 /// <summary>
+/// The exhaustive region allowlist for the current profile version, with the disclosure that must
+/// accompany it wherever it is shown.
+/// </summary>
+public sealed record SyncRegionsResponse
+{
+    /// <summary>Every supported region, in allowlist order.</summary>
+    public IReadOnlyList<SyncRegionDto> Regions { get; init; } = [];
+
+    /// <summary>Text stating that only the listed hosts are supported.</summary>
+    public string Disclosure { get; init; } = string.Empty;
+}
+
+/// <summary>
 /// The sync frequency stored for a connection together with the values the extension may apply.
 /// </summary>
 public sealed record SyncScheduleDto
@@ -398,6 +411,27 @@ public sealed record SyncCommandResponse
     /// requested command.
     /// </summary>
     public string PendingCommand { get; init; } = "none";
+}
+
+/// <summary>
+/// A request from the extension popup to switch the connection to another allowlisted region.
+/// </summary>
+public sealed record SyncRegionChangeRequest
+{
+    /// <summary>Allowlisted region id selected in the extension popup.</summary>
+    public string RegionId { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// The result of a region change: the region now stored and the full read it queued.
+/// </summary>
+public sealed record SyncRegionChangeResponse
+{
+    /// <summary>The region the connection now reads.</summary>
+    public SyncRegionDto? Region { get; init; }
+
+    /// <summary>Command queued by the change; always <c>full_resync</c>.</summary>
+    public string PendingCommand { get; init; } = string.Empty;
 }
 
 /// <summary>
