@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Relego",
+  "version": "1.0.0",
+  "description": "Sync your Kindle highlights to your own Relego server.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
