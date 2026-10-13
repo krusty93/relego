@@ -211,6 +211,7 @@ internal sealed class FakeMailDeliveryService : IMailDeliveryService
     public int FailuresBeforeSuccess { get; set; }
     public int HtmlSendCount { get; set; }
     public int HtmlFailuresBeforeSuccess { get; set; }
+    public int NotificationSendCount { get; private set; }
 
     public Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default)
     {
@@ -235,6 +236,18 @@ internal sealed class FakeMailDeliveryService : IMailDeliveryService
         {
             throw new IOException("Simulated transient HTML delivery failure");
         }
+
+        return Task.CompletedTask;
+    }
+
+    public Task SendNotificationAsync(
+        string toAddress,
+        string subject,
+        string htmlBody,
+        string plainTextBody,
+        CancellationToken cancellationToken = default)
+    {
+        NotificationSendCount++;
 
         return Task.CompletedTask;
     }

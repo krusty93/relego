@@ -34,6 +34,9 @@ public sealed class SyncScheduleApiTests
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>The Quartz groups the server is allowed to own.</summary>
+    private static readonly string[] ScheduledGroups = ["Recap", "Sync"];
+
     [Fact]
     public async Task GetStatus_NewConnectionDefaultsToSixHoursAndReportsItNotApplied()
     {
@@ -246,12 +249,14 @@ public sealed class SyncScheduleApiTests
         Assert.Equal(jobsBefore, jobsAfter);
         Assert.Equal(triggersBefore, triggersAfter);
 
-        // Quartz remains the inactivity reminder only (FR-026); a routine sync must never appear here.
+        // Quartz runs the recap and the inactivity sweep (FR-026) and nothing else; a routine sync
+        // must never appear here, because the frequency lives in the connection row.
         Assert.Contains(jobsAfter, key => key is { Name: "RecapJob", Group: "Recap" });
-        Assert.All(jobsAfter, key => Assert.Equal("Recap", key.Group));
-        Assert.All(triggersAfter, key => Assert.Equal("Recap", key.Group));
-        Assert.DoesNotContain(jobsAfter, key => MentionsSync(key.Name) || MentionsSync(key.Group));
-        Assert.DoesNotContain(triggersAfter, key => MentionsSync(key.Name) || MentionsSync(key.Group));
+        Assert.Contains(jobsAfter, key => key is { Name: "SyncReminderJob", Group: "Sync" });
+        Assert.All(jobsAfter, key => Assert.Contains(key.Group, ScheduledGroups));
+        Assert.All(triggersAfter, key => Assert.Contains(key.Group, ScheduledGroups));
+        Assert.DoesNotContain(jobsAfter, key => MentionsSync(key.Name) && key.Name != "SyncReminderJob");
+        Assert.DoesNotContain(triggersAfter, key => MentionsSync(key.Name) && key.Name != "SyncReminderTrigger");
     }
 
     [Fact]
