@@ -314,21 +314,20 @@ public static class CloudSyncEndpoints
     private static void MapScheduleEndpoint(WebApplication app)
     {
         app.MapPut("/sync/{providerId}/schedule", async (
-            HttpContext http,
             string providerId,
             SyncScheduleChangeRequest? request,
             [FromServices] IEnumerable<ICloudSyncProvider> providers,
             [FromServices] UserRepository userRepo,
-            [FromServices] SyncConnectionRepository connections,
-            [FromServices] SyncTokenService tokens) =>
+            [FromServices] SyncConnectionRepository connections) =>
         {
             if (ResolveProvider(providers, providerId) is not { } provider)
                 return UnknownProvider(providers, providerId);
 
+            // Management endpoint: the web UI chooses the frequency, so it carries no pairing token.
             var userId = await userRepo.EnsureUserAsync();
-            var connection = await AuthenticateAsync(http, tokens, userId, providerId);
+            var connection = await connections.GetLiveAsync(userId, provider.Descriptor.Id);
             if (connection is null)
-                return Unauthorized();
+                return NoConnection(provider);
 
             if (request is null)
                 return ValidationProblem("body", "A JSON body with intervalMinutes is required.");
@@ -354,11 +353,11 @@ public static class CloudSyncEndpoints
         })
         .WithTags("Sync")
         .WithSummary("Change how often routine sync runs.")
-        .WithDescription("Stores the requested frequency after checking it against the provider's allowed values. The extension applies it on its next heartbeat; no server-side schedule is created or changed.")
+        .WithDescription("Stores the requested frequency after checking it against the provider's allowed values. Unauthenticated: the web UI sets it directly, consistent with the other management endpoints. The extension applies it on its next heartbeat; no server-side schedule is created or changed.")
         .Produces<SyncScheduleChangeResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
-        .ProducesProblem(StatusCodes.Status401Unauthorized)
-        .ProducesProblem(StatusCodes.Status404NotFound);
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static void MapHeartbeatEndpoint(WebApplication app)
@@ -750,6 +749,12 @@ public static class CloudSyncEndpoints
             detail: $"Unknown provider '{providerId}'. Known providers: {string.Join(", ", providers.Select(provider => provider.Descriptor.Id))}.",
             statusCode: StatusCodes.Status404NotFound,
             title: "Unknown provider");
+
+    private static IResult NoConnection(ICloudSyncProvider provider) =>
+        Results.Problem(
+            detail: $"Connect {provider.Descriptor.DisplayName} first.",
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Not connected");
 
     private static IResult Unauthorized() =>
         Results.Problem(
