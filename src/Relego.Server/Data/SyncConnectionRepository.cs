@@ -45,6 +45,19 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             """,
             new { UserId = userId, ProviderId = providerId });
 
+    /// <summary>
+    /// Returns every active connection across all users. The inactivity sweep works per connection
+    /// rather than per user, because each connection carries its own quiet period.
+    /// </summary>
+    /// <returns>The active connections, ordered by id.</returns>
+    public async Task<IReadOnlyList<SyncConnection>> ListActiveAsync()
+    {
+        var rows = await connection.QueryAsync<SyncConnection>(
+            $"{SelectColumns} WHERE state = 'active' ORDER BY id");
+
+        return rows.AsList();
+    }
+
     /// <summary>Returns a connection by id, including disconnected rows, or <c>null</c>.</summary>
     public Task<SyncConnection?> GetByIdAsync(long id) =>
         connection.QuerySingleOrDefaultAsync<SyncConnection>(

@@ -215,6 +215,7 @@ internal sealed class FakeDualMailDeliveryService : IMailDeliveryService
     public int EmailSendCount { get; private set; }
     public bool FailKindle { get; set; }
     public bool FailEmail { get; set; }
+    public int NotificationSendCount { get; private set; }
 
     public Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default)
     {
@@ -232,6 +233,18 @@ internal sealed class FakeDualMailDeliveryService : IMailDeliveryService
         EmailSendCount++;
         if (FailEmail)
             throw new IOException("Simulated email delivery failure");
+        return Task.CompletedTask;
+    }
+
+    public Task SendNotificationAsync(
+        string toAddress,
+        string subject,
+        string htmlBody,
+        string plainTextBody,
+        CancellationToken cancellationToken = default)
+    {
+        NotificationSendCount++;
+
         return Task.CompletedTask;
     }
 }

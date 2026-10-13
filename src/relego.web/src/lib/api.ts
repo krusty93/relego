@@ -212,7 +212,8 @@ export const api = {
 /**
  * Cloud sync channel calls. `status` reads the provider status payload used by the Sync page;
  * `createConnection` starts (or re-keys) the pairing, `command` queues work for the extension,
- * `regions` lists the validated Amazon regions and `disconnect` revokes the pairing.
+ * `regions` lists the validated Amazon regions, `schedule` stores the frequency, `dismissReminder`
+ * clears the inactivity banner and `disconnect` revokes the pairing.
  */
 export const syncApi = {
   providers: () => request<SyncProviderSummary[]>("/sync/providers"),
@@ -230,6 +231,13 @@ export const syncApi = {
       method: "PUT",
       body: JSON.stringify({ intervalMinutes }),
     }),
+
+  /** Dismisses the inactivity reminder so the banner stops coming back. */
+  dismissReminder: (providerId: string, reminderId: number) =>
+    request<void>(
+      `/sync/${encodeURIComponent(providerId)}/reminders/${reminderId}/dismiss`,
+      { method: "POST" },
+    ),
 
   createConnection: (providerId: string) =>
     request<CreateSyncConnectionResponse>(`/sync/${encodeURIComponent(providerId)}/connection`, {
