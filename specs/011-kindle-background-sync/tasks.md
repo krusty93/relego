@@ -195,8 +195,8 @@ description: "Task list for feature 011 Kindle Background Synchronization"
 
 **Purpose**: Improvements that affect multiple stories.
 
-- [ ] T063 [P] Add the optional one-line CLI status (`relego status` prints e.g. `Kindle cloud: syncing (37/120 books)` from `GET /status.kindleCloud`) in `src/Relego.Cli/Commands/StatusCommand.cs` (additive only)
-- [ ] T064 [P] Add Serilog redaction for the pairing token (and ensure no Amazon cookies/HTML are ever logged) in `src/Relego.Server/`
+- [X] T063 [P] Add the optional one-line CLI status (`relego status` prints e.g. `Kindle cloud: syncing (37/120 books)` from `GET /status.kindleCloud`) in `src/Relego.Cli/Commands/StatusCommand.cs` (additive only)
+- [X] T064 [P] Add Serilog redaction for the pairing token (and ensure no Amazon cookies/HTML are ever logged) in `src/Relego.Server/`
 - [ ] T065 [P] Add extension release packaging (signed-ready Chrome/Firefox artifacts attached to releases, unpacked install docs) in `src/relego.extension/` and the release workflow
 - [ ] T066 [P] Update `docs/ARCHITECTURE.md` (provider registry in `Relego.Server/Sync`, extension ownership of cadence, region allowlist, Quartz limited to the reminder job)
 - [ ] T067 Run the `quickstart.md` end-to-end validation and fix any gaps
