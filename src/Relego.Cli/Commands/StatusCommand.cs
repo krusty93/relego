@@ -2,6 +2,7 @@
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Relego.Cli.Infrastructure;
+using Relego.Core.Contracts;
 
 namespace Relego.Cli.Commands;
 
@@ -42,6 +43,15 @@ public sealed class StatusCommand(RelegoHttpClient client, ILogger<StatusCommand
         table.AddRow("Excluded Authors", response.ExcludedAuthors.ToString());
         table.AddRow("Kindle Email", FormatKindleEmail(response.KindleEmailConfigured));
         table.AddRow("Delivery Email", FormatDeliveryEmail(response.DeliveryEmailConfigured));
+
+        if (response.KindleCloud is { } kindleCloud)
+        {
+            table.AddRow("Kindle Cloud", FormatKindleCloud(kindleCloud));
+
+            if (kindleCloud.FailureDetail is { } cloudError)
+                table.AddRow("Kindle Cloud Error", Markup.Escape(cloudError));
+        }
+
         table.AddRow("Next Recap", FormatTimestamp(response.NextRecap) ?? "[grey]Not scheduled[/]");
         table.AddRow("Last Recap Status", FormatLastStatus(response.LastRecapStatus));
 
@@ -72,6 +82,44 @@ public sealed class StatusCommand(RelegoHttpClient client, ILogger<StatusCommand
         configured
             ? "[green]\u2713 Configured[/]"
             : "[grey]Not configured[/]";
+
+    /// <summary>
+    /// Renders the Kindle cloud state on one line, using the same words as the web UI. Progress is
+    /// shown while a sync runs; the outcome of the last one is shown once it finishes, including the
+    /// explicit "nothing new" case.
+    /// </summary>
+    internal static string FormatKindleCloud(KindleCloudStatus cloud)
+    {
+        var label = cloud.Status switch
+        {
+            "not_connected" => "[grey]Not connected[/]",
+            "awaiting_pairing" => "[yellow]Waiting for your browser[/]",
+            "connected" => "[green]Connected[/]",
+            "syncing" => "[blue]Syncing now[/]",
+            "completed" => "[green]Last sync finished[/]",
+            "auth_expired" => "[red]Amazon sign-in needed[/]",
+            "failed" => "[red]Last sync did not finish[/]",
+            "browser_not_reporting" => "[yellow]Your browser has not checked in[/]",
+            "reminder_due" => "[yellow]No recent sync[/]",
+            _ => Markup.Escape(cloud.Status),
+        };
+
+        var details = new List<string>();
+
+        if (cloud.Status == "syncing" && cloud.BooksTotal is { } total)
+            details.Add($"{cloud.BooksDone ?? 0}/{total} books");
+        else if (cloud.Status == "completed")
+            details.Add(cloud.HighlightsNew is > 0
+                ? $"+{cloud.HighlightsNew} new highlights"
+                : "nothing new");
+        else if (cloud.Status == "connected" && FormatTimestamp(cloud.LastSyncCompletedAt) is { } lastSync)
+            details.Add($"last sync {lastSync}");
+
+        if (!string.IsNullOrWhiteSpace(cloud.RegionId))
+            details.Add(Markup.Escape(cloud.RegionId));
+
+        return details.Count == 0 ? label : $"{label} [grey]({string.Join(", ", details)})[/]";
+    }
 
     private static string FormatLastStatus(string? status) => status switch
     {
