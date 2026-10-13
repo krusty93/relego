@@ -32,8 +32,8 @@ import type { PageResponse, SyncRunOptions, SyncRunnerDeps } from "../src/sync-r
 const us = resolveRegion("us");
 if (us === null) throw new Error("The US region must be part of the bundled profile.");
 
-function fixture(name: string): string {
-  return readFileSync(new URL(`./fixtures/us/${name}`, import.meta.url), "utf8");
+function fixture(name: string, regionId = "us"): string {
+  return readFileSync(new URL(`./fixtures/${regionId}/${name}`, import.meta.url), "utf8");
 }
 
 function page(html: string, url: string = notebookUrl(us as KindleRegion)): PageResponse {
@@ -87,6 +87,71 @@ describe("parse profile", () => {
     for (const minutes of ALLOWED_INTERVAL_MINUTES) expect(clampIntervalMinutes(minutes)).toBe(minutes);
 
     expect(clampIntervalMinutes(7)).toBe(DEFAULT_INTERVAL_MINUTES);
+  });
+});
+
+describe("parse profile - every allowlisted region", () => {
+  it("derives both notebook URLs and the sign-in URL from the region host", () => {
+    for (const region of REGIONS) {
+      expect(notebookUrl(region)).toBe(`https://${region.notebookHost}/notebook`);
+      expect(notebookBookUrl(region, "B00EXAMPLE01")).toBe(`https://${region.notebookHost}/notebook?bookKey=B00EXAMPLE01`);
+      expect(region.signInHostPatterns.length).toBeGreaterThan(0);
+
+      for (const host of region.signInHostPatterns) {
+        expect(isSignInUrl(region, `https://${host}/ap/signin`)).toBe(true);
+      }
+
+      expect(isSignInUrl(region, notebookUrl(region))).toBe(false);
+    }
+  });
+
+  it("parses the library, book, truncation, changed-layout and empty fixtures for every region", () => {
+    for (const region of REGIONS) {
+      const library = parseLibrary(fixture("library.html", region.id), region);
+      expect(library.kind).toBe("ok");
+      if (library.kind !== "ok") continue;
+
+      expect(library.books).toHaveLength(3);
+      expect(library.books.every((book) => book.title.length > 0)).toBe(true);
+      expect(library.books[2]?.truncated).toBe(true);
+
+      const book = parseBookPage(fixture("book.html", region.id), region, "fallback");
+      expect(book.kind).toBe("ok");
+      if (book.kind !== "ok") continue;
+
+      expect(book.result.books[0]?.highlights).toHaveLength(3);
+      expect(book.result.books[0]?.highlights.every((highlight) => highlight.text.length > 0)).toBe(true);
+
+      const truncated = parseBookPage(fixture("truncation-warning.html", region.id), region, "fallback");
+      expect(truncated.kind).toBe("ok");
+      if (truncated.kind !== "ok") continue;
+
+      expect(truncated.result.books[0]?.truncated).toBe(true);
+
+      expect(parseLibrary(fixture("empty.html", region.id), region)).toEqual({ kind: "ok", books: [] });
+
+      const changed = parseLibrary(fixture("changed-layout.html", region.id), region);
+      expect(changed.kind).toBe("contract_changed");
+      if (changed.kind !== "contract_changed") continue;
+
+      expect(changed.diagnostics.check).toBe("bookRow");
+      expect(changed.diagnostics.counts).toEqual({ bookRows: 0 });
+    }
+  });
+
+  it("treats the sign-in redirect of every region as sign-in, and of no other region", () => {
+    for (const [index, region] of REGIONS.entries()) {
+      const html = fixture("sign-in.html", region.id);
+      expect(parseLibrary(html, region)).toEqual({ kind: "sign_in" });
+
+      // The form id alone already proves sign-in, so the host signal is isolated: with the form
+      // removed only `data-signin-host` remains, and it must match this region and no other.
+      const hostOnly = html.replace(/<form[\s\S]*?<\/form>/, "");
+      expect(isSignInPage(hostOnly, region)).toBe(true);
+
+      const other = REGIONS[(index + 1) % REGIONS.length] as KindleRegion;
+      expect(isSignInPage(hostOnly, other)).toBe(false);
+    }
   });
 });
 

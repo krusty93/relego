@@ -65,19 +65,20 @@ ten allowed values; the stored value is unchanged. No active connection → **40
 
 ### `GET /sync/{providerId}/regions`
 
-`200 [ { "id": "us", "displayName": "United States", "host": "read.amazon.com" }, { "id": "ca", … }, { "id": "uk", … }, { "id": "de", … }, { "id": "fr", … }, { "id": "it", … }, { "id": "es", … }, { "id": "br", … } ]`.
+`200 { "regions": [ { "id": "us", "displayName": "United States", "host": "read.amazon.com" }, { "id": "ca", … }, { "id": "uk", … }, { "id": "de", … }, { "id": "fr", … }, { "id": "it", … }, { "id": "es", … }, { "id": "br", … } ], "disclosure": "Only these validated hosts are supported; other Amazon regions are unsupported until validated." }`.
 Japan and China (documented incompatible) and Denmark, Ireland and Poland (no dedicated notebook
 host validated) are absent by design; the list is the exhaustive
-allowlist for the current profile version and the response includes
-`"disclosure": "Only these validated hosts are supported; other Amazon regions are unsupported until validated."`
-(the web UI and extension show this text).
+allowlist for the current profile version. The `disclosure` text travels with the list so no
+surface can show the hosts without it (the web UI and extension show this text).
+`404` for an unknown provider; no authentication — the allowlist and the hosts it derives are
+public, and a client cannot ask for any other host.
 
 ## Extension channel endpoints
 
 | Method & path | Purpose |
 |---------------|---------|
 | `POST /sync/{providerId}/pair` | Exchange pairing token for activation; body `{ "profileVersion", "regionId" }` → connection `active`, response includes the stored `intervalMinutes` (default 360) for the extension to create its sync alarm. Re-pair with a new token keeps history, interval and (re-sent) region |
-| `PUT /sync/{providerId}/region` | Change region from the extension popup; body `{ "regionId" }`. Same connection/token (no re-pair); running job → `interrupted`; `full_resync` queued; response `{ "region": {…}, "pendingCommand": "full_resync" }` |
+| `PUT /sync/{providerId}/region` | Change region from the extension popup; body `{ "regionId" }`. Bearer token required (**401** without one). Unknown or host-shaped id (`jp`, `cn`, `dk`, `ie`, `pl`, `https://…`, `host.example`, `a/b`, empty) → **422** with detail listing the supported ids and stating hosts are never accepted; the stored region is unchanged. Same connection/token (no re-pair); a running job → `interrupted` (never `failed`); exactly one `full_resync` queued; frequency, highlights and job history unchanged; response `{ "region": {…}, "pendingCommand": "full_resync" }` |
 | `POST /sync/{providerId}/heartbeat` | Liveness, fixed cadence **60 s**; body `{ "profileVersion", "appliedIntervalMinutes", "nextSyncDueAt" }`; response `{ "command": "none|sync|full_resync", "region": {…}, "intervalMinutes": 360, "heartbeatSeconds": 60 }` (consumes the single user-requested command). The extension re-creates its `kindle-sync` alarm when `intervalMinutes` differs from `appliedIntervalMinutes`. `heartbeatSeconds` is fixed and **never** derived from the sync frequency; a heartbeat never starts a routine sync |
 | `POST /sync/{providerId}/jobs` | Start job (extension-initiated, incl. routine syncs fired by the sync alarm); body `{ "idempotencyKey", "mode", "trigger" }` with `trigger` ∈ `scheduled|manual|initial|retry|region_change` → `{ "jobId", "knownBooks": [{ "key", "highlightCount" }] }`; replay with same key returns the same job; if a job is already running, that job is returned (**no second concurrent job**, so overlapping/overdue alarm firings coalesce) |
 | `POST /sync/{providerId}/jobs/{jobId}/batches` | Upload batch; idempotent per `batchIndex`; replay returns stored counts |
