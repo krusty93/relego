@@ -78,6 +78,27 @@ public sealed class MailDeliveryService(
         logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
     }
 
+    public async Task SendNotificationAsync(
+        string toAddress,
+        string subject,
+        string htmlBody,
+        string plainTextBody,
+        CancellationToken cancellationToken = default)
+    {
+        using var message = new MimeMessage();
+        message.To.Add(MailboxAddress.Parse(toAddress));
+        message.Subject = subject;
+        message.Body = new BodyBuilder
+        {
+            HtmlBody = htmlBody,
+            TextBody = plainTextBody
+        }.ToMessageBody();
+
+        await SendEmailAsync(message, cancellationToken);
+
+        logger.LogInformation("Notification sent to {ToAddress}", toAddress);
+    }
+
     // The sender address and credentials are resolved per send so a change saved from a
     // client takes effect immediately, without restarting the server.
     private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)

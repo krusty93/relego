@@ -16,4 +16,19 @@ public interface IMailDeliveryService
         string plainTextBody,
         string subject = "Your Relego Recap",
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a multi-part notification email that is not a recap, such as the inactivity reminder.
+    /// </summary>
+    /// <param name="toAddress">Recipient address.</param>
+    /// <param name="subject">Message subject.</param>
+    /// <param name="htmlBody">HTML body.</param>
+    /// <param name="plainTextBody">Plain-text alternative.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SendNotificationAsync(
+        string toAddress,
+        string subject,
+        string htmlBody,
+        string plainTextBody,
+        CancellationToken cancellationToken = default);
 }

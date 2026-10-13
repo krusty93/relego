@@ -176,16 +176,16 @@ description: "Task list for feature 011 Kindle Background Synchronization"
 
 ### Tests for User Story 3
 
-- [ ] T056 [P] [US3] Tests in `src/Relego.Tests/Api/SyncDisclosureApiTests.cs` and `src/Relego.Tests/Services/SyncReminderJobTests.cs`: disclosure + prerequisites are always returned (including when not connected); the reminder fires at 45 days using the clock abstraction and `UNIQUE(connection_id, quiet_since)` prevents repeats; dismiss works; existing Kindle/Kobo and `/imports` tests stay green (local fallback regression)
+- [X] T056 [P] [US3] Tests in `src/Relego.Tests/Api/SyncDisclosureApiTests.cs` and `src/Relego.Tests/Services/SyncReminderJobTests.cs`: disclosure + prerequisites are always returned (including when not connected); the reminder fires at 45 days using the clock abstraction and `UNIQUE(connection_id, quiet_since)` prevents repeats; dismiss works; existing Kindle/Kobo and `/imports` tests stay green (local fallback regression)
 
 ### Implementation for User Story 3
 
-- [ ] T057 [US3] Return `disclosure` (versioned items) and `prerequisites` from `GET /sync/{providerId}` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`, always (including `not_connected`), and persist the shown `disclosure_version` on the connection
-- [ ] T058 [US3] Implement `SyncReminderJob` in `src/Relego.Server/Jobs/SyncReminderJob.cs` (Quartz daily — the **only** sync-related Quartz job): for each active connection, when `now − max(last_new_content_at, connected_at) ≥ 45 days` and no reminder exists for that quiet period, create a `sync_reminders` row; in-app always and email via `IMailDeliveryService` only when SMTP + `delivery_email` are configured; clear/reset when new content syncs
-- [ ] T059 [US3] Implement `POST /sync/{providerId}/reminders/{id}/dismiss` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`
-- [ ] T060 [US3] Flag export-limit truncation in `src/relego.extension/src/notebook-parser.ts` (`truncated = true` per book, never an error) and report `truncatedBooks` on `complete`; store the `truncated` provenance flag
-- [ ] T061 [US3] Implement the always-visible disclosure blocks, reminder banner and fallback link in `src/relego.web/src/routes/SyncPage.tsx` (Coverage & limits, What this needs, Privacy) plus the local-import pointer on `src/relego.web/src/routes/ImportPage.tsx`
-- [ ] T062 [P] [US3] Add Playwright specs for disclosures-on-setup/always, the reminder banner and the fallback link in `src/relego.web/tests/sync.spec.ts`
+- [X] T057 [US3] Return `disclosure` (versioned items) and `prerequisites` from `GET /sync/{providerId}` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`, always (including `not_connected`), and persist the shown `disclosure_version` on the connection
+- [X] T058 [US3] Implement `SyncReminderJob` in `src/Relego.Server/Jobs/SyncReminderJob.cs` (Quartz daily — the **only** sync-related Quartz job): for each active connection, when `now − max(last_new_content_at, connected_at) ≥ 45 days` and no reminder exists for that quiet period, create a `sync_reminders` row; in-app always and email via `IMailDeliveryService` only when SMTP + `delivery_email` are configured; clear/reset when new content syncs
+- [X] T059 [US3] Implement `POST /sync/{providerId}/reminders/{id}/dismiss` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`
+- [X] T060 [US3] Flag export-limit truncation in `src/relego.extension/src/notebook-parser.ts` (`truncated = true` per book, never an error) and report `truncatedBooks` on `complete`; store the `truncated` provenance flag
+- [X] T061 [US3] Implement the always-visible disclosure blocks, reminder banner and fallback link in `src/relego.web/src/routes/SyncPage.tsx` (Coverage & limits, What this needs, Privacy) plus the local-import pointer on `src/relego.web/src/routes/ImportPage.tsx`
+- [X] T062 [P] [US3] Add Playwright specs for disclosures-on-setup/always, the reminder banner and the fallback link in `src/relego.web/tests/sync.spec.ts`
 
 **Checkpoint**: All user stories are independently functional.
 
