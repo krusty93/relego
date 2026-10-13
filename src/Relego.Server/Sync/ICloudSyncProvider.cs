@@ -22,6 +22,12 @@ public interface ICloudSyncProvider
     /// <summary>Versioned coverage disclosure served to the user.</summary>
     CoverageDisclosure Disclosure { get; }
 
+    /// <summary>
+    /// Operator-facing prerequisites the user must satisfy before connecting. Served alongside the
+    /// disclosure so the connect flow can show them before any token is issued.
+    /// </summary>
+    IReadOnlyList<string> Prerequisites { get; }
+
     /// <summary>Parse profile with the region allowlist.</summary>
     ParseProfile Profile { get; }
 

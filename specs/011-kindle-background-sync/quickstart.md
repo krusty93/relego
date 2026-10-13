@@ -25,7 +25,7 @@ fallback regression, SC-007).
 
 ## 2. Manual end-to-end (maps to spec scenarios)
 
-1. `docker compose up --build`; open `http://localhost:8080/app/sync`.
+1. `docker compose up --build`; open `http://localhost:8080/app/kindle-sync`.
 2. **Disclosures first (SC-006)**: coverage, sideloaded gap, export-limit truncation, prerequisites
    are visible before connecting.
 3. Connect → copy the one-time pairing code → load the extension (unpacked) → enter server URL +

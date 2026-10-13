@@ -25,7 +25,7 @@ creates **no** routine sync schedule. The server adds a provider-neutral
 provenance/reminder tables, a REST sync API, a Quartz.NET inactivity-reminder job (45 days; the only
 Quartz use in this feature), and
 reuses the existing `SyncRepository.ImportAsync` dedup so retries and full resyncs are idempotent
-and non-destructive. The **web UI** (`/app/sync`) is the primary surface for connect, progress,
+and non-destructive. The **web UI** (`/app/kindle-sync`) is the primary surface for connect, progress,
 completion, expired-auth, retry/full-resync, disclosures, and reminders; a one-line CLI status is
 optional. Local Kindle/Kobo import is unchanged and remains the documented fallback.
 
@@ -86,7 +86,7 @@ requirement was dropped or added; all FR-001–FR-019 trace below.
 | FR-006, FR-007 | `INSERT OR IGNORE` dedup; job/batch idempotency; contract-break failure codes |
 | FR-008, FR-017 | Versioned `CoverageDisclosure` + prerequisites shown before connect and always |
 | FR-009 | `IHighlightSource`, `POST /imports`, CLI import untouched; UI fallback link |
-| FR-010 | `/app/sync` primary; CLI optional |
+| FR-010 | `/app/kindle-sync` primary; CLI optional |
 | FR-013, FR-014 | No telemetry; `user_id` + token ownership; revocable |
 | FR-015 | Insert-only; disconnect keeps data; unknown = NULL |
 | FR-016 | `ICloudSyncProvider` (in `Relego.Server/Sync`) + one DI registration; no enum; not placed in Core since the CLI does not need it |
