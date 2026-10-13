@@ -20,6 +20,11 @@ export function describeSchedule(
   return `Every ${day} at ${deliveryTime}`;
 }
 
+/** "15 minutes" … "24 hours" for the ten routine-sync frequencies. */
+export function describeFrequency(minutes: number): string {
+  return minutes < 60 ? plural(minutes, "minute") : plural(minutes / 60, "hour");
+}
+
 export function capitalise(value: string): string {
   return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
 }

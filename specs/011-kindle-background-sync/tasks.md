@@ -154,15 +154,15 @@ description: "Task list for feature 011 Kindle Background Synchronization"
 
 ### Tests for User Story 5
 
-- [ ] T050 [P] [US5] API tests in `src/Relego.Tests/Api/SyncScheduleApiTests.cs`: all ten values are stored/returned within 5 s; any other value → 422 listing the ten with the stored value unchanged; the value survives a server restart; the heartbeat carries it; **no Quartz job/trigger exists for routine sync** (only the reminder job is registered)
-- [ ] T051 [P] [US5] Extension tests in `src/relego.extension/tests/alarms.test.ts`: `kindle-sync` period equals each of the ten frequencies and is re-created on startup and on change; `kindle-heartbeat` stays 60 s for all ten; the heartbeat never starts a routine sync; overdue/overlapping firings yield at most one sync
+- [X] T050 [P] [US5] API tests in `src/Relego.Tests/Api/SyncScheduleApiTests.cs`: all ten values are stored/returned within 5 s; any other value → 422 listing the ten with the stored value unchanged; the value survives a server restart; the heartbeat carries it; **no Quartz job/trigger exists for routine sync** (only the reminder job is registered)
+- [X] T051 [P] [US5] Extension tests in `src/relego.extension/tests/alarms.test.ts`: `kindle-sync` period equals each of the ten frequencies and is re-created on startup and on change; `kindle-heartbeat` stays 60 s for all ten; the heartbeat never starts a routine sync; overdue/overlapping firings yield at most one sync
 
 ### Implementation for User Story 5
 
-- [ ] T052 [US5] Implement `PUT /sync/{providerId}/schedule` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs` (validate against the ten `AllowedMinutes`, persist `sync_interval_minutes`, return `{ intervalMinutes, applied, nextRunAt }`; no Quartz change) and store the extension-reported `applied_interval_minutes`/`next_sync_due_at` (display-only) in the heartbeat handler
-- [ ] T053 [US5] Implement frequency application in `src/relego.extension/src/background.ts`: replace the `kindle-sync` alarm when the heartbeat's `intervalMinutes` differs from `appliedIntervalMinutes`; report `nextSyncDueAt`; on startup run at most one catch-up sync when a period has elapsed (N missed runs ⇒ ≤ 1 sync)
-- [ ] T054 [US5] Implement the frequency selector in `src/relego.web/src/routes/SyncPage.tsx`: exactly ten options in order (15 min … 24 h) from `schedule.allowedIntervalMinutes`, save via `PUT /schedule`, show "Applies when your browser next reports" until `applied` is true, then the extension-reported Next run; revert on 422; helper text "Relego's server does not schedule it"
-- [ ] T055 [P] [US5] Add a Playwright spec for the ten options, the pending→applied round-trip and the 422 revert in `src/relego.web/tests/sync.spec.ts`
+- [X] T052 [US5] Implement `PUT /sync/{providerId}/schedule` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs` (validate against the ten `AllowedMinutes`, persist `sync_interval_minutes`, return `{ intervalMinutes, applied, nextRunAt }`; no Quartz change) and store the extension-reported `applied_interval_minutes`/`next_sync_due_at` (display-only) in the heartbeat handler
+- [X] T053 [US5] Implement frequency application in `src/relego.extension/src/background.ts`: replace the `kindle-sync` alarm when the heartbeat's `intervalMinutes` differs from `appliedIntervalMinutes`; report `nextSyncDueAt`; on startup run at most one catch-up sync when a period has elapsed (N missed runs ⇒ ≤ 1 sync)
+- [X] T054 [US5] Implement the frequency selector in `src/relego.web/src/routes/SyncPage.tsx`: exactly ten options in order (15 min … 24 h) from `schedule.allowedIntervalMinutes`, save via `PUT /schedule`, show "Applies when your browser next reports" until `applied` is true, then the extension-reported Next run; revert on 422; helper text "Relego's server does not schedule it"
+- [X] T055 [P] [US5] Add a Playwright spec for the ten options, the pending→applied round-trip and the 422 revert in `src/relego.web/tests/sync.spec.ts`
 
 **Checkpoint**: All P1 stories are independently functional.
 
