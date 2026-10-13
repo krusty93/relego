@@ -11,6 +11,7 @@ import type {
   StatusResponse,
   SyncCommandResponse,
   SyncProviderSummary,
+  SyncRegionsResponse,
   SyncStatusResponse,
   UpdateSettingsRequest,
   UpdateSmtpSettingsRequest,
@@ -218,6 +219,10 @@ export const syncApi = {
 
   status: (providerId: string) =>
     request<SyncStatusResponse>(`/sync/${encodeURIComponent(providerId)}`),
+
+  /** The validated regions the connection may read; fixed per server, so it is fetched once. */
+  regions: (providerId: string) =>
+    request<SyncRegionsResponse>(`/sync/${encodeURIComponent(providerId)}/regions`),
 
   createConnection: (providerId: string) =>
     request<CreateSyncConnectionResponse>(`/sync/${encodeURIComponent(providerId)}/connection`, {

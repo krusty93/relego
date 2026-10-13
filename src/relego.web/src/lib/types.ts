@@ -163,6 +163,12 @@ export interface SyncRegion {
   host: string;
 }
 
+/** The regions a connection may read, with the server's own disclosure about them. */
+export interface SyncRegionsResponse {
+  regions: SyncRegion[];
+  disclosure: string;
+}
+
 export interface SyncSchedule {
   intervalMinutes: number;
   allowedIntervalMinutes: number[];

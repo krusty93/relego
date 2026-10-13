@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PROVIDER_ID } from "../src/client";
+import { CONFIGURED_MESSAGE } from "../src/messages";
 import { DEFAULT_INTERVAL_MINUTES, notebookUrl, resolveRegion } from "../src/profile";
 import type { KindleRegion } from "../src/profile";
 
@@ -42,6 +43,7 @@ interface FakeChrome {
   readonly tabs: { readonly url: string; readonly active: boolean }[];
   readonly alarmListeners: ((alarm: { name: string }) => void)[];
   readonly stored: Record<string, unknown>;
+  readonly messageListeners: ((message: unknown) => void)[];
   readonly api: unknown;
 }
 
@@ -50,6 +52,7 @@ function createChrome(): FakeChrome {
   const tabs: { url: string; active: boolean }[] = [];
   const alarmListeners: ((alarm: { name: string }) => void)[] = [];
   const stored: Record<string, unknown> = { serverUrl: SERVER, token: "pairing-token" };
+  const messageListeners: ((message: unknown) => void)[] = [];
 
   const api = {
     alarms: {
@@ -93,10 +96,15 @@ function createChrome(): FakeChrome {
     runtime: {
       onInstalled: { addListener: () => undefined },
       onStartup: { addListener: () => undefined },
+      onMessage: {
+        addListener: (listener: (message: unknown) => void) => {
+          messageListeners.push(listener);
+        },
+      },
     },
   };
 
-  return { alarms, tabs, alarmListeners, stored, api };
+  return { alarms, tabs, alarmListeners, stored, messageListeners, api };
 }
 
 interface FakeResponse {
@@ -128,6 +136,7 @@ interface ServerState {
   library: string;
   knownBooks: readonly { key: string; highlightCount: number }[];
   reusedCompleted: boolean;
+  intervalMinutes: number;
 }
 
 interface Recorded {
@@ -165,7 +174,12 @@ function installFetch(state: ServerState): Recorded {
     if (path === `/sync/${PROVIDER_ID}/heartbeat`) {
       server.heartbeats.push(body);
       return Promise.resolve(
-        jsonResponse({ command: state.command, region, intervalMinutes: DEFAULT_INTERVAL_MINUTES, heartbeatSeconds: 60 }),
+        jsonResponse({
+          command: state.command,
+          region,
+          intervalMinutes: state.intervalMinutes,
+          heartbeatSeconds: 60,
+        }),
       );
     }
 
@@ -210,7 +224,13 @@ function installFetch(state: ServerState): Recorded {
 /** Loads a fresh worker module bound to a fresh fake browser. */
 async function loadWorker(overrides: Partial<ServerState> = {}) {
   const state: ServerState = {
-    command: "none", signedIn: true, library: "library.html", knownBooks: [], reusedCompleted: false, ...overrides,
+    command: "none",
+    signedIn: true,
+    library: "library.html",
+    knownBooks: [],
+    reusedCompleted: false,
+    intervalMinutes: DEFAULT_INTERVAL_MINUTES,
+    ...overrides,
   };
   const chrome = createChrome();
   vi.stubGlobal("chrome", chrome.api);
@@ -412,5 +432,39 @@ describe("service worker recovery", () => {
 
     expect(chrome.alarms.get(worker.SYNC_ALARM)?.periodInMinutes).toBe(DEFAULT_INTERVAL_MINUTES);
     expect(chrome.alarms.get(worker.HEARTBEAT_ALARM)?.periodInMinutes).toBe(worker.HEARTBEAT_MINUTES);
+  });
+
+  it("applies a configuration change from the popup and runs the queued command at once", async () => {
+    const { worker, server, chrome } = await loadWorker({ command: "full_resync", intervalMinutes: 30 });
+
+    chrome.messageListeners.forEach((listener) =>
+      listener({ type: CONFIGURED_MESSAGE, intervalMinutes: 30 }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(chrome.alarms.get(worker.SYNC_ALARM)?.periodInMinutes).toBe(30);
+    expect(server.heartbeats.map((beat) => beat.appliedIntervalMinutes)).toEqual([30]);
+    expect(server.starts.map((start) => start.mode)).toEqual(["full_resync"]);
+  });
+
+  it("lets the server's frequency win over the one the popup reported", async () => {
+    const { worker, server, chrome } = await loadWorker({ command: "none", intervalMinutes: 15 });
+
+    chrome.messageListeners.forEach((listener) =>
+      listener({ type: CONFIGURED_MESSAGE, intervalMinutes: 30 }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(server.heartbeats[0]?.appliedIntervalMinutes).toBe(30);
+    expect(chrome.alarms.get(worker.SYNC_ALARM)?.periodInMinutes).toBe(15);
+  });
+
+  it("ignores a message that is not a configuration change", async () => {
+    const { server, chrome } = await loadWorker({ command: "none" });
+
+    chrome.messageListeners.forEach((listener) => listener({ type: "relego:unknown" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(server.heartbeats).toEqual([]);
   });
 });

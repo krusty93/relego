@@ -18,12 +18,13 @@ public static class CloudSyncEndpoints
     private const int MaxProfileVersionLength = 32;
     private const int MaxFailureCodeLength = 64;
     private const string NoCommand = "none";
+    private const string FullResyncCommand = "full_resync";
     private const int DefaultJobsLimit = 20;
     private const int MaxJobsLimit = 50;
 
     private static readonly string[] AllowedPhases = ["discovering", "reading", "uploading", "done"];
 
-    private static readonly string[] AllowedCommands = ["sync", "full_resync"];
+    private static readonly string[] AllowedCommands = ["sync", FullResyncCommand];
 
     private static readonly JsonSerializerOptions BatchJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -60,6 +61,7 @@ public static class CloudSyncEndpoints
         MapStatusEndpoint(app);
         MapConnectionEndpoints(app);
         MapPairingEndpoint(app);
+        MapRegionEndpoints(app);
         MapHeartbeatEndpoint(app);
         MapCommandEndpoint(app);
         MapJobEndpoints(app);
@@ -225,6 +227,80 @@ public static class CloudSyncEndpoints
         .WithSummary("Activate a connection with the region the extension reads.")
         .WithDescription("Exchanges the pairing token for an active connection, stores the parse-profile version and region, and returns the stored frequency so the extension can create its sync alarm.")
         .Produces<SyncPairResponse>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapRegionEndpoints(WebApplication app)
+    {
+        app.MapGet("/sync/{providerId}/regions", (
+            string providerId,
+            [FromServices] IEnumerable<ICloudSyncProvider> providers) =>
+        {
+            if (ResolveProvider(providers, providerId) is not { } provider)
+                return UnknownProvider(providers, providerId);
+
+            return Results.Ok(new SyncRegionsResponse
+            {
+                Regions = provider.Profile.Regions.Select(MapRegion).ToList(),
+                Disclosure = provider.RegionDisclosure
+            });
+        })
+        .WithTags("Sync")
+        .WithSummary("List the validated notebook regions.")
+        .WithDescription("Returns the exhaustive region allowlist for the current profile version, with the disclosure that only these validated hosts are supported. Read-only: hosts are never accepted from clients.")
+        .Produces<SyncRegionsResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        app.MapPut("/sync/{providerId}/region", async (
+            HttpContext http,
+            string providerId,
+            SyncRegionChangeRequest? request,
+            [FromServices] IEnumerable<ICloudSyncProvider> providers,
+            [FromServices] UserRepository userRepo,
+            [FromServices] SyncConnectionRepository connections,
+            [FromServices] SyncJobRepository jobs,
+            [FromServices] SyncTokenService tokens) =>
+        {
+            if (ResolveProvider(providers, providerId) is not { } provider)
+                return UnknownProvider(providers, providerId);
+
+            var userId = await userRepo.EnsureUserAsync();
+            var connection = await AuthenticateAsync(http, tokens, userId, providerId);
+            if (connection is null)
+                return Unauthorized();
+
+            if (request is null)
+                return ValidationProblem("body", "A JSON body with regionId is required.");
+
+            if (!provider.Profile.TryResolveRegion(request.RegionId, out var region))
+                return ValidationProblem("regionId", UnsupportedRegion(provider));
+
+            var now = DateTimeOffset.UtcNow.ToString("o");
+
+            // A running job reads the previous region's notebook, so it must not be allowed to keep
+            // reporting highlights for a region the connection no longer reads. It ends as
+            // interrupted rather than failed: nothing went wrong, the user changed the target.
+            var running = await jobs.GetRunningAsync(connection.Id);
+            if (running is not null)
+                await jobs.InterruptAsync(running.Id, now);
+
+            // The new region is a different notebook: everything must be read again, and the
+            // connection keeps its id, token, frequency and history.
+            await connections.SetRegionAsync(connection.Id, region!.Id, now);
+            await connections.SetPendingCommandAsync(connection.Id, FullResyncCommand);
+
+            return Results.Ok(new SyncRegionChangeResponse
+            {
+                Region = MapRegion(region),
+                PendingCommand = await connections.GetPendingCommandAsync(connection.Id) ?? NoCommand
+            });
+        })
+        .WithTags("Sync")
+        .WithSummary("Change the region the extension reads.")
+        .WithDescription("Switches the connection to another allowlisted region without re-pairing: the connection, token, frequency and history are kept, a running job becomes interrupted, and exactly one full resync is queued.")
+        .Produces<SyncRegionChangeResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status404NotFound);

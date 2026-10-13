@@ -158,6 +158,8 @@ public sealed class SyncFoundationApiTests
 
         public ParseProfile Profile { get; } = new("1", []);
 
+        public string RegionDisclosure => "Only the stub hosts are supported.";
+
         public SyncFrequencyPolicy Frequency { get; } = new() { AllowedMinutes = [60], Default = 60 };
 
         public ProviderNormalizationResult Normalize(CloudSyncBatch batch) => new() { NormalizedBatch = batch };
