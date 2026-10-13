@@ -215,6 +215,28 @@ code {
   color: var(--ink-muted);
 }
 
+/* The rail dot says "this needs you", so it stays a mark, not a count. */
+.nav-item .attention,
+.tab-icon .attention {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--warning);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--warning) 20%, transparent);
+  animation: attention-pulse 2.4s var(--ease) infinite;
+}
+
+.nav-item .attention {
+  margin-left: auto;
+}
+
+@keyframes attention-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
 .rail-foot {
   margin-top: auto;
   display: flex;
@@ -1156,6 +1178,17 @@ select.control {
   color: var(--danger);
 }
 
+/* Attention, not failure: something the user has to do outside Relego. */
+.callout[data-tone="warn"] {
+  border-color: color-mix(in oklab, var(--warning) 42%, var(--border-strong));
+  background: color-mix(in oklab, var(--warning) 8%, var(--surface));
+  color: var(--ink);
+}
+
+.callout[data-tone="warn"] svg {
+  color: var(--warning);
+}
+
 .link-btn {
   font: inherit;
   color: var(--accent-ink);
@@ -1239,6 +1272,19 @@ select.control {
 
 .disconnect {
   margin-top: var(--sp-5);
+}
+
+.panel-actions {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-5);
+}
+
+.panel-actions .subtle {
+  font-size: var(--t-sm);
+  max-width: 42ch;
 }
 
 .secret {
@@ -1634,6 +1680,18 @@ dialog[open] {
   .tabbar svg {
     width: 20px;
     height: 20px;
+  }
+
+  .tab-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  .tab-icon .attention {
+    position: absolute;
+    top: -1px;
+    right: -5px;
   }
 
   .table-wrap table,

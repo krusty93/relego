@@ -9,6 +9,7 @@ import type {
   SmtpSettingsResponse,
   SmtpTestResponse,
   StatusResponse,
+  SyncCommandResponse,
   SyncProviderSummary,
   SyncStatusResponse,
   UpdateSettingsRequest,
@@ -200,8 +201,9 @@ export const api = {
 
 /**
  * Cloud sync channel calls. `status` reads the provider status payload used by the Sync page;
- * `createConnection` starts (or re-keys) the pairing and `disconnect` revokes it. The schedule,
- * command and region calls are added with the user-story work.
+ * `createConnection` starts (or re-keys) the pairing, `command` queues work for the extension and
+ * `disconnect` revokes the pairing. The schedule and region calls are added with the user-story
+ * work.
  */
 export const syncApi = {
   providers: () => request<SyncProviderSummary[]>("/sync/providers"),
@@ -212,6 +214,13 @@ export const syncApi = {
   createConnection: (providerId: string) =>
     request<CreateSyncConnectionResponse>(`/sync/${encodeURIComponent(providerId)}/connection`, {
       method: "POST",
+    }),
+
+  /** Queues a command the extension picks up on its next heartbeat. */
+  command: (providerId: string, command: "sync" | "full_resync") =>
+    request<SyncCommandResponse>(`/sync/${encodeURIComponent(providerId)}/commands`, {
+      method: "POST",
+      body: JSON.stringify({ command }),
     }),
 
   disconnect: (providerId: string) =>
