@@ -1,8 +1,9 @@
 # Versioning guide
 
-This project uses independent semantic versioning for each component (`core`, `cli`, `server`).
-Version numbers follow the [Semantic Versioning](https://semver.org/) 2.0.0 specification.
-Tag creation and GitHub Releases are fully automated for CLI and server projects.
+This project uses independent semantic versioning for each component (`core`, `cli`, `server`,
+`extension`). Version numbers follow the [Semantic Versioning](https://semver.org/) 2.0.0
+specification. Tag creation and GitHub Releases are fully automated for CLI, server, and extension
+projects.
 
 ## How to release a new version
 
@@ -16,16 +17,21 @@ Update the centralized version property for every modified component in `src/Pac
 
 Relevant files:
 
-| Component | Central property      |
-|-----------|-----------------------|
-| `core`    | `RelegoCoreVersion`   |
-| `cli`     | `RelegoCliVersion`    |
-| `server`  | `RelegoServerVersion` |
+| Component   | Central property        |
+|-------------|-------------------------|
+| `core`      | `RelegoCoreVersion`     |
+| `cli`       | `RelegoCliVersion`      |
+| `server`    | `RelegoServerVersion`   |
+| `extension` | `RelegoExtensionVersion`|
 
 Decide the bump level yourself (patch / minor / major) — no commit message format is required.
 Bump the version whenever you modify a component, even if the change is not user-facing (e.g. refactor, bug fix, internal API change) — this ensures accurate version tracking and release notes.
 
 The embedded web UI (`src/relego.web/`) ships with Server, so web UI changes require a `RelegoServerVersion` bump. Its private npm metadata remains fixed at version `1.0.0` and is not independently released or tagged.
+
+The browser extension (`src/relego.extension/`) is released on its own. `npm run package` stamps
+`RelegoExtensionVersion` into the manifest of both packages it builds, so the tag, the GitHub
+Release, and the manifests uploaded for signing always agree.
 
 ### 2. Commit and open a PR
 
@@ -41,9 +47,10 @@ The CI will check that every modified component has a bumped version and post a 
 
 After the merge:
 
-- `post-merge.yml` resolves the central version properties for `core`, `cli`, and `server` and creates a git tag for each component whose bumped version does not yet have a matching tag (format: `<component>/v<version>`)
+- `post-merge.yml` resolves the central version properties for `core`, `cli`, `server`, and `extension` and creates a git tag for each component whose bumped version does not yet have a matching tag (format: `<component>/v<version>`)
 - The tag push triggers `release.yml`, which publishes one GitHub Release per component tag using the squash-merge commit titles since the previous component tag, with a link to the originating PR when available
 - The published GitHub Release triggers `deploy-cli.yml` (Docker image) and `deploy-server.yml` (Docker image)
+- An `extension/v<version>` release carries the signed-ready Chrome and Firefox packages plus their SHA256 checksums and cosign bundles; uploading them to the Chrome Web Store and addons.mozilla.org stays a manual release step
 
 `core` is version-tagged for dependency tracking but is excluded from GitHub release notes and release pages.
 
@@ -55,6 +62,7 @@ Tags follow the pattern `<component>/v<version>`:
 core/v1.1.0
 cli/v1.3.0
 server/v2.0.0
+extension/v1.0.0
 ```
 
 ## Adding a new component
@@ -62,7 +70,7 @@ server/v2.0.0
 1. Add a `<Name>Version` property to `src/PackageVersions.props` and reference it from `src/<Name>/<Name>.csproj` with `<Version>$(<Name>Version)</Version>`
 2. Add `dotnet sln src/Relego.slnx add src/<Name>/<Name>.csproj`
 3. Ensure the project folder and `.csproj` file use the `Relego.<Component>` naming pattern so the release metadata remains consistent
-4. Add the component to `.github/actions/discover-versioned-components/action.yaml`, including its centralized version property; only listed components are released or tagged
+4. Add the component to `.github/actions/discover-versioned-components/action.yaml`, including its centralized version property; only listed components are released or tagged. Use `-` in the project-file column for components that are not .NET projects (see `extension`)
 5. If the component should be publish a GitHub Release page, update triggers in `.github/workflows/release.yaml` to include it
 6. Create the deployment workflow for the specific component, following the triggers in `deploy-server.yml`
 

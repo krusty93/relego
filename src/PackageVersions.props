@@ -1,9 +1,10 @@
 <Project>
 
   <PropertyGroup>
-    <RelegoCoreVersion>0.13.0</RelegoCoreVersion>
-    <RelegoCliVersion>0.16.0</RelegoCliVersion>
-    <RelegoServerVersion>0.24.0</RelegoServerVersion>
+    <RelegoCoreVersion>0.14.0</RelegoCoreVersion>
+    <RelegoCliVersion>0.17.0</RelegoCliVersion>
+    <RelegoServerVersion>0.25.0</RelegoServerVersion>
+    <RelegoExtensionVersion>1.0.0</RelegoExtensionVersion>
     <PollyVersion>8.6.6</PollyVersion>
     <MicrosoftDataSqliteVersion>10.0.5</MicrosoftDataSqliteVersion>
   </PropertyGroup>

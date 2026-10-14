@@ -102,4 +102,32 @@ public sealed class StatusEndpointTests : IDisposable
         // The UTC fire times should differ because delivery time is expressed in local timezone
         Assert.NotEqual(statusUtc.NextRecap, statusTokyo.NextRecap);
     }
+
+    [Fact]
+    public async Task GetStatus_WithoutConnection_ReportsKindleCloudNotConnected()
+    {
+        var result = await _client.GetFromJsonAsync<StatusResponse>("/status");
+
+        Assert.NotNull(result?.KindleCloud);
+        Assert.Equal("kindle-cloud", result.KindleCloud.ProviderId);
+        Assert.Equal("not_connected", result.KindleCloud.Status);
+        Assert.Null(result.KindleCloud.BooksTotal);
+        Assert.Null(result.KindleCloud.BooksDone);
+        Assert.Null(result.KindleCloud.LastSyncCompletedAt);
+        Assert.Null(result.KindleCloud.FailureDetail);
+    }
+
+    [Fact]
+    public async Task GetStatus_AfterCreatingConnection_ReportsKindleCloudAwaitingPairing()
+    {
+        var created = await _client.PostAsync("/sync/kindle-cloud/connection", null);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        var result = await _client.GetFromJsonAsync<StatusResponse>("/status");
+
+        Assert.NotNull(result?.KindleCloud);
+        Assert.Equal("awaiting_pairing", result.KindleCloud.Status);
+        Assert.Equal(360, result.KindleCloud.SyncIntervalMinutes);
+        Assert.Null(result.KindleCloud.RegionId);
+    }
 }
