@@ -8,7 +8,7 @@
 
 ## System Overview
 
-Relego follows a client/server architecture. The server is the only always-on component; it hosts the React web UI and REST API together, while the CLI remains an optional client.
+Relego follows a client/server architecture. The server is the only always-on component; it hosts the React web UI and REST API together, while the CLI remains an optional client. A browser extension, also optional, collects Kindle cloud highlights inside the user's own Amazon session and pushes them to the server.
 
 ```mermaid
 flowchart LR
@@ -16,6 +16,7 @@ flowchart LR
         cli["relego CLI"]
         sources["Kindle / Kobo highlights"]
         browser["Browser"]
+        ext["Relego extension"]
     end
 
     subgraph server["Home server / NAS / Pi"]
@@ -28,6 +29,8 @@ flowchart LR
     sources -->|USB| cli
     cli -->|REST HTTP| app
     browser -->|HTTP| app
+    ext -->|REST HTTP| app
+    ext -->|user's session| amazon["Amazon Kindle"]
     app --> scheduler
     app --> smtp
     app --> database
@@ -95,6 +98,7 @@ All sources are responsible for transforming raw source data into structured dat
   - Select highlights via spaced repetition algorithm
   - Compose recap document and send via SMTP to Kindle email address
   - Serve the React web UI and REST HTTP API from one origin
+  - Accept cloud sync pushes from the browser extension and record highlight provenance
 
 #### REST API layer (`Relego.Server/`)
 
@@ -111,6 +115,7 @@ The application registers a scoped `IDbConnection` backed by `Microsoft.Data.Sql
 Endpoint groups currently implemented:
 
 - Sync: bulk import via `POST /highlights/import`
+- Cloud sync: provider catalog, pairing, region and schedule, heartbeat, commands, jobs and batch ingest under `/sync/*` (see below)
 - Import: multipart upload via `POST /imports` — accepts `My Clippings.txt` or `KoboReader.sqlite`, sniffs the format, parses with `Relego.Core`, and returns a per-book summary of added and duplicate highlights
 - Settings: `GET /settings`, `PATCH /settings`, `POST /settings/test-kindle-email`, `POST /settings/test-recap-email`
 - SMTP settings: `GET /settings/smtp`, `PUT /settings/smtp`, `POST /settings/smtp/test`
@@ -130,6 +135,47 @@ invalidates its result; clearing a delivery address requires no test. Saving rem
 - Exclusions: `*/{id}/exclusions` plus `GET /exclusions`
 - Weights: `PUT /highlights/{id}/weight`, `GET /highlights/weights`
 
+#### Cloud sync (`Relego.Server/Sync/`)
+
+A second acquisition path alongside the import registry: instead of reading a file, the server
+receives highlights a browser extension collected inside the user's own Amazon session.
+
+The provider registry mirrors the highlight source registry. Each provider implements
+`ICloudSyncProvider`, owns a stable `SourceDescriptor`, declares its `CloudSyncCapabilities`,
+coverage disclosure, prerequisites, region profile, region disclosure and frequency policy, and
+normalizes a pushed payload into the shared `SyncRequest` that feeds `SyncRepository.ImportAsync`
+unchanged — so deduplication is the same code path as the CLI import. `KindleCloudProvider` is the
+only registered implementation (`AddSingleton<ICloudSyncProvider, KindleCloudProvider>()`); endpoints
+receive `IEnumerable<ICloudSyncProvider>` and route by `providerId`, so a new provider is one
+registration line and never a branch in the endpoints or the database. `Descriptor.Id` is a routing
+key only and is never branched on.
+
+**The extension owns routine sync timing.** A browser alarm whose period is the user-chosen
+frequency drives every routine sync; a fixed 60-second heartbeat alarm reports liveness and picks up
+user-requested commands. The server never schedules a routine sync: it stores the desired interval on
+`sync_connections.sync_interval_minutes` and hands it back, and the extension reconciles its own
+alarm against the interval the server reports. `GET /status.kindleCloud` derives the cloud state from
+stored columns rather than from scheduler state.
+
+**Region allowlist.** `ParseProfile` carries the validated regions. There is no free-text host
+anywhere: the extension offers the eight validated regions as a fixed list, and the server validates
+the chosen region against the provider's profile. `RegionDisclosure` states that only the allowlisted
+hosts are supported and is shown verbatim wherever the region list appears.
+
+**Quartz is limited to the 45-day inactivity reminder.** `SchedulerService.ScheduleReminderAsync` is
+registered on every boot, because the sweep is not user-scheduled and an existing recap trigger must
+not stop it from being added to a database that predates it. `SyncReminderService` sweeps active
+connections, raises one reminder per quiet period once a connection has reached its provider's
+`InactivityReminderDays`, and delivers it in the app always and by email only when SMTP and a
+delivery address are configured. The reminder is a nudge, never a sync: nothing in the sweep talks to
+Amazon or to the extension, and a mail failure leaves the in-app reminder in place.
+
+**Pairing.** `SyncTokenService` issues a one-time pairing code; only its hash is stored
+(`sync_connections.token_hash`). The extension exchanges the code for a token and sends it as a
+bearer credential. Amazon cookies, Amazon passwords, Amazon session tokens and the raw pairing token
+are never stored, logged or returned; `RedactingTextFormatter` scrubs them from the log stream, and
+`/sync/{providerId}` and `/sync/{providerId}/jobs` never carry page HTML.
+
 #### SMTP configuration precedence
 
 SMTP settings live in the `smtp_settings` table so they can be changed from the web UI without restarting the container. On first boot, when the table is empty, the `SMTP_*` environment variables seed it. From then on the database is authoritative and the environment variables are ignored; `SmtpConfigurationService` is the single read path used by `MailDeliveryService`. The password is never returned by `GET /settings/smtp`, and omitting it from `PUT /settings/smtp` keeps the stored value.
@@ -146,6 +192,38 @@ Single-page application built with Vite and referenced by `Relego.Server` throug
 - **Build**: `dotnet publish src/Relego.Server` restores the locked npm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `cd src/relego.web && npm run build` remains available for frontend-only work.
 - **Tests**: `cd src/relego.web && npm test` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
 - **Integration**: `relego.web.esproj` is included in `Relego.slnx` and referenced by the server to define one publishable server-and-web artifact. The React source, dependencies, and frontend test tooling remain independent from the .NET implementation.
+
+---
+
+### Browser extension (`src/relego.extension/`)
+
+MV3 extension that performs cloud sync on the user's behalf inside their own Amazon session. It is
+not part of the .NET solution and is versioned and released independently (`extension/v<version>`,
+see [VERSIONING.md](../VERSIONING.md)).
+
+- **Tech stack**: TypeScript, Vite (library build), Vitest. `jszip` for packaging only.
+- **Scope**: it is the only component that talks to Amazon. The server never holds Amazon
+  credentials, so the extension reads the signed-in session itself and pushes normalized highlights
+  to `POST /sync/{providerId}/jobs/{jobId}/batches`.
+- **Cadence**: the extension owns routine sync timing with a browser alarm at the frequency the user
+  chose in the web UI, plus a fixed 60-second heartbeat alarm for liveness and user-requested
+  commands. The server stores the desired interval and returns it; it never schedules a routine sync.
+- **Permissions**: `manifest.json` grants **no host at install**. The user grants the Amazon hosts
+  explicitly through `optional_host_permissions`, and only allowlisted hosts are ever requested.
+- **Regions**: the eight validated Amazon regions are offered as a fixed list; there is no free-text
+  host input, and the server re-validates the selection.
+- **Distribution**: two builds from one source. Chrome/Edge ship the MV3 module service worker;
+  Firefox does not support `background.service_worker`, so its variant uses a classic event page
+  (`background.scripts`), requires Firefox 128+ for `optional_host_permissions`, and carries the
+  `browser_specific_settings.gecko.id` needed for AMO signing.
+- **Build and package**: `cd src/relego.extension && npm ci && npm run package` produces
+  `release/relego-extension-<version>-chrome.zip` and `-firefox.zip`, with the version stamped from
+  `RelegoExtensionVersion` in `src/PackageVersions.props`. CI uploads both packages as artifacts;
+  the release workflow attaches them to the `extension/v<version>` release with cosign signatures
+  and SHA256 checksums. The generated archives are never committed.
+- **Tests**: `cd src/relego.extension && npm test` — unit tests plus a packaging suite that builds
+  both variants and asserts on the real archives (version stamping, no host granted at install,
+  Chrome module service worker, Firefox classic event page and AMO identity).
 
 ---
 
@@ -175,6 +253,7 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 | Scheduling               | Quartz.NET                     | Mature .NET scheduler, cron-style expressions           |
 | CLI UX                   | Spectre.Console                | Rich terminal output, tables, progress bars             |
 | Web UI                   | Vite + React + plain CSS       | Static build published with the server, same-origin API |
+| Browser extension        | TypeScript + Vite (MV3)        | Cloud sync inside the user's own Amazon session |
 | Landing page             | Astro + Tailwind CSS           | Static site generation, minimal JS, fast build          |
 
 ---
@@ -189,7 +268,24 @@ highlights       (id, user_id, book_id, text, weight[1-5], excluded, last_seen, 
 excluded_books   (id, user_id, book_id, excluded_at)
 excluded_authors (id, user_id, author_id, excluded_at)
 settings         (user_id, schedule['daily'|'weekly'], delivery_day, delivery_time[default:'18:00'], count[1-15, default:3])
+sync_connections (id, user_id, provider_id, token_hash, state, disclosure_version, profile_version,
+                  region_id, region_changed_at, sync_interval_minutes, schedule_updated_at,
+                  applied_interval_minutes, next_sync_due_at, pending_command, connected_at,
+                  last_heartbeat_at, last_sync_started_at, last_sync_completed_at,
+                  last_new_content_at, last_auth_expired_at, created_at)
+sync_jobs        (id, connection_id, user_id, idempotency_key, mode, trigger, status, phase,
+                  books_total, books_done, highlights_seen, highlights_new,
+                  highlights_duplicate, truncated_books, failure_code, failure_detail,
+                  recovery_steps, started_at, ended_at)
+sync_job_batches (job_id, batch_index, new_highlights, duplicate_highlights, new_books,
+                  new_authors, received_at)
+highlight_provenance (highlight_id, connection_id, source_id, region_id, external_id, truncated,
+                  location, note, color, first_seen_at, last_seen_at)
+sync_reminders   (id, connection_id, user_id, quiet_since, threshold_days, created_at, emailed_at,
+                  dismissed_at, resolved_at)
 ```
+
+> **Cloud sync credentials:** `sync_connections.token_hash` stores a hash of the pairing token only. Amazon cookies, Amazon passwords and Amazon session tokens are never persisted — the extension holds the Amazon session and the server stores highlights plus provenance.
 
 > **Delivery destinations:** both `kindle_email` and `delivery_email` are optional; at least one must be set for recap delivery. `POST /recaps` returns HTTP 422 when neither is configured.
 
@@ -223,6 +319,23 @@ LIMIT @count
 | Method   | Path                              | Description                                 | Tag        |
 |----------|-----------------------------------|---------------------------------------------|------------|
 | `POST`   | `/highlights/import`              | Bulk import highlights from client          | Sync       |
+| `GET`    | `/sync/providers`                 | Cloud sync provider catalog with capabilities and disclosures | Sync     |
+| `GET`    | `/sync/{providerId}`              | Connection state, region, schedule, reminders, latest job | Sync     |
+| `POST`   | `/sync/{providerId}/connection`   | Create the connection and disclose coverage | Sync     |
+| `DELETE` | `/sync/{providerId}/connection`   | Disconnect and revoke the extension token   | Sync     |
+| `POST`   | `/sync/{providerId}/pair`         | Exchange a one-time pairing code for a token | Sync     |
+| `GET`    | `/sync/{providerId}/regions`      | Validated region allowlist and disclosure   | Sync     |
+| `PUT`    | `/sync/{providerId}/region`       | Set the Amazon region                       | Sync     |
+| `PUT`    | `/sync/{providerId}/schedule`     | Set the desired sync frequency              | Sync     |
+| `POST`   | `/sync/{providerId}/reminders/{id}/dismiss` | Dismiss an inactivity reminder     | Sync     |
+| `POST`   | `/sync/{providerId}/heartbeat`    | Extension liveness and pending command poll | Sync     |
+| `POST`   | `/sync/{providerId}/commands`     | Queue a user-requested sync command         | Sync     |
+| `GET`    | `/sync/{providerId}/jobs`         | Job history for the connection              | Sync     |
+| `POST`   | `/sync/{providerId}/jobs`         | Open a sync job                             | Sync     |
+| `POST`   | `/sync/{providerId}/jobs/{jobId}/batches` | Push a normalized highlight batch   | Sync     |
+| `POST`   | `/sync/{providerId}/jobs/{jobId}/progress` | Report book/highlight progress      | Sync     |
+| `POST`   | `/sync/{providerId}/jobs/{jobId}/complete` | Complete a sync job                 | Sync     |
+| `POST`   | `/sync/{providerId}/jobs/{jobId}/fail`     | Fail a sync job with recovery steps | Sync     |
 | `POST`   | `/imports`                        | Upload and parse a clippings or Kobo file   | Import     |
 | `GET`    | `/status`                         | Server status, next recap, highlight stats  | Status     |
 | `GET`    | `/settings`                       | Read current settings                       | Settings   |
@@ -255,6 +368,7 @@ The REST layer uses Dapper with explicit SQL rather than EF Core.
 - Each repository encapsulates one domain slice and receives `IDbConnection` via DI
 - Queries stay close to the endpoint behavior they support
 - Sync import uses a database transaction to keep author, book, and highlight insertion consistent
+- Cloud sync batches are idempotent per `batchIndex`: a replayed batch returns the stored counts unchanged, and highlights are only ever inserted, never updated or deleted
 - Read models returned by list endpoints are projected directly into DTOs rather than materializing richer domain aggregates
 
 Current repository split:
@@ -265,6 +379,8 @@ Current repository split:
 - `StatusRepository`: aggregate counters
 - `ExclusionRepository`: inclusion/exclusion mutations and exclusion listings
 - `WeightRepository`: weight updates and weighted highlight listings
+- `SyncConnectionRepository`, `SyncJobRepository`, `SyncReminderRepository`: cloud sync connection state, job lifecycle and inactivity reminders
+- `ProvenanceRepository`: per-highlight origin (source, region, external id, truncation)
 
 ### Error handling
 
@@ -274,6 +390,11 @@ The API returns JSON-only responses.
 - Missing entities use `Results.Problem(...)` and return HTTP `404`
 - Successful mutations that do not need a body return HTTP `204`
 - Successful reads return HTTP `200` with DTO payloads from `Relego.Core/Contracts/`
+
+Cloud sync failures are modelled as data, not as HTTP errors: a job that fails records a
+`failure_code`, a human-readable `failure_detail` and ordered `recovery_steps`, and the extension
+shows them verbatim. Only malformed or unauthorized requests (unknown provider, missing or revoked
+token, region outside the allowlist, a batch larger than the accepted size) fail the HTTP call.
 
 This keeps the client protocol small, explicit, and aligned with the quickstart `curl` flows.
 
@@ -305,18 +426,28 @@ src/Relego.Cli/
 src/Relego.Server/
 ├── Data/               # Dapper repositories over SQLite
 ├── Endpoints/          # Minimal API endpoint modules
-├── Infrastructure/     # Database bootstrap and logging
+├── Infrastructure/     # Database bootstrap, logging and redaction
+├── Jobs/               # Quartz jobs (recap delivery, inactivity reminder)
 ├── Models/             # Server-side domain models
-├── Services/           # Upload import, SMTP configuration, mail delivery
+├── Services/           # Upload import, SMTP configuration, mail delivery, scheduling
+├── Sync/               # Cloud sync provider registry, orchestration and failure recovery
 └── Program.cs          # Composition root and DI wiring
 
 src/Relego.Tests/
-├── Api/                # End-to-end HTTP integration tests via WebApplicationFactory
+├── Api/                # End-to-end HTTP integration tests via WebApplicationFactory, including the cloud sync API surface
 ├── Cli/                # CLI command tests
 ├── Infrastructure/     # Database/bootstrap tests
 ├── Parsing/            # Parser tests
 ├── Recap/              # Recap service tests
+├── Services/           # Recap, cloud sync provider, region and reminder-job tests
 └── Sources/            # Highlight source, resolver, and multi-import tests
+
+src/relego.extension/       # MV3 browser extension performing cloud sync (independent from .NET)
+├── src/                # Background service worker, content scripts, API client
+├── scripts/            # Chrome and Firefox packaging
+├── tests/              # Unit tests plus packaging assertions on the real archives
+├── manifest.json       # Base MV3 manifest; no host granted at install
+└── vite.config.*.ts    # Chrome (module service worker) and Firefox (classic event page) builds
 
 src/relego.web/             # React/Vite SPA published with Relego.Server
 ├── relego.web.esproj # JavaScript SDK project referenced by the server

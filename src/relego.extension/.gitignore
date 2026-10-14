@@ -1,5 +1,6 @@
 # build output
 dist/
+dist-firefox/
 
 # dependencies
 node_modules/
@@ -8,6 +9,7 @@ node_modules/
 coverage/
 
 # packaged extension artifacts
+release/
 *.zip
 *.crx
 *.xpi

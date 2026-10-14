@@ -17,15 +17,22 @@ runs:
         components_json='[]'
         version_file='src/PackageVersions.props'
 
+        # Fields: name | project path | project file ("-" when the component is not a .NET
+        # project) | version property | paths whose changes require a bump
         for component in \
           'core|src/Relego.Core|src/Relego.Core/Relego.Core.csproj|RelegoCoreVersion|src/Relego.Core' \
           'cli|src/Relego.Cli|src/Relego.Cli/Relego.Cli.csproj|RelegoCliVersion|src/Relego.Cli' \
-          'server|src/Relego.Server|src/Relego.Server/Relego.Server.csproj|RelegoServerVersion|src/Relego.Server,src/relego.web'; do
+          'server|src/Relego.Server|src/Relego.Server/Relego.Server.csproj|RelegoServerVersion|src/Relego.Server,src/relego.web' \
+          'extension|src/relego.extension|-|RelegoExtensionVersion|src/relego.extension'; do
           IFS='|' read -r component_name project_path csproj_path version_property changed_paths <<< "$component"
 
-          if [ ! -f "$csproj_path" ]; then
+          if [ "$csproj_path" != "-" ] && [ ! -f "$csproj_path" ]; then
             echo "Release project not found: $csproj_path" >&2
             exit 1
+          fi
+
+          if [ "$csproj_path" = "-" ]; then
+            csproj_path=''
           fi
 
           if [ ! -f "$version_file" ]; then
