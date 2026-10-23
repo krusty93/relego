@@ -177,6 +177,13 @@ export interface SyncSchedule {
   pendingCommand: string;
 }
 
+/** The stored frequency after a change, with the extension-reported schedule it will be applied to. */
+export interface SyncScheduleChangeResponse {
+  intervalMinutes: number;
+  applied: boolean;
+  nextRunAt: string | null;
+}
+
 export interface SyncCommandResponse {
   providerId: string;
   /** Command waiting for the extension's next heartbeat. */
