@@ -3,6 +3,7 @@ using RichardSzalay.MockHttp;
 using Spectre.Console.Cli;
 using Relego.Cli.Commands;
 using Relego.Cli.Infrastructure;
+using Relego.Core.Contracts;
 
 namespace Relego.Tests.Cli;
 
@@ -142,6 +143,82 @@ public sealed class StatusCommandTests : IDisposable
         var exitCode = await RunStatusCommand();
 
         Assert.Equal(0, exitCode);
+    }
+
+    [Theory]
+    [InlineData("not_connected", "Not connected")]
+    [InlineData("awaiting_pairing", "Waiting for your browser")]
+    [InlineData("auth_expired", "Amazon sign-in needed")]
+    [InlineData("failed", "Last sync did not finish")]
+    [InlineData("browser_not_reporting", "Your browser has not checked in")]
+    [InlineData("reminder_due", "No recent sync")]
+    [InlineData("connected", "Connected")]
+    public void FormatKindleCloud_StatesUseTheWebWording(string status, string expected)
+    {
+        var rendered = StatusCommand.FormatKindleCloud(new KindleCloudStatus { Status = status });
+
+        Assert.Contains(expected, rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatKindleCloud_Syncing_ShowsBookProgress()
+    {
+        var rendered = StatusCommand.FormatKindleCloud(new KindleCloudStatus
+        {
+            Status = "syncing",
+            BooksDone = 37,
+            BooksTotal = 120
+        });
+
+        Assert.Contains("Syncing now", rendered, StringComparison.Ordinal);
+        Assert.Contains("(37/120 books)", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatKindleCloud_CompletedWithoutNewHighlights_SaysNothingNew()
+    {
+        var rendered = StatusCommand.FormatKindleCloud(new KindleCloudStatus
+        {
+            Status = "completed",
+            HighlightsNew = 0
+        });
+
+        Assert.Contains("Last sync finished", rendered, StringComparison.Ordinal);
+        Assert.Contains("nothing new", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatKindleCloud_CompletedWithNewHighlights_ShowsTheCount()
+    {
+        var rendered = StatusCommand.FormatKindleCloud(new KindleCloudStatus
+        {
+            Status = "completed",
+            HighlightsNew = 12
+        });
+
+        Assert.Contains("+12 new highlights", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatKindleCloud_KnownRegion_IsAppended()
+    {
+        var rendered = StatusCommand.FormatKindleCloud(new KindleCloudStatus
+        {
+            Status = "syncing",
+            BooksDone = 1,
+            BooksTotal = 2,
+            RegionId = "uk"
+        });
+
+        Assert.Contains("(1/2 books, uk)", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatKindleCloud_UnknownState_IsEscapedNotInterpreted()
+    {
+        var rendered = StatusCommand.FormatKindleCloud(new KindleCloudStatus { Status = "odd[red]state" });
+
+        Assert.Equal("odd[[red]]state", rendered);
     }
 
     private async Task<int> RunStatusCommand()

@@ -195,14 +195,14 @@ description: "Task list for feature 011 Kindle Background Synchronization"
 
 **Purpose**: Improvements that affect multiple stories.
 
-- [ ] T063 [P] Add the optional one-line CLI status (`relego status` prints e.g. `Kindle cloud: syncing (37/120 books)` from `GET /status.kindleCloud`) in `src/Relego.Cli/Commands/StatusCommand.cs` (additive only)
-- [ ] T064 [P] Add Serilog redaction for the pairing token (and ensure no Amazon cookies/HTML are ever logged) in `src/Relego.Server/`
-- [ ] T065 [P] Add extension release packaging (signed-ready Chrome/Firefox artifacts attached to releases, unpacked install docs) in `src/relego.extension/` and the release workflow
-- [ ] T066 [P] Update `docs/ARCHITECTURE.md` (provider registry in `Relego.Server/Sync`, extension ownership of cadence, region allowlist, Quartz limited to the reminder job)
-- [ ] T067 Run the `quickstart.md` end-to-end validation and fix any gaps
-- [ ] T068 Security spot checks: server DB/logs/responses contain no Amazon cookies/passwords/session tokens and no raw pairing token; the manifest grants no host at install and only allowlisted hosts can be requested; `GET /sync/{providerId}` and `/jobs` contain no page HTML
-- [ ] T069 Performance validation: batch ≤ 1,000 highlights / ≤ 2 MB, progress polling ≤ 2 s, and a first sync of ~500 books / ~10k highlights completes with visible progress
-- [ ] T070 Verify all new .NET projects are in `src/Relego.slnx` and that `dotnet build src/Relego.slnx` + `dotnet test src/Relego.Tests/Relego.Tests.csproj` + web/extension test suites are green
+- [X] T063 [P] Add the optional one-line CLI status (`relego status` prints e.g. `Kindle cloud: syncing (37/120 books)` from `GET /status.kindleCloud`) in `src/Relego.Cli/Commands/StatusCommand.cs` (additive only)
+- [X] T064 [P] Add Serilog redaction for the pairing token (and ensure no Amazon cookies/HTML are ever logged) in `src/Relego.Server/`
+- [X] T065 [P] Add extension release packaging (signed-ready Chrome/Firefox artifacts attached to releases, unpacked install docs) in `src/relego.extension/` and the release workflow
+- [X] T066 [P] Update `docs/ARCHITECTURE.md` (provider registry in `Relego.Server/Sync`, extension ownership of cadence, region allowlist, Quartz limited to the reminder job)
+- [X] T067 Run the `quickstart.md` end-to-end validation and fix any gaps
+- [X] T068 Security spot checks: server DB/logs/responses contain no Amazon cookies/passwords/session tokens and no raw pairing token; the manifest grants no host at install and only allowlisted hosts can be requested; `GET /sync/{providerId}` and `/jobs` contain no page HTML
+- [X] T069 Performance validation: batch ≤ 1,000 highlights / ≤ 2 MB, progress polling ≤ 2 s, and a first sync of ~500 books / ~10k highlights completes with visible progress
+- [X] T070 Verify all new .NET projects are in `src/Relego.slnx` and that `dotnet build src/Relego.slnx` + `dotnet test src/Relego.Tests/Relego.Tests.csproj` + web/extension test suites are green
 
 ---
 
