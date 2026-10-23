@@ -297,3 +297,154 @@ public sealed record SyncJobStartResponse
     /// <summary>Known book fingerprints used to skip unchanged books on routine runs.</summary>
     public IReadOnlyList<SyncKnownBookDto> KnownBooks { get; init; } = [];
 }
+
+/// <summary>
+/// A request from the extension to activate a connection with the region it reads.
+/// </summary>
+public sealed record SyncPairRequest
+{
+    /// <summary>Parse-profile version the extension implements.</summary>
+    public string ProfileVersion { get; init; } = string.Empty;
+
+    /// <summary>Allowlisted region id selected in the extension.</summary>
+    public string RegionId { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// The result of activating a connection; carries the stored frequency so the extension can create
+/// its sync alarm.
+/// </summary>
+public sealed record SyncPairResponse
+{
+    /// <summary>Provider id the connection belongs to.</summary>
+    public string ProviderId { get; init; } = string.Empty;
+
+    /// <summary>Connection state after pairing; always <c>active</c>.</summary>
+    public string State { get; init; } = string.Empty;
+
+    /// <summary>Stored sync frequency in minutes the extension must apply.</summary>
+    public int IntervalMinutes { get; init; }
+
+    /// <summary>Every frequency the server accepts, in minutes, in ascending order.</summary>
+    public IReadOnlyList<int> AllowedIntervalMinutes { get; init; } = [];
+
+    /// <summary>The region the connection reads, or <c>null</c>.</summary>
+    public SyncRegionDto? Region { get; init; }
+}
+
+/// <summary>
+/// An extension liveness report carrying the schedule it has applied. Display-only, except that it
+/// consumes the single pending command.
+/// </summary>
+public sealed record SyncHeartbeatRequest
+{
+    /// <summary>Parse-profile version the extension implements.</summary>
+    public string? ProfileVersion { get; init; }
+
+    /// <summary>Frequency the extension has actually applied, or <c>null</c>.</summary>
+    public int? AppliedIntervalMinutes { get; init; }
+
+    /// <summary>Next due time of the extension's sync alarm, or <c>null</c>.</summary>
+    public string? NextSyncDueAt { get; init; }
+}
+
+/// <summary>
+/// The heartbeat response: the command to execute, the region to read and the schedule to apply.
+/// </summary>
+public sealed record SyncHeartbeatResponse
+{
+    /// <summary>Command the extension must execute: <c>none</c>, <c>sync</c> or <c>full_resync</c>.</summary>
+    public string Command { get; init; } = "none";
+
+    /// <summary>The region the connection reads, or <c>null</c>.</summary>
+    public SyncRegionDto? Region { get; init; }
+
+    /// <summary>Stored sync frequency in minutes.</summary>
+    public int IntervalMinutes { get; init; }
+
+    /// <summary>Fixed heartbeat cadence in seconds; never derived from the sync frequency.</summary>
+    public int HeartbeatSeconds { get; init; }
+}
+
+/// <summary>
+/// The result of committing a batch: the stored import counts plus the batch index and whether the
+/// batch was a replay.
+/// </summary>
+public sealed record SyncBatchResponse
+{
+    /// <summary>Zero-based batch index this result belongs to.</summary>
+    public int BatchIndex { get; init; }
+
+    /// <summary>Whether the batch had already been committed and the stored counts were returned.</summary>
+    public bool Replayed { get; init; }
+
+    /// <summary>Highlights imported as new records.</summary>
+    public int NewHighlights { get; init; }
+
+    /// <summary>Highlights skipped as duplicates.</summary>
+    public int DuplicateHighlights { get; init; }
+
+    /// <summary>New book records created.</summary>
+    public int NewBooks { get; init; }
+
+    /// <summary>New author records created.</summary>
+    public int NewAuthors { get; init; }
+}
+
+/// <summary>
+/// A progress report for a running job.
+/// </summary>
+public sealed record SyncJobProgressRequest
+{
+    /// <summary>Current phase: <c>discovering</c>, <c>reading</c>, <c>uploading</c> or <c>done</c>.</summary>
+    public string Phase { get; init; } = string.Empty;
+
+    /// <summary>Total books discovered, or <c>null</c>.</summary>
+    public int? BooksTotal { get; init; }
+
+    /// <summary>Books processed so far, or <c>null</c>.</summary>
+    public int? BooksDone { get; init; }
+}
+
+/// <summary>
+/// The explicit completion report for a job. A job never completes without matching counts.
+/// </summary>
+public sealed record SyncJobCompleteRequest
+{
+    /// <summary>Total books discovered.</summary>
+    public int BooksTotal { get; init; }
+
+    /// <summary>Books processed; must equal <see cref="BooksTotal"/>.</summary>
+    public int BooksDone { get; init; }
+
+    /// <summary>Books where the export-limit truncation warning was observed.</summary>
+    public int TruncatedBooks { get; init; }
+}
+
+/// <summary>
+/// A failure report for a job. Diagnostics are structural only and never carry page content.
+/// </summary>
+public sealed record SyncJobFailRequest
+{
+    /// <summary>Stable failure code, for example <c>auth_expired</c>.</summary>
+    public string Code { get; init; } = string.Empty;
+
+    /// <summary>Structural diagnostics, or <c>null</c>.</summary>
+    public SyncFailureDiagnostics? Diagnostics { get; init; }
+}
+
+/// <summary>
+/// Structural diagnostics for a failure: a parse-profile version, the invariant that failed and
+/// integer counts. No field can carry free text from the page.
+/// </summary>
+public sealed record SyncFailureDiagnostics
+{
+    /// <summary>Parse-profile version the extension implements, or <c>null</c>.</summary>
+    public string? ProfileVersion { get; init; }
+
+    /// <summary>Identifier of the parse-profile invariant that failed, or <c>null</c>.</summary>
+    public string? Check { get; init; }
+
+    /// <summary>Integer counts observed by the failing check.</summary>
+    public IReadOnlyDictionary<string, int> Counts { get; init; } = new Dictionary<string, int>();
+}

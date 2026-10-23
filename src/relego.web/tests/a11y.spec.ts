@@ -7,6 +7,7 @@ const ROUTES = [
   ["recaps", "/app/recaps"],
   ["import", "/app/import"],
   ["settings", "/app/settings"],
+  ["sync", "/app/sync"],
 ] as const;
 
 const THEMES = ["light", "dark"] as const;
