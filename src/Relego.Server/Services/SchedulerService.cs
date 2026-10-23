@@ -10,6 +10,11 @@ public sealed class SchedulerService(
 {
     private static readonly JobKey RecapJobKey = new("RecapJob", "Recap");
     private static readonly TriggerKey RecapTriggerKey = new("RecapTrigger", "Recap");
+    private static readonly JobKey ReminderJobKey = new("SyncReminderJob", "Sync");
+    private static readonly TriggerKey ReminderTriggerKey = new("SyncReminderTrigger", "Sync");
+
+    /// <summary>Daily at 03:00 UTC: the sweep is not user-facing, so it is off the recap schedule.</summary>
+    private const string ReminderCronExpression = "0 0 3 * * ?";
 
     public async Task ScheduleAsync(Settings settings, CancellationToken cancellationToken = default)
     {
@@ -45,6 +50,39 @@ public sealed class SchedulerService(
         logger.LogInformation(
             "Scheduled recap: cron={Cron}, timezone={Tz}, nextFire={NextFire}",
             cronExpression, settings.Timezone, nextFire);
+    }
+
+    /// <inheritdoc />
+    public async Task ScheduleReminderAsync(CancellationToken cancellationToken = default)
+    {
+        var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
+
+        var job = JobBuilder.Create<SyncReminderJob>()
+            .WithIdentity(ReminderJobKey)
+            .StoreDurably()
+            .Build();
+
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity(ReminderTriggerKey)
+            .ForJob(ReminderJobKey)
+            .WithCronSchedule(ReminderCronExpression, x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build();
+
+        await scheduler.AddJob(job, replace: true, cancellationToken);
+
+        if (await scheduler.CheckExists(ReminderTriggerKey, cancellationToken))
+        {
+            await scheduler.RescheduleJob(ReminderTriggerKey, trigger, cancellationToken);
+        }
+        else
+        {
+            await scheduler.ScheduleJob(trigger, cancellationToken);
+        }
+
+        logger.LogInformation(
+            "Scheduled inactivity sweep: cron={Cron}, nextFire={NextFire}",
+            ReminderCronExpression,
+            trigger.GetNextFireTimeUtc());
     }
 
     public DateTimeOffset? GetNextFireTimeUtc()

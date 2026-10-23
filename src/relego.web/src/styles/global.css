@@ -1168,6 +1168,11 @@ select.control {
   color: var(--ink);
 }
 
+/* A control inside a callout is an action, so it is boxed rather than an inline text link. */
+.callout .btn {
+  margin-top: var(--sp-3);
+}
+
 .callout[data-tone="bad"] {
   border-color: color-mix(in oklab, var(--danger) 40%, var(--border-strong));
   background: color-mix(in oklab, var(--danger) 7%, var(--surface));

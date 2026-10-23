@@ -79,10 +79,15 @@ builder.Services.AddScoped<UploadImportService>();
 
 builder.Services.AddSingleton<ICloudSyncProvider, KindleCloudProvider>();
 builder.Services.AddScoped<SyncConnectionRepository>();
+builder.Services.AddScoped<SyncReminderRepository>();
 builder.Services.AddScoped<SyncJobRepository>();
 builder.Services.AddScoped<ProvenanceRepository>();
 builder.Services.AddScoped<SyncTokenService>();
 builder.Services.AddScoped<SyncService>();
+builder.Services.AddScoped<SyncReminderService>();
+
+// The inactivity sweep and the status endpoint both need "now" on a controllable clock.
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddQuartz(q =>
 {
@@ -101,6 +106,7 @@ builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete
 
 builder.Services.AddSingleton<ISchedulerService, SchedulerService>();
 builder.Services.AddTransient<RecapJob>();
+builder.Services.AddTransient<SyncReminderJob>();
 builder.Services.AddScoped<HighlightSelectionService>();
 
 builder.Services.AddScoped<IMailDeliveryService, MailDeliveryService>();
@@ -187,6 +193,15 @@ await QuartzSchemaInitializer.ApplyAsync(connectionString);
 
         await schedulerService.ScheduleAsync(settings);
     }
+}
+
+// The inactivity sweep is not user-scheduled, so it is registered on every boot: an existing recap
+// trigger must not stop it from being added to a database that predates it.
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var schedulerService = scope.ServiceProvider.GetRequiredService<ISchedulerService>();
+
+    await schedulerService.ScheduleReminderAsync();
 }
 
 Log.Information("Relego server started. Database: {DbPath}", dbPath);

@@ -63,6 +63,7 @@ public static class CloudSyncEndpoints
         MapPairingEndpoint(app);
         MapRegionEndpoints(app);
         MapScheduleEndpoint(app);
+        MapReminderEndpoint(app);
         MapHeartbeatEndpoint(app);
         MapCommandEndpoint(app);
         MapJobEndpoints(app);
@@ -78,6 +79,7 @@ public static class CloudSyncEndpoints
             [FromServices] UserRepository userRepo,
             [FromServices] SyncConnectionRepository connections,
             [FromServices] SyncJobRepository jobs,
+            [FromServices] SyncReminderRepository reminders,
             [FromServices] SyncService syncService) =>
         {
             if (ResolveProvider(providers, providerId) is not { } provider)
@@ -93,9 +95,10 @@ public static class CloudSyncEndpoints
             var currentJob = connection is null ? null : await jobs.GetRunningAsync(connection.Id);
             var latestJob = connection is null ? null : await jobs.GetLatestTerminalAsync(connection.Id);
             var lastCompletedJob = connection is null ? null : await jobs.GetLatestCompletedAsync(connection.Id);
+            var reminder = connection is null ? null : await reminders.GetActiveAsync(connection.Id);
 
             var now = DateTimeOffset.UtcNow;
-            var status = SyncStatusDerivation.Derive(connection, currentJob, latestJob, reminderDue: false, now);
+            var status = SyncStatusDerivation.Derive(connection, currentJob, latestJob, reminder is not null, now);
 
             return Results.Ok(new SyncStatusResponse
             {
@@ -106,7 +109,7 @@ public static class CloudSyncEndpoints
                 CurrentJob = MapJob(currentJob),
                 LastCompletedJob = MapJob(lastCompletedJob),
                 Failure = MapFailure(status, connection, latestJob),
-                Reminder = null,
+                Reminder = MapReminder(reminder),
                 Disclosure = MapDisclosure(provider.Disclosure),
                 Prerequisites = provider.Prerequisites
             });
@@ -358,6 +361,42 @@ public static class CloudSyncEndpoints
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private static void MapReminderEndpoint(WebApplication app)
+    {
+        app.MapPost("/sync/{providerId}/reminders/{id}/dismiss", async (
+            string providerId,
+            long id,
+            [FromServices] IEnumerable<ICloudSyncProvider> providers,
+            [FromServices] UserRepository userRepo,
+            [FromServices] SyncConnectionRepository connections,
+            [FromServices] SyncReminderRepository reminders) =>
+        {
+            if (ResolveProvider(providers, providerId) is not { } provider)
+                return UnknownProvider(providers, providerId);
+
+            // Management endpoint: the banner lives in the web UI, so it carries no pairing token.
+            var userId = await userRepo.EnsureUserAsync();
+            var connection = await connections.GetLiveAsync(userId, provider.Descriptor.Id);
+            var reminder = connection is null ? null : await reminders.GetByIdAsync(id);
+
+            // A reminder that belongs to another user's connection is indistinguishable from one
+            // that does not exist, so neither can be probed for.
+            if (connection is null || reminder is null || reminder.ConnectionId != connection.Id)
+                return UnknownReminder(id);
+
+            // Dismissing twice is not an error: the banner is already gone.
+            if (reminder.DismissedAt is null)
+                await reminders.DismissAsync(id, DateTimeOffset.UtcNow.ToString("o"));
+
+            return Results.NoContent();
+        })
+        .WithTags("Sync")
+        .WithSummary("Dismiss an inactivity reminder.")
+        .WithDescription("Marks the reminder as dismissed so it stops being returned by the status endpoint. Unauthenticated: the reminder banner is shown by the web UI, consistent with the other management endpoints. Dismissing an already dismissed reminder succeeds.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapHeartbeatEndpoint(WebApplication app)
@@ -756,6 +795,12 @@ public static class CloudSyncEndpoints
             statusCode: StatusCodes.Status409Conflict,
             title: "Not connected");
 
+    private static IResult UnknownReminder(long id) =>
+        Results.Problem(
+            detail: $"No reminder {id} is open for this connection.",
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Unknown reminder");
+
     private static IResult Unauthorized() =>
         Results.Problem(
             detail: "The pairing token is missing, invalid or revoked. Pair the extension again to continue.",
@@ -930,6 +975,18 @@ public static class CloudSyncEndpoints
                 .Select(item => new SyncDisclosureItemDto { Kind = item.Kind, Title = item.Title, Body = item.Body })
                 .ToList()
         };
+
+    private static SyncReminderDto? MapReminder(SyncReminder? reminder) =>
+        reminder is null
+            ? null
+            : new SyncReminderDto
+            {
+                Id = reminder.Id,
+                QuietSince = reminder.QuietSince,
+                ThresholdDays = reminder.ThresholdDays,
+                CreatedAt = reminder.CreatedAt,
+                Dismissed = reminder.DismissedAt is not null
+            };
 
     private static SyncRegionDto? ResolveRegion(ICloudSyncProvider provider, string? regionId) =>
         provider.Profile.TryResolveRegion(regionId, out var region) ? MapRegion(region) : null;

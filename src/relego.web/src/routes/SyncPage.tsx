@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { AsyncSection, EmptyState, ErrorNote, SkeletonRows, Tag } from "../components/ui";
 import { syncApi } from "../lib/api";
-import { describeFrequency, formatCount, formatDateTime, plural } from "../lib/format";
+import { describeFrequency, formatCount, formatDate, formatDateTime, plural } from "../lib/format";
 import { useToasts } from "../lib/toasts";
 import type {
   SyncDisclosure,
@@ -11,6 +11,7 @@ import type {
   SyncJob,
   SyncProviderSummary,
   SyncRegion,
+  SyncReminder,
   SyncStatusResponse,
 } from "../lib/types";
 
@@ -141,6 +142,20 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
       push(error instanceof Error ? error.message : "Could not disconnect.", { tone: "bad" }),
   });
 
+  // Dismissing hides the banner for this quiet period only; new content starts a new one.
+  const dismissReminder = useMutation({
+    mutationFn: (reminderId: number) =>
+      syncApi.dismissReminder(provider.providerId, reminderId),
+    onSuccess: () => {
+      refresh();
+      push("Reminder dismissed. It comes back only if nothing new arrives again.");
+    },
+    onError: (error) =>
+      push(error instanceof Error ? error.message : "Could not dismiss the reminder.", {
+        tone: "bad",
+      }),
+  });
+
   // Commands are queued server-side and picked up by the extension's next heartbeat, so success
   // only means "your browser will hear about this", not "the sync already ran".
   const command = useMutation({
@@ -244,6 +259,8 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           disconnecting={disconnect.isPending}
           onCommand={(value) => command.mutate(value)}
           pendingCommand={command.isPending ? (command.variables ?? null) : null}
+          onDismissReminder={(reminderId) => dismissReminder.mutate(reminderId)}
+          dismissingReminder={dismissReminder.isPending}
           onSchedule={async (intervalMinutes) => {
             try {
               await schedule.mutateAsync(intervalMinutes);
@@ -297,6 +314,8 @@ function StatusPanel({
   pendingCommand,
   onSchedule,
   scheduling,
+  onDismissReminder,
+  dismissingReminder,
 }: {
   data: SyncStatusResponse;
   confirming: boolean;
@@ -308,8 +327,10 @@ function StatusPanel({
   pendingCommand: "sync" | "full_resync" | null;
   onSchedule: (intervalMinutes: number) => Promise<void>;
   scheduling: boolean;
+  onDismissReminder: (reminderId: number) => void;
+  dismissingReminder: boolean;
 }) {
-  const { status, connection, currentJob, lastCompletedJob, failure, schedule } = data;
+  const { status, connection, currentJob, lastCompletedJob, failure, schedule, reminder } = data;
   const running = status === "syncing" && currentJob !== null;
   const needsSignIn = status === "auth_expired";
 
@@ -342,6 +363,12 @@ function StatusPanel({
         <AuthExpiredBanner failure={failure} region={connection.region} />
       ) : status === "failed" && failure ? (
         <FailureNote failure={failure} />
+      ) : reminder ? (
+        <ReminderBanner
+          reminder={reminder}
+          dismissing={dismissingReminder}
+          onDismiss={() => onDismissReminder(reminder.id)}
+        />
       ) : null}
 
       <SyncActions
@@ -500,6 +527,56 @@ function SyncActions({
           ? "Commands run when this sync finishes."
           : "Sync now catches new highlights; full resync re-reads every book."}
       </span>
+    </div>
+  );
+}
+
+/**
+ * The inactivity nudge. It is the only state the user clears from this page, so it carries its own
+ * control: a reminder that keeps coming back after being answered is worse than no reminder.
+ */
+function ReminderBanner({
+  reminder,
+  dismissing,
+  onDismiss,
+}: {
+  reminder: SyncReminder;
+  dismissing: boolean;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="callout" data-testid="sync-reminder">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.4V12l3.2 2" />
+      </svg>
+      <div>
+        <p>
+          <strong>Nothing new in {reminder.thresholdDays} days</strong>
+        </p>
+        <p className="hint-line">
+          Relego has read no new highlights since{" "}
+          <time dateTime={reminder.quietSince}>{formatDate(reminder.quietSince)}</time>. Your browser
+          only reads the notebook while it is open — <strong>Sync now</strong> asks it to check, or{" "}
+          <Link to="/app/import">import a highlights file</Link> to do it by hand.
+        </p>
+        <button
+          className="btn btn--ghost btn--sm"
+          type="button"
+          disabled={dismissing}
+          aria-busy={dismissing || undefined}
+          onClick={onDismiss}
+        >
+          {dismissing ? "Dismissing…" : "Dismiss"}
+        </button>
+      </div>
     </div>
   );
 }
