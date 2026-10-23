@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
-import { api } from "../lib/api";
+import { api, syncApi } from "../lib/api";
 import { capitalise, formatCount } from "../lib/format";
 import { useHotkeys } from "../lib/hotkeys";
 import { useSearch } from "../lib/search";
@@ -31,6 +31,12 @@ const NAV = [
   { to: "/app/settings", label: "Settings", Icon: SettingsIcon, chord: "s" },
 ] as const;
 
+const SYNC_ROUTE = "/app/sync";
+const PREFERRED_SYNC_PROVIDER_ID = "kindle-cloud";
+
+/** The Sync page polls fast while a job runs; the rail only needs a slow attention check. */
+const SYNC_ATTENTION_POLL_MS = 60_000;
+
 export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -55,6 +61,26 @@ export function AppShell() {
     retry: false,
   });
   const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings, retry: false });
+
+  // Sync only asks for attention when the user has to act outside Relego. The Sync page owns this
+  // cache entry too, so its faster polling wins while the page is open.
+  const syncProviders = useQuery({
+    queryKey: ["sync", "providers"],
+    queryFn: syncApi.providers,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const syncProviderId =
+    syncProviders.data?.find((item) => item.providerId === PREFERRED_SYNC_PROVIDER_ID)?.providerId ??
+    syncProviders.data?.[0]?.providerId;
+  const syncStatus = useQuery({
+    queryKey: ["sync", syncProviderId ?? "none"],
+    queryFn: async () => (syncProviderId ? syncApi.status(syncProviderId) : null),
+    enabled: Boolean(syncProviderId),
+    refetchInterval: SYNC_ATTENTION_POLL_MS,
+    retry: false,
+  });
+  const syncNeedsSignIn = syncStatus.data?.status === "auth_expired";
 
   const go = useCallback((to: string) => navigate(to), [navigate]);
   const hasDestination = Boolean(
@@ -172,6 +198,12 @@ export function AppShell() {
                 {label === "Highlights" && status.data ? (
                   <span className="count">{formatCount(status.data.totalHighlights)}</span>
                 ) : null}
+                {to === SYNC_ROUTE && syncNeedsSignIn ? (
+                  <>
+                    <span className="attention" aria-hidden="true" />
+                    <span className="sr-only">Amazon sign-in needed</span>
+                  </>
+                ) : null}
               </NavLink>
             ))}
           </nav>
@@ -240,7 +272,12 @@ export function AppShell() {
         <nav className="tabbar" aria-label="Primary">
           {NAV.map(({ to, label, Icon }) => (
             <NavLink key={to} to={to} end={to === "/app"}>
-              <Icon />
+              <span className="tab-icon">
+                <Icon />
+                {to === SYNC_ROUTE && syncNeedsSignIn ? (
+                  <span className="attention" aria-hidden="true" />
+                ) : null}
+              </span>
               {label}
             </NavLink>
           ))}
