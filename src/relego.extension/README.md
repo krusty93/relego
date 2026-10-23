@@ -90,4 +90,15 @@ replacement one-time code re-pairs even when the server address is unchanged. Su
 starts an initial sync immediately; changing region queues a full reread, retained until a distinct
 run can start if the browser is still finishing its previous sync.
 
+## Working in the popup
+
+A toolbar popup closes as soon as the user clicks anywhere outside it, which gets in the way while
+carrying the one-time code from Relego into the form. Two things cover that:
+
+- The **open in a window** control in the popup header reopens the same form in a window of its own,
+  so it stays put while the code is copied from Relego.
+- The address and the region are kept as they are entered, so reopening the popup comes back filled
+  in. A kept address is not a pairing: the extension still reports "not connected" until a one-time
+  code is accepted, and a pairing that already exists is never overwritten by what is typed.
+
 See `specs/011-kindle-background-sync/` for the feature specification and contracts.

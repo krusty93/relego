@@ -11,10 +11,18 @@ import { PROVIDER_ID, RelegoClient } from "./client";
 import type { RelegoClientConfig } from "./client";
 import { CONFIGURED_MESSAGE } from "./messages";
 import { browserHostPermissions } from "./permissions";
+import { isWindowed, windowedUrl, WINDOW_HEIGHT, WINDOW_WIDTH } from "./popout";
 import { REGION_DISCLOSURE, resolveRegion } from "./profile";
 import { chooseRegion, regionOptions } from "./region-change";
 import type { RegionChoice } from "./region-change";
-import { readConfig, writeConfig } from "./storage";
+import {
+  readConfig,
+  readDraftRegion,
+  readDraftServerUrl,
+  writeConfig,
+  writeDraftRegion,
+  writeDraftServerUrl,
+} from "./storage";
 
 /** Wording for the statuses that ask the user to do something, mirrored from the web app. */
 const ATTENTION: Record<string, string> = {
@@ -29,6 +37,7 @@ const ATTENTION: Record<string, string> = {
 interface Elements {
   readonly form: HTMLFormElement;
   readonly state: HTMLParagraphElement;
+  readonly popout: HTMLButtonElement;
   readonly serverUrl: HTMLInputElement;
   readonly code: HTMLInputElement;
   readonly region: HTMLSelectElement;
@@ -90,6 +99,7 @@ async function refresh(elements: Elements, state: PopupState): Promise<void> {
   if (config === null) {
     elements.state.textContent = "Not connected yet.";
     say(elements, "Paste the one-time code Relego shows to connect this browser.", "warn");
+    await restoreDraft(elements);
 
     return;
   }
@@ -114,6 +124,52 @@ async function refresh(elements: Elements, state: PopupState): Promise<void> {
     elements.state.textContent = `Relego at ${config.baseUrl} did not answer.`;
     say(elements, "Check that the server is running and that the address is right.", "warn");
   }
+}
+
+/**
+ * Restores the fields the user filled in before pairing.
+ *
+ * The popup is torn down every time it loses focus, so anything typed before a pairing exists has to
+ * come back from storage — otherwise carrying the one-time code over from Relego would cost the
+ * address that was already entered.
+ *
+ * @param elements The popup's elements.
+ */
+async function restoreDraft(elements: Elements): Promise<void> {
+  const [serverUrl, regionId] = await Promise.all([readDraftServerUrl(), readDraftRegion()]);
+
+  if (serverUrl.length > 0) elements.serverUrl.value = serverUrl;
+  if (regionId !== null && resolveRegion(regionId) !== null) elements.region.value = regionId;
+}
+
+/** Keeps what the user types, so a popup that closes and reopens comes back filled in. */
+function keepDraft(elements: Elements): void {
+  elements.serverUrl.addEventListener("input", () => {
+    void writeDraftServerUrl(elements.serverUrl.value);
+  });
+  elements.region.addEventListener("change", () => {
+    void writeDraftRegion(elements.region.value);
+  });
+}
+
+/**
+ * Reopens the popup in a window of its own, then closes the toolbar popup.
+ *
+ * @param elements The popup's elements, used to report a window the browser refused to open.
+ */
+function popOut(elements: Elements): void {
+  chrome.windows.create(
+    {
+      url: windowedUrl(chrome.runtime.getURL("popup.html")),
+      type: "popup",
+      width: WINDOW_WIDTH,
+      height: WINDOW_HEIGHT,
+    },
+    () => {
+      if (chrome.runtime.lastError === undefined) window.close();
+      else say(elements, "The browser did not open a window. Check that popups are allowed.", "warn");
+    },
+  );
 }
 
 /**
@@ -260,6 +316,7 @@ async function main(): Promise<void> {
   const elements: Elements = {
     form: required<HTMLFormElement>("settings"),
     state: required<HTMLParagraphElement>("state"),
+    popout: required<HTMLButtonElement>("popout"),
     serverUrl: required<HTMLInputElement>("serverUrl"),
     code: required<HTMLInputElement>("code"),
     region: required<HTMLSelectElement>("region"),
@@ -271,12 +328,20 @@ async function main(): Promise<void> {
   const state: PopupState = { config: null, currentRegionId: null };
   elements.save.disabled = true;
   renderPicker(elements);
+  keepDraft(elements);
   await refresh(elements, state);
   elements.save.disabled = false;
   elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
     void save(elements, state);
   });
+
+  if (isWindowed(location.search)) {
+    document.body.dataset["window"] = "";
+    elements.popout.hidden = true;
+  } else {
+    elements.popout.addEventListener("click", () => popOut(elements));
+  }
 }
 
 if (typeof document !== "undefined") void main();

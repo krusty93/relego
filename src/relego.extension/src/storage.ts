@@ -5,6 +5,10 @@
  * stored; no Amazon data (cookies, session, page content) is ever written to storage. The due time
  * is a timestamp only: it exists so a lost alarm is still caught up instead of postponing the next
  * run by a whole period.
+ *
+ * A second, separate pair of keys holds what the user typed before pairing — the server address and
+ * the region — so reopening the popup does not clear the form. A draft is never a configuration:
+ * `readConfig` still reports "not paired" until a token exists.
  */
 
 import type { RelegoClientConfig } from "./client";
@@ -14,6 +18,8 @@ const SERVER_URL_KEY = "serverUrl";
 const TOKEN_KEY = "token";
 const AUTH_RETRY_MODE_KEY = "authRetryMode";
 const NEXT_SYNC_DUE_AT_KEY = "nextSyncDueAt";
+const DRAFT_SERVER_URL_KEY = "draftServerUrl";
+const DRAFT_REGION_KEY = "draftRegion";
 
 /** Reads the recorded due time of the next routine sync, or `null` when none is recorded. */
 export async function readNextSyncDueAt(): Promise<number | null> {
@@ -85,4 +91,46 @@ export async function clearConfig(): Promise<void> {
     AUTH_RETRY_MODE_KEY,
     NEXT_SYNC_DUE_AT_KEY,
   ]);
+}
+
+/**
+ * Reads the server address typed before pairing.
+ *
+ * @returns The kept address, or `""` when the user has not typed one yet.
+ */
+export async function readDraftServerUrl(): Promise<string> {
+  const stored = await chrome.storage.local.get([DRAFT_SERVER_URL_KEY]);
+  const value = stored[DRAFT_SERVER_URL_KEY];
+
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Keeps the server address as the user types it, so reopening the popup restores it.
+ *
+ * @param baseUrl Address currently in the field.
+ */
+export async function writeDraftServerUrl(baseUrl: string): Promise<void> {
+  await chrome.storage.local.set({ [DRAFT_SERVER_URL_KEY]: baseUrl });
+}
+
+/**
+ * Reads the region picked before pairing.
+ *
+ * @returns The kept region id, or `null` when the user has not picked one yet.
+ */
+export async function readDraftRegion(): Promise<string | null> {
+  const stored = await chrome.storage.local.get([DRAFT_REGION_KEY]);
+  const value = stored[DRAFT_REGION_KEY];
+
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * Keeps the region as the user picks it, so reopening the popup restores it.
+ *
+ * @param regionId Allowlisted region id selected in the picker.
+ */
+export async function writeDraftRegion(regionId: string): Promise<void> {
+  await chrome.storage.local.set({ [DRAFT_REGION_KEY]: regionId });
 }
