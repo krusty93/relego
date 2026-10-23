@@ -25,8 +25,9 @@
       STORY: The state sentence is the spine — "Reading United States · read.amazon.com". The form
       below it is only ever the difference between that sentence and the one the user wants.
 
-      FIRST VIEWPORT: Wordmark, state sentence, the two connection fields, the region picker with the
-      disclosure under it, one terracotta button. All of it above the fold, no scrolling.
+      FIRST VIEWPORT: Wordmark with the open-in-a-window control, state sentence, the two connection
+      fields, the region picker with the disclosure under it, one terracotta button. All of it above
+      the fold, no scrolling.
 
       FORM: One column, hairline-separated sections, the app's form vocabulary: `--t-sm` 600 field
       labels, `--t-xs` help text in ink-subtle, `--control` inputs at `--r-md` with the strong
@@ -38,7 +39,33 @@
     -->
     <main class="popup">
       <header class="head">
-        <h1 class="wordmark"><span class="mark">relego<span class="dot">.</span></span></h1>
+        <div class="head__top">
+          <h1 class="wordmark"><span class="mark">relego<span class="dot">.</span></span></h1>
+          <button
+            class="popout"
+            id="popout"
+            type="button"
+            title="Open in a window"
+            aria-label="Open Relego in a window"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M9.5 2.5h4v4" />
+              <path d="M13.5 2.5 8 8" />
+              <path d="M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" />
+            </svg>
+          </button>
+        </div>
         <p class="state" id="state">Reading your saved settings…</p>
       </header>
 
