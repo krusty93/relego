@@ -79,4 +79,15 @@ only for the region selected, at the moment the user saves. A denied prompt, or 
 fails, leaves the connection reading the region it already read. The popup shows the connection state
 the server reports, which stays the source of truth for the selected region.
 
+## Working in the popup
+
+A toolbar popup closes as soon as the user clicks anywhere outside it, which gets in the way while
+carrying the one-time code from Relego into the form. Two things cover that:
+
+- The **open in a window** control in the popup header reopens the same form in a window of its own,
+  so it stays put while the code is copied from Relego.
+- The address and the region are kept as they are entered, so reopening the popup comes back filled
+  in. A kept address is not a pairing: the extension still reports "not connected" until a one-time
+  code is accepted, and a pairing that already exists is never overwritten by what is typed.
+
 See `specs/011-kindle-background-sync/` for the feature specification and contracts.
