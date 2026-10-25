@@ -17,7 +17,7 @@
  */
 
 import type { RelegoBatch, RelegoBatchBook, RelegoBatchHighlight, RelegoClient, RelegoKnownBook } from "./client";
-import { PROVIDER_ID } from "./client";
+import { PROVIDER_ID, statusRegion } from "./client";
 import { isSignInUrl, notebookBookUrl, notebookUrl, normalizeBookKey, resolveRegion } from "./profile";
 import type { KindleRegion } from "./profile";
 import { parseBookPage, parseLibrary } from "./notebook-parser";
@@ -116,12 +116,13 @@ export function runSync(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<
 
 async function execute(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<SyncRunOutcome> {
   const status = await deps.client.getStatus(PROVIDER_ID);
-  const region = resolveRegion(status.region?.id ?? null);
+  const reported = statusRegion(status);
+  const region = resolveRegion(reported?.id ?? null);
 
   if (region === null) {
     // No stored region means the connection is not paired yet; a region the extension does not
     // know means the server and the extension disagree on the profile.
-    return status.region === null
+    return reported === null
       ? { kind: "skipped", reason: "not_connected" }
       : { kind: "failed", jobId: null, code: "provider_contract_changed" };
   }

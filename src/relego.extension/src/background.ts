@@ -14,7 +14,7 @@
  * this worker only reads the notebook in the session the user already has.
  */
 
-import { PROVIDER_ID, RelegoClient } from "./client";
+import { PROVIDER_ID, RelegoClient, statusRegion } from "./client";
 import {
   DEFAULT_INTERVAL_MINUTES,
   HEARTBEAT_SECONDS,
@@ -177,7 +177,7 @@ async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome): Pr
 
   if (!alreadyWaiting) {
     const status = await client.getStatus(PROVIDER_ID);
-    const region = resolveRegion(status.region?.id ?? null);
+    const region = resolveRegion(statusRegion(status)?.id ?? null);
 
     if (region !== null) await openNotebookForSignIn(region);
   }

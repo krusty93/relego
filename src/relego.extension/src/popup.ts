@@ -7,7 +7,7 @@
  * connection reads is always read back from the server, which stays the single source of truth.
  */
 
-import { PROVIDER_ID, RelegoClient } from "./client";
+import { PROVIDER_ID, RelegoClient, statusRegion } from "./client";
 import type { RelegoClientConfig } from "./client";
 import { CONFIGURED_MESSAGE } from "./messages";
 import { browserHostPermissions } from "./permissions";
@@ -101,7 +101,8 @@ async function refresh(elements: Elements): Promise<RelegoClientConfig | null> {
 
   try {
     const status = await new RelegoClient(config).getStatus(PROVIDER_ID);
-    const region = status.region === null ? null : resolveRegion(status.region.id);
+    const reported = statusRegion(status);
+    const region = reported === null ? null : resolveRegion(reported.id);
     if (region !== null) elements.region.value = region.id;
 
     elements.state.textContent =
@@ -223,9 +224,9 @@ async function applySave(elements: Elements): Promise<void> {
 
 /** Reads the region the server has for this connection; `null` when it has none yet. */
 async function readCurrentRegionId(client: RelegoClient): Promise<string | null> {
-  const status = await client.getStatus(PROVIDER_ID);
+  const reported = statusRegion(await client.getStatus(PROVIDER_ID));
 
-  return status.region === null ? null : status.region.id;
+  return reported === null ? null : reported.id;
 }
 
 /** Tells the worker to recreate its alarms, then shows what happened. */

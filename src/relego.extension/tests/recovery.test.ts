@@ -175,7 +175,7 @@ function installFetch(state: ServerState): Recorded {
 
     if (path === `/sync/${PROVIDER_ID}`) {
       server.statusCalls++;
-      return Promise.resolve(jsonResponse({ providerId: PROVIDER_ID, status: "connected", region }));
+      return Promise.resolve(jsonResponse({ providerId: PROVIDER_ID, status: "connected", connection: { state: "active", region } }));
     }
 
     if (path === `/sync/${PROVIDER_ID}/jobs`) {

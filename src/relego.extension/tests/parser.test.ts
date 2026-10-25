@@ -11,7 +11,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import { RelegoApiError, PROVIDER_ID } from "../src/client";
-import type { RelegoBatch, RelegoBatchResult, RelegoClient, RelegoKnownBook } from "../src/client";
+import { RelegoClient } from "../src/client";
+import type { RelegoBatch, RelegoBatchResult, RelegoKnownBook } from "../src/client";
 import {
   ALLOWED_INTERVAL_MINUTES,
   DEFAULT_INTERVAL_MINUTES,
@@ -38,6 +39,10 @@ function fixture(name: string, regionId = "us"): string {
 
 function page(html: string, url: string = notebookUrl(us as KindleRegion)): PageResponse {
   return { url, html };
+}
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
 describe("parse profile", () => {
@@ -418,7 +423,10 @@ function fakeClient(options: {
       return Promise.resolve({
         providerId: PROVIDER_ID,
         status: "connected",
-        region: region === null ? null : { id: region, displayName: region, host: "read.amazon.com" },
+        connection: {
+          state: "active",
+          region: region === null ? null : { id: region, displayName: region, host: "read.amazon.com" },
+        },
       });
     },
     startJob: (request: SyncRunOptions) => {
@@ -648,6 +656,49 @@ describe("sync runner", () => {
 
     expect(outcome).toEqual({ kind: "skipped", reason: "not_connected" });
     expect(calls.started).toEqual([]);
+  });
+
+  it("starts a job from the region the server nests under the connection", async () => {
+    const seen: string[] = [];
+    const fetchStub = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      seen.push(new URL(url).pathname);
+
+      if (url.endsWith(`/sync/${PROVIDER_ID}`)) {
+        return Promise.resolve(
+          jsonResponse({
+            providerId: PROVIDER_ID,
+            status: "connected",
+            connection: { state: "active", region: { id: "us", displayName: "United States", host: "read.amazon.com" } },
+            schedule: { intervalMinutes: 60, allowedIntervalMinutes: [60], nextRunAt: null, applied: true, pendingCommand: "none" },
+            currentJob: null,
+            lastCompletedJob: null,
+            failure: null,
+            reminder: null,
+            disclosure: { version: "1", items: [] },
+            prerequisites: [],
+          }),
+        );
+      }
+
+      if (url.endsWith(`/sync/${PROVIDER_ID}/jobs`)) {
+        return Promise.resolve(jsonResponse({ jobId: 7, knownBooks: [] }));
+      }
+
+      return Promise.resolve(jsonResponse({ batchIndex: 0, replayed: false, newHighlights: 9, duplicateHighlights: 0, newBooks: 3, newAuthors: 3 }));
+    });
+
+    vi.stubGlobal("fetch", fetchStub);
+
+    try {
+      const client = new RelegoClient({ baseUrl: "http://localhost:8080", token: "token" });
+      const outcome = await runSync({ client, fetchPage: pages() }, routine);
+
+      expect(outcome).toEqual({ kind: "completed", jobId: 7, newHighlights: 9, booksTotal: 3, truncatedBooks: 0 });
+      expect(seen).toContain(`/sync/${PROVIDER_ID}/jobs`);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("fails when the server reports a region this build does not know", async () => {
