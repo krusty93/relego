@@ -3,11 +3,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { AsyncSection, EmptyState, Tag, WeightPips } from "../components/ui";
 import { api } from "../lib/api";
+import { copyToClipboard } from "../lib/clipboard";
 import { plural } from "../lib/format";
 import { useListKeys } from "../lib/listkeys";
 import { useDebounced, useSearch } from "../lib/search";
 import { useToasts } from "../lib/toasts";
 import type { BookItem, HighlightItem } from "../lib/types";
+
+/** A drag that selects text also fires a click; expanding then would swallow the selection. */
+function isSelectingWithin(container: HTMLElement): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed) return false;
+  const anchor = selection.anchorNode;
+  return anchor !== null && container.contains(anchor);
+}
 
 export function HighlightsPage() {
   const params = useParams<{ bookId?: string }>();
@@ -76,6 +85,13 @@ export function HighlightsPage() {
     push(error instanceof Error ? error.message : "That didn't work.", { tone: "bad" });
   }
 
+  async function copyHighlight(text: string) {
+    const copied = await copyToClipboard(text);
+    push(copied ? "Highlight copied." : "Couldn't copy that highlight.", {
+      tone: copied ? "ok" : "bad",
+    });
+  }
+
   const setWeight = useMutation({
     mutationFn: ({ id, weight }: { id: number; weight: number }) => api.setWeight(id, weight),
     onSuccess: refreshAll,
@@ -136,7 +152,7 @@ export function HighlightsPage() {
   function focusCard(index: number) {
     const clamped = Math.max(0, Math.min(index, items.length - 1));
     setCursor(clamped);
-    listRef.current?.querySelectorAll<HTMLButtonElement>(".hl-summary")[clamped]?.focus();
+    listRef.current?.querySelectorAll<HTMLElement>(".hl-summary")[clamped]?.focus();
   }
 
   useListKeys({
@@ -276,15 +292,27 @@ export function HighlightsPage() {
 
             return (
               <article className="hl" key={item.id} data-open={open}>
-                <button
+                {/* A div rather than a button: button labels can't be selected, and the quote
+                    is exactly what people want to drag-select and copy. */}
+                <div
                   className="hl-summary"
-                  type="button"
+                  role="button"
                   aria-expanded={open}
                   aria-controls={`hlb-${item.id}`}
                   tabIndex={index === cursor ? 0 : -1}
                   onFocus={() => setCursor(index)}
-                  onClick={() => setOpenId(open ? null : item.id)}
-                  onKeyDown={(event) => onCardKeyDown(event, item)}
+                  onClick={(event) => {
+                    if (isSelectingWithin(event.currentTarget)) return;
+                    setOpenId(open ? null : item.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setOpenId(open ? null : item.id);
+                      return;
+                    }
+                    onCardKeyDown(event, item);
+                  }}
                 >
                   <span>
                     <span className="hl-quote">{item.text}</span>
@@ -300,7 +328,7 @@ export function HighlightsPage() {
                   <span className="hl-side">
                     <WeightPips value={weight} />
                   </span>
-                </button>
+                </div>
 
                 <div className="hl-body" id={`hlb-${item.id}`} hidden={!open}>
                   <div className="hl-actions">
@@ -325,6 +353,14 @@ export function HighlightsPage() {
                       onClick={() => toggleHighlight.mutate({ id: item.id, excluded })}
                     >
                       {excluded ? "Include again" : "Exclude highlight"}
+                    </button>
+                    <button
+                      className="btn btn--sm"
+                      type="button"
+                      aria-label="Copy highlight text"
+                      onClick={() => void copyHighlight(item.text)}
+                    >
+                      Copy
                     </button>
                     {/* Deleting is not reversible on the server, so it takes two
                         deliberate steps rather than one stray click. */}

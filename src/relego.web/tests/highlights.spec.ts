@@ -82,6 +82,50 @@ test.describe("highlights", () => {
     await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(0);
   });
 
+  test("dragging across the quote selects text instead of expanding the card", async ({ page }) => {
+    const quote = page.locator(".hl-quote").first();
+    const box = await quote.boundingBox();
+    if (!box) throw new Error("Highlight quote has no box");
+
+    await page.mouse.move(box.x + 4, box.y + box.height / 4);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 4, { steps: 8 });
+    await page.mouse.up();
+
+    const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    expect(selected.trim().length).toBeGreaterThan(0);
+    await expect(page.locator(".hl-body:visible")).toHaveCount(0);
+  });
+
+  test("a plain click still expands the card", async ({ page }) => {
+    await page.locator(".hl-summary").first().click();
+    await expect(page.locator(".hl-body").first()).toBeVisible();
+  });
+
+  test("the card still toggles from the keyboard", async ({ page }) => {
+    const first = page.locator(".hl-summary").first();
+    await first.focus();
+
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".hl-body").first()).toBeVisible();
+
+    await page.keyboard.press(" ");
+    await expect(page.locator(".hl-body").first()).toBeHidden();
+  });
+
+  test("copying puts the whole highlight on the clipboard", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.locator(".hl-summary").first().click();
+
+    const text = await page.locator(".hl-quote").first().evaluate((node) => node.textContent);
+    await page.getByRole("button", { name: "Copy highlight text" }).first().click();
+
+    await expect(page.locator(".toast")).toContainText("Highlight copied.");
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe(text);
+  });
+
   test("deleting takes a second confirmation and Keep backs out", async ({ page }) => {
     const before = await page.locator(".hl").count();
 
