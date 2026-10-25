@@ -235,6 +235,29 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
         {`Sync status: ${STATE_LABELS[data.status] ?? data.status}.`}
       </p>
 
+      {/* The first run has one job: connect. It leads the page, and the regions and limits below it
+          explain what that connection will and will not read. */}
+      {isFirstRun ? (
+        <div className="section">
+          <EmptyState
+            title="Connect Kindle cloud"
+            action={
+              <button
+                className="btn btn--primary"
+                type="button"
+                onClick={() => connect.mutate()}
+                aria-busy={connect.isPending || undefined}
+              >
+                {connect.isPending ? "Starting…" : "Connect Kindle cloud"}
+              </button>
+            }
+          >
+            Relego hands your browser a one-time code, then reads your Kindle Notebook inside your
+            own Amazon session. The code is shown once, and you can cancel before a browser pairs.
+          </EmptyState>
+        </div>
+      ) : null}
+
       {isFirstRun ? null : isPairing ? (
         <PairingPanel
           provider={provider}
@@ -278,27 +301,6 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
       />
 
       <Disclosures disclosure={data.disclosure} prerequisites={data.prerequisites} />
-
-      {isFirstRun ? (
-        <div className="section">
-          <EmptyState
-            title="Connect Kindle cloud"
-            action={
-              <button
-                className="btn btn--primary"
-                type="button"
-                onClick={() => connect.mutate()}
-                aria-busy={connect.isPending || undefined}
-              >
-                {connect.isPending ? "Starting…" : "Connect Kindle cloud"}
-              </button>
-            }
-          >
-            Relego hands your browser a one-time code, then reads your Kindle Notebook inside your
-            own Amazon session. The code is shown once, and you can cancel before a browser pairs.
-          </EmptyState>
-        </div>
-      ) : null}
     </>
   );
 }

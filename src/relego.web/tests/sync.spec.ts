@@ -290,7 +290,7 @@ function oneTimeCode(page: Page) {
 }
 
 test.describe("sync", () => {
-  test("the connect flow reads the limits before it offers the button", async ({ page }) => {
+  test("the connect flow leads the page and the limits follow it", async ({ page }) => {
     const mock = await mockSync(page, statusResponse("not_connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
@@ -302,10 +302,12 @@ test.describe("sync", () => {
     await expect(page.getByRole("heading", { name: "Privacy" })).toBeVisible();
     await expect(page.getByText("Your data path")).toBeVisible();
 
-    // The disclosures are not decoration: the user meets them before the decision.
+    // The first run has one job: the action comes first, the limits and disclosures explain it.
     const privacy = await page.getByRole("heading", { name: "Privacy" }).boundingBox();
+    const coverage = await page.getByRole("heading", { name: "Coverage & limits" }).boundingBox();
     const button = await page.getByRole("button", { name: "Connect Kindle cloud" }).boundingBox();
-    expect(privacy!.y).toBeLessThan(button!.y);
+    expect(button!.y).toBeLessThan(coverage!.y);
+    expect(button!.y).toBeLessThan(privacy!.y);
 
     await page.getByRole("button", { name: "Connect Kindle cloud" }).click();
 
