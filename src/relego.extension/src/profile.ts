@@ -7,7 +7,7 @@
  */
 
 /** Version of the notebook parse profile mirrored by this extension build. */
-export const PROFILE_VERSION = "2";
+export const PROFILE_VERSION = "3";
 
 /**
  * Sync frequencies the server accepts, in minutes. Mirrors

@@ -1406,6 +1406,26 @@ select.control {
   margin: var(--sp-2) 0 0;
 }
 
+.diagnostics {
+  margin-top: var(--sp-3);
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.diagnostics .label {
+  margin: 0;
+}
+
+.diagnostics .subtle {
+  margin: 0;
+  font-size: var(--t-sm);
+  max-width: var(--measure-prose);
+}
+
+.diagnostics code {
+  font-size: var(--t-sm);
+}
+
 .dialog-actions {
   margin-top: var(--sp-5);
 }
