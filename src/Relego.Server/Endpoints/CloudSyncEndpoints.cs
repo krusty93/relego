@@ -759,7 +759,8 @@ public static class CloudSyncEndpoints
                     jobId,
                     code,
                     SyncFailureRecovery.DetailFor(code),
-                    SyncFailureRecovery.StepsFor(code));
+                    SyncFailureRecovery.StepsFor(code),
+                    request.Diagnostics);
 
                 return Results.NoContent();
             });
@@ -928,6 +929,7 @@ public static class CloudSyncEndpoints
                 Code = code,
                 Detail = latestJob.FailureDetail ?? SyncFailureRecovery.DetailFor(code),
                 RecoverySteps = SyncFailureRecovery.ParseSteps(latestJob.RecoverySteps, code),
+                Diagnostics = ParseDiagnostics(latestJob.FailureDiagnostics),
                 OccurredAt = latestJob.EndedAt
             };
         }
@@ -944,6 +946,25 @@ public static class CloudSyncEndpoints
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Reads the stored diagnostics back into the contract shape, treating unreadable JSON as
+    /// absent rather than failing the status read.
+    /// </summary>
+    private static SyncFailureDiagnostics? ParseDiagnostics(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<SyncFailureDiagnostics>(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static SyncJobDto? MapJob(SyncJobRecord? job) =>

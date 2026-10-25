@@ -179,6 +179,12 @@ public sealed record SyncFailureDto
     /// <summary>Ordered recovery steps the user can follow.</summary>
     public IReadOnlyList<string> RecoverySteps { get; init; } = [];
 
+    /// <summary>
+    /// Structural diagnostics reported by the extension: parse-profile version, failing check and
+    /// counts. Never page content. Present only when the extension reported them.
+    /// </summary>
+    public SyncFailureDiagnostics? Diagnostics { get; init; }
+
     /// <summary>Time the failure was recorded, or <c>null</c>.</summary>
     public string? OccurredAt { get; init; }
 }

@@ -140,7 +140,7 @@ describe("parse profile - every allowlisted region", () => {
       if (changed.kind !== "contract_changed") continue;
 
       expect(changed.diagnostics.check).toBe("bookRow");
-      expect(changed.diagnostics.counts).toEqual({ bookRows: 0 });
+      expect(changed.diagnostics.counts).toEqual({ bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 1 });
     }
   });
 
@@ -219,7 +219,7 @@ describe("notebook parser - library page", () => {
     if (outcome.kind !== "contract_changed") return;
 
     expect(outcome.diagnostics.check).toBe("bookRow");
-    expect(outcome.diagnostics.counts).toEqual({ bookRows: 0 });
+    expect(outcome.diagnostics.counts).toEqual({ bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 1 });
   });
 
   it("never leaks page text into the diagnostics (invariant 5)", () => {
@@ -327,6 +327,84 @@ describe("notebook parser - book page", () => {
 
   it("detects the sign-in redirect on a book page", () => {
     expect(parseBookPage(fixture("sign-in.html"), us, "fallback")).toEqual({ kind: "sign_in" });
+  });
+});
+
+describe("notebook parser - structural tolerance", () => {
+  // The live notebook page is Amazon's own markup, not the committed fixture: it adds classes,
+  // quotes attributes its own way and marks a row with an ASIN id instead of a data attribute.
+  // Anchors are matched as id/class tokens, so none of that is a contract break.
+  const liveLibrary = `
+    <div id='kp-notebook-library' class='a-row kp-notebook-library'>
+      <div class='a-row kp-notebook-library-each-book aok-hidden' id='B00LIVE001'>
+        <h2 class='a-size-large'>The Pragmatic Programmer</h2>
+        <p class='a-size-base'>Andrew Hunt &amp; David Thomas</p>
+      </div>
+      <div class='kp-notebook-library-each-book a-row' id='B00LIVE002'>
+        <h2>Dune</h2>
+      </div>
+    </div>`;
+
+  it("reads rows that add classes, use single quotes and carry the ASIN as an id", () => {
+    const outcome = parseLibrary(liveLibrary, us);
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.books).toEqual([
+      { externalKey: "B00LIVE001", title: "The Pragmatic Programmer", author: "Andrew Hunt & David Thomas", highlightCount: null, truncated: false },
+      { externalKey: "B00LIVE002", title: "Dune", author: null, highlightCount: null, truncated: false },
+    ]);
+  });
+
+  it("derives the key from the title when a row exposes neither a key nor an ASIN", () => {
+    const html = liveLibrary.replace(/ id='B00LIVE00[12]'/g, "");
+    const outcome = parseLibrary(html, us);
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.books.map((book) => book.externalKey)).toEqual(["the pragmatic programmer", "dune"]);
+  });
+
+  it("accepts an empty library marked by class instead of id", () => {
+    const html = `<div id="kp-notebook-library"><div class="a-row kp-notebook-empty">You have no highlights yet.</div></div>`;
+
+    expect(parseLibrary(html, us)).toEqual({ kind: "ok", books: [] });
+  });
+
+  it("reads a book page whose annotations are marked by id prefix and classes", () => {
+    const html = `
+      <div id="kp-notebook-main">
+        <h2 class="a-size-extra-large">Dune</h2>
+        <div id="kp-notebook-annotations">
+          <div id="annotation-a1b2" class="a-row kp-notebook-highlight" data-color="yellow">
+            <span id="highlight-a1b2">Fear is the mind-killer.</span>
+            <span id="kp-annotation-location">Location 100-101</span>
+          </div>
+        </div>
+      </div>`;
+
+    const outcome = parseBookPage(html, us, "B00LIVE002");
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.result.books[0]?.title).toBe("Dune");
+    expect(outcome.result.books[0]?.highlights).toEqual([
+      { externalId: "a1b2", text: "Fear is the mind-killer.", note: null, location: "Location 100-101", color: "yellow" },
+    ]);
+  });
+
+  it("still refuses a list whose rows were genuinely replaced, and says what it saw", () => {
+    const html = `<div id="kp-notebook-library"><article class="kp-notebook-book-row" data-book-key="B00EXAMPLE01"><span>The Pragmatic Programmer</span></article></div>`;
+    const outcome = parseLibrary(html, us);
+
+    expect(outcome.kind).toBe("contract_changed");
+    if (outcome.kind !== "contract_changed") return;
+
+    expect(outcome.diagnostics.check).toBe("bookRow");
+    expect(outcome.diagnostics.counts).toEqual({ bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 0 });
   });
 });
 
@@ -596,7 +674,7 @@ describe("sync runner", () => {
     expect(calls.failed[0]?.diagnostics).toEqual({
       profileVersion: PROFILE_VERSION,
       check: "bookRow",
-      counts: { bookRows: 0 },
+      counts: { bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 1 },
     });
     expect(JSON.stringify(calls.failed[0])).not.toContain("Pragmatic");
   });

@@ -533,6 +533,38 @@ public sealed class SyncConnectionApiTests
     }
 
     [Fact]
+    public async Task PostFail_PersistsDiagnosticsForReporting()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var jobId = await StartJobAsync(client, token, "key-1", "routine", "initial");
+
+        var (status, _) = await SendAsync<object>(client, HttpMethod.Post, $"/sync/{Provider}/jobs/{jobId}/fail", new SyncJobFailRequest
+        {
+            Code = "provider_contract_changed",
+            Diagnostics = new SyncFailureDiagnostics
+            {
+                ProfileVersion = "2",
+                Check = "bookRow",
+                Counts = new Dictionary<string, int> { ["bookRows"] = 0 }
+            }
+        }, token);
+
+        Assert.Equal(HttpStatusCode.NoContent, status);
+
+        var (_, summary) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+
+        Assert.NotNull(summary);
+        var diagnostics = summary!.Failure?.Diagnostics;
+
+        Assert.NotNull(diagnostics);
+        Assert.Equal("2", diagnostics!.ProfileVersion);
+        Assert.Equal("bookRow", diagnostics.Check);
+        Assert.Equal(0, diagnostics.Counts["bookRows"]);
+    }
+
+    [Fact]
     public async Task PostFail_AuthExpiredSurfacesRecoveryStepsAndStatus()
     {
         using var factory = new RelegoTestApplicationFactory();

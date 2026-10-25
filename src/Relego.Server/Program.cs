@@ -18,7 +18,11 @@ using Relego.Server.Sync;
 
 SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
 
-var dbPath = ".data/relego.db";
+// The Docker image links /data to .data so the relative default lands on the volume. A
+// database path override keeps throwaway environments (end-to-end tests) off that file.
+var dbPath = Environment.GetEnvironmentVariable("RELEGO_DB_PATH") is { Length: > 0 } dbPathOverride
+    ? dbPathOverride
+    : ".data/relego.db";
 var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
 
 var builder = WebApplication.CreateBuilder(args);

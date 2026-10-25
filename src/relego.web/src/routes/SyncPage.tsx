@@ -275,6 +275,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
       ) : (
         <StatusPanel
           data={data}
+          onCopy={copy}
           confirming={confirming === "disconnect"}
           onAsk={() => setConfirming("disconnect")}
           onDismiss={() => setConfirming(null)}
@@ -307,6 +308,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
 
 function StatusPanel({
   data,
+  onCopy,
   confirming,
   onAsk,
   onDismiss,
@@ -320,6 +322,7 @@ function StatusPanel({
   dismissingReminder,
 }: {
   data: SyncStatusResponse;
+  onCopy: (value: string, label: string) => Promise<void>;
   confirming: boolean;
   onAsk: () => void;
   onDismiss: () => void;
@@ -364,7 +367,7 @@ function StatusPanel({
       {needsSignIn ? (
         <AuthExpiredBanner failure={failure} region={connection.region} />
       ) : status === "failed" && failure ? (
-        <FailureNote failure={failure} />
+        <FailureNote failure={failure} onCopy={onCopy} />
       ) : reminder ? (
         <ReminderBanner
           reminder={reminder}
@@ -703,7 +706,20 @@ const FAILURE_TITLES: Record<string, string> = {
   interrupted: "The sync was interrupted",
 };
 
-function FailureNote({ failure }: { failure: SyncFailure }) {
+function FailureNote({
+  failure,
+  onCopy,
+}: {
+  failure: SyncFailure;
+  onCopy: (value: string, label: string) => Promise<void>;
+}) {
+  const diagnostics = failure.diagnostics;
+  const counts = diagnostics
+    ? Object.entries(diagnostics.counts)
+        .map(([key, value]) => `${key} ${value}`)
+        .join(" · ")
+    : "";
+
   return (
     <div className="callout" data-tone="bad">
       <svg
@@ -729,6 +745,27 @@ function FailureNote({ failure }: { failure: SyncFailure }) {
               <li key={step}>{step}</li>
             ))}
           </ol>
+        ) : null}
+        {diagnostics ? (
+          <div className="diagnostics" data-testid="sync-failure-diagnostics">
+            <span className="label">Diagnostics</span>
+            <div className="secret">
+              <code>{JSON.stringify(diagnostics)}</code>
+              <button
+                className="btn btn--ghost btn--sm"
+                type="button"
+                onClick={() => void onCopy(JSON.stringify(diagnostics), "Diagnostics")}
+              >
+                Copy
+              </button>
+            </div>
+            <p className="subtle">
+              Profile {diagnostics.profileVersion ?? "unknown"} stopped at{" "}
+              <code>{diagnostics.check ?? "an unnamed check"}</code>
+              {counts ? ` with ${counts}` : null}. Copy this into a bug report; it holds no page
+              text.
+            </p>
+          </div>
         ) : null}
       </div>
     </div>

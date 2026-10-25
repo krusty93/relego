@@ -431,6 +431,11 @@ test.describe("sync", () => {
             "Update the Relego extension to the latest version.",
             "Run a sync again from the extension.",
           ],
+          diagnostics: {
+            profileVersion: "3",
+            check: "bookRow",
+            counts: { bookRows: 0, listElements: 4, keyedRows: 0, titleAnchors: 0 },
+          },
           occurredAt: "2024-05-01T10:07:00Z",
         },
       }),
@@ -442,6 +447,12 @@ test.describe("sync", () => {
     await expect(page.getByText("no longer matches what the extension reads")).toBeVisible();
     await expect(page.getByRole("listitem").filter({ hasText: "Update the Relego extension" })).toBeVisible();
     await expect(page.getByRole("listitem").filter({ hasText: "Run a sync again" })).toBeVisible();
+
+    // The recovery step tells the user to report the diagnostics, so the page has to show them.
+    const diagnostics = page.getByTestId("sync-failure-diagnostics");
+    await expect(diagnostics).toBeVisible();
+    await expect(diagnostics.getByText(/"check":"bookRow"/)).toBeVisible();
+    await expect(diagnostics.getByText(/listElements 4/)).toBeVisible();
   });
 
   test("every attention state is named, never left blank", async ({ page }) => {
