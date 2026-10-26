@@ -745,6 +745,7 @@ td {
 
 .hl-quote {
   display: block;
+  cursor: text;
   font-family: var(--font-quote);
   font-size: var(--t-md);
   line-height: 1.55;

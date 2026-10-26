@@ -84,6 +84,7 @@ test.describe("highlights", () => {
 
   test("dragging across the quote selects text instead of expanding the card", async ({ page }) => {
     const quote = page.locator(".hl-quote").first();
+    await expect(quote).toHaveCSS("cursor", "text");
     const box = await quote.boundingBox();
     if (!box) throw new Error("Highlight quote has no box");
 
