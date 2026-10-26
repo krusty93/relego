@@ -532,6 +532,37 @@ public sealed class SyncConnectionApiTests
         Assert.Contains("diagnostics", problem!.Errors.Keys);
     }
 
+    [Theory]
+    [InlineData("auth_expired\n2026-01-01 00:00:00 [Warning] Sync job 1 completed.")]
+    [InlineData("auth_expired\rforged line")]
+    [InlineData("auth_expired session cookie=abc")]
+    [InlineData("provider_contract_changed\u2028forged")]
+    public async Task PostFail_RejectsFailureCodeCarryingAnythingButAnIdentifier(string code)
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var jobId = await StartJobAsync(client, token, "key-1", "routine", "initial");
+
+        var (status, problem) = await SendAsync<ProblemPayload>(client, HttpMethod.Post, $"/sync/{Provider}/jobs/{jobId}/fail", new SyncJobFailRequest
+        {
+            Code = code,
+            Diagnostics = new SyncFailureDiagnostics
+            {
+                ProfileVersion = "4",
+                Check = "bookRow",
+                Counts = new Dictionary<string, int> { ["bookRows"] = 0 }
+            }
+        }, token);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, status);
+        Assert.Contains("code", problem!.Errors.Keys);
+
+        var (_, summary) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+
+        Assert.Null(summary!.Failure);
+    }
+
     [Fact]
     public async Task PostFail_PersistsDiagnosticsForReporting()
     {

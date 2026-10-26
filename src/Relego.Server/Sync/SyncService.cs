@@ -284,10 +284,10 @@ public sealed class SyncService(
             logger.LogWarning(
                 "Sync job {JobId} failed with {Code}. Diagnostics: profile {ProfileVersion}, check {Check}, counts {Counts}.",
                 jobId,
-                code,
-                diagnostics.ProfileVersion ?? "unknown",
-                diagnostics.Check ?? "unknown",
-                string.Join(", ", diagnostics.Counts.Select(pair => $"{pair.Key}={pair.Value}")));
+                LogValue(code),
+                LogValue(diagnostics.ProfileVersion ?? "unknown"),
+                LogValue(diagnostics.Check ?? "unknown"),
+                LogValue(string.Join(", ", diagnostics.Counts.Select(pair => $"{pair.Key}={pair.Value}"))));
         }
 
         if (status == "auth_expired")
@@ -361,6 +361,22 @@ public sealed class SyncService(
 
         return total;
     }
+
+    /// <summary>
+    /// Replaces control and separator characters so a reported value cannot forge a second
+    /// log line or overwrite the real message in a viewer.
+    /// </summary>
+    /// <param name="value">The value reported by the client.</param>
+    /// <returns>The value with every control or separator character replaced.</returns>
+    private static string LogValue(string value) =>
+        string.Create(value.Length, value, static (span, source) =>
+        {
+            for (var index = 0; index < span.Length; index++)
+            {
+                var character = source[index];
+                span[index] = char.IsControl(character) || char.IsSeparator(character) ? ' ' : character;
+            }
+        });
 
     private static string? SanitizeDetail(string? detail)
     {
