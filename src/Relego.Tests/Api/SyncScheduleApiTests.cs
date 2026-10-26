@@ -30,7 +30,7 @@ public sealed class SyncScheduleApiTests
     /// <summary>The ten choices of FR-025, in the order the page offers them.</summary>
     private static readonly int[] AllowedIntervals = [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440];
 
-    private const int DefaultInterval = 360;
+    private const int DefaultInterval = 60;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

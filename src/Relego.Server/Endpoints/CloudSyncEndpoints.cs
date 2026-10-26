@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Relego.Core.Contracts;
 using Relego.Server.Data;
@@ -136,7 +136,8 @@ public static class CloudSyncEndpoints
             var existing = await connections.GetLiveAsync(userId, providerId);
             if (existing is null)
             {
-                await connections.CreateAsync(userId, providerId, SyncTokenService.HashToken(token), provider.Disclosure.Version, now);
+                await connections.CreateAsync(
+                    userId, providerId, SyncTokenService.HashToken(token), provider.Disclosure.Version, now, provider.Frequency.Default);
             }
             else
             {
