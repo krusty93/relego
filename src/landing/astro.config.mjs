@@ -84,6 +84,7 @@ export default defineConfig({
 					label: 'Reference',
 					items: [
 						{ label: 'CLI', link: '/docs/reference/cli/' },
+						{ label: 'Kindle browser extension', link: '/docs/reference/kindle-extension/' },
 						{ label: 'Environment variables', link: '/docs/reference/environment/' },
 						{ label: 'Troubleshooting', link: '/docs/reference/troubleshooting/' },
 						{ label: 'Verifying releases', link: '/docs/reference/verifying-releases/' },
