@@ -19,8 +19,9 @@ for Kobo, upload the file as-is.
 
 :::note
 `My Clippings.txt` does not include highlights made in Kindle mobile or desktop
-apps. Use the [Kindle browser extension](/docs/reference/kindle-extension/) to
-sync eligible highlights from your Kindle Notebook instead.
+apps. Automatic background sync requires the [Kindle browser extension](/docs/reference/kindle-extension/),
+which reads eligible highlights from your Kindle Notebook without needing
+`My Clippings.txt`.
 :::
 
 ## 1. Start the server
