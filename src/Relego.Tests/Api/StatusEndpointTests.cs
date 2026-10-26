@@ -127,7 +127,7 @@ public sealed class StatusEndpointTests : IDisposable
 
         Assert.NotNull(result?.KindleCloud);
         Assert.Equal("awaiting_pairing", result.KindleCloud.Status);
-        Assert.Equal(360, result.KindleCloud.SyncIntervalMinutes);
+        Assert.Equal(60, result.KindleCloud.SyncIntervalMinutes);
         Assert.Null(result.KindleCloud.RegionId);
     }
 }

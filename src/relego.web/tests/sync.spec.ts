@@ -100,7 +100,7 @@ function statusResponse(status: string, overrides: Payload = {}): Payload {
     connection: {
       state: connected ? "active" : "pending_pairing",
       connectedAt: connected ? "2024-05-01T09:00:00Z" : null,
-      lastHeartbeatAt: connected ? "2024-05-01T10:05:00Z" : null,
+      lastHeartbeatAt: connected ? new Date(Date.now() - 20_000).toISOString() : null,
       browserReporting: connected,
       region: connected
         ? { id: "uk", displayName: "United Kingdom", host: "read.amazon.co.uk" }
@@ -135,7 +135,7 @@ function job(overrides: Payload = {}): Payload {
     highlightsNew: 212,
     highlightsDuplicate: 188,
     truncatedBooks: 0,
-    startedAt: "2024-05-01T10:00:00Z",
+    startedAt: new Date(Date.now() - 30_000).toISOString(),
     endedAt: null,
     ...overrides,
   };
@@ -216,6 +216,12 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
     if (path.endsWith("/commands")) {
       const body = request.postDataJSON() as { command?: string };
       mock.commands.push(body.command ?? "");
+      // The server keeps the command until the extension's next heartbeat, so the status read that
+      // follows the request reports it.
+      mock.status = {
+        ...mock.status,
+        schedule: { ...(mock.status.schedule as Payload), pendingCommand: body.command ?? "none" },
+      };
       await route.fulfill({
         status: 202,
         json: { providerId: "kindle-cloud", pendingCommand: body.command ?? "none" },
@@ -335,6 +341,20 @@ test.describe("sync", () => {
     await expect
       .poll(() => mock.requests.includes("DELETE /sync/kindle-cloud/connection"))
       .toBe(true);
+  });
+
+  test("picks up a browser that pairs, without anyone refreshing the page", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("awaiting_pairing"));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await expect(page.getByRole("heading", { name: "Waiting for your browser" })).toBeVisible();
+
+    // The extension pairs from its own popup; nothing on this page is clicked.
+    mock.status = statusResponse("connected");
+
+    await expect(page.getByRole("heading", { name: "Connected" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Check again" })).toHaveCount(0);
+    expect(mock.statusCalls).toBeGreaterThan(1);
   });
 
   test("a running sync shows determinate progress and polls every two seconds", async ({
@@ -612,6 +632,75 @@ test.describe("sync", () => {
     await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
     expect(mock.commands).toEqual([]);
+  });
+
+  test("a requested sync is acknowledged, holds the buttons and then hands over to progress", async ({
+    page,
+  }) => {
+    const mock = await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await page.getByRole("button", { name: "Sync now" }).click();
+
+    // The command waits on the server for the browser's next check-in, and the page says so
+    // instead of looking idle.
+    const requested = page.getByTestId("sync-requested");
+    await expect(requested).toBeVisible();
+    await expect(requested).toContainText("Sync requested");
+    await expect(requested).toContainText("at most a minute away");
+    await expect(requested).toContainText("Last check-in");
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+
+    // The request lives on the server, so reloading the page does not lose sight of it.
+    await page.reload({ waitUntil: "networkidle" });
+    await expect(page.getByTestId("sync-requested")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+
+    // The browser takes the command and the job starts: the request gives way to real progress.
+    mock.status = statusResponse("syncing", { currentJob: job() });
+    await expect(page.getByTestId("sync-requested")).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByRole("progressbar", { name: "Sync progress" })).toBeVisible();
+    await expect(page.getByTestId("sync-timing")).toContainText("Running for");
+    await expect(page.getByTestId("sync-timing")).toContainText("left");
+
+    // Nothing else can be asked for while it runs.
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+
+    // And once it finishes, both buttons come back.
+    mock.status = statusResponse("completed", {
+      lastCompletedJob: job({ status: "completed_with_changes", phase: "done", booksDone: 120 }),
+    });
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeEnabled({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeEnabled();
+  });
+
+  test("a queued request says when the browser has stopped checking in", async ({ page }) => {
+    const connected = statusResponse("connected");
+    await mockSync(
+      page,
+      statusResponse("connected", {
+        connection: {
+          ...(connected.connection as Payload),
+          lastHeartbeatAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+        },
+        schedule: { ...(connected.schedule as Payload), pendingCommand: "sync" },
+      }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    const requested = page.getByTestId("sync-requested");
+    await expect(requested).toContainText("has not checked in for 5 min");
+    await expect(requested).toContainText("Open the browser");
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
+  });
+
+  test("the browser's last check-in is shown as an age next to the timestamp", async ({ page }) => {
+    await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await expect(page.getByTestId("sync-heartbeat")).toContainText("ago");
   });
 
   test("the navigation marks Sync when Amazon sign-in is needed", async ({ page }) => {
