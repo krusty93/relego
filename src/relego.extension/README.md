@@ -59,6 +59,12 @@ self-contained IIFE with no ES module syntax and the manifest points at it throu
 package signs under the add-on id `relego@relego.dev`, which identifies the listing on
 addons.mozilla.org and must not change once published.
 
+The toolbar and listing icons in `public/icons/` are the web app's favicon
+(`src/relego.web/public/favicon.svg`) rendered at 16, 32, 48 and 128 px. `vite` copies `public/`
+into `dist/`, so both packages ship them. If the mark changes, re-render these four files from the
+new favicon — browsers reject a manifest that names an icon the package does not contain, and
+Chrome does not read SVG icons.
+
 [releases]: https://github.com/Krusty93/relego/releases
 
 ## Permissions
@@ -77,7 +83,10 @@ The toolbar popup is the only place a region is chosen. It offers the eight vali
 fixed list — there is no free-text host field anywhere in the extension — and it asks for host access
 only for the region selected, at the moment the user saves. A denied prompt, or a server call that
 fails, leaves the connection reading the region it already read. The popup shows the connection state
-the server reports, which stays the source of truth for the selected region.
+the server reports, which stays the source of truth for the selected region. Once that state is
+usable, the popup shows only the confirmation and an **Edit configuration** control: the address,
+one-time code and region fields appear again only when the user asks for them, or when the
+connection cannot be used.
 
 ## Working in the popup
 

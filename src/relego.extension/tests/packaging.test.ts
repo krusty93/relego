@@ -76,4 +76,22 @@ describe("extension release packaging", () => {
     expect(background).not.toMatch(/^(?:import|export)\b/m);
     expect(zip.file("popup.html")).not.toBeNull();
   });
+
+  it("ships every icon the manifest names, for the toolbar and the extensions page", async () => {
+    const sizes = ["16", "32", "48", "128"];
+
+    for (const browser of ["chrome", "firefox"] as const) {
+      const { zip, manifest } = await readPackage(browser);
+
+      // A manifest path that is not in the package is invisible until the browser refuses to load it.
+      expect(Object.keys(manifest.icons).sort()).toEqual([...sizes].sort());
+      expect(Object.keys(manifest.action.default_icon).sort()).toEqual([...sizes].sort());
+
+      for (const size of sizes) {
+        expect(manifest.icons[size]).toBe(`icons/icon${size}.png`);
+        expect(manifest.action.default_icon[size]).toBe(manifest.icons[size]);
+        expect(zip.file(manifest.icons[size])).not.toBeNull();
+      }
+    }
+  });
 });
