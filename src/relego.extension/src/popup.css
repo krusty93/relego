@@ -179,6 +179,34 @@ form {
   flex-direction: column;
 }
 
+/* `hidden` must win over the display rules below, or a view stays on screen. */
+.done[hidden],
+form[hidden],
+.btn[hidden] {
+  display: none;
+}
+
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+.done__title {
+  margin: 0;
+  font-family: var(--font-quote);
+  font-size: var(--t-md);
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.done__note {
+  margin: 0 0 var(--sp-2);
+  color: var(--ink-subtle);
+  font-size: var(--t-xs);
+}
+
 /* The header's rule is the one divider above the form; the first section does not add a second. */
 form > .section:first-child {
   padding-top: 0;
@@ -260,6 +288,11 @@ select.control {
   display: block;
 }
 
+/* An empty notice is not a box: never reserve the space for a sentence that is not there. */
+.notice:empty {
+  display: none;
+}
+
 .notice[data-tone="warn"] {
   border-color: var(--border-strong);
   color: var(--ink);
@@ -299,4 +332,24 @@ select.control {
 .btn[disabled] {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-muted);
+}
+
+.btn--ghost:hover:not([disabled]) {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.actions .btn--primary {
+  flex: 1;
 }

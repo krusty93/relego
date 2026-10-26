@@ -22,12 +22,14 @@
       dot. Playfair Display cannot load here (extension CSP blocks remote fonts and this build ships
       no font files), so the stack falls back to Georgia exactly as the token declares.
 
-      STORY: The state sentence is the spine — "Reading United States · read.amazon.com". The form
-      below it is only ever the difference between that sentence and the one the user wants.
+      STORY: The state sentence is the spine — "Reading United States · read.amazon.com". A working
+      configuration shows that sentence and one confirmation, nothing else; the form is only ever
+      the difference between that sentence and the one the user wants, so it appears only when
+      there is something to connect or when the user asks to edit.
 
-      FIRST VIEWPORT: Wordmark with the open-in-a-window control, state sentence, the two connection
-      fields, the region picker with the disclosure under it, one terracotta button. All of it above
-      the fold, no scrolling.
+      FIRST VIEWPORT: Wordmark with the open-in-a-window control, state sentence, then either the
+      confirmation with its edit control, or the two connection fields, the region picker with the
+      disclosure under it and one terracotta button. All of it above the fold, no scrolling.
 
       FORM: One column, hairline-separated sections, the app's form vocabulary: `--t-sm` 600 field
       labels, `--t-xs` help text in ink-subtle, `--control` inputs at `--r-md` with the strong
@@ -69,7 +71,15 @@
         <p class="state" id="state">Reading your saved settings…</p>
       </header>
 
-      <form id="settings" novalidate>
+      <section class="done" id="done" hidden aria-labelledby="done-title">
+        <p class="done__title" id="done-title">Configuration complete</p>
+        <p class="done__note">
+          Relego reads your Kindle Notebook from this browser on its own schedule.
+        </p>
+        <button class="btn" id="edit" type="button">Edit configuration</button>
+      </section>
+
+      <form id="settings" novalidate hidden>
         <h2 class="section">Relego server</h2>
 
         <div class="field">
@@ -101,8 +111,8 @@
         </div>
 
         <p class="hint">
-          Generate the code in Relego under Sync. It is needed the first time, and whenever the
-          connection has to be made again.
+          Generate the code in Relego, on the Kindle Notebook Sync page. It is needed the first
+          time, and whenever the connection has to be made again.
         </p>
 
         <h2 class="section">Amazon region</h2>
@@ -116,7 +126,10 @@
 
         <p class="notice" id="notice" role="status" aria-live="polite"></p>
 
-        <button class="btn btn--primary" id="save" type="submit">Save</button>
+        <div class="actions">
+          <button class="btn btn--primary" id="save" type="submit">Save</button>
+          <button class="btn btn--ghost" id="cancel" type="button" hidden>Cancel</button>
+        </div>
       </form>
     </main>
 
