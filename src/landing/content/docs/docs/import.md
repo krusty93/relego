@@ -1,10 +1,10 @@
 ---
 title: Import highlights
-description: Find the highlight file on your Kindle or Kobo, then move it into the Relego library.
+description: Import highlights from your Kindle or Kobo, or sync your Kindle Notebook with the browser extension.
 stage: 1
 sidebar:
   order: 1
-subtitle: "The trip starts on the device, before Relego is involved at all. Your Kindle or Kobo writes highlights to a file, then Relego reads that file into its library."
+subtitle: "Bring highlights into your library from a Kindle or Kobo file, or sync eligible Kindle highlights from your browser."
 ---
 
 ## Your reader's file
@@ -19,7 +19,8 @@ for Kobo, upload the file as-is.
 
 :::note
 `My Clippings.txt` does not include highlights made in Kindle mobile or desktop
-apps. Those remain in Amazon's cloud.
+apps. Use the [Kindle browser extension](/docs/reference/kindle-extension/) to
+sync eligible highlights from your Kindle Notebook instead.
 :::
 
 ## 1. Start the server
@@ -72,9 +73,9 @@ list.
 
 ## 2. Get your highlights in
 
-Now it's time to import higlights into Relego. You can
-drag and drop them to the web interface or, if you prefer a terminal,
-you can use the [CLI](/docs/reference/cli/).
+Now it's time to import highlights into Relego. You can drag and drop files to
+the web interface. If you prefer a terminal, you can use the
+[CLI](/docs/reference/cli/).
 
 The page reports what it added when the upload finishes. Uploading the same file
 twice does not create duplicates, so re-uploading after a few more reading
@@ -82,12 +83,16 @@ sessions is the normal way to keep the library current.
 
 ### Kindle
 
+To sync eligible cloud highlights automatically, install and connect the
+[Kindle browser extension](/docs/reference/kindle-extension/). The browser,
+extension, and Relego server must be running for sync to work.
+
+For a local import, including highlights that are not available in the Kindle
+Notebook, use your Kindle over USB:
+
 Connect your Kindle over USB and wait for it to appear on your computer. Open
 <http://localhost:8080>, go to **Import**, then drop in
 `documents/My Clippings.txt` or click to browse for it.
-
-`My Clippings.txt` does not include highlights made in Kindle mobile or desktop
-apps. Those remain in Amazon's cloud.
 
 ![Relego's web interface open to the Import page, showing the Kindle and Kobo file upload area.](/images/docs/relego-web-import.webp)
 

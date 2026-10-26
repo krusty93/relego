@@ -8,6 +8,7 @@ const docsPages = [
 	'/docs/deliver/',
 	'/docs/revisit/',
 	'/docs/reference/cli/',
+	'/docs/reference/kindle-extension/',
 	'/docs/reference/environment/',
 	'/docs/reference/troubleshooting/',
 	'/docs/reference/verifying-releases/',
@@ -48,7 +49,7 @@ test.describe('Docs', () => {
 
 	test('round-trip pages promote their opening copy into the title subtitle', async ({ page }) => {
 		const subtitles = {
-			'/docs/import/': 'The trip starts on the device',
+			'/docs/import/': 'Bring highlights into your library',
 			'/docs/deliver/': 'A library of ten thousand highlights is a graveyard',
 			'/docs/revisit/': 'The last stage is the only one that matters',
 		};
@@ -151,6 +152,14 @@ test.describe('Docs', () => {
 		await expect(
 			page.getByRole('link', { name: 'CLI' }).first(),
 		).toHaveAttribute('href', '/docs/reference/cli/');
+	});
+
+	test('Import links to the Kindle extension reference', async ({ page }) => {
+		await page.goto('/docs/import/');
+		await page.locator('.sl-markdown-content').getByRole('link', { name: 'Kindle browser extension' }).first().click();
+		await expect(page).toHaveURL(/\/docs\/reference\/kindle-extension\/$/);
+		await expect(page.getByRole('heading', { name: 'Kindle browser extension', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Supported regions' })).toBeVisible();
 	});
 
 	test('the web interface carries first-time readers through their first recap', async ({ page }) => {

@@ -38,7 +38,8 @@ path *inside* the container. See [Import](/docs/import/).
 ### Highlights I made in the Kindle app are missing
 
 Only highlights made on the device itself are written to `My Clippings.txt`.
-App highlights stay in Amazon's cloud and are not available to Relego.
+Use the [Kindle browser extension](/docs/reference/kindle-extension/) to sync
+eligible app highlights from Amazon's Kindle Notebook.
 
 ## Server
 
