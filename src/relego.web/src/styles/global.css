@@ -729,11 +729,13 @@ td {
   align-items: start;
   padding: var(--sp-4);
   width: 100%;
-  background: transparent;
-  border: 0;
   text-align: left;
   cursor: pointer;
   color: inherit;
+  /* The quote is the reason people open this page: let a drag select it instead of
+     only toggling the card. */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .hl-summary:focus-visible {
@@ -743,6 +745,7 @@ td {
 
 .hl-quote {
   display: block;
+  cursor: text;
   font-family: var(--font-quote);
   font-size: var(--t-md);
   line-height: 1.55;
