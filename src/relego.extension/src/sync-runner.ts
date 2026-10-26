@@ -256,12 +256,14 @@ async function readBook(
       const book = outcome.result.books[0];
       if (book === undefined) return { kind: "failed", code: "provider_contract_changed", diagnostics: null };
 
+      // The library row selected this book, so its title and author name the book Relego files the
+      // highlights under; the page contributes the highlights and the export-limit flag only.
       return {
         kind: "ok",
         book: {
           externalKey: book.externalKey,
-          title: book.title.length > 0 ? book.title : title,
-          author: book.author ?? author,
+          title,
+          author: author ?? book.author,
           truncated: book.truncated,
           highlights: book.highlights,
         },

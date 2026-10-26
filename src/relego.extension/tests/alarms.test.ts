@@ -144,7 +144,7 @@ function installFetch(state: ServerState): Recorded {
     const url = new URL(typeof input === "string" ? input : input.toString());
 
     if (amazonHosts.has(url.hostname)) {
-      const key = url.searchParams.get("bookKey");
+      const key = url.searchParams.get("asin");
 
       return Promise.resolve(
         key === null
