@@ -163,7 +163,7 @@ function installFetch(state: ServerState): Recorded {
       server.notebookHosts.push(url.hostname);
       if (!state.signedIn) return Promise.resolve(pageResponse(fixture("sign-in.html"), "https://www.amazon.com/ap/signin"));
 
-      const key = url.searchParams.get("bookKey");
+      const key = url.searchParams.get("asin");
       if (key !== null) {
         return Promise.resolve(pageResponse(fixture("book.html", notebook.id).replace("B00EXAMPLE01", key), url.toString()));
       }
