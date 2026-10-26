@@ -76,7 +76,7 @@ public sealed class SyncConnectionApiTests
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.NotNull(paired);
         Assert.Equal("active", paired!.State);
-        Assert.Equal(360, paired.IntervalMinutes);
+        Assert.Equal(60, paired.IntervalMinutes);
         Assert.Equal(10, paired.AllowedIntervalMinutes.Count);
         Assert.Equal("us", paired.Region?.Id);
         Assert.Equal("read.amazon.com", paired.Region?.Host);
@@ -87,7 +87,7 @@ public sealed class SyncConnectionApiTests
         Assert.Equal("connected", summary!.Status);
         Assert.Equal("active", summary.Connection.State);
         Assert.Equal("us", summary.Connection.Region?.Id);
-        Assert.Equal(360, summary.Schedule.IntervalMinutes);
+        Assert.Equal(60, summary.Schedule.IntervalMinutes);
         Assert.Equal("none", summary.Schedule.PendingCommand);
         Assert.False(summary.Schedule.Applied);
     }
@@ -611,7 +611,7 @@ public sealed class SyncConnectionApiTests
         Assert.Null(summary.Connection.Region);
         Assert.Equal("1", summary.Disclosure.Version);
         Assert.NotEmpty(summary.Prerequisites);
-        Assert.Equal(360, summary.Schedule.IntervalMinutes);
+        Assert.Equal(60, summary.Schedule.IntervalMinutes);
         Assert.Equal(10, summary.Schedule.AllowedIntervalMinutes.Count);
     }
 

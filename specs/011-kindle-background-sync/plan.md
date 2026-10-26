@@ -93,7 +93,7 @@ requirement was dropped or added; all FR-001–FR-019 trace below.
 | FR-018 | Not implemented |
 | FR-019 | Provider constant 45 days |
 | FR-020–FR-024, FR-030, FR-031 | Region allowlist in `ParseProfile` (eight validated regions: US/CA/UK/DE/FR/IT/ES/BR), IDs only, server-derived host, extension-only selection, optional per-host permission, `PUT region`, read-only web display, "only validated hosts supported" disclosure; DK/IE/PL and JP/CN not offered |
-| FR-025, FR-028 | `sync_interval_minutes` (ten values, default 360) stored/returned by server; web selector; `PUT schedule` |
+| FR-025, FR-028 | `sync_interval_minutes` (ten values, default 60) stored/returned by server; web selector; `PUT schedule` |
 | FR-026, FR-027, FR-029 | Extension-owned `kindle-sync` alarm (= frequency, recreated on start/change); fixed 60 s `kindle-heartbeat`; single-flight + idempotent `POST /jobs`; no server routine schedule, Quartz reminder only |
 
 ## Open decisions for review-plan (defaults used; nothing silently decided)

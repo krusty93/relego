@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using Dapper;
 using Relego.Server.Models;
 
@@ -65,19 +65,29 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             new { Id = id, TokenHash = tokenHash });
 
     /// <summary>Creates a new connection in the <c>pending_pairing</c> state and returns it.</summary>
+    /// <param name="userId">Owner of the connection.</param>
+    /// <param name="providerId">Provider the connection reads.</param>
+    /// <param name="tokenHash">Hash of the pairing token issued with the connection.</param>
+    /// <param name="disclosureVersion">Disclosure version the user was shown.</param>
+    /// <param name="createdAt">Creation timestamp.</param>
+    /// <param name="intervalMinutes">
+    /// Starting sync frequency, taken from the provider's policy so a database created before the
+    /// default changed still starts new connections at today's default.
+    /// </param>
     public async Task<SyncConnection> CreateAsync(
         int userId,
         string providerId,
         string tokenHash,
         string disclosureVersion,
-        string createdAt)
+        string createdAt,
+        int intervalMinutes = 60)
     {
         var id = await connection.QuerySingleAsync<long>(
             """
             INSERT INTO sync_connections
-                (user_id, provider_id, token_hash, state, disclosure_version, created_at)
+                (user_id, provider_id, token_hash, state, disclosure_version, sync_interval_minutes, created_at)
             VALUES
-                (@UserId, @ProviderId, @TokenHash, 'pending_pairing', @DisclosureVersion, @CreatedAt);
+                (@UserId, @ProviderId, @TokenHash, 'pending_pairing', @DisclosureVersion, @IntervalMinutes, @CreatedAt);
             SELECT last_insert_rowid();
             """,
             new
@@ -86,6 +96,7 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
                 ProviderId = providerId,
                 TokenHash = tokenHash,
                 DisclosureVersion = disclosureVersion,
+                IntervalMinutes = intervalMinutes,
                 CreatedAt = createdAt
             });
 
