@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { AsyncSection, EmptyState, Tag } from "../components/ui";
+import { AsyncSection, EmptyState } from "../components/ui";
 import { api } from "../lib/api";
 import { formatCount, plural } from "../lib/format";
 import { useListKeys } from "../lib/listkeys";
@@ -175,11 +175,17 @@ export function LibraryPage() {
                   <td className="num">{formatCount(book.highlightCount)}</td>
                   <td>
                     {book.excluded ? (
-                      <Tag tone="excluded">Excluded</Tag>
+                      <span className="library-status" data-tone="excluded">
+                        Excluded
+                      </span>
                     ) : book.authorExcluded ? (
-                      <Tag tone="excluded">Author excluded</Tag>
+                      <span className="library-status" data-tone="excluded">
+                        Author excluded
+                      </span>
                     ) : (
-                      <Tag tone="ok">In recaps</Tag>
+                      <span className="library-status" data-tone="ok">
+                        In recaps
+                      </span>
                     )}
                   </td>
                 </tr>

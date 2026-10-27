@@ -668,6 +668,18 @@ td {
   font-size: var(--t-sm);
 }
 
+.library-status {
+  white-space: nowrap;
+}
+
+.library-status[data-tone="excluded"] {
+  color: var(--warning);
+}
+
+.library-status[data-tone="ok"] {
+  color: var(--success);
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
