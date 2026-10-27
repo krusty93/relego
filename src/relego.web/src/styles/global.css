@@ -712,10 +712,6 @@ td {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  /* The quote is capped at a reading measure, so the card is capped just wide
-     enough to hold it plus the weight pips — otherwise the pips strand
-     themselves at the far edge of an empty card. */
-  max-width: 800px;
 }
 
 .hl {
@@ -761,7 +757,6 @@ td {
   font-family: var(--font-quote);
   font-size: var(--t-md);
   line-height: 1.55;
-  max-width: 72ch;
   text-wrap: pretty;
 }
 

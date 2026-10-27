@@ -10,6 +10,42 @@ test.describe("highlights", () => {
     await expect(page.locator(".hint-line + .hl-list")).toHaveCSS("margin-top", "16px");
   });
 
+  for (const width of [1440, 390]) {
+    test(`lists match the Library width at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 950 });
+      await page.goto("/app");
+      await expect(page.locator(".book-rows tr").first()).toBeVisible();
+      const library = await page.locator(".table-wrap").boundingBox();
+      if (!library) throw new Error("Library list has no box");
+
+      await page.locator(".book-rows tr").first().click();
+      await expect(page.locator(".breadcrumb")).toBeVisible();
+      const bookUrl = page.url();
+
+      for (const url of ["/app/highlights", bookUrl]) {
+        await page.goto(url);
+        const card = page.locator(".hl").first();
+        await expect(card).toBeVisible();
+
+        for (const expanded of [false, true]) {
+          if (expanded) await card.locator(".hl-summary").click();
+          const box = await card.boundingBox();
+          if (!box) throw new Error("Highlight card has no box");
+          expect(box.x).toBeCloseTo(library.x, 0);
+          expect(box.width).toBeCloseTo(library.width, 0);
+          const textWidth = await card.locator(".hl-quote").evaluate((quote) => ({
+            actual: quote.getBoundingClientRect().width,
+            available: quote.parentElement!.getBoundingClientRect().width,
+          }));
+          expect(textWidth.actual).toBeCloseTo(textWidth.available, 0);
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+          ).toBe(true);
+        }
+      }
+    });
+  }
+
   test("only one highlight body is expanded at a time", async ({ page }) => {
     await expect(page.locator(".hl-body:visible")).toHaveCount(0);
 
