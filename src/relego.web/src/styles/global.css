@@ -547,10 +547,15 @@ kbd {
 
 .view-head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--sp-4);
   margin-bottom: var(--sp-4);
   flex-wrap: wrap;
+}
+
+.view-head > :first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .view-head h1 {
@@ -559,12 +564,12 @@ kbd {
 
 .view-head p {
   color: var(--ink-muted);
-  max-width: 68ch;
 }
 
 .view-head .actions {
   margin-left: auto;
   display: flex;
+  flex-shrink: 0;
   gap: var(--sp-2);
   flex-wrap: wrap;
 }
@@ -587,6 +592,10 @@ kbd {
   background: var(--surface-sunk);
   color: var(--ink-muted);
   font-size: var(--t-sm);
+}
+
+.notice + .panel {
+  margin-top: var(--sp-4);
 }
 
 .table-wrap {

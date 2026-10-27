@@ -27,6 +27,13 @@ test.describe("recaps", () => {
     await expect(page.getByRole("button", { name: "Send recap now" })).toBeDisabled();
     await expect(page.locator("#rc-blocked")).toContainText("Add a reader address first");
 
+    for (const width of [1440, 393]) {
+      await page.setViewportSize({ width, height: 950 });
+      const notice = (await page.locator("#rc-blocked").boundingBox())!;
+      const panel = (await page.locator("#rc-blocked + .panel").boundingBox())!;
+      expect(panel.y - (notice.y + notice.height)).toBeCloseTo(16, 0);
+    }
+
     await page.locator("#rc-blocked a").click();
     await expect(page).toHaveURL(/\/app\/settings$/);
   });
