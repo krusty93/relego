@@ -5,6 +5,29 @@ test.describe("navigation and global keys", () => {
     await page.goto("/", { waitUntil: "networkidle" });
   });
 
+  test("feedback opens the GitHub issue chooser above shortcuts", async ({ page }) => {
+    const feedback = page.getByRole("link", { name: "Give feedback", exact: false });
+    await expect(feedback).toBeVisible();
+    await expect(feedback).toHaveAttribute(
+      "href",
+      "https://github.com/krusty93/relego/issues/new/choose",
+    );
+    await expect(feedback).toHaveAttribute("target", "_blank");
+    await expect(feedback).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(feedback.locator("xpath=following-sibling::*[1]")).toHaveText("Shortcuts ?");
+
+    await page.context().route("https://github.com/**", (route) =>
+      route.fulfill({ contentType: "text/html", body: "<title>GitHub issue chooser</title>" }),
+    );
+    await feedback.focus();
+    const popupPromise = page.waitForEvent("popup");
+    await page.keyboard.press("Enter");
+    const popup = await popupPromise;
+    await expect(popup).toHaveURL("https://github.com/krusty93/relego/issues/new/choose");
+    await expect(page).toHaveURL(/localhost:\d+\/app$/);
+    await popup.close();
+  });
+
   test("g chords jump between views", async ({ page }) => {
     await page.keyboard.press("g");
     await page.keyboard.press("s");
