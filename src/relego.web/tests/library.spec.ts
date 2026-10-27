@@ -5,6 +5,11 @@ test.describe("library", () => {
     await page.goto("/", { waitUntil: "networkidle" });
   });
 
+  test("shows shortcut guidance above the book list", async ({ page }) => {
+    await expect(page.locator(".hint-line + .table-wrap")).toBeVisible();
+    await expect(page.locator(".hint-line + .table-wrap")).toHaveCSS("margin-top", "16px");
+  });
+
   // The shortcuts used to be `onKeyDown` handlers on each row, so they only fired once a
   // row already had DOM focus. A user landing on the page and pressing `j` got nothing.
   // These tests deliberately never call focus() first.

@@ -1241,6 +1241,11 @@ select.control {
   margin-top: var(--sp-3);
 }
 
+.hint-line + .table-wrap,
+.hint-line + .hl-list {
+  margin-top: var(--sp-4);
+}
+
 .dialog-actions {
   margin-top: var(--sp-5);
 }

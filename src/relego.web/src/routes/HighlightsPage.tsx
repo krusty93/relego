@@ -284,6 +284,11 @@ export function HighlightsPage() {
           )
         }
       >
+        <p className="subtle hint-line">
+          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> expand · <kbd>e</kbd> exclude ·{" "}
+          <kbd>1</kbd>–<kbd>5</kbd> weight
+        </p>
+
         <div className="hl-list" ref={listRef}>
           {items.map((item, index) => {
             const open = openId === item.id;
@@ -398,11 +403,6 @@ export function HighlightsPage() {
             );
           })}
         </div>
-
-        <p className="subtle hint-line">
-          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> expand · <kbd>e</kbd> exclude ·{" "}
-          <kbd>1</kbd>–<kbd>5</kbd> weight
-        </p>
       </AsyncSection>
     </section>
   );
