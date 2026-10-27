@@ -207,6 +207,12 @@ form[hidden],
   font-size: var(--t-xs);
 }
 
+.done__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
 /* The header's rule is the one divider above the form; the first section does not add a second. */
 form > .section:first-child {
   padding-top: 0;
@@ -343,6 +349,12 @@ select.control {
 .btn--ghost:hover:not([disabled]) {
   background: var(--surface-sunk);
   color: var(--ink);
+}
+
+/* In the form's column the link to Relego is quiet and as wide as its label, so Save stays dominant. */
+.open-relego {
+  align-self: flex-start;
+  margin-bottom: var(--sp-4);
 }
 
 .actions {

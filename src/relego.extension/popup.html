@@ -76,7 +76,17 @@
         <p class="done__note">
           Relego reads your Kindle Notebook from this browser on its own schedule.
         </p>
-        <button class="btn" id="edit" type="button">Edit configuration</button>
+        <div class="done__actions">
+          <button class="btn" id="edit" type="button">Edit configuration</button>
+          <button
+            class="btn"
+            id="openDone"
+            type="button"
+            title="Open the Kindle Notebook Sync page in a new tab"
+          >
+            Open Relego
+          </button>
+        </div>
       </section>
 
       <form id="settings" novalidate hidden>
@@ -114,6 +124,16 @@
           Generate the code in Relego, on the Kindle Notebook Sync page. It is needed the first
           time, and whenever the connection has to be made again.
         </p>
+
+        <button
+          class="btn open-relego"
+          id="openForm"
+          type="button"
+          title="Open the Kindle Notebook Sync page in a new tab"
+          disabled
+        >
+          Open Relego
+        </button>
 
         <h2 class="section">Amazon region</h2>
 
