@@ -1,5 +1,9 @@
-﻿using System.Net;
+﻿using System.Data;
+using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 using Relego.Core.Contracts;
 
 namespace Relego.Tests.Api;
@@ -78,6 +82,24 @@ public sealed class HighlightEndpointTests : IDisposable
         Assert.NotNull(afterDelete);
         Assert.Equal(beforeDelete.Total - 1, afterDelete.Total);
         Assert.DoesNotContain(afterDelete.Items, item => item.Id == highlightId);
+    }
+
+    [Fact]
+    public async Task DeleteHighlight_WithSyncedProvenance_RemovesHighlightAndProvenance()
+    {
+        await SeedHighlightsAsync();
+
+        var beforeDelete = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+        var highlightId = beforeDelete!.Items[0].Id;
+        await SeedProvenanceAsync(highlightId);
+
+        var deleteResponse = await _client.DeleteAsync($"/highlights/{highlightId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var afterDelete = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+        Assert.DoesNotContain(afterDelete!.Items, item => item.Id == highlightId);
+        Assert.Equal(0, await CountProvenanceAsync(highlightId));
     }
 
     [Fact]
@@ -179,6 +201,29 @@ public sealed class HighlightEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("pageSize", body);
+    }
+
+    private async Task SeedProvenanceAsync(int highlightId)
+    {
+        var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO highlight_provenance (highlight_id, source_id, external_id, first_seen_at)
+            VALUES (@HighlightId, 'kindle_cloud', @ExternalId, @FirstSeenAt);
+            """;
+        command.Parameters.Add(new SqliteParameter("@HighlightId", highlightId));
+        command.Parameters.Add(new SqliteParameter("@ExternalId", $"external-{highlightId}"));
+        command.Parameters.Add(new SqliteParameter("@FirstSeenAt", DateTimeOffset.UtcNow.ToString("o")));
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<int> CountProvenanceAsync(int highlightId)
+    {
+        var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM highlight_provenance WHERE highlight_id = @HighlightId";
+        command.Parameters.Add(new SqliteParameter("@HighlightId", highlightId));
+        return Convert.ToInt32(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
     private async Task SeedHighlightsAsync()
