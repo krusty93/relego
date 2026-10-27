@@ -158,13 +158,6 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
     refetchIntervalInBackground: true,
   });
 
-  // The allowlist is fixed for a given server and version, so it is read once per session.
-  const regions = useQuery({
-    queryKey: ["sync", "regions"],
-    queryFn: () => syncApi.regions(provider.providerId),
-    staleTime: Infinity,
-  });
-
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ["sync", provider.providerId] });
   }
@@ -347,11 +340,6 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           scheduling={schedule.isPending}
         />
       )}
-
-      <SupportedRegions
-        regions={regions.data?.regions ?? []}
-        disclosure={regions.data?.disclosure}
-      />
 
       <Disclosures disclosure={data.disclosure} prerequisites={data.prerequisites} />
     </>
@@ -1032,29 +1020,6 @@ function PairingPanel({
 }
 
 const COVERAGE_KINDS = ["Coverage", "Sideloaded", "ExportLimit", "Availability"];
-
-/**
- * The allowlist is the whole story about regions, so the page states it plainly and offers no way
- * to type a host: the server rejects anything outside this list.
- */
-function SupportedRegions({
-  regions,
-  disclosure,
-}: {
-  regions: SyncRegion[];
-  disclosure?: string;
-}) {
-  if (regions.length === 0) {
-    return null;
-  }
-
-  return (
-    <p className="notice" data-testid="supported-regions">
-      Supported regions: {regions.map((region) => region.displayName).join(", ")}.{" "}
-      {disclosure ?? "Only these validated hosts are supported."}
-    </p>
-  );
-}
 
 function Disclosures({
   disclosure,
