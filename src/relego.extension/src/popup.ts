@@ -8,7 +8,9 @@
  *
  * It has two views and shows exactly one of them. A connection that answers shows the confirmation
  * and a way into the form; the form appears only while something has to be connected, or when the
- * user asks to edit it. Saving successfully returns to the confirmation.
+ * user asks to edit it. Saving successfully returns to the confirmation. Both views also offer a
+ * button that opens the Kindle Notebook Sync page of the Relego server in a new tab: the form's
+ * button follows the address being typed, the confirmation's uses the paired server.
  */
 
 import { PROVIDER_ID, RelegoClient, statusRegion } from "./client";
@@ -19,6 +21,7 @@ import { isWindowed, windowedUrl, WINDOW_HEIGHT, WINDOW_WIDTH } from "./popout";
 import { REGION_DISCLOSURE, resolveRegion } from "./profile";
 import { chooseRegion, regionOptions } from "./region-change";
 import type { RegionChoice } from "./region-change";
+import { kindleSyncUrl } from "./server-link";
 import {
   readConfig,
   readDraftRegion,
@@ -42,6 +45,8 @@ interface Elements {
   readonly form: HTMLFormElement;
   readonly done: HTMLElement;
   readonly edit: HTMLButtonElement;
+  readonly openDone: HTMLButtonElement;
+  readonly openForm: HTMLButtonElement;
   readonly state: HTMLParagraphElement;
   readonly popout: HTMLButtonElement;
   readonly serverUrl: HTMLInputElement;
@@ -106,6 +111,37 @@ function show(elements: Elements, view: PopupView, paired: boolean): void {
   elements.cancel.hidden = !paired || view !== "form";
 
   if (view === "done") clearNotice(elements);
+  updateOpenForm(elements);
+}
+
+/**
+ * Enables the form's link to Relego only while the address typed in the form can be opened.
+ *
+ * The address field is also filled in by code, not just by typing, so this runs on every input and
+ * whenever a view is shown.
+ */
+function updateOpenForm(elements: Elements): void {
+  elements.openForm.disabled = kindleSyncUrl(elements.serverUrl.value) === null;
+}
+
+/**
+ * Opens the Kindle Notebook Sync page of a Relego server in a new tab.
+ *
+ * Opening a tab needs no permission. The toolbar popup closes when the new tab takes focus; the
+ * detached window stays open, which is what lets the one-time code be carried back into it.
+ *
+ * @param elements The popup's elements, used to report a tab the browser refused to open.
+ * @param serverUrl Server address to open; nothing happens when it is not an http(s) URL.
+ */
+async function openRelego(elements: Elements, serverUrl: string): Promise<void> {
+  const url = kindleSyncUrl(serverUrl);
+  if (url === null) return;
+
+  try {
+    await chrome.tabs.create({ url });
+  } catch {
+    say(elements, "The browser did not open a new tab.", "warn");
+  }
 }
 
 /** Fills the picker from the allowlist; there is no free-text host field anywhere. */
@@ -184,6 +220,7 @@ async function restoreDraft(elements: Elements): Promise<void> {
 function keepDraft(elements: Elements): void {
   elements.serverUrl.addEventListener("input", () => {
     void writeDraftServerUrl(elements.serverUrl.value);
+    updateOpenForm(elements);
   });
   elements.region.addEventListener("change", () => {
     void writeDraftRegion(elements.region.value);
@@ -378,6 +415,8 @@ async function main(): Promise<void> {
     form: required<HTMLFormElement>("settings"),
     done: required<HTMLElement>("done"),
     edit: required<HTMLButtonElement>("edit"),
+    openDone: required<HTMLButtonElement>("openDone"),
+    openForm: required<HTMLButtonElement>("openForm"),
     state: required<HTMLParagraphElement>("state"),
     popout: required<HTMLButtonElement>("popout"),
     serverUrl: required<HTMLInputElement>("serverUrl"),
@@ -403,6 +442,12 @@ async function main(): Promise<void> {
   elements.cancel.addEventListener("click", () => {
     void openConfigured(elements);
   });
+  elements.openForm.addEventListener("click", () => {
+    void openRelego(elements, elements.serverUrl.value);
+  });
+  elements.openDone.addEventListener("click", () => {
+    void openStoredRelego(elements);
+  });
 
   if (isWindowed(location.search)) {
     document.body.dataset["window"] = "";
@@ -412,6 +457,12 @@ async function main(): Promise<void> {
   }
 
   await openConfigured(elements);
+}
+
+/** Opens the page of the server this browser is paired with, the one the confirmation speaks of. */
+async function openStoredRelego(elements: Elements): Promise<void> {
+  const config = await readConfig();
+  if (config !== null) await openRelego(elements, config.baseUrl);
 }
 
 /**

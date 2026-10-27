@@ -224,13 +224,23 @@ export class RelegoApiError extends Error {
   }
 }
 
+/**
+ * Strips trailing slashes from a server address, so a path can be appended without doubling them.
+ *
+ * @param baseUrl Server address as the user typed or stored it.
+ * @returns The address without trailing slashes.
+ */
+export function trimBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, "");
+}
+
 /** Typed HTTP client for the Relego cloud-sync channel. */
 export class RelegoClient {
   private readonly baseUrl: string;
   private readonly token: string;
 
   constructor(config: RelegoClientConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/+$/, "");
+    this.baseUrl = trimBaseUrl(config.baseUrl);
     this.token = config.token;
   }
 

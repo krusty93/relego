@@ -84,9 +84,9 @@ fixed list — there is no free-text host field anywhere in the extension — an
 only for the region selected, at the moment the user saves. A denied prompt, or a server call that
 fails, leaves the connection reading the region it already read. The popup shows the connection state
 the server reports, which stays the source of truth for the selected region. Once that state is
-usable, the popup shows only the confirmation and an **Edit configuration** control: the address,
-one-time code and region fields appear again only when the user asks for them, or when the
-connection cannot be used.
+usable, the popup shows only the confirmation with an **Edit configuration** control and the
+**Open Relego** button: the address, one-time code and region fields appear again only when the user
+asks for them, or when the connection cannot be used.
 
 ## Working in the popup
 
@@ -95,6 +95,12 @@ carrying the one-time code from Relego into the form. Two things cover that:
 
 - The **open in a window** control in the popup header reopens the same form in a window of its own,
   so it stays put while the code is copied from Relego.
+- The **Open Relego** button opens the Kindle Notebook Sync page of the Relego server
+  (`<server address>/app/kindle-sync`) in a new tab, where the one-time code is generated. It is in
+  both views: in the form it is enabled as soon as the address field holds a valid `http(s)` address,
+  so the address can be set first and the page opened without leaving the popup to find the server;
+  in the confirmation it opens the server the browser is paired with. Opening a tab needs no extra
+  permission. The route lives in one constant, `KINDLE_SYNC_ROUTE` in `src/server-link.ts`.
 - The address and the region are kept as they are entered, so reopening the popup comes back filled
   in. A kept address is not a pairing: the extension still reports "not connected" until a one-time
   code is accepted, and a pairing that already exists is never overwritten by what is typed.
