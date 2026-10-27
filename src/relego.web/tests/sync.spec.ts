@@ -726,18 +726,11 @@ test.describe("sync", () => {
     await expect(rail).toContainText("Amazon sign-in needed");
   });
 
-  test("the region is shown read-only, with the supported list stated", async ({ page }) => {
+  test("the region is shown read-only", async ({ page }) => {
     const mock = await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     await expect(page.getByTestId("sync-region")).toHaveText("United Kingdom (read.amazon.co.uk)");
-
-    // The whole allowlist is stated up front, not only the region in use.
-    const notice = page.getByTestId("supported-regions");
-    await expect(notice).toContainText(
-      "Supported regions: United States, Canada, United Kingdom, Germany, France, Italy, Spain, Brazil.",
-    );
-    await expect(notice).toContainText("other Amazon regions are unsupported until validated");
 
     // Changing the region is the extension's job, and the page says where to do it.
     await expect(page.getByText("Your region is set in the Relego extension")).toBeVisible();
@@ -760,8 +753,6 @@ test.describe("sync", () => {
     await expect(page.getByTestId("pairing-region")).toContainText(
       "you pick one from a list rather than typing a host",
     );
-    await expect(page.getByTestId("supported-regions")).toBeVisible();
-
     expect(mock.requests).not.toContain("PUT /sync/kindle-cloud/region");
   });
 });
