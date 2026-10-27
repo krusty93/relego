@@ -5,6 +5,11 @@ test.describe("highlights", () => {
     await page.goto("/app/highlights", { waitUntil: "networkidle" });
   });
 
+  test("shows shortcut guidance above the highlights list", async ({ page }) => {
+    await expect(page.locator(".hint-line + .hl-list")).toBeVisible();
+    await expect(page.locator(".hint-line + .hl-list")).toHaveCSS("margin-top", "16px");
+  });
+
   test("only one highlight body is expanded at a time", async ({ page }) => {
     await expect(page.locator(".hl-body:visible")).toHaveCount(0);
 

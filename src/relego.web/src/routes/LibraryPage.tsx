@@ -147,6 +147,11 @@ export function LibraryPage() {
           )
         }
       >
+        <p className="subtle hint-line">
+          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> open · <kbd>n</kbd> rename ·{" "}
+          <kbd>e</kbd> exclude book
+        </p>
+
         <div className="table-wrap">
           <table>
             <caption className="sr-only">Books in your library</caption>
@@ -193,11 +198,6 @@ export function LibraryPage() {
             </tbody>
           </table>
         </div>
-
-        <p className="subtle hint-line">
-          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> open · <kbd>n</kbd> rename ·{" "}
-          <kbd>e</kbd> exclude book
-        </p>
       </AsyncSection>
 
       {renaming ? (
