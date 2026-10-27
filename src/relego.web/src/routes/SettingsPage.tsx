@@ -13,11 +13,11 @@ import type {
 } from "../lib/types";
 
 const SECTIONS = [
-  { id: "s-delivery", label: "Where recaps go" },
-  { id: "s-schedule", label: "When they go out" },
-  { id: "s-smtp", label: "Email server" },
   { id: "s-conn", label: "Connection" },
   { id: "s-appearance", label: "Appearance" },
+  { id: "s-schedule", label: "When recaps go out" },
+  { id: "s-delivery", label: "Where recaps go" },
+  { id: "s-smtp", label: "Email server" },
 ] as const;
 
 function looksLikeEmail(value: string): boolean {
@@ -80,9 +80,6 @@ export function SettingsPage() {
         </nav>
 
         <div>
-          <DeliveryPanel />
-          <SchedulePanel />
-          <SmtpPanel />
           <ConnectionPanel />
 
           <section className="panel" id="s-appearance">
@@ -97,6 +94,10 @@ export function SettingsPage() {
               <ThemeSwitch wide labelledBy="theme-label" />
             </div>
           </section>
+
+          <SchedulePanel />
+          <DeliveryPanel />
+          <SmtpPanel />
         </div>
       </div>
     </section>
