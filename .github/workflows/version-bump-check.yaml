@@ -14,7 +14,7 @@ permissions:
 jobs:
   version-bump-check:
     name: Version Bump Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       pull-requests: write
 

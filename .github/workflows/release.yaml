@@ -12,7 +12,7 @@ permissions:
 jobs:
   metadata:
     name: Parse tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       component: ${{ steps.meta.outputs.component }}
       version:   ${{ steps.meta.outputs.version }}
@@ -32,7 +32,7 @@ jobs:
     name: Build CLI (${{ matrix.rid }})
     needs: metadata
     if: startsWith(github.ref, 'refs/tags/cli/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         include:
@@ -93,7 +93,7 @@ jobs:
     name: Prepare CLI release assets
     needs: [metadata, build-cli]
     if: startsWith(github.ref, 'refs/tags/cli/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       id-token: write
@@ -147,7 +147,7 @@ jobs:
     name: Create GitHub Release
     needs: [metadata, build-cli, prepare-cli-release-assets]
     if: always() && needs.metadata.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     outputs:
