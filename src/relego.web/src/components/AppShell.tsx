@@ -12,6 +12,7 @@ import { ShortcutsSheet } from "./ShortcutsSheet";
 import { ThemeSwitch } from "./ThemeSwitch";
 import { ToastHost } from "./ToastHost";
 import {
+  FeedbackIcon,
   HighlightsIcon,
   ImportIcon,
   KeyboardIcon,
@@ -177,6 +178,16 @@ export function AppShell() {
           </nav>
 
           <div className="rail-foot">
+            <a
+              className="nav-item"
+              href="https://github.com/krusty93/relego/issues/new/choose"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <FeedbackIcon className="icon" />
+              Give feedback
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
             <button className="nav-item" type="button" onClick={() => setSheetOpen(true)}>
               <KeyboardIcon className="icon" />
               Shortcuts <kbd>?</kbd>

@@ -87,6 +87,15 @@ export function KeyboardIcon(props: IconProps) {
   );
 }
 
+export function FeedbackIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M21 4H3v13h4v4l5-4h9Z" />
+      <path d="M7 8h10M7 12h6" />
+    </svg>
+  );
+}
+
 export function SunIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
