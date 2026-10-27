@@ -5,6 +5,44 @@ test.describe("settings", () => {
     await page.goto("/app/settings", { waitUntil: "networkidle" });
   });
 
+  test("sections appear in the intended order", async ({ page }) => {
+    await expect(page.locator(".settings-nav a")).toHaveText([
+      "Connection",
+      "Appearance",
+      "When recaps go out",
+      "Where recaps go",
+      "Email server",
+    ]);
+
+    const sectionIds = await page
+      .locator(".settings > div > section.panel")
+      .evaluateAll((sections) => sections.map((section) => section.id));
+    expect(sectionIds).toEqual([
+      "s-conn",
+      "s-appearance",
+      "s-schedule",
+      "s-delivery",
+      "s-smtp",
+    ]);
+  });
+
+  test("section subtitles use the available width on desktop and mobile", async ({ page }) => {
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 950 });
+      const subtitles = page.locator(".settings .panel > header > p");
+      expect(await subtitles.count()).toBeGreaterThan(0);
+
+      for (const subtitle of await subtitles.all()) {
+        await expect(subtitle).toHaveCSS("max-width", "none");
+        const widths = await subtitle.evaluate((element) => ({
+          subtitle: element.getBoundingClientRect().width,
+          header: element.parentElement!.getBoundingClientRect().width,
+        }));
+        expect(Math.abs(widths.subtitle - widths.header)).toBeLessThan(1);
+      }
+    }
+  });
+
   test("delivery addresses survive a reload", async ({ page }) => {
     await page.locator("#kindle").fill("reader@kindle.com");
     await page.locator("#s-delivery button[type=submit]").click();

@@ -1043,6 +1043,10 @@ td {
   max-width: 62ch;
 }
 
+.settings .panel > header > p {
+  max-width: none;
+}
+
 .field {
   display: grid;
   gap: var(--sp-1);
