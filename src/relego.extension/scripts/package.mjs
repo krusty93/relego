@@ -30,8 +30,8 @@ const releaseDir = join(extensionDir, "release");
 /** Mozilla requires an explicit add-on id to sign a Manifest V3 package; AMO assigns none. */
 const AMO_ID = "relego@relego.dev";
 
-/** First Firefox release that understands `optional_host_permissions`. */
-const FIREFOX_MIN_VERSION = "128.0";
+/** First desktop Firefox release with built-in data collection consent. */
+const FIREFOX_MIN_VERSION = "140.0";
 
 /** Files the Firefox package supplies itself instead of taking them from the Chrome build. */
 const FIREFOX_REPLACED_FILES = new Set(["manifest.json", "background.js"]);
@@ -64,7 +64,13 @@ function firefoxManifest(base, version) {
     version,
     background: { scripts: [background.service_worker] },
     browser_specific_settings: {
-      gecko: { id: AMO_ID, strict_min_version: FIREFOX_MIN_VERSION },
+      gecko: {
+        id: AMO_ID,
+        strict_min_version: FIREFOX_MIN_VERSION,
+        data_collection_permissions: {
+          required: ["authenticationInfo", "websiteContent"],
+        },
+      },
     },
   };
 }
