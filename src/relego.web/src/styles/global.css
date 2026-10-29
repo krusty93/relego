@@ -1003,7 +1003,7 @@ td {
 }
 
 .sync-needs p {
-  max-width: var(--measure-prose);
+  max-width: none;
   color: var(--ink-muted);
 }
 
@@ -1014,6 +1014,10 @@ td {
 .sync-details .tip {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-1);
+}
+
+.sync-details dd {
+  max-width: none;
 }
 
 .progress {
