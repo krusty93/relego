@@ -22,14 +22,16 @@ const faviconHref = `${import.meta.env.BASE_URL}favicon.svg`;
 <html lang="en" data-theme="light">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#f7f1e8" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#120e0c" media="(prefers-color-scheme: dark)" />
 		<meta name="description" content={description} />
 		<meta name="generator" content={Astro.generator} />
 		<link rel="icon" type="image/svg+xml" href={faviconHref} />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 		<link
-			href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;1,300&display=swap"
 			rel="stylesheet"
 		/>
         <Analytics />
@@ -50,11 +52,22 @@ const faviconHref = `${import.meta.env.BASE_URL}favicon.svg`;
 				}
 
 				document.documentElement.setAttribute('data-theme', theme);
+				if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+					document.documentElement.classList.add('motion');
+				}
 			})();
 		</script>
 		<title>{pageTitle}</title>
 	</head>
 	<body class="landing">
+		<Fragment set:html={`<!--
+THESIS: The landing follows one highlight around the round trip, from the page where it was underlined to the recap that hands it back, instead of a hero, a feature grid and a pricing table.
+OWN-WORLD: Relego paper (#f7f1e8 / #120e0c), one terracotta accent (#b56b39 / #d4a05e), Playfair Display Light against a plain sans, hairline rules, a drawn e-ink reader, the highlighter sweep as the only ornament, one espresso night band for the journey.
+STORY: A self-hoster sees the mechanism, believes it stays on their hardware, and gets to a first recap in three steps.
+FIRST VIEWPORT: Serif wordmark and a highlighted line on the left, primary Get started below; a tilted e-ink reader on the right showing a recap with the highlight being marked.
+FORM: Follow one highlight, candidate 2 of the surface list; scroll-pinned journey as the signature interaction. Seed key: landing-follow-one-highlight.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->`} />
 		<slot />
 		<SpeedInsights />
 	</body>

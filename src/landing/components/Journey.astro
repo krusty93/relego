@@ -1,0 +1,775 @@
+---
+import Reader from './Reader.astro';
+
+const steps = [
+	{
+		title: 'Underlined on your reader',
+		text: 'You highlight a sentence on a Kindle or Kobo. The device quietly writes it to My Clippings.txt or KoboReader.sqlite, and that is usually the last you see of it.',
+	},
+	{
+		title: 'Imported to your server',
+		text: 'Plug the reader in over USB and upload the file in the web interface, or run relego import. The highlight lands in SQLite, on hardware you own.',
+	},
+	{
+		title: 'Chosen on schedule',
+		text: 'Every day at 18:00 by default, Relego picks five highlights by weight and by how long it has been since you last saw them.',
+	},
+	{
+		title: 'Back where you read',
+		text: 'Kindle readers get an EPUB through Send-to-Kindle. Kobo readers get the same recap as an HTML email. The next line you underline joins the same circuit.',
+	},
+];
+
+const queue = [
+	{ quote: 'I went to the woods because I wished to live deliberately…', book: 'Walden', weight: 4, seen: 'Never sent', pick: true },
+	{ quote: 'It is not down in any map; true places never are.', book: 'Moby-Dick', weight: 3, seen: '41 days ago', pick: true },
+	{ quote: 'I am no bird; and no net ensnares me.', book: 'Jane Eyre', weight: 2, seen: '6 days ago', pick: false },
+	{ quote: 'Whatever our souls are made of, his and mine are the same.', book: 'Wuthering Heights', weight: 5, seen: '23 days ago', pick: true },
+	{ quote: 'All happy families are alike…', book: 'Anna Karenina', weight: 3, seen: '2 days ago', pick: false },
+	{ quote: 'We are all in the gutter, but some of us are looking at the stars.', book: "Lady Windermere's Fan", weight: 4, seen: '58 days ago', pick: true },
+	{ quote: 'It was the best of times, it was the worst of times…', book: 'A Tale of Two Cities', weight: 2, seen: '77 days ago', pick: true },
+];
+
+// Ring geometry for the circuit indicator.
+const r = 44;
+const circumference = 2 * Math.PI * r;
+const nodes = [0, 1, 2, 3].map((i) => {
+	const angle = (i / 4) * Math.PI * 2 - Math.PI / 2;
+	return { x: 60 + r * Math.cos(angle), y: 60 + r * Math.sin(angle) };
+});
+---
+
+<section id="journey" class="journey" data-progress="enter" data-night>
+	<div class="journey__intro wrap">
+		<h2 class="headline" data-reveal>Follow <span>one highlight</span></h2>
+		<p class="lede" data-reveal style="--d:1">
+			Relego is a round trip. Scroll to watch a single sentence leave your reader, pass through a server you run, and come back to the same screen.
+		</p>
+	</div>
+
+	<div class="journey__track" data-progress="pin" data-stage="3">
+		<div class="journey__sticky">
+			<div class="journey__grid wrap">
+				<ol class="journey__steps">
+					{steps.map((step, i) => (
+						<li class="journey__step" data-step={i}>
+							<span class="journey__marker" aria-hidden="true">{i + 1}</span>
+							<div>
+								<h3>{step.title}</h3>
+								<p>{step.text}</p>
+							</div>
+						</li>
+					))}
+				</ol>
+
+				<div class="journey__stage" aria-hidden="true">
+					<svg class="journey__ring" viewBox="0 0 120 120">
+						<circle class="journey__ring-base" cx="60" cy="60" r={r} />
+						<circle
+							class="journey__ring-fill"
+							cx="60"
+							cy="60"
+							r={r}
+							style={`--c:${circumference.toFixed(2)}`}
+							transform="rotate(-90 60 60)"
+						/>
+						{nodes.map((n, i) => (
+							<circle class="journey__node" data-node={i} cx={n.x.toFixed(2)} cy={n.y.toFixed(2)} r="4.5" />
+						))}
+						<text x="60" y="66" class="journey__ring-label">relego.</text>
+					</svg>
+
+					<!-- Scene 0: the page where it was underlined -->
+					<div class="scene" data-scene="0">
+						<Reader class="scene__reader">
+							<div class="page">
+								<div class="page__running">Where I Lived, and What I Lived For</div>
+								<p>
+									The morning wind forever blows, the poem of creation is uninterrupted; but few are the ears that hear it.
+								</p>
+								<p>
+									<span class="page__mark">I went to the woods because I wished to live deliberately, to front only the 									essential facts of life,</span>{' '}
+									and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived.
+								</p>
+								<p>I did not wish to live what was not life, living is so dear.</p>
+								<div class="page__foot">Walden · Henry David Thoreau</div>
+							</div>
+						</Reader>
+					</div>
+
+					<!-- Scene 1: the file on the device, then the library on your server -->
+					<div class="scene" data-scene="1">
+						<div class="file">
+							<div class="file__bar">
+								<span>My Clippings.txt</span>
+								<span>Kindle · USB</span>
+							</div>
+							<pre class="file__body"><span class="file__dim">==========</span>
+Walden (Henry David Thoreau)
+<span class="file__dim">- Your Highlight on Location 1340-1342</span>
+
+<span class="file__hl">I went to the woods because I wished to
+live deliberately, to front only the
+essential facts of life,</span>
+<span class="file__dim">==========</span></pre>
+						</div>
+						<div class="lib">
+							<div class="lib__bar">
+								<span>Library</span>
+								<span class="lib__badge">1 new</span>
+							</div>
+							<div class="lib__row">
+								<span class="lib__book">Walden</span>
+								<span class="lib__author">Henry David Thoreau</span>
+								<span class="lib__count">1 highlight</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Scene 2: the scheduler picks -->
+					<div class="scene" data-scene="2">
+						<div class="queue">
+							<div class="queue__bar">
+								<span>Next recap</span>
+								<span>Daily · 18:00 · 5 highlights</span>
+							</div>
+							<ul>
+								{queue.map((item, i) => (
+									<li class:list={['queue__row', { 'queue__row--pick': item.pick }]} style={`--i:${i}`}>
+										<span class="queue__tick"></span>
+										<span class="queue__text">
+											<span class="queue__quote">{item.quote}</span>
+											<span class="queue__meta">{item.book} · {item.seen}</span>
+										</span>
+										<span class="queue__weight">
+											{[1, 2, 3, 4, 5].map((w) => (
+												<span class:list={{ on: w <= item.weight }}></span>
+											))}
+										</span>
+									</li>
+								))}
+							</ul>
+						</div>
+					</div>
+
+					<!-- Scene 3: back on the reader -->
+					<div class="scene" data-scene="3">
+						<Reader class="scene__reader">
+							<div class="page page--recap">
+								<div class="page__head">
+									<span class="page__logo">relego.</span>
+									<span>Send-to-Kindle · EPUB</span>
+								</div>
+								<div class="page__title">Your recap</div>
+								<p>
+									<span class="page__mark page__mark--full">I went to the woods because I wished to live deliberately, to front only the essential facts of life,</span>
+								</p>
+								<div class="page__foot">Walden · Henry David Thoreau</div>
+								<span class="page__rule"></span>
+								<p class="page__next">It is not down in any map; true places never are.</p>
+								<div class="page__foot">Moby-Dick · Herman Melville</div>
+							</div>
+						</Reader>
+					</div>
+
+					<div class="journey__caption">Sample data</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<script>
+	const track = document.querySelector<HTMLElement>('.journey__track');
+	if (track && document.documentElement.classList.contains('motion')) {
+		const steps = track.querySelectorAll<HTMLElement>('[data-step]');
+		let current = -1;
+
+		const render = (p: number) => {
+			const scaled = Math.min(3.999, p * 4);
+			const stage = Math.floor(scaled);
+			track.style.setProperty('--local', (scaled - stage).toFixed(3));
+			if (stage !== current) {
+				current = stage;
+				track.dataset.stage = String(stage);
+				steps.forEach((el, i) => {
+					el.classList.toggle('is-active', i === stage);
+					el.classList.toggle('is-past', i < stage);
+				});
+			}
+		};
+
+		track.addEventListener('relego:progress', (event) => {
+			render((event as CustomEvent<number>).detail);
+		});
+		render(0);
+	}
+</script>
+
+<style>
+	/* The night band: the one place the page turns to espresso, in both themes. */
+	.journey {
+		--color-bg: var(--night-bg);
+		--color-text: var(--night-text);
+		--color-soft: var(--night-soft);
+		--color-accent: var(--night-accent);
+		--color-border: var(--night-border);
+		--color-mark: rgba(212, 160, 94, 0.3);
+		position: relative;
+		background: var(--color-bg);
+		color: var(--color-text);
+		padding-top: clamp(5rem, 10vw, 8rem);
+	}
+
+	:global(.motion) .journey {
+		clip-path: inset(0 calc((1 - var(--p, 1)) * 3vw) round calc((1 - var(--p, 1)) * 2rem));
+	}
+
+	.journey__intro {
+		padding-bottom: 2rem;
+	}
+
+	.journey__track {
+		position: relative;
+	}
+
+	:global(.motion) .journey__track {
+		height: 420vh;
+	}
+
+	.journey__sticky {
+		padding-block: 3rem 5rem;
+	}
+
+	:global(.motion) .journey__sticky {
+		position: sticky;
+		top: 0;
+		height: 100svh;
+		padding-block: 4.5rem 1.5rem;
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+	}
+
+	.journey__grid {
+		display: grid;
+		gap: 2.5rem;
+		width: 100%;
+	}
+
+	/* Steps */
+	.journey__steps {
+		position: relative;
+		display: grid;
+		gap: 2rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.journey__step {
+		position: relative;
+		display: grid;
+		grid-template-columns: 2.25rem 1fr;
+		gap: 1.25rem;
+		transition:
+			opacity 0.6s var(--ease-out),
+			transform 0.8s var(--ease-out);
+	}
+
+	.journey__marker {
+		position: relative;
+		z-index: 1;
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 50%;
+		border: 1px solid var(--color-border);
+		background: var(--color-bg);
+		font-family: var(--font-display);
+		font-size: 1.05rem;
+		color: var(--color-soft);
+		transition:
+			background-color 0.5s var(--ease-out),
+			border-color 0.5s var(--ease-out),
+			color 0.5s var(--ease-out);
+	}
+
+	.journey__step h3 {
+		margin: 0.35rem 0 0.4rem;
+		font-size: 1.25rem;
+		font-weight: 600;
+		letter-spacing: -0.005em;
+		color: var(--color-text);
+	}
+
+	.journey__step p {
+		margin: 0;
+		max-width: 34rem;
+		line-height: 1.7;
+		color: var(--color-soft);
+	}
+
+	/* Dimmed with colour, never opacity, so every step keeps readable contrast. */
+	:global(.motion) .journey__step:not(.is-active) h3 {
+		color: var(--color-soft);
+	}
+
+	:global(.motion) .journey__step:not(.is-active) p {
+		color: color-mix(in srgb, var(--color-soft) 82%, var(--color-text));
+	}
+
+	.journey__step h3,
+	.journey__step p {
+		transition: color 0.5s var(--ease-out);
+	}
+
+	.journey__step.is-active .journey__marker,
+	.journey__step.is-past .journey__marker {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+
+	.journey__step.is-active .journey__marker {
+		background: var(--color-accent);
+		color: var(--color-bg);
+	}
+
+	/* Stage */
+	.journey__stage {
+		position: relative;
+		display: grid;
+		place-items: center;
+		min-height: 22rem;
+	}
+
+	.journey__ring {
+		position: absolute;
+		top: 0;
+		right: 0;
+		width: 5.5rem;
+		z-index: 2;
+	}
+
+	.journey__ring-base,
+	.journey__ring-fill {
+		fill: none;
+		stroke-width: 1;
+	}
+
+	.journey__ring-base {
+		stroke: var(--color-border);
+	}
+
+	.journey__ring-fill {
+		stroke: var(--color-accent);
+		stroke-width: 1.5;
+		stroke-dasharray: var(--c);
+		stroke-dashoffset: 0;
+	}
+
+	:global(.motion) .journey__ring-fill {
+		stroke-dashoffset: calc(var(--c) * (1 - var(--p, 0)));
+	}
+
+	.journey__node {
+		fill: var(--color-bg);
+		stroke: var(--color-accent);
+		stroke-width: 1.25;
+		transition: fill 0.4s var(--ease-out);
+	}
+
+	.journey__track[data-stage='0'] .journey__node[data-node='0'],
+	.journey__track[data-stage='1'] .journey__node:is([data-node='0'], [data-node='1']),
+	.journey__track[data-stage='2'] .journey__node:not([data-node='3']),
+	.journey__track[data-stage='3'] .journey__node {
+		fill: var(--color-accent);
+	}
+
+	.journey__ring-label {
+		font-family: var(--font-display);
+		font-size: 15px;
+		text-anchor: middle;
+		fill: var(--color-text);
+	}
+
+	.journey__caption {
+		position: absolute;
+		left: 0;
+		bottom: -0.25rem;
+		font-size: 0.75rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-soft);
+	}
+
+	.scene {
+		grid-area: 1 / 1;
+		display: grid;
+		place-items: center;
+		width: 100%;
+		transition:
+			opacity 0.7s var(--ease-out),
+			transform 0.9s var(--ease-out),
+			filter 0.7s var(--ease-out);
+	}
+
+	.journey__track:not([data-stage='0']) .scene[data-scene='0'],
+	.journey__track:not([data-stage='1']) .scene[data-scene='1'],
+	.journey__track:not([data-stage='2']) .scene[data-scene='2'],
+	.journey__track:not([data-stage='3']) .scene[data-scene='3'] {
+		opacity: 0;
+		transform: translate3d(0, 2rem, 0) scale(0.97);
+		filter: blur(8px);
+		pointer-events: none;
+	}
+
+	.scene :global(.scene__reader) {
+		max-width: min(19rem, 70vw);
+	}
+
+	/* Scene 0: book page */
+	.page {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		padding: 9% 9% 7%;
+		box-sizing: border-box;
+		font-family: Georgia, 'Times New Roman', serif;
+		font-size: clamp(0.66rem, 0.55rem + 0.3vw, 0.82rem);
+		line-height: 1.55;
+		color: var(--ink);
+	}
+
+	.page p {
+		margin: 0 0 0.9em;
+		text-indent: 1.2em;
+	}
+
+	.page__running {
+		margin-bottom: 1.4em;
+		text-align: center;
+		font-size: 0.78em;
+		font-style: italic;
+		color: var(--ink-soft);
+	}
+
+	.page__mark {
+		background-image: linear-gradient(rgba(43, 36, 32, 0.17), rgba(43, 36, 32, 0.17));
+		background-repeat: no-repeat;
+		background-size: 100% 100%;
+		box-decoration-break: clone;
+		-webkit-box-decoration-break: clone;
+	}
+
+	:global(.motion) .journey__track[data-stage='0'] .page__mark:not(.page__mark--full) {
+		background-size: calc(min(1, var(--local, 0) * 1.6) * 100%) 100%;
+	}
+
+	.page__foot {
+		margin-top: auto;
+		text-align: center;
+		font-family: var(--font-body);
+		font-size: 0.72em;
+		color: var(--ink-soft);
+	}
+
+	.page--recap p {
+		text-indent: 0;
+	}
+
+	.page--recap .page__foot {
+		margin-top: 0.4em;
+		text-align: left;
+	}
+
+	.page__head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		padding-bottom: 0.6em;
+		border-bottom: 1px solid rgba(43, 36, 32, 0.2);
+		font-family: var(--font-body);
+		font-size: 0.72em;
+		color: var(--ink-soft);
+	}
+
+	.page__logo {
+		font-family: var(--font-display);
+		font-size: 1.35em;
+		color: var(--ink);
+	}
+
+	.page__title {
+		margin: 1.1em 0 0.9em;
+		font-family: var(--font-display);
+		font-size: 1.9em;
+		line-height: 1.1;
+	}
+
+	.page__rule {
+		display: block;
+		margin: 1.2em 0;
+		height: 1px;
+		background: rgba(43, 36, 32, 0.16);
+	}
+
+	.page__next {
+		color: var(--ink-soft);
+	}
+
+	/* Scene 1: file and library */
+	.file,
+	.lib,
+	.queue {
+		width: min(100%, 28rem);
+		border: 1px solid var(--color-border);
+		border-radius: 0.6rem;
+		background: var(--night-panel);
+		overflow: hidden;
+	}
+
+	.file__bar,
+	.lib__bar,
+	.queue__bar {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.7rem 1rem;
+		border-bottom: 1px solid var(--color-border);
+		font-size: 0.75rem;
+		letter-spacing: 0.04em;
+		color: var(--color-soft);
+	}
+
+	.file__body {
+		margin: 0;
+		padding: 1rem 1rem 1.1rem;
+		font: 0.8rem/1.65 var(--font-mono);
+		color: var(--color-text);
+		white-space: pre-wrap;
+	}
+
+	.file__dim {
+		color: var(--color-soft);
+	}
+
+	.file__hl {
+		background: var(--color-mark);
+	}
+
+	.lib {
+		margin-top: 1rem;
+		transition:
+			transform 0.9s var(--ease-out),
+			opacity 0.6s var(--ease-out);
+	}
+
+	:global(.motion) .journey__track[data-stage='1'] .lib {
+		opacity: clamp(0, calc((var(--local, 0) - 0.25) * 4), 1);
+		transform: translate3d(0, calc((1 - clamp(0, calc((var(--local, 0) - 0.25) * 3), 1)) * 1.5rem), 0);
+	}
+
+	.lib__badge {
+		color: var(--color-accent);
+	}
+
+	.lib__row {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.15rem 1rem;
+		padding: 0.9rem 1rem;
+	}
+
+	.lib__book {
+		font-weight: 600;
+	}
+
+	.lib__author {
+		grid-row: 2;
+		font-size: 0.875rem;
+		color: var(--color-soft);
+	}
+
+	.lib__count {
+		grid-row: 1 / 3;
+		align-self: center;
+		font-size: 0.875rem;
+		font-variant-numeric: tabular-nums;
+		color: var(--color-soft);
+	}
+
+	/* Scene 2: the scheduler */
+	.queue ul {
+		margin: 0;
+		padding: 0.35rem 0;
+		list-style: none;
+	}
+
+	.queue__row {
+		display: grid;
+		grid-template-columns: 1rem 1fr auto;
+		align-items: center;
+		gap: 0.85rem;
+		padding: 0.55rem 1rem;
+		transition: opacity 0.5s var(--ease-out);
+	}
+
+	.queue__tick {
+		width: 0.85rem;
+		height: 0.85rem;
+		border: 1px solid var(--color-border);
+		border-radius: 50%;
+		transition:
+			background-color 0.4s var(--ease-out),
+			border-color 0.4s var(--ease-out),
+			box-shadow 0.4s var(--ease-out);
+	}
+
+	.queue__text {
+		display: grid;
+		min-width: 0;
+	}
+
+	.queue__quote {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		font-family: var(--font-display);
+		font-size: 0.95rem;
+	}
+
+	.queue__meta {
+		font-size: 0.75rem;
+		color: var(--color-soft);
+	}
+
+	.queue__weight {
+		display: flex;
+		gap: 0.2rem;
+	}
+
+	.queue__weight span {
+		width: 0.3rem;
+		height: 0.3rem;
+		border-radius: 50%;
+		background: var(--color-border);
+	}
+
+	.queue__weight span.on {
+		background: var(--color-soft);
+	}
+
+	.queue__row--pick .queue__tick {
+		border-color: var(--color-accent);
+		background: var(--color-accent);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent);
+	}
+
+	.queue__row:not(.queue__row--pick) {
+		opacity: 0.5;
+	}
+
+	:global(.motion) .journey__track[data-stage='2'] .queue__row--pick .queue__tick {
+		--on: clamp(0, calc(var(--local, 0) * 9 - var(--i)), 1);
+		background: color-mix(in srgb, var(--color-accent) calc(var(--on) * 100%), transparent);
+		box-shadow: 0 0 0 calc(var(--on) * 3px) color-mix(in srgb, var(--color-accent) 22%, transparent);
+	}
+
+	:global(.motion) .journey__track[data-stage='2'] .queue__row:not(.queue__row--pick) {
+		opacity: calc(1 - min(0.5, var(--local, 0) * 0.8));
+	}
+
+	.queue__row:first-child .queue__quote {
+		color: var(--color-accent);
+	}
+
+	@media (min-width: 60rem) {
+		.journey__grid {
+			grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+			align-items: center;
+			gap: 5rem;
+		}
+
+		.journey__steps::before {
+			content: '';
+			position: absolute;
+			top: 1.125rem;
+			bottom: 1.125rem;
+			left: 1.125rem;
+			width: 1px;
+			background: var(--color-border);
+		}
+
+		.journey__steps::after {
+			content: '';
+			position: absolute;
+			top: 1.125rem;
+			bottom: 1.125rem;
+			left: 1.125rem;
+			width: 1px;
+			background: var(--color-accent);
+			transform-origin: top;
+			transform: scaleY(var(--p, 1));
+		}
+
+		.journey__stage {
+			min-height: 34rem;
+		}
+
+		.scene :global(.scene__reader) {
+			max-width: 21rem;
+		}
+	}
+
+	/* Small screens: stage on top, one step at a time underneath. */
+	@media (max-width: 59.99rem) {
+		:global(.motion) .journey__grid {
+			grid-template-rows: auto auto;
+			gap: 1.5rem;
+		}
+
+		:global(.motion) .journey__stage {
+			order: -1;
+			min-height: 0;
+			height: 52svh;
+		}
+
+		:global(.motion) .journey__stage .scene :global(.scene__reader) {
+			max-width: min(15rem, 30svh);
+		}
+
+		:global(.motion) .journey__steps {
+			display: grid;
+		}
+
+		:global(.motion) .journey__step {
+			grid-area: 1 / 1;
+		}
+
+		:global(.motion) .journey__step:not(.is-active) {
+			opacity: 0;
+			transform: translateY(0.75rem);
+			pointer-events: none;
+		}
+
+		.journey__ring {
+			width: 4rem;
+		}
+
+		:global(.motion) .journey__stage {
+			padding-top: 4.5rem;
+		}
+
+		.file,
+		.lib,
+		.queue {
+			font-size: 0.9em;
+		}
+
+		:global(.motion) .queue__row {
+			padding-block: 0.35rem;
+		}
+	}
+</style>
