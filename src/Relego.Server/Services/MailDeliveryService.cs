@@ -44,23 +44,27 @@ public sealed class MailDeliveryService(
 
     public async Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default, SmtpSettings? smtpSettings = null)
     {
-        using var message = new MimeMessage();
-        message.To.Add(MailboxAddress.Parse(toAddress));
-        message.Subject = "Relego - Test Email";
-        message.Body = new TextPart("plain")
-        {
-            Text = "This is a test email from Relego. If you received this, your SMTP configuration is working correctly."
-        };
-
-        await SendEmailAsync(message, cancellationToken, smtpSettings);
+        var (htmlBody, plainTextBody) = HtmlEmailComposer.ComposeTest(DateTimeOffset.Now);
+        await SendHtmlEmailAsync(toAddress, htmlBody, plainTextBody, "Relego - Test Email", cancellationToken, smtpSettings);
     }
 
-    public async Task SendHtmlRecapAsync(
+    public Task SendHtmlRecapAsync(
         string toAddress,
         string htmlBody,
         string plainTextBody,
         string subject = "Your Relego Recap",
         CancellationToken cancellationToken = default)
+    {
+        return SendHtmlEmailAsync(toAddress, htmlBody, plainTextBody, subject, cancellationToken, null);
+    }
+
+    private async Task SendHtmlEmailAsync(
+        string toAddress,
+        string htmlBody,
+        string plainTextBody,
+        string subject,
+        CancellationToken cancellationToken,
+        SmtpSettings? smtpSettings)
     {
         var bodyBuilder = new BodyBuilder
         {
@@ -73,7 +77,7 @@ public sealed class MailDeliveryService(
         message.Subject = subject;
         message.Body = bodyBuilder.ToMessageBody();
 
-        await SendEmailAsync(message, cancellationToken);
+        await SendEmailAsync(message, cancellationToken, smtpSettings);
 
         logger.LogInformation("HTML recap sent to {ToAddress}", toAddress);
     }

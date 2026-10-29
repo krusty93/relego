@@ -127,8 +127,8 @@ public static partial class SettingsEndpoints
             }
         })
         .WithTags("Settings")
-        .WithSummary("Send a plain-text test email to the Kindle address.")
-        .WithDescription("Tests the supplied toAddress without saving it. Omit the body to test the saved Kindle address. Uses the effective SMTP configuration.")
+        .WithSummary("Send a formatted test recap to the Kindle address.")
+        .WithDescription("Sends a sample recap using the Relego HTML email format and plain-text fallback. Tests the supplied toAddress without saving it. Omit the body to test the saved Kindle address. Uses the effective SMTP configuration.")
         .Accepts<DeliveryTestRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
@@ -169,8 +169,8 @@ public static partial class SettingsEndpoints
             }
         })
         .WithTags("Settings")
-        .WithSummary("Send a plain-text test email to the regular recap address.")
-        .WithDescription("Tests the supplied toAddress without saving it. Omit the body to test the saved delivery address. Uses the effective SMTP configuration.")
+        .WithSummary("Send a formatted test recap to the regular recap address.")
+        .WithDescription("Sends a sample recap using the Relego HTML email format and plain-text fallback. Tests the supplied toAddress without saving it. Omit the body to test the saved delivery address. Uses the effective SMTP configuration.")
         .Accepts<DeliveryTestRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)

@@ -23,6 +23,18 @@ public sealed class HtmlEmailComposerTests
     }
 
     [Fact]
+    public void ComposeTest_UsesBrandedSampleRecapInBothFormats()
+    {
+        var (htmlBody, plainTextBody) = HtmlEmailComposer.ComposeTest(RecapDate);
+
+        Assert.Contains("Relego", htmlBody);
+        Assert.Contains("The Art of Reading", htmlBody);
+        Assert.Contains("This is a sample highlight to preview your Relego recap email.", htmlBody);
+        Assert.Contains("The Art of Reading", plainTextBody);
+        Assert.Contains("This is a sample highlight to preview your Relego recap email.", plainTextBody);
+    }
+
+    [Fact]
     public void Compose_HtmlBody_ContainsRequiredElements()
     {
         var (htmlBody, _) = HtmlEmailComposer.Compose(SampleHighlights, RecapDate);

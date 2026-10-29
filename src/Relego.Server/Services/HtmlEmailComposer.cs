@@ -8,6 +8,16 @@ public static class HtmlEmailComposer
     private const int PlainTextMaxLength = 2000;
     private const string AccentHex = "#b56b39";
 
+    private static readonly IReadOnlyList<SelectionCandidate> TestHighlights =
+    [
+        new(0, "This is a sample highlight to preview your Relego recap email.", "The Art of Reading", "A. Reader", 0, null, DateTimeOffset.UnixEpoch, 0),
+    ];
+
+    public static (string HtmlBody, string PlainTextBody) ComposeTest(DateTimeOffset recapDate)
+    {
+        return Compose(TestHighlights, recapDate);
+    }
+
     public static (string HtmlBody, string PlainTextBody) Compose(
         IReadOnlyList<SelectionCandidate> highlights,
         DateTimeOffset recapDate)
