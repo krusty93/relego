@@ -119,7 +119,7 @@ public static partial class SmtpSettingsEndpoints
         .WithTags("Settings")
         .WithSummary("Send a test message using saved or unsaved mail server settings.")
         .WithDescription(
-            "Tests optional settings overrides without persisting them. An omitted password keeps the effective secret. " +
+            "Sends a sample recap using the Relego HTML email format and plain-text fallback. Tests optional settings overrides without persisting them. An omitted password keeps the effective secret. " +
             "Omit settings to test the effective configuration. Defaults to the " +
             "configured delivery email, then the Kindle email, then the sender address.")
         .Accepts<SmtpTestRequest>("application/json")
