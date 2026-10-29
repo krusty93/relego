@@ -308,7 +308,7 @@ test.describe("sync", () => {
       "href", "https://chromewebstore.google.com/detail/relego",
     );
     await expect(page.getByRole("link", { name: "Firefox Add-ons" })).toHaveAttribute(
-      "href", "https://addons.mozilla.org/en-US/firefox/search/?q=relego",
+      "href", "https://addons.mozilla.org/en-US/firefox/addon/relego/",
     );
     await expect(page.getByRole("link", { name: "GitHub releases" })).toHaveAttribute(
       "href", "https://github.com/krusty93/relego/releases",
