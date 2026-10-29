@@ -93,7 +93,7 @@ public sealed class MailDeliveryService(
             // implicit TLS on 465, STARTTLS on 587 when the server advertises it, and plain
             // on 25 / 2525 for a local relay such as smtp4dev. Forcing SSL-on-connect here
             // fails against 587, which is the most common submission port there is.
-            await client.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.None, cancellationToken)
+            await client.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.Auto, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(settings.Username))
