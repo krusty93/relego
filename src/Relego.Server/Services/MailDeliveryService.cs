@@ -1,4 +1,4 @@
-using MailKit.Net.Smtp;
+﻿using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
 using Relego.Server.Infrastructure.Smtp;
@@ -42,7 +42,7 @@ public sealed class MailDeliveryService(
         await SendEmailAsync(message, cancellationToken);
     }
 
-    public async Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
+    public async Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default, SmtpSettings? smtpSettings = null)
     {
         using var message = new MimeMessage();
         message.To.Add(MailboxAddress.Parse(toAddress));
@@ -52,7 +52,7 @@ public sealed class MailDeliveryService(
             Text = "This is a test email from Relego. If you received this, your SMTP configuration is working correctly."
         };
 
-        await SendEmailAsync(message, cancellationToken);
+        await SendEmailAsync(message, cancellationToken, smtpSettings);
     }
 
     public async Task SendHtmlRecapAsync(
@@ -80,9 +80,9 @@ public sealed class MailDeliveryService(
 
     // The sender address and credentials are resolved per send so a change saved from a
     // client takes effect immediately, without restarting the server.
-    private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken)
+    private async Task SendEmailAsync(MimeMessage message, CancellationToken cancellationToken, SmtpSettings? smtpSettings = null)
     {
-        var settings = (await configuration.GetEffectiveAsync().ConfigureAwait(false)).Settings;
+        var settings = smtpSettings ?? (await configuration.GetEffectiveAsync().ConfigureAwait(false)).Settings;
         message.From.Add(new MailboxAddress("Relego", settings.FromAddress));
 
         using var client = new SmtpClient();
@@ -93,7 +93,7 @@ public sealed class MailDeliveryService(
             // implicit TLS on 465, STARTTLS on 587 when the server advertises it, and plain
             // on 25 / 2525 for a local relay such as smtp4dev. Forcing SSL-on-connect here
             // fails against 587, which is the most common submission port there is.
-            await client.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.Auto, cancellationToken)
+            await client.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.None, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(settings.Username))

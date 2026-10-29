@@ -79,6 +79,12 @@ public sealed record SmtpTestResponse
 public sealed record SmtpTestRequest
 {
     /// <summary>
+    /// Unsaved overrides to test without persisting. Omit to use the effective configuration.
+    /// An omitted password keeps the effective secret; an empty password tests without it.
+    /// </summary>
+    public UpdateSmtpSettingsRequest? Settings { get; set; }
+
+    /// <summary>
     /// Address to send the test message to. Defaults to the configured delivery email,
     /// then the Kindle email, then the sender address.
     /// </summary>

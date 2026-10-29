@@ -33,7 +33,7 @@ public sealed record UpdateSettingsRequest
 
     /// <summary>
     /// Send-to-Kindle email address for recap delivery.
-    /// Omit to keep the current value.
+    /// Omit to keep the current value; pass an empty string to clear it.
     /// </summary>
     public string? KindleEmail { get; set; }
 

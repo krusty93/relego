@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { InfoIcon } from "../components/icons";
+import { useEffect, useRef, useState } from "react";
+import { CheckIcon, CrossIcon, InfoIcon } from "../components/icons";
 import { ThemeSwitch } from "../components/ThemeSwitch";
 import { ErrorNote, Tag } from "../components/ui";
 import { api, ApiError } from "../lib/api";
@@ -10,14 +10,13 @@ import type {
   SettingsResponse,
   SmtpSettingsResponse,
   UpdateSettingsRequest,
+  UpdateSmtpSettingsRequest,
 } from "../lib/types";
 
 const SECTIONS = [
   { id: "s-conn", label: "Connection" },
   { id: "s-appearance", label: "Appearance" },
-  { id: "s-schedule", label: "When recaps go out" },
-  { id: "s-delivery", label: "Where recaps go" },
-  { id: "s-smtp", label: "Email server" },
+  { id: "s-recaps", label: "Recaps" },
 ] as const;
 
 function looksLikeEmail(value: string): boolean {
@@ -32,6 +31,55 @@ function looksLikeEmail(value: string): boolean {
 function isKindleAddress(value: string): boolean {
   const domain = value.trim().toLowerCase().split("@")[1];
   return domain === "kindle.com" || domain?.endsWith(".kindle.com") === true;
+}
+
+interface TestResult {
+  success: boolean;
+  message: string;
+}
+
+function useSettingsTest<T>(send: (values: T) => Promise<string>) {
+  const { push } = useToasts();
+  const revision = useRef(0);
+  const [result, setResult] = useState<TestResult | null>(null);
+  const test = useMutation({
+    mutationFn: send,
+    onMutate: () => {
+      setResult(null);
+      return revision.current;
+    },
+    onSuccess: (message, _values, testedRevision) => {
+      if (testedRevision !== revision.current) return;
+      setResult({ success: true, message });
+      push(message);
+    },
+    onError: (error, _values, testedRevision) => {
+      if (testedRevision !== revision.current) return;
+      const message = error instanceof Error ? error.message : "The test failed. Try again.";
+      setResult({ success: false, message });
+      push(message, { tone: "bad" });
+    },
+  });
+
+  function invalidate() {
+    revision.current += 1;
+    setResult(null);
+  }
+
+  return { test, result, invalidate };
+}
+
+function TestStatus({ result }: { result: TestResult | null }) {
+  return (
+    <div role="status" className="test-result" data-tone={result?.success ? "ok" : "bad"}>
+      {result ? (
+        <>
+          {result.success ? <CheckIcon /> : <CrossIcon />}
+          <span>{result.success ? "Test succeeded" : "Test failed"}: {result.message}</span>
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 export function SettingsPage() {
@@ -95,9 +143,14 @@ export function SettingsPage() {
             </div>
           </section>
 
-          <SchedulePanel />
-          <DeliveryPanel />
-          <SmtpPanel />
+          <section className="panel" id="s-recaps" aria-labelledby="recaps-heading">
+            <header>
+              <h2 id="recaps-heading">Recaps</h2>
+            </header>
+            <SchedulePanel />
+            <SmtpPanel />
+            <DeliveryPanel />
+          </section>
         </div>
       </div>
     </section>
@@ -132,7 +185,7 @@ function useSettingsForm() {
 }
 
 function DeliveryPanel() {
-  const { query, save, push } = useSettingsForm();
+  const { query, save } = useSettingsForm();
   const [kindleEmail, setKindleEmail] = useState("");
   const [deliveryEmail, setDeliveryEmail] = useState("");
   const [touched, setTouched] = useState(false);
@@ -141,7 +194,7 @@ function DeliveryPanel() {
     if (!query.data) return;
     setKindleEmail(query.data.kindleEmail ?? "");
     setDeliveryEmail(query.data.deliveryEmail ?? "");
-  }, [query.data]);
+  }, [query.data?.kindleEmail, query.data?.deliveryEmail]);
 
   const kindleValid = looksLikeEmail(kindleEmail) && isKindleAddress(kindleEmail);
 
@@ -158,31 +211,39 @@ function DeliveryPanel() {
       ? "That doesn't look like an email address. It needs a domain, like me@inbox.com."
       : null;
 
-  const test = useMutation({
-    mutationFn: (which: "kindle" | "inbox") =>
-      which === "kindle" ? api.testKindleEmail() : api.testRecapEmail(),
-    onSuccess: () => push("Test email sent."),
-    onError: (error) =>
-      push(error instanceof Error ? error.message : "Could not send the test email.", {
-        tone: "bad",
-      }),
+  const kindleTest = useSettingsTest(async (address: string) => {
+    await api.testKindleEmail(address);
+    return "Test email sent.";
   });
+  const inboxTest = useSettingsTest(async (address: string) => {
+    await api.testRecapEmail(address);
+    return "Test email sent.";
+  });
+  const kindleChanged = kindleEmail.trim() !== (query.data?.kindleEmail ?? "");
+  const inboxChanged = deliveryEmail.trim() !== (query.data?.deliveryEmail ?? "");
+  const canSave = query.isSuccess && (kindleChanged || inboxChanged) &&
+    (!kindleEmail.trim() || kindleValid) &&
+    (!deliveryEmail.trim() || looksLikeEmail(deliveryEmail)) &&
+    (!kindleChanged || !kindleEmail.trim() || kindleTest.result?.success === true) &&
+    (!inboxChanged || !deliveryEmail.trim() || inboxTest.result?.success === true) &&
+    !kindleTest.test.isPending && !inboxTest.test.isPending && !save.isPending;
 
   return (
-    <section className="panel" id="s-delivery">
+    <section className="settings-section" id="s-delivery">
       <header>
-        <h2>Where recaps go</h2>
+        <h3>Where recaps go</h3>
         <p>
           Set at least one destination. Your reader gets an EPUB via Send-to-Kindle; your inbox
           gets an HTML email.
         </p>
+        <p>Test each changed address before saving. Tests use your saved email server settings and do not save changes.</p>
       </header>
 
       <form
         onSubmit={(event) => {
           event.preventDefault();
           setTouched(true);
-          if (kindleError || inboxError) return;
+          if (!canSave) return;
           save.mutate({ kindleEmail: kindleEmail.trim(), deliveryEmail: deliveryEmail.trim() });
         }}
       >
@@ -194,20 +255,25 @@ function DeliveryPanel() {
               id="kindle"
               type="email"
               value={kindleEmail}
+              disabled={save.isPending}
               aria-invalid={kindleError ? true : undefined}
               aria-describedby={kindleError ? "kindle-err" : "kindle-help"}
-              onChange={(event) => setKindleEmail(event.target.value)}
+              onChange={(event) => {
+                setKindleEmail(event.target.value);
+                kindleTest.invalidate();
+              }}
               onBlur={() => setTouched(true)}
             />
             <button
               className="btn"
               type="button"
-              disabled={!kindleValid || test.isPending}
-              onClick={() => test.mutate("kindle")}
+              disabled={!query.isSuccess || !kindleValid || kindleTest.test.isPending || save.isPending}
+              onClick={() => kindleTest.test.mutate(kindleEmail.trim())}
             >
-              Send test
+              {kindleTest.test.isPending ? "Sending…" : "Send test"}
             </button>
           </div>
+          <TestStatus result={kindleTest.result} />
           {kindleError ? (
             <span className="err" id="kindle-err">
               {kindleError}
@@ -228,20 +294,25 @@ function DeliveryPanel() {
               id="inbox"
               type="email"
               value={deliveryEmail}
+              disabled={save.isPending}
               aria-invalid={inboxError ? true : undefined}
               aria-describedby={inboxError ? "inbox-err" : "inbox-help"}
-              onChange={(event) => setDeliveryEmail(event.target.value)}
+              onChange={(event) => {
+                setDeliveryEmail(event.target.value);
+                inboxTest.invalidate();
+              }}
               onBlur={() => setTouched(true)}
             />
             <button
               className="btn"
               type="button"
-              disabled={!looksLikeEmail(deliveryEmail) || test.isPending}
-              onClick={() => test.mutate("inbox")}
+              disabled={!query.isSuccess || !looksLikeEmail(deliveryEmail) || inboxTest.test.isPending || save.isPending}
+              onClick={() => inboxTest.test.mutate(deliveryEmail.trim())}
             >
-              Send test
+              {inboxTest.test.isPending ? "Sending…" : "Send test"}
             </button>
           </div>
+          <TestStatus result={inboxTest.result} />
           {inboxError ? (
             <span className="err" id="inbox-err">
               {inboxError}
@@ -254,7 +325,7 @@ function DeliveryPanel() {
         </div>
 
         <div className="inline dialog-actions">
-          <button className="btn btn--primary" type="submit" disabled={save.isPending}>
+          <button className="btn btn--primary" type="submit" disabled={!canSave}>
             {save.isPending ? "Saving…" : "Save changes"}
           </button>
         </div>
@@ -282,9 +353,9 @@ function SchedulePanel() {
 
   if (!form) {
     return (
-      <section className="panel" id="s-schedule">
+      <section className="settings-section" id="s-schedule">
         <header>
-          <h2>When recaps go out</h2>
+          <h3>When recaps go out</h3>
         </header>
         <div className="skel" style={{ width: "60%" }} />
       </section>
@@ -294,9 +365,9 @@ function SchedulePanel() {
   const countValid = form.count >= 1 && form.count <= 15;
 
   return (
-    <section className="panel" id="s-schedule">
+    <section className="settings-section" id="s-schedule">
       <header>
-        <h2>When recaps go out</h2>
+        <h3>When recaps go out</h3>
       </header>
 
       <form
@@ -404,6 +475,11 @@ function SmtpPanel() {
     "host" | "port" | "fromAddress" | "username"
   > | null>(null);
   const [password, setPassword] = useState("");
+  const verification = useSettingsTest(async (settings: UpdateSmtpSettingsRequest) => {
+    const result = await api.testSmtp(settings);
+    if (!result.success) throw new Error(result.message);
+    return result.message;
+  });
 
   useEffect(() => {
     if (!query.data) return;
@@ -426,6 +502,7 @@ function SmtpPanel() {
     onSuccess: (data) => {
       queryClient.setQueryData(["smtp"], data);
       setPassword("");
+      verification.invalidate();
       push("Email server settings saved.");
     },
     onError: (error) =>
@@ -434,24 +511,16 @@ function SmtpPanel() {
       }),
   });
 
-  const test = useMutation({
-    mutationFn: () => api.testSmtp(),
-    onSuccess: (result) =>
-      push(result.message, { tone: result.success ? "ok" : "bad" }),
-    onError: (error) =>
-      push(error instanceof Error ? error.message : "The connection test failed.", {
-        tone: "bad",
-      }),
-  });
-
   const fieldError = (name: string) =>
-    save.error instanceof ApiError ? save.error.field(name) : undefined;
+    verification.result?.success === false && verification.test.error instanceof ApiError
+      ? verification.test.error.field(name)
+      : save.error instanceof ApiError ? save.error.field(name) : undefined;
 
   if (query.isError) {
     return (
-      <section className="panel" id="s-smtp">
+      <section className="settings-section" id="s-smtp">
         <header>
-          <h2>Email server</h2>
+          <h3>Email server</h3>
         </header>
         <ErrorNote
           message={query.error instanceof Error ? query.error.message : "Could not load settings."}
@@ -463,9 +532,9 @@ function SmtpPanel() {
 
   if (!form) {
     return (
-      <section className="panel" id="s-smtp">
+      <section className="settings-section" id="s-smtp">
         <header>
-          <h2>Email server</h2>
+          <h3>Email server</h3>
         </header>
         <div className="skel" style={{ width: "60%" }} />
       </section>
@@ -473,12 +542,19 @@ function SmtpPanel() {
   }
 
   const fromEnvironment = query.data?.source === "environment";
+  const valid = !!form.host.trim() && Number.isInteger(form.port) &&
+    form.port >= 1 && form.port <= 65535 && looksLikeEmail(form.fromAddress);
+  const changed = form.host !== query.data?.host || form.port !== query.data?.port ||
+    form.fromAddress !== query.data?.fromAddress || form.username !== query.data?.username ||
+    password !== "";
+  const canSave = valid && (changed || fromEnvironment) && verification.result?.success === true &&
+    !verification.test.isPending && !save.isPending;
 
   return (
-    <section className="panel" id="s-smtp">
+    <section className="settings-section" id="s-smtp">
       <header>
-        <h2>Email server</h2>
-        <p>How Relego actually sends mail.</p>
+        <h3>Email server</h3>
+        <p>Test your changes before saving. The connection test sends a message without saving these settings.</p>
       </header>
 
       {fromEnvironment ? (
@@ -494,8 +570,9 @@ function SmtpPanel() {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          save.mutate();
+          if (canSave) save.mutate();
         }}
+        onChange={() => verification.invalidate()}
       >
         <div className="row">
           <div className="field">
@@ -507,6 +584,7 @@ function SmtpPanel() {
               className="control"
               id="host"
               value={form.host}
+              disabled={save.isPending}
               aria-invalid={fieldError("host") ? true : undefined}
               {...(fieldError("host") ? { "aria-describedby": "host-err" } : {})}
               onChange={(event) => setForm({ ...form, host: event.target.value })}
@@ -527,6 +605,7 @@ function SmtpPanel() {
               min={1}
               max={65535}
               value={form.port}
+              disabled={save.isPending}
               onChange={(event) => setForm({ ...form, port: Number(event.target.value) })}
             />
           </div>
@@ -540,6 +619,7 @@ function SmtpPanel() {
               id="user"
               autoComplete="username"
               value={form.username}
+              disabled={save.isPending}
               onChange={(event) => setForm({ ...form, username: event.target.value })}
             />
           </div>
@@ -553,6 +633,7 @@ function SmtpPanel() {
               autoComplete="current-password"
               placeholder={query.data?.passwordSet ? "Saved — leave blank to keep" : "Not set"}
               value={password}
+              disabled={save.isPending}
               aria-describedby="pass-help"
               onChange={(event) => setPassword(event.target.value)}
             />
@@ -569,6 +650,7 @@ function SmtpPanel() {
             id="from"
             type="email"
             value={form.fromAddress}
+            disabled={save.isPending}
             aria-invalid={fieldError("fromAddress") ? true : undefined}
             {...(fieldError("fromAddress") ? { "aria-describedby": "from-err" } : {})}
             onChange={(event) => setForm({ ...form, fromAddress: event.target.value })}
@@ -581,18 +663,22 @@ function SmtpPanel() {
         </div>
 
         <div className="inline dialog-actions">
-          <button className="btn btn--primary" type="submit" disabled={save.isPending}>
+          <button className="btn btn--primary" type="submit" disabled={!canSave}>
             {save.isPending ? "Saving…" : "Save changes"}
           </button>
           <button
             className="btn"
             type="button"
-            onClick={() => test.mutate()}
-            disabled={test.isPending}
+            onClick={() => verification.test.mutate({
+              ...form,
+              ...(password ? { password } : {}),
+            })}
+            disabled={!valid || verification.test.isPending || save.isPending}
           >
-            {test.isPending ? "Testing…" : "Test connection"}
+            {verification.test.isPending ? "Testing…" : "Test connection"}
           </button>
         </div>
+        <TestStatus result={verification.result} />
       </form>
     </section>
   );

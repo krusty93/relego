@@ -113,6 +113,7 @@ relego config count 8
 | Command | Accepted parameters | Result |
 | --- | --- | --- |
 | `relego config email kindle <address>` | Valid Send-to-Kindle email address | Sends an EPUB to the Kindle address |
+| `relego config email kindle ""` | Empty string | Clears the Kindle destination, preserving the inbox address |
 | `relego config email inbox <address>` | Valid email address | Sends an HTML recap to this inbox, including Kobo's normal delivery route |
 | `relego config email inbox ""` | Empty string | Clears the inbox destination |
 | `relego recap trigger` | None | Sends a recap immediately without changing the schedule |

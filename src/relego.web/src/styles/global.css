@@ -1037,23 +1037,33 @@ td {
   margin-bottom: var(--sp-4);
 }
 
-.panel > header {
+.panel > header,
+.settings-section > header {
   margin-bottom: var(--sp-4);
 }
 
-.panel h2 {
+.panel h2,
+.settings-section h3 {
   font-size: var(--t-md);
 }
 
-.panel > header p {
+.panel > header p,
+.settings-section > header p {
   color: var(--ink-muted);
   font-size: var(--t-sm);
   margin-top: var(--sp-0);
   max-width: 62ch;
 }
 
-.settings .panel > header > p {
+.settings .panel > header > p,
+.settings-section > header > p {
   max-width: none;
+}
+
+.settings-section + .settings-section {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--border);
 }
 
 .field {
@@ -1133,6 +1143,35 @@ select.control {
 
 .inline .control {
   flex: 1 1 150px;
+}
+
+.test-result {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  font-size: var(--t-sm);
+  overflow-wrap: anywhere;
+}
+
+.test-result:empty {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.test-result[data-tone="ok"] {
+  color: var(--success);
+}
+
+.test-result[data-tone="bad"] {
+  color: var(--danger);
+}
+
+.test-result svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
 
 .env-badge {

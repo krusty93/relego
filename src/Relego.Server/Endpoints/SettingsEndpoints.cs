@@ -47,7 +47,8 @@ public static partial class SettingsEndpoints
             if (request.Count is < 1 or > 15)
                 errors["count"] = ["Count must be between 1 and 15."];
 
-            if (request.KindleEmail is not null && !IsValidEmail(request.KindleEmail, out normalizedKindleEmail))
+            if (request.KindleEmail is not null && !string.IsNullOrWhiteSpace(request.KindleEmail) &&
+                !IsValidEmail(request.KindleEmail, out normalizedKindleEmail))
                 errors["kindleEmail"] = ["Invalid email format."];
 
             string? normalizedDeliveryEmail = null;
@@ -92,21 +93,22 @@ public static partial class SettingsEndpoints
         .Produces<SettingsResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
-        app.MapPost("/settings/test-kindle-email", async ([FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
+        app.MapPost("/settings/test-kindle-email", async (DeliveryTestRequest? request, [FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
         {
             var userId = await userRepo.EnsureUserAsync();
             var user = await userRepo.GetByIdAsync(userId);
 
-            if (string.IsNullOrWhiteSpace(user.KindleEmail))
+            var toAddress = request is null ? user.KindleEmail : request.ToAddress;
+            if (toAddress is null || !IsValidEmail(toAddress, out toAddress))
             {
                 return Results.ValidationProblem(
-                    new Dictionary<string, string[]> { { "kindleEmail", ["Kindle email must be configured before sending a test email."] } },
+                    new Dictionary<string, string[]> { { "kindleEmail", ["Provide a valid Kindle email address before sending a test email."] } },
                     statusCode: StatusCodes.Status422UnprocessableEntity);
             }
 
             try
             {
-                await mailService.SendTestEmailAsync(user.KindleEmail);
+                await mailService.SendTestEmailAsync(toAddress);
                 return Results.Ok(new { message = "Test email sent successfully." });
             }
             catch (Exception ex) when (IsSmtpException(ex))
@@ -126,27 +128,29 @@ public static partial class SettingsEndpoints
         })
         .WithTags("Settings")
         .WithSummary("Send a plain-text test email to the Kindle address.")
-        .WithDescription("Sends a simple verification email to the configured Kindle email address without generating a recap.")
+        .WithDescription("Tests the supplied toAddress without saving it. Omit the body to test the saved Kindle address. Uses the effective SMTP configuration.")
+        .Accepts<DeliveryTestRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status502BadGateway)
         .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/settings/test-recap-email", async ([FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
+        app.MapPost("/settings/test-recap-email", async (DeliveryTestRequest? request, [FromServices] UserRepository userRepo, [FromServices] IMailDeliveryService mailService) =>
         {
             var userId = await userRepo.EnsureUserAsync();
             var user = await userRepo.GetByIdAsync(userId);
 
-            if (string.IsNullOrWhiteSpace(user.DeliveryEmail))
+            var toAddress = request is null ? user.DeliveryEmail : request.ToAddress;
+            if (toAddress is null || !IsValidEmail(toAddress, out toAddress))
             {
                 return Results.ValidationProblem(
-                    new Dictionary<string, string[]> { { "deliveryEmail", ["Delivery email must be configured before sending a test email."] } },
+                    new Dictionary<string, string[]> { { "deliveryEmail", ["Provide a valid delivery email address before sending a test email."] } },
                     statusCode: StatusCodes.Status422UnprocessableEntity);
             }
 
             try
             {
-                await mailService.SendTestEmailAsync(user.DeliveryEmail);
+                await mailService.SendTestEmailAsync(toAddress);
                 return Results.Ok(new { message = "Test email sent successfully." });
             }
             catch (Exception ex) when (IsSmtpException(ex))
@@ -166,7 +170,8 @@ public static partial class SettingsEndpoints
         })
         .WithTags("Settings")
         .WithSummary("Send a plain-text test email to the regular recap address.")
-        .WithDescription("Sends a simple verification email to the configured delivery email address without generating a recap.")
+        .WithDescription("Tests the supplied toAddress without saving it. Omit the body to test the saved delivery address. Uses the effective SMTP configuration.")
+        .Accepts<DeliveryTestRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status502BadGateway)
@@ -189,8 +194,8 @@ public static partial class SettingsEndpoints
         settings.DeliveryTime = normalizedDeliveryTime ?? settings.DeliveryTime;
         settings.Count = request.Count ?? settings.Count;
         settings.Timezone = request.Timezone?.Trim() ?? settings.Timezone;
-        user.KindleEmail = normalizedKindleEmail ?? user.KindleEmail;
-        user.DeliveryEmail = normalizedDeliveryEmail ?? user.DeliveryEmail;
+        user.KindleEmail = request.KindleEmail is null ? user.KindleEmail : normalizedKindleEmail ?? string.Empty;
+        user.DeliveryEmail = normalizedDeliveryEmail;
     }
 
     private static SettingsResponse ToSettingsResponse(User user, Settings settings)
@@ -257,6 +262,7 @@ public static partial class SettingsEndpoints
     {
         MailKit.Net.Smtp.SmtpCommandException or
         MailKit.Net.Smtp.SmtpProtocolException or
+        MailKit.Security.AuthenticationException or
         System.Net.Sockets.SocketException or
         IOException => true,
         _ => false
