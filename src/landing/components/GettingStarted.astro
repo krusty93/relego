@@ -1,106 +1,347 @@
 ---
-interface Step {
-	number: number;
-	title: string;
-	description: string;
-	content: string;
-}
-
-interface Props {
-	steps: Step[];
-}
-
-const { steps } = Astro.props;
+const steps = [
+	{
+		title: 'Import your highlights',
+		summary: 'From a Kindle or a Kobo, over USB.',
+		body: 'Connect your reader and upload My Clippings.txt or KoboReader.sqlite in the web interface, or import from the CLI. Import again whenever you like: duplicates are skipped.',
+		lines: [
+			{ prompt: true, text: 'docker compose --profile app up -d' },
+			{ prompt: true, text: 'relego import /media/Kindle/documents/My\\ Clippings.txt' },
+			{ prompt: false, text: '✓ 214 new highlights imported (3 duplicates skipped)' },
+		],
+		href: '/docs/import/',
+		link: 'Importing highlights',
+	},
+	{
+		title: 'Let the server schedule',
+		summary: 'Daily or weekly, at the hour you choose.',
+		body: 'Out of the box Relego sends five highlights every day at 18:00. Switch to daily or weekly, pick the time, and choose how many highlights each recap holds, from 1 to 15.',
+		lines: [
+			{ prompt: true, text: 'relego config schedule daily 07:30' },
+			{ prompt: true, text: 'relego config count 7' },
+			{ prompt: true, text: 'relego config email kindle you@kindle.com' },
+		],
+		href: '/docs/deliver/',
+		link: 'Setting up delivery',
+	},
+	{
+		title: 'Read your recap',
+		summary: 'On the device you already read on.',
+		body: 'Kindle readers receive an EPUB through Send-to-Kindle; Kobo readers receive an HTML email. Relego picks highlights by weight and by how long since you last saw them, so old favourites come back around.',
+		lines: [
+			{ prompt: true, text: 'relego recap trigger' },
+			{ prompt: false, text: '✓ Recap triggered.' },
+		],
+		href: '/docs/revisit/',
+		link: 'Revisiting highlights',
+	},
+];
 ---
 
-<div class="flex flex-col gap-8 lg:flex-row lg:gap-16">
-	<!-- Steps list (left) -->
-	<div class="flex flex-col gap-2 lg:w-2/5" role="tablist" aria-label="Getting started steps">
-		{steps.map((step, i) => (
-			<button
-				type="button"
-				data-step-tab={i}
-				class:list={[
-					'group flex cursor-pointer items-start gap-4 rounded-xl p-4 text-left transition-all',
-					i === 0 ? 'bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]/30' : 'hover:bg-[var(--color-accent)]/5',
-				]}
-				aria-selected={i === 0 ? 'true' : 'false'}
-				aria-controls={`step-panel-${i}`}
-				id={`step-tab-${i}`}
-				role="tab"
-			>
-				<span class:list={[
-					'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold transition-colors',
-					i === 0 ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-border)] text-[var(--color-text)]/60 group-hover:bg-[var(--color-accent)]/20',
-				]}>
-					{step.number}
-				</span>
-				<div>
-					<h3 class="text-lg font-semibold text-[var(--color-text)]">{step.title}</h3>
-					<p class="mt-1 text-sm leading-relaxed text-[var(--color-text)]/60">{step.description}</p>
-				</div>
-			</button>
-		))}
-	</div>
+<section id="getting-started" class="start">
+	<div class="wrap">
+		<div class="start__head">
+			<h2 class="headline" data-reveal>Get started <span>in just 3 steps</span></h2>
+			<p class="lede" data-reveal style="--d:1">
+				One Docker container, one reader, one email address. Then it runs on its own.
+			</p>
+		</div>
 
-	<!-- Tab content panel (right) -->
-	<div class="relative lg:w-3/5">
-		{steps.map((step, i) => (
-			<div
-				data-step-panel={i}
-				id={`step-panel-${i}`}
-				aria-labelledby={`step-tab-${i}`}
-				class:list={[
-					'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 transition-opacity duration-200',
-					i === 0 ? 'block' : 'hidden',
-				]}
-				role="tabpanel"
-			>
-				<div class="flex items-center gap-3 mb-6">
-					<span class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent)] text-sm font-semibold text-white">{step.number}</span>
-					<h4 class="text-xl font-semibold text-[var(--color-text)]">{step.title}</h4>
-				</div>
-				<div class="prose text-[var(--color-text)]/80 leading-relaxed whitespace-pre-line">{step.content}</div>
+		<div class="start__body" data-tabs>
+			<div class="start__rail" role="tablist" aria-label="Setup steps" data-reveal style="--d:2">
+				<span class="start__rail-line" aria-hidden="true"><span></span></span>
+				{steps.map((step, i) => (
+					<button
+						type="button"
+						class="start__tab"
+						role="tab"
+						id={`step-tab-${i}`}
+						aria-controls={`step-panel-${i}`}
+						aria-selected={i === 0 ? 'true' : 'false'}
+						tabindex={i === 0 ? 0 : -1}
+						data-step-tab={i}
+					>
+						<span class="start__num" aria-hidden="true">{i + 1}</span>
+						<span class="start__tab-text">
+							<h3>{step.title}</h3>
+							<span>{step.summary}</span>
+						</span>
+					</button>
+				))}
 			</div>
-		))}
+
+			<div class="start__panels" data-reveal style="--d:3">
+				{steps.map((step, i) => (
+					<div
+						class="start__panel"
+						role="tabpanel"
+						id={`step-panel-${i}`}
+						aria-labelledby={`step-tab-${i}`}
+						data-step-panel={i}
+						hidden={i !== 0}
+					>
+						<p class="start__copy">{step.body}</p>
+						<div class="term">
+							<div class="term__bar" aria-hidden="true">
+								<span></span><span></span><span></span>
+							</div>
+							<pre class="term__body"><code>{step.lines.map((line) => (
+								<span class:list={['term__line', { 'term__line--out': !line.prompt }]}>{line.prompt && <span class="term__prompt" aria-hidden="true">$ </span>}{line.text}{'\n'}</span>
+							))}</code></pre>
+						</div>
+						<a class="start__link" href={step.href}>
+							{step.link}
+							<svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+						</a>
+					</div>
+				))}
+			</div>
+		</div>
 	</div>
-</div>
+</section>
 
 <script>
-	const tabs = document.querySelectorAll<HTMLButtonElement>('[data-step-tab]');
-	const panels = document.querySelectorAll<HTMLElement>('[data-step-panel]');
+	document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((root) => {
+		const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-step-tab]'));
+		const panels = Array.from(root.querySelectorAll<HTMLElement>('[data-step-panel]'));
 
-	tabs.forEach((tab) => {
-		tab.addEventListener('click', () => {
-			const idx = tab.dataset.stepTab;
+		const select = (index: number, focus = false) => {
+			tabs.forEach((tab, i) => {
+				const on = i === index;
+				tab.setAttribute('aria-selected', String(on));
+				tab.tabIndex = on ? 0 : -1;
+			});
+			panels.forEach((panel, i) => {
+				panel.hidden = i !== index;
+			});
+			root.style.setProperty('--active', String(index));
+			if (focus) tabs[index]?.focus();
+		};
 
-			// Reset all tabs
-			tabs.forEach((t) => {
-				t.classList.remove('bg-[var(--color-accent)]/10', 'ring-1', 'ring-[var(--color-accent)]/30');
-				t.classList.add('hover:bg-[var(--color-accent)]/5');
-				t.setAttribute('aria-selected', 'false');
-				const circle = t.querySelector('span');
-				if (circle) {
-					circle.classList.remove('bg-[var(--color-accent)]', 'text-white');
-					circle.classList.add('bg-[var(--color-border)]', 'text-[var(--color-text)]/60');
+		tabs.forEach((tab, i) => {
+			tab.addEventListener('click', () => select(i));
+			tab.addEventListener('keydown', (event) => {
+				const last = tabs.length - 1;
+				const next: Record<string, number> = {
+					ArrowRight: i === last ? 0 : i + 1,
+					ArrowDown: i === last ? 0 : i + 1,
+					ArrowLeft: i === 0 ? last : i - 1,
+					ArrowUp: i === 0 ? last : i - 1,
+					Home: 0,
+					End: last,
+				};
+				if (event.key in next) {
+					event.preventDefault();
+					select(next[event.key], true);
 				}
 			});
-
-			// Activate clicked tab
-			tab.classList.add('bg-[var(--color-accent)]/10', 'ring-1', 'ring-[var(--color-accent)]/30');
-			tab.classList.remove('hover:bg-[var(--color-accent)]/5');
-			tab.setAttribute('aria-selected', 'true');
-			const circle = tab.querySelector('span');
-			if (circle) {
-				circle.classList.remove('bg-[var(--color-border)]', 'text-[var(--color-text)]/60');
-				circle.classList.add('bg-[var(--color-accent)]', 'text-white');
-			}
-
-			// Show matching panel
-			panels.forEach((p) => {
-				p.classList.toggle('hidden', p.dataset.stepPanel !== idx);
-				p.classList.toggle('block', p.dataset.stepPanel === idx);
-			});
 		});
+
+		select(0);
 	});
 </script>
+
+<style>
+	.start {
+		padding-block: clamp(6rem, 12vw, 10rem);
+	}
+
+	.start__head {
+		max-width: 44rem;
+		margin-bottom: 3.5rem;
+	}
+
+	.start__body {
+		--active: 0;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 2.5rem;
+	}
+
+	.start__rail {
+		position: relative;
+		display: grid;
+		gap: 0.25rem;
+	}
+
+	.start__rail-line {
+		position: absolute;
+		top: 1.75rem;
+		bottom: 1.75rem;
+		left: 1.6rem;
+		width: 1px;
+		background: var(--color-border);
+	}
+
+	.start__rail-line span {
+		display: block;
+		height: 100%;
+		background: var(--color-accent-fill);
+		transform-origin: top;
+		transform: scaleY(calc(var(--active) / 2));
+		transition: transform 0.7s var(--ease-out);
+	}
+
+	.start__tab {
+		position: relative;
+		display: grid;
+		grid-template-columns: 2.25rem 1fr;
+		gap: 1.1rem;
+		align-items: start;
+		padding: 0.75rem 0.5rem 0.75rem 0.5rem;
+		border: 0;
+		border-radius: 0.6rem;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+		transition: background-color 0.3s var(--ease-out);
+	}
+
+	.start__tab:hover {
+		background: color-mix(in srgb, var(--color-text) 4%, transparent);
+	}
+
+	.start__num {
+		position: relative;
+		z-index: 1;
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		border: 1px solid var(--color-border-strong);
+		border-radius: 50%;
+		background: var(--color-bg);
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		color: var(--color-soft);
+		transition:
+			background-color 0.4s var(--ease-out),
+			border-color 0.4s var(--ease-out),
+			color 0.4s var(--ease-out);
+	}
+
+	.start__tab[aria-selected='true'] .start__num {
+		border-color: var(--color-accent);
+		background: var(--color-accent-fill);
+		color: var(--color-on-accent);
+	}
+
+	.start__tab-text h3 {
+		margin: 0.3rem 0 0.2rem;
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-soft);
+		transition: color 0.3s var(--ease-out);
+	}
+
+	.start__tab-text > span {
+		font-size: 0.9375rem;
+		color: var(--color-soft);
+	}
+
+	.start__tab[aria-selected='true'] h3 {
+		color: var(--color-text);
+	}
+
+	.start__panel {
+		min-width: 0;
+		max-width: 40rem;
+	}
+
+	.start__panel:not([hidden]) {
+		animation: panel-in 0.6s var(--ease-out);
+	}
+
+	@keyframes panel-in {
+		from {
+			opacity: 0;
+			transform: translateY(0.75rem);
+		}
+	}
+
+	.start__copy {
+		margin: 0 0 1.75rem;
+		font-size: 1.125rem;
+		line-height: 1.7;
+		color: var(--color-text);
+	}
+
+	.term {
+		border-radius: 0.75rem;
+		background: var(--night-bg);
+		color: var(--night-text);
+		overflow: hidden;
+		box-shadow: 0 1px 0 var(--color-border);
+	}
+
+	.term__bar {
+		display: flex;
+		gap: 0.4rem;
+		padding: 0.85rem 1rem 0;
+	}
+
+	.term__bar span {
+		width: 0.55rem;
+		height: 0.55rem;
+		border-radius: 50%;
+		background: var(--night-border);
+	}
+
+	.term__body {
+		margin: 0;
+		padding: 1rem 1.25rem 1.35rem;
+		overflow-x: auto;
+		font: 0.875rem/1.85 var(--font-mono);
+	}
+
+	.term__body code {
+		font: inherit;
+	}
+
+	.term__line {
+		display: block;
+	}
+
+	.term__prompt {
+		color: var(--night-accent);
+	}
+
+	.term__line--out {
+		color: var(--night-soft);
+	}
+
+	.start__link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin-top: 1.5rem;
+		font-weight: 600;
+		color: var(--color-link);
+		text-decoration: none;
+	}
+
+	.start__link svg {
+		width: 1rem;
+		height: 1rem;
+		transition: transform 0.3s var(--ease-out);
+	}
+
+	.start__link:hover svg {
+		transform: translateX(0.25rem);
+	}
+
+	.start__link:hover {
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+	}
+
+	@media (min-width: 60rem) {
+		.start__body {
+			grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+			gap: 5rem;
+			align-items: start;
+		}
+	}
+</style>

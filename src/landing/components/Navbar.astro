@@ -1,33 +1,171 @@
 ---
 import { siteConfig } from '../config/site';
 import ThemeToggle from './ThemeToggle.astro';
+
+interface Props {
+	/** In-page anchors only make sense on the landing page itself. */
+	sections?: boolean;
+}
+
+const { sections = false } = Astro.props;
 ---
 
-<nav class="fixed top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur-md">
-	<div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-		<a href="#" aria-label="relego. (go to top)" class="font-['Playfair_Display'] text-xl font-light text-[var(--color-text)]">
-			{siteConfig.logotype}
-		</a>
-		<div class="flex items-center gap-3">
-			<a
-				href={siteConfig.docsUrl}
-				class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-			>
-				Documentation
-			</a>
+<nav class="nav" aria-label="Main">
+	<div class="nav__inner wrap">
+		<a href="#" aria-label="relego. (go to top)" class="nav__logo">{siteConfig.logotype}</a>
+		{sections && (
+			<div class="nav__sections">
+				<a href="#journey">How it works</a>
+				<a href="#getting-started">Get started</a>
+				<a href="#faq">FAQ</a>
+			</div>
+		)}
+		<div class="nav__actions">
+			<a href={siteConfig.docsUrl} class="nav__docs">Documentation</a>
 			<ThemeToggle />
 			<a
 				href={siteConfig.githubUrl}
 				target="_blank"
 				rel="noopener noreferrer"
-				class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2 focus:ring-offset-[var(--color-bg)]"
+				class="nav__icon"
 				aria-label="View on GitHub"
 				title="View on GitHub"
 			>
-				<svg aria-hidden="true" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+				<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
 					<path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
 				</svg>
 			</a>
 		</div>
 	</div>
+	<span class="nav__progress" aria-hidden="true"></span>
 </nav>
+
+<style>
+	.nav {
+		position: fixed;
+		inset: 0 0 auto;
+		z-index: 50;
+		border-bottom: 1px solid transparent;
+		transition:
+			background-color 0.4s var(--ease-out),
+			border-color 0.4s var(--ease-out),
+			backdrop-filter 0.4s var(--ease-out);
+	}
+
+	:global(html.is-scrolled) .nav {
+		background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+		border-bottom-color: var(--color-border);
+		backdrop-filter: blur(12px) saturate(1.2);
+		-webkit-backdrop-filter: blur(12px) saturate(1.2);
+	}
+
+	/* Over the night band the bar turns espresso instead of floating a paper slab on it. */
+	:global(html.is-night) .nav {
+		--color-bg: var(--night-bg);
+		--color-text: var(--night-text);
+		--color-soft: var(--night-soft);
+		--color-border: var(--night-border);
+		--color-border-strong: var(--night-border);
+		color-scheme: dark;
+	}
+
+	.nav__inner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+		height: 4rem;
+	}
+
+	.nav__logo {
+		font-family: var(--font-display);
+		font-weight: 300;
+		font-size: 1.5rem;
+		letter-spacing: -0.02em;
+		color: var(--color-text);
+	}
+
+	.nav__sections {
+		display: none;
+		gap: 2rem;
+		font-size: 0.9rem;
+		color: var(--color-soft);
+	}
+
+	.nav__sections a {
+		position: relative;
+		padding-block: 0.4rem;
+		transition: color 0.25s var(--ease-out);
+	}
+
+	.nav__sections a::after {
+		content: '';
+		position: absolute;
+		inset: auto 0 0;
+		height: 1px;
+		background: var(--color-accent);
+		transform: scaleX(0);
+		transform-origin: right;
+		transition: transform 0.45s var(--ease-out);
+	}
+
+	.nav__sections a:hover {
+		color: var(--color-text);
+	}
+
+	.nav__sections a:hover::after {
+		transform: scaleX(1);
+		transform-origin: left;
+	}
+
+	.nav__actions {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.nav__docs {
+		padding: 0.5rem 0.75rem;
+		border-radius: 0.5rem;
+		font-size: 0.9rem;
+		font-weight: 500;
+		color: var(--color-text);
+		transition: background-color 0.25s var(--ease-out);
+	}
+
+	.nav__icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 0.5rem;
+		color: var(--color-text);
+		transition: background-color 0.25s var(--ease-out);
+	}
+
+	.nav__icon svg {
+		width: 1.15rem;
+		height: 1.15rem;
+	}
+
+	.nav__docs:hover,
+	.nav__icon:hover {
+		background: color-mix(in srgb, var(--color-text) 6%, transparent);
+	}
+
+	.nav__progress {
+		position: absolute;
+		inset: auto 0 -1px;
+		height: 1px;
+		background: var(--color-accent);
+		transform: scaleX(var(--page-p, 0));
+		transform-origin: left;
+	}
+
+	@media (min-width: 56rem) {
+		.nav__sections {
+			display: flex;
+		}
+	}
+</style>

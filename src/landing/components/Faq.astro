@@ -1,0 +1,68 @@
+---
+import Accordion from './Accordion.astro';
+---
+
+<section id="faq" class="faq">
+	<div class="faq__grid wrap">
+		<div class="faq__head">
+			<h2 class="headline" data-reveal>Common questions <span>about setup</span></h2>
+			<p class="lede" data-reveal style="--d:1">
+				Still curious? The <a href="/docs/">documentation</a> covers every command and setting.
+			</p>
+		</div>
+
+		<div class="faq__list" data-reveal style="--d:2">
+			<Accordion question="Do I need a cloud account or subscription?">
+				No. Relego is free and open source, and you run it yourself. There is no cloud account, no subscription and no usage limit.
+			</Accordion>
+			<Accordion question="Which SMTP providers are supported?">
+				Any provider with standard SMTP and username and password authentication: AWS SES, Resend, MailerSend, Mailgun or your own mail server. Providers that only allow OAuth, such as Gmail and Outlook, are not supported.
+			</Accordion>
+			<Accordion question="How often are recaps delivered?">
+				Daily at 18:00 with five highlights, unless you change it. Choose daily or weekly at any time of day, and set how many highlights each recap holds, from 1 to 15. You can also send one right now from the web interface or with <code>relego recap trigger</code>.
+			</Accordion>
+			<Accordion question="Which readers are supported?">
+				Relego imports Kindle My Clippings.txt files and Kobo KoboReader.sqlite databases. Kindle readers receive recaps as EPUB through Send-to-Kindle; Kobo readers receive them as an HTML email in their regular inbox.
+			</Accordion>
+			<Accordion question="Where is my data stored?">
+				On your server, in a single SQLite database inside the Docker volume. Kobo databases are copied and read without ever modifying the file on your device.
+			</Accordion>
+			<Accordion question="Can I exclude specific books or highlights?">
+				Yes. Exclude a single highlight, a whole book or every book by an author, from the Library in the web interface or with <code>relego exclude add highlight|book|author &lt;id&gt;</code>. Excluded items stay in your database but never appear in a recap.
+			</Accordion>
+		</div>
+	</div>
+</section>
+
+<style>
+	.faq {
+		padding-block: clamp(4rem, 8vw, 6rem) clamp(6rem, 12vw, 10rem);
+	}
+
+	.faq__grid {
+		display: grid;
+		gap: 3rem;
+	}
+
+	.faq__head a {
+		color: var(--color-link);
+		text-underline-offset: 0.2em;
+	}
+
+	.faq__list {
+		border-top: 1px solid var(--color-border);
+	}
+
+	@media (min-width: 60rem) {
+		.faq__grid {
+			grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+			gap: 5rem;
+			align-items: start;
+		}
+
+		.faq__head {
+			position: sticky;
+			top: 7rem;
+		}
+	}
+</style>
