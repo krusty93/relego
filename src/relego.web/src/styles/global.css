@@ -994,6 +994,28 @@ td {
   color: var(--ink-muted);
 }
 
+.sync-head {
+  margin-bottom: var(--sp-6);
+}
+
+.sync-needs {
+  margin-bottom: var(--sp-6);
+}
+
+.sync-needs p {
+  max-width: var(--measure-prose);
+  color: var(--ink-muted);
+}
+
+.sync-needs p + p {
+  margin-top: var(--sp-2);
+}
+
+.sync-details .tip {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-1);
+}
+
 .progress {
   height: 6px;
   border-radius: var(--r-pill);
