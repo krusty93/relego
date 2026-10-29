@@ -16,7 +16,7 @@ permissions:
 jobs:
   check-tag:
     name: Check tag prefix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       is-cli:  ${{ steps.check.outputs.is-cli }}
       version: ${{ steps.check.outputs.version }}
