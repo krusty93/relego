@@ -283,7 +283,7 @@ public sealed class SyncReminderJobTests : IAsyncLifetime
         public Task SendRecapAsync(string toAddress, byte[] epubContent, string fileName, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
-        public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default) =>
+        public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default, SmtpSettings? smtpSettings = null) =>
             Task.CompletedTask;
 
         public Task SendHtmlRecapAsync(string toAddress, string htmlBody, string plainTextBody, string subject = "Your Relego Recap", CancellationToken cancellationToken = default) =>
