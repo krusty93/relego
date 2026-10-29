@@ -2,7 +2,7 @@
 
 _Last updated: 29 October 2026_
 
-Relego is free, open-source, self-hosted software. This policy covers every part of the project: the Relego server, the `relego` CLI and TUI, the web interface, the browser extension, the install scripts, and the [relego.app](https://relego.app) website.
+Relego is free, open-source, self-hosted software. This policy covers every part of the project: the Relego server, the `relego` CLI, the web interface, the browser extension, the install scripts, and the [relego.app](https://relego.app) website.
 
 ## Summary
 
@@ -30,7 +30,7 @@ All data below stays on the machines you run Relego on, unless you configure it 
 
 The server stores the data in the table above and uses it to build recaps. Recaps are sent by email through the SMTP server you configure, to the delivery addresses you configure. The server does not contact any Relego-operated service.
 
-### CLI, TUI, and web interface
+### CLI and web interface
 
 These clients read highlight files from devices you connect and send them to the Relego server address you configure. Kobo databases are copied to a temporary file, opened read-only, and deleted afterwards; device files are never modified.
 
