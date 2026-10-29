@@ -1,44 +1,73 @@
 ---
 ---
 
-<button
-	type="button"
-	aria-label="Toggle theme"
-	class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-	id="theme-toggle"
->
-	<!-- Sun icon (visible in dark mode) -->
-	<svg
-		class="hidden h-5 w-5 [html[data-theme='dark']_&]:block"
-		xmlns="http://www.w3.org/2000/svg"
-		fill="none"
-		viewBox="0 0 24 24"
-		stroke="currentColor"
-		stroke-width="1.5"
-	>
-		<circle cx="12" cy="12" r="5" />
-		<path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+<button type="button" aria-label="Toggle theme" class="toggle" id="theme-toggle">
+	<svg class="toggle__sun" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+		<circle cx="12" cy="12" r="4.5" />
+		<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
 	</svg>
-	<!-- Moon icon (visible in light mode) -->
-	<svg
-		class="block h-5 w-5 [html[data-theme='dark']_&]:hidden"
-		xmlns="http://www.w3.org/2000/svg"
-		fill="none"
-		viewBox="0 0 24 24"
-		stroke="currentColor"
-		stroke-width="1.5"
-	>
-		<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+	<svg class="toggle__moon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+		<path d="M20.5 13.1A8.5 8.5 0 1 1 10.9 3.5a6.6 6.6 0 0 0 9.6 9.6z" />
 	</svg>
 </button>
+
+<style>
+	.toggle {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		border: 0;
+		border-radius: 0.5rem;
+		background: transparent;
+		color: var(--color-text);
+		cursor: pointer;
+		transition: background-color 0.25s var(--ease-out);
+	}
+
+	.toggle:hover {
+		background: color-mix(in srgb, var(--color-text) 6%, transparent);
+	}
+
+	.toggle svg {
+		position: absolute;
+		width: 1.15rem;
+		height: 1.15rem;
+		transition:
+			transform 0.6s var(--ease-out),
+			opacity 0.3s var(--ease-out);
+	}
+
+	.toggle__sun {
+		opacity: 0;
+		transform: rotate(-90deg) scale(0.6);
+	}
+
+	:global([data-theme='dark']) .toggle__sun {
+		opacity: 1;
+		transform: none;
+	}
+
+	:global([data-theme='dark']) .toggle__moon {
+		opacity: 0;
+		transform: rotate(90deg) scale(0.6);
+	}
+</style>
 
 <script>
 	const toggle = document.getElementById('theme-toggle');
 	toggle?.addEventListener('click', () => {
 		const html = document.documentElement;
-		const current = html.getAttribute('data-theme');
-		const next = current === 'dark' ? 'light' : 'dark';
-		html.setAttribute('data-theme', next);
+		const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+		const apply = () => html.setAttribute('data-theme', next);
+		const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+		if (doc.startViewTransition && html.classList.contains('motion')) {
+			doc.startViewTransition(apply);
+		} else {
+			apply();
+		}
 		try {
 			localStorage.setItem('theme', next);
 			// Keep the Starlight-powered /docs routes on the same choice.

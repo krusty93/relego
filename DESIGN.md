@@ -7,6 +7,7 @@ colors:
   ink: "#171311"
   ink-soft: "#665748"
   terracotta: "#b56b39"
+  terracotta-fill: "#a05a2c"
   terracotta-deep: "#5f3417"
   terracotta-link: "#8f4c18"
   night: "#120e0c"
@@ -52,12 +53,84 @@ typography:
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "normal"
+  landing-hero:
+    fontFamily: "Playfair Display, Georgia, Times New Roman, serif"
+    fontSize: "clamp(4rem, 2.6rem + 6vw, 6rem)"
+    fontWeight: 300
+    lineHeight: 0.9
+    letterSpacing: "-0.035em"
+  landing-display:
+    fontFamily: "Playfair Display, Georgia, Times New Roman, serif"
+    fontSize: "clamp(2.25rem, 1.4rem + 3.2vw, 4.25rem)"
+    fontWeight: 300
+    lineHeight: 1.04
+    letterSpacing: "-0.02em"
+  landing-closing:
+    fontFamily: "Playfair Display, Georgia, Times New Roman, serif"
+    fontSize: "clamp(2.75rem, 1.6rem + 4.6vw, 5.5rem)"
+    fontWeight: 300
+    lineHeight: 1
+    letterSpacing: "-0.02em"
+  landing-statement:
+    fontFamily: "Playfair Display, Georgia, Times New Roman, serif"
+    fontSize: "clamp(1.9rem, 1.2rem + 2.6vw, 3.5rem)"
+    fontWeight: 300
+    lineHeight: 1.18
+    letterSpacing: "-0.02em"
+  landing-tagline:
+    fontFamily: "Playfair Display, Georgia, Times New Roman, serif"
+    fontSize: "clamp(1.75rem, 1.3rem + 1.6vw, 2.6rem)"
+    fontWeight: 300
+    lineHeight: 1.15
+    letterSpacing: "-0.02em"
+  landing-question:
+    fontFamily: "Playfair Display, Georgia, Times New Roman, serif"
+    fontSize: "clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem)"
+    fontWeight: 300
+    lineHeight: 1.3
+    letterSpacing: "-0.01em"
+  landing-lede:
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "clamp(1.05rem, 1rem + 0.3vw, 1.2rem)"
+    fontWeight: 400
+    lineHeight: 1.65
+    letterSpacing: "normal"
+  landing-body-lg:
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "1.125rem"
+    fontWeight: 400
+    lineHeight: 1.7
+    letterSpacing: "normal"
+  landing-button:
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "0.95rem"
+    fontWeight: 500
+    lineHeight: 1
+    letterSpacing: "normal"
+  landing-ui:
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "0.9375rem"
+    fontWeight: 500
+    lineHeight: 1.5
+    letterSpacing: "normal"
+  landing-small:
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: "normal"
 rounded:
   none: "0"
   chip: "0.3rem"
   sm: "0.5rem"
   md: "0.6rem"
   pill: "50%"
+  control: "0.4rem"
+  frame-sm: "0.75rem"
+  frame: "0.9rem"
+  frame-lg: "1rem"
+  device: "1.6rem"
+  capsule: "999px"
 spacing:
   xs: "0.25rem"
   sm: "0.65rem"
@@ -101,6 +174,24 @@ components:
     rounded: "{rounded.none}"
     padding: "0 0 0.75rem"
     typography: "{typography.label}"
+  landing-button-primary:
+    backgroundColor: "{colors.terracotta-fill}"
+    textColor: "#ffffff"
+    rounded: "{rounded.sm}"
+    padding: "0 1.35rem"
+    typography: "{typography.landing-button}"
+  landing-button-outline:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "0 1.35rem"
+    typography: "{typography.landing-button}"
+  landing-terminal:
+    backgroundColor: "{colors.night}"
+    textColor: "{colors.bone}"
+    rounded: "{rounded.frame-sm}"
+    padding: "1rem 1.25rem 1.35rem"
+    typography: "{typography.mono}"
 ---
 
 # Design System: Relego
@@ -307,6 +398,70 @@ Its companion, the **stop marker**, appears above the `h1` on each of the three 
 pages: five small dots with the current one filled in accent and haloed, plus a
 `Stop N of 5 on the round trip` label. This is how the circuit survives past the index
 page.
+
+## The Landing Surface
+
+**North star for `src/landing`: "Follow one highlight."** The landing page is a
+Persuade surface built on the same paper world, but it is allowed to perform. One
+public-domain sentence from *Walden* travels the whole page: it is underlined on a
+reader in the hero, written into `My Clippings.txt`, filed in the library, picked by
+the scheduler, and delivered back as a recap. Every animated object on the page is
+that same highlight at a different stop on the circuit.
+
+### Landing-only devices
+
+- **The night band.** The round-trip section (`#journey`) is a full-bleed espresso
+  band in both themes (`--night-*` tokens; one panel step lighter in dark theme). Its
+  clip-path inset opens as it scrolls into view. While the band is under the fixed
+  header, the header remaps to the night tokens (`html.is-night`) instead of floating
+  a paper slab over it.
+- **The highlighter mark.** `.mark` is a low-opacity accent wash
+  (`--color-mark`) that sweeps left to right behind a phrase. It is the page's only
+  emphasis device besides the italic accent tail on section headlines; on e-ink
+  objects it becomes a gray stepped sweep (`steps(9)`) because that is how e-ink
+  refreshes.
+- **The Reader.** A drawn e-reader (espresso bezel, `#ebe6dc` screen, serif page)
+  that carries sample recaps. It is a depicted physical object, so it is the one
+  place where a soft drop shadow and a `1.6rem` device radius are allowed. Every
+  Reader and every staged object is captioned as sample data.
+- **Framed objects.** The terminal (night fill, `0.75rem`), the browser frame
+  (`0.9rem`, flattening from a slight tilt as it scrolls in) and the segmented control
+  (`999px` capsule with a sliding thumb) depict real Relego surfaces. Content itself
+  still sits on the ground with hairline rules, never in cards.
+
+### Landing type ramp
+
+The landing uses a louder serif ramp than the docs: the `relego.` logotype at
+`landing-hero`, section `h2` at `landing-display` with an italic accent tail, the
+scroll-lit statement at `landing-statement`, FAQ questions at `landing-question`, and
+the closing call at `landing-closing`. Sans steps are `landing-lede`,
+`landing-body-lg`, `landing-ui`, `landing-small` and the `label` caption. Sizes in
+`em` inside the Reader, the clippings file and the queue are object-relative and
+scale with the object, not with the page; SVG labels use viewBox user units.
+
+### Motion grammar
+
+- **One engine.** An inline script in `Layout.astro` adds `.motion` to `<html>` only
+  when `prefers-reduced-motion` allows it; `scripts/motion.ts` then reveals
+  `[data-reveal]` once and writes a
+  `--p` progress (0–1) onto every `[data-progress]` element in one of four modes:
+  `enter`, `through`, `leave`, and `pin` (sticky stage inside a tall track).
+- **No opacity on text entrances.** Text and objects enter with `transform` and
+  `clip-path` (fill mode `backwards`), never by fading through partial opacity: a
+  half-faded line is a contrast failure while it is on screen, and axe catches it.
+  Inactive steps dim by colour, not by opacity.
+- **Without motion, everything is final.** Under reduced motion, or without
+  JavaScript, tracks are not pinned, every stage shows its finished state, every
+  step is legible, and nothing waits on scroll.
+- **Easing.** `--ease-out` (`cubic-bezier(0.16, 1, 0.3, 1)`) for arrivals,
+  `--ease-in-out` for scrubbed transforms. No bounce, no elastic.
+
+### Accent fill
+
+White text on the raw terracotta measures 4.09:1, below AA for button-size text, so
+light-theme filled controls use **Terracotta Fill** (`#a05a2c`, about 5.3:1). Dark
+theme keeps Lamp Amber with espresso text. The raw accent remains for marks, rules,
+nodes and the italic headline tails.
 
 ## Do's and Don'ts
 
