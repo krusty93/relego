@@ -117,17 +117,16 @@ export function SyncPage() {
 
   return (
     <section className="view" aria-labelledby="sync-h">
-      <div className="view-head">
+      <div className="view-head sync-head">
         <div>
           <h1 id="sync-h">Kindle Notebook Sync</h1>
           <p>Keep your Kindle Notebook highlights flowing into Relego automatically.</p>
+          <p>
+            <Link to="/app/import">Import a highlights file</Link> instead if you would rather
+            keep it manual.
+          </p>
         </div>
       </div>
-
-      <p className="subtle">
-        Sync is optional. <Link to="/app/import">Import a highlights file</Link> instead if you would
-        rather keep it manual.
-      </p>
 
       <AsyncSection
         isLoading={providers.isLoading}
@@ -281,8 +280,35 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
         {`Sync status: ${STATE_LABELS[data.status] ?? data.status}.`}
       </p>
 
-      {/* The first run has one job: connect. It leads the page, and the regions and limits below it
-          explain what that connection will and will not read. */}
+      <section className="sync-needs" aria-labelledby="sync-needs-h">
+        <h2 className="section-title" id="sync-needs-h">
+          What this needs
+        </h2>
+        <p>
+          Keep Relego and your browser running, with the extension allowed to access your Kindle
+          Notebook. Sign in to the Amazon account registered on your Kindle device or app.
+        </p>
+        <p>
+          Get the extension from the{" "}
+          <a href="https://chromewebstore.google.com/detail/relego" target="_blank" rel="noreferrer">
+            Chrome Web Store
+          </a>
+          ,{" "}
+          <a
+            href="https://addons.mozilla.org/en-US/firefox/search/?q=relego"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Firefox Add-ons
+          </a>
+          , or{" "}
+          <a href="https://github.com/krusty93/relego/releases" target="_blank" rel="noreferrer">
+            GitHub releases
+          </a>
+          .
+        </p>
+      </section>
+
       {isFirstRun ? (
         <div className="section">
           <EmptyState
@@ -341,7 +367,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
         />
       )}
 
-      <Disclosures disclosure={data.disclosure} prerequisites={data.prerequisites} />
+      <Disclosures disclosure={data.disclosure} />
     </>
   );
 }
@@ -1019,60 +1045,24 @@ function PairingPanel({
   );
 }
 
-const COVERAGE_KINDS = ["Coverage", "Sideloaded", "ExportLimit", "Availability"];
+const HOW_IT_WORKS_KINDS = ["Coverage", "Sideloaded", "ExportLimit", "Availability", "Privacy"];
 
-function Disclosures({
-  disclosure,
-  prerequisites,
-}: {
-  disclosure: SyncDisclosure;
-  prerequisites: string[];
-}) {
-  const byKind = (kinds: string[]) => disclosure.items.filter((item) => kinds.includes(item.kind));
-
+function Disclosures({ disclosure }: { disclosure: SyncDisclosure }) {
   return (
-    <>
-      <section className="section" aria-labelledby="sync-coverage-h">
-        <h2 className="section-title" id="sync-coverage-h">
-          Coverage &amp; limits
-        </h2>
-        <dl className="tips">
-          {byKind(COVERAGE_KINDS).map((item) => (
+    <section className="section" aria-labelledby="sync-coverage-h">
+      <h2 className="section-title" id="sync-coverage-h">
+        How it works
+      </h2>
+      <dl className="tips sync-details">
+        {disclosure.items
+          .filter((item) => HOW_IT_WORKS_KINDS.includes(item.kind))
+          .map((item) => (
             <div className="tip" key={item.kind}>
               <dt>{item.title}</dt>
               <dd>{item.body}</dd>
             </div>
           ))}
-        </dl>
-      </section>
-
-      <section className="section" aria-labelledby="sync-needs-h">
-        <h2 className="section-title" id="sync-needs-h">
-          What this needs
-        </h2>
-        <ul className="plain-list">
-          {prerequisites.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-          {byKind(["Prerequisite"]).map((item) => (
-            <li key={item.kind}>{item.body}</li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="section" aria-labelledby="sync-privacy-h">
-        <h2 className="section-title" id="sync-privacy-h">
-          Privacy
-        </h2>
-        <dl className="tips">
-          {byKind(["Privacy"]).map((item) => (
-            <div className="tip" key={item.kind}>
-              <dt>{item.title}</dt>
-              <dd>{item.body}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-    </>
+      </dl>
+    </section>
   );
 }

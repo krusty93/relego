@@ -300,20 +300,27 @@ test.describe("sync", () => {
     const mock = await mockSync(page, statusResponse("not_connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByRole("heading", { name: "Coverage & limits" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
     await expect(page.getByText("Cloud only")).toBeVisible();
     await expect(page.getByText("Publisher limits")).toBeVisible();
     await expect(page.getByRole("heading", { name: "What this needs" })).toBeVisible();
-    await expect(page.getByText("Chrome or Firefox with the Relego extension")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Privacy" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Chrome Web Store" })).toHaveAttribute(
+      "href", "https://chromewebstore.google.com/detail/relego",
+    );
+    await expect(page.getByRole("link", { name: "Firefox Add-ons" })).toHaveAttribute(
+      "href", "https://addons.mozilla.org/en-US/firefox/search/?q=relego",
+    );
+    await expect(page.getByRole("link", { name: "GitHub releases" })).toHaveAttribute(
+      "href", "https://github.com/krusty93/relego/releases",
+    );
+    await expect(page.getByRole("heading", { name: "Privacy", exact: true })).toHaveCount(0);
     await expect(page.getByText("Your data path")).toBeVisible();
 
-    // The first run has one job: the action comes first, the limits and disclosures explain it.
-    const privacy = await page.getByRole("heading", { name: "Privacy" }).boundingBox();
-    const coverage = await page.getByRole("heading", { name: "Coverage & limits" }).boundingBox();
+    const needs = await page.getByRole("heading", { name: "What this needs" }).boundingBox();
+    const coverage = await page.getByRole("heading", { name: "How it works" }).boundingBox();
     const button = await page.getByRole("button", { name: "Connect Kindle cloud" }).boundingBox();
     expect(button!.y).toBeLessThan(coverage!.y);
-    expect(button!.y).toBeLessThan(privacy!.y);
+    expect(needs!.y).toBeLessThan(button!.y);
 
     await page.getByRole("button", { name: "Connect Kindle cloud" }).click();
 
@@ -321,6 +328,35 @@ test.describe("sync", () => {
     await expect(page.getByText("Choose your Amazon region in the extension")).toBeVisible();
     expect(mock.requests).toContain("POST /sync/kindle-cloud/connection");
   });
+
+  for (const width of [1440, 393]) {
+    test(`the sync information is stacked and spaced at ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 950 });
+      await mockSync(page, statusResponse("completed"));
+      await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+      await expect(page.getByText("Sync is optional.", { exact: false })).toHaveCount(0);
+      const manual = page.getByRole("link", { name: "Import a highlights file", exact: true });
+      const needs = page.getByRole("region", { name: "What this needs" });
+      const outcome = page.getByRole("heading", { name: "Last sync finished", exact: true });
+      const manualBox = (await manual.boundingBox())!;
+      const needsBox = (await needs.boundingBox())!;
+      expect(needsBox.y - (manualBox.y + manualBox.height)).toBeGreaterThanOrEqual(24);
+      expect(needsBox.y + needsBox.height).toBeLessThan((await outcome.boundingBox())!.y);
+
+      const details = page.getByRole("region", { name: "How it works" });
+      await expect(details.locator("dt")).toHaveCount(5);
+      await expect(details.getByText("Your data path", { exact: true })).toBeVisible();
+      for (const item of await details.locator(".tip").all()) {
+        const title = (await item.locator("dt").boundingBox())!;
+        const subtitle = (await item.locator("dd").boundingBox())!;
+        expect(subtitle.y).toBeGreaterThanOrEqual(title.y + title.height);
+        expect(subtitle.x).toBe(title.x);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      await page.screenshot({ path: testInfo.outputPath(`sync-${width}.png`), fullPage: true });
+    });
+  }
 
   test("the pairing step hands over the server address and one-time code", async ({ page }) => {
     const mock = await mockSync(page, statusResponse("awaiting_pairing"));
