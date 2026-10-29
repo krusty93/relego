@@ -214,8 +214,12 @@ see [VERSIONING.md](../VERSIONING.md)).
   host input, and the server re-validates the selection.
 - **Distribution**: two builds from one source. Chrome/Edge ship the MV3 module service worker;
   Firefox does not support `background.service_worker`, so its variant uses a classic event page
-  (`background.scripts`), requires Firefox 128+ for `optional_host_permissions`, and carries the
-  `browser_specific_settings.gecko.id` needed for AMO signing.
+  (`background.scripts`), requires Firefox 140+ for built-in data collection consent, and carries
+  the `browser_specific_settings.gecko.id` needed for AMO signing. Its
+  `data_collection_permissions.required` declares `authenticationInfo` (the Relego pairing
+  credential) and `websiteContent` (Kindle Notebook books, highlights and notes), sent to the
+  user's configured server. This is not a declaration of "no data collection": self-hosted
+  transmission still leaves the browser and requires consent.
 - **Build and package**: `cd src/relego.extension && npm ci && npm run package` produces
   `release/relego-extension-<version>-chrome.zip` and `-firefox.zip`, with the version stamped from
   `RelegoExtensionVersion` in `src/PackageVersions.props`. CI uploads both packages as artifacts;

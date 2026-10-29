@@ -68,7 +68,13 @@ describe("extension release packaging", () => {
 
     expect(manifest.background).toEqual({ scripts: ["background.js"] });
     expect(manifest.browser_specific_settings).toEqual({
-      gecko: { id: "relego@relego.dev", strict_min_version: "128.0" },
+      gecko: {
+        id: "relego@relego.dev",
+        strict_min_version: "140.0",
+        data_collection_permissions: {
+          required: ["authenticationInfo", "websiteContent"],
+        },
+      },
     });
 
     const background = (await zip.file("background.js")!.async("string")) as string;
