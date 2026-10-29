@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Sockets;
 using Relego.Core.Contracts;
 
 namespace Relego.Tests.Api;
@@ -141,6 +142,69 @@ public sealed class SmtpSettingsEndpointTests : IDisposable
         var response = await _client.PostAsJsonAsync("/settings/smtp/test", new SmtpTestRequest());
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostSmtpTest_DraftConfiguration_DeliversThroughDraftServerWithoutSaving()
+    {
+        await SaveValidSettingsAsync();
+        var saved = await _client.GetFromJsonAsync<SmtpSettingsResponse>("/settings/smtp");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var receive = ReceiveTestMessageAsync(listener, timeout.Token);
+
+        var response = await _client.PostAsJsonAsync("/settings/smtp/test", new SmtpTestRequest
+        {
+            ToAddress = "recipient@example.com",
+            Settings = new UpdateSmtpSettingsRequest
+            {
+                Host = "127.0.0.1",
+                Port = port,
+                FromAddress = "draft@example.com",
+                Username = "",
+                Password = "",
+            },
+        }, timeout.Token);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var received = await receive;
+        Assert.Contains("MAIL FROM:<draft@example.com>", received);
+        Assert.Contains("RCPT TO:<recipient@example.com>", received);
+        Assert.Contains("Subject: Relego - Test Email", received);
+        Assert.Equal(saved, await _client.GetFromJsonAsync<SmtpSettingsResponse>("/settings/smtp"));
+    }
+
+    private static async Task<List<string>> ReceiveTestMessageAsync(TcpListener listener, CancellationToken cancellationToken)
+    {
+        using var client = await listener.AcceptTcpClientAsync(cancellationToken);
+        await using var stream = client.GetStream();
+        using var reader = new StreamReader(stream);
+        await using var writer = new StreamWriter(stream) { AutoFlush = true, NewLine = "\r\n" };
+        await writer.WriteLineAsync("220 localhost ready".AsMemory(), cancellationToken);
+        var received = new List<string>();
+        var readingBody = false;
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        {
+            received.Add(line);
+            if (readingBody && line != ".")
+                continue;
+            if (line == "QUIT")
+            {
+                await writer.WriteLineAsync("221 Bye".AsMemory(), cancellationToken);
+                return received;
+            }
+            if (line == "DATA")
+            {
+                readingBody = true;
+                await writer.WriteLineAsync("354 End with a dot".AsMemory(), cancellationToken);
+                continue;
+            }
+            readingBody = false;
+            await writer.WriteLineAsync("250 OK".AsMemory(), cancellationToken);
+        }
+        throw new IOException("SMTP client disconnected before completing the test message.");
     }
 
     private async Task SaveValidSettingsAsync()

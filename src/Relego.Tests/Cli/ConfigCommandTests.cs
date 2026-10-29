@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Net;
+using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using RichardSzalay.MockHttp;
 using Spectre.Console.Cli;
 using Relego.Cli.Commands.Config;
 using Relego.Cli.Commands.Config.Email;
 using Relego.Cli.Infrastructure;
+using Relego.Core.Contracts;
 
 namespace Relego.Tests.Cli;
 
@@ -266,6 +269,14 @@ public sealed class ConfigEmailKindleCommandTests : IDisposable
 {
     private readonly MockHttpMessageHandler _mockHttp = new();
 
+    public ConfigEmailKindleCommandTests()
+    {
+        _mockHttp.When(HttpMethod.Get, "http://localhost:5000/settings")
+            .Respond("application/json", """
+                {"kindleEmail":"saved@kindle.com","deliveryEmail":"saved@example.com"}
+                """);
+    }
+
     public void Dispose() => _mockHttp.Dispose();
 
     [Fact]
@@ -295,15 +306,25 @@ public sealed class ConfigEmailKindleCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task ConfigEmailKindle_EmptyString_ReturnsOneWithoutHttpCall()
+    public async Task ConfigEmailKindle_EmptyString_ClearsKindleAndPreservesInbox()
     {
         var handler = _mockHttp.When(HttpMethod.Patch, "http://localhost:5000/settings")
-            .Respond("application/json", "{}");
+            .Respond(async request =>
+            {
+                var body = await request.Content!.ReadFromJsonAsync<UpdateSettingsRequest>();
+                Assert.NotNull(body);
+                Assert.Empty(body.KindleEmail!);
+                Assert.Equal("saved@example.com", body.DeliveryEmail);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new SettingsResponse { KindleEmail = "", DeliveryEmail = body.DeliveryEmail }),
+                };
+            });
 
         var exitCode = await RunCommand("   ");
 
-        Assert.Equal(1, exitCode);
-        Assert.Equal(0, _mockHttp.GetMatchCount(handler));
+        Assert.Equal(0, exitCode);
+        Assert.Equal(1, _mockHttp.GetMatchCount(handler));
     }
 
     [Fact]

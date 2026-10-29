@@ -114,6 +114,15 @@ Endpoint groups currently implemented:
 - Import: multipart upload via `POST /imports` — accepts `My Clippings.txt` or `KoboReader.sqlite`, sniffs the format, parses with `Relego.Core`, and returns a per-book summary of added and duplicate highlights
 - Settings: `GET /settings`, `PATCH /settings`, `POST /settings/test-kindle-email`, `POST /settings/test-recap-email`
 - SMTP settings: `GET /settings/smtp`, `PUT /settings/smtp`, `POST /settings/smtp/test`
+
+Settings tests never persist configuration. The delivery test endpoints accept an optional
+`{ "toAddress": "..." }` body to test an unsaved destination using the effective SMTP settings;
+bodyless calls retain the saved-address behavior used by the CLI. `POST /settings/smtp/test`
+accepts optional `settings` overrides with the same fields as `PUT /settings/smtp`, plus an
+optional `toAddress`. Omitted passwords retain the effective secret; empty passwords test
+without it. The web UI requires successful tests of changed, non-empty destinations and SMTP
+settings before enabling their respective Save changes buttons. Editing a tested field
+invalidates its result; clearing a delivery address requires no test. Saving remains explicit.
 - Status: `GET /status`
 - Recap: `POST /recaps`, `GET /recaps` (delivery history)
 - Highlights: `GET /highlights`, `DELETE /highlights/{id}`

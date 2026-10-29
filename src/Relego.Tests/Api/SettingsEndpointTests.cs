@@ -99,6 +99,28 @@ public sealed class SettingsEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task PatchSettings_EmptyKindleAddress_ClearsItAndPreservesInbox()
+    {
+        await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest
+        {
+            KindleEmail = "saved@kindle.com",
+            DeliveryEmail = "saved@example.com",
+        });
+
+        var response = await _client.PatchAsJsonAsync("/settings", new UpdateSettingsRequest
+        {
+            KindleEmail = "",
+            DeliveryEmail = "saved@example.com",
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var saved = await _client.GetFromJsonAsync<SettingsResponse>("/settings");
+        Assert.NotNull(saved);
+        Assert.Empty(saved.KindleEmail);
+        Assert.Equal("saved@example.com", saved.DeliveryEmail);
+    }
+
+    [Fact]
     public async Task GetSettings_WithNoStoredSettings_ReturnsDefaultTimezone()
     {
         var response = await _client.GetAsync("/settings");

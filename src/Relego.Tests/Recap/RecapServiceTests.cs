@@ -224,7 +224,7 @@ internal sealed class FakeMailDeliveryService : IMailDeliveryService
         return Task.CompletedTask;
     }
 
-    public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default)
+    public Task SendTestEmailAsync(string toAddress, CancellationToken cancellationToken = default, Relego.Server.Infrastructure.Smtp.SmtpSettings? smtpSettings = null)
         => Task.CompletedTask;
 
     public Task SendHtmlRecapAsync(string toAddress, string htmlBody, string plainTextBody, string subject = "Your Relego Recap", CancellationToken cancellationToken = default)

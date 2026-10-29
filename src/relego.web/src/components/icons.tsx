@@ -139,6 +139,14 @@ export function CheckIcon(props: IconProps) {
   );
 }
 
+export function CrossIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 export function UploadIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>

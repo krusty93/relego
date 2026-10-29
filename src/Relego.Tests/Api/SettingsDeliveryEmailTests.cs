@@ -59,6 +59,9 @@ public sealed class SettingsDeliveryEmailTests : IDisposable
             new UpdateSettingsRequest { DeliveryEmail = "" });
 
         Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+        var cleared = await clearResponse.Content.ReadFromJsonAsync<SettingsResponse>();
+        Assert.NotNull(cleared);
+        Assert.Null(cleared.DeliveryEmail);
 
         var getResponse = await _client.GetAsync("/settings");
         var result = await getResponse.Content.ReadFromJsonAsync<SettingsResponse>();
@@ -100,24 +103,22 @@ public sealed class SettingsDeliveryEmailTests : IDisposable
     }
 
     [Fact]
-    public async Task PatchSettings_KindleEmail_EmptyString_Returns422()
+    public async Task PatchSettings_KindleEmail_EmptyString_ClearsField()
     {
         // First set a value
         await _client.PatchAsJsonAsync("/settings",
             new UpdateSettingsRequest { KindleEmail = "user@kindle.com" });
 
-        // Empty string is rejected as an invalid email
         var clearResponse = await _client.PatchAsJsonAsync("/settings",
             new UpdateSettingsRequest { KindleEmail = "" });
 
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, clearResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
 
-        // Original value is unchanged
         var getResponse = await _client.GetAsync("/settings");
         var result = await getResponse.Content.ReadFromJsonAsync<SettingsResponse>();
 
         Assert.NotNull(result);
-        Assert.Equal("user@kindle.com", result.KindleEmail);
+        Assert.Empty(result.KindleEmail);
     }
 
     [Fact]

@@ -132,19 +132,27 @@ export const api = {
   updateSettings: (body: UpdateSettingsRequest) =>
     request<SettingsResponse>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
 
-  testKindleEmail: () => request<unknown>("/settings/test-kindle-email", { method: "POST" }),
+  testKindleEmail: (toAddress?: string) =>
+    request<unknown>("/settings/test-kindle-email", {
+      method: "POST",
+      ...(toAddress !== undefined ? { body: JSON.stringify({ toAddress }) } : {}),
+    }),
 
-  testRecapEmail: () => request<unknown>("/settings/test-recap-email", { method: "POST" }),
+  testRecapEmail: (toAddress?: string) =>
+    request<unknown>("/settings/test-recap-email", {
+      method: "POST",
+      ...(toAddress !== undefined ? { body: JSON.stringify({ toAddress }) } : {}),
+    }),
 
   smtp: () => request<SmtpSettingsResponse>("/settings/smtp"),
 
   updateSmtp: (body: UpdateSmtpSettingsRequest) =>
     request<SmtpSettingsResponse>("/settings/smtp", { method: "PUT", body: JSON.stringify(body) }),
 
-  testSmtp: (toAddress?: string) =>
+  testSmtp: (settings: UpdateSmtpSettingsRequest, toAddress?: string) =>
     request<SmtpTestResponse>("/settings/smtp/test", {
       method: "POST",
-      body: JSON.stringify({ toAddress: toAddress || null }),
+      body: JSON.stringify({ settings, toAddress: toAddress ?? null }),
     }),
 
   recapHistory: () => request<RecapHistoryResponse>("/recaps?limit=20"),

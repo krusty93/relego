@@ -65,17 +65,26 @@ public sealed class SmtpConfigurationService(
 
         var current = await GetEffectiveAsync().ConfigureAwait(false);
 
-        var merged = new SmtpSettings
-        {
-            Host = request.Host?.Trim() ?? current.Settings.Host,
-            Port = request.Port ?? current.Settings.Port,
-            FromAddress = request.FromAddress?.Trim() ?? current.Settings.FromAddress,
-            Username = request.Username?.Trim() ?? current.Settings.Username,
-            Password = request.Password ?? current.Settings.Password,
-        };
+        var merged = Merge(current.Settings, request);
 
         var stored = await repository.UpsertAsync(merged).ConfigureAwait(false);
         return new EffectiveSmtpSettings(merged, SmtpSettingsOrigin.Database, stored.UpdatedAt);
+    }
+
+    /// <summary>Applies overrides to a copy of the effective settings without persisting them.</summary>
+    public static SmtpSettings Merge(SmtpSettings current, UpdateSmtpSettingsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(request);
+
+        return new SmtpSettings
+        {
+            Host = request.Host?.Trim() ?? current.Host,
+            Port = request.Port ?? current.Port,
+            FromAddress = request.FromAddress?.Trim() ?? current.FromAddress,
+            Username = request.Username?.Trim() ?? current.Username,
+            Password = request.Password ?? current.Password,
+        };
     }
 
     /// <summary>Projects the effective settings into the API shape, without the password.</summary>

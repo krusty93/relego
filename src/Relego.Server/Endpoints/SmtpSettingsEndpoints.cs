@@ -38,16 +38,7 @@ public static partial class SmtpSettingsEndpoints
                     statusCode: StatusCodes.Status422UnprocessableEntity);
             }
 
-            var errors = new Dictionary<string, string[]>();
-
-            if (request.Host is not null && string.IsNullOrWhiteSpace(request.Host))
-                errors["host"] = ["Host must not be empty."];
-
-            if (request.Port is { } port && port is < 1 or > 65535)
-                errors["port"] = ["Port must be between 1 and 65535."];
-
-            if (request.FromAddress is not null && !IsValidEmail(request.FromAddress))
-                errors["fromAddress"] = ["From address must be a valid email address."];
+            var errors = ValidateSettings(request);
 
             if (errors.Count > 0)
                 return Results.ValidationProblem(errors, statusCode: StatusCodes.Status422UnprocessableEntity);
@@ -72,15 +63,20 @@ public static partial class SmtpSettingsEndpoints
             [FromServices] IMailDeliveryService mailService) =>
         {
             var effective = await smtp.GetEffectiveAsync();
+            var settings = request?.Settings is { } overrides
+                ? SmtpConfigurationService.Merge(effective.Settings, overrides)
+                : effective.Settings;
+            var errors = ValidateSettings(new UpdateSmtpSettingsRequest
+            {
+                Host = settings.Host,
+                Port = settings.Port,
+                FromAddress = settings.FromAddress,
+            });
 
-            if (string.IsNullOrWhiteSpace(effective.Settings.Host) ||
-                string.IsNullOrWhiteSpace(effective.Settings.FromAddress))
+            if (errors.Count > 0)
             {
                 return Results.ValidationProblem(
-                    new Dictionary<string, string[]>
-                    {
-                        ["smtp"] = ["Set a host and a from address before sending a test message."],
-                    },
+                    errors,
                     statusCode: StatusCodes.Status422UnprocessableEntity);
             }
 
@@ -91,7 +87,7 @@ public static partial class SmtpSettingsEndpoints
                 request?.ToAddress,
                 user.DeliveryEmail,
                 user.KindleEmail,
-                effective.Settings.FromAddress);
+                settings.FromAddress);
 
             if (toAddress is null || !IsValidEmail(toAddress))
             {
@@ -105,7 +101,7 @@ public static partial class SmtpSettingsEndpoints
 
             try
             {
-                await mailService.SendTestEmailAsync(toAddress);
+                await mailService.SendTestEmailAsync(toAddress, smtpSettings: settings);
                 return Results.Ok(new SmtpTestResponse
                 {
                     Success = true,
@@ -121,9 +117,10 @@ public static partial class SmtpSettingsEndpoints
             }
         })
         .WithTags("Settings")
-        .WithSummary("Send a test message using the stored mail server configuration.")
+        .WithSummary("Send a test message using saved or unsaved mail server settings.")
         .WithDescription(
-            "Sends a short plain-text message to verify the mail server settings. Defaults to the " +
+            "Tests optional settings overrides without persisting them. An omitted password keeps the effective secret. " +
+            "Omit settings to test the effective configuration. Defaults to the " +
             "configured delivery email, then the Kindle email, then the sender address.")
         .Accepts<SmtpTestRequest>("application/json")
         .Produces<SmtpTestResponse>(StatusCodes.Status200OK)
@@ -135,6 +132,18 @@ public static partial class SmtpSettingsEndpoints
 
     private static string? FirstNonEmpty(params string?[] candidates)
         => candidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))?.Trim();
+
+    private static Dictionary<string, string[]> ValidateSettings(UpdateSmtpSettingsRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (request.Host is not null && string.IsNullOrWhiteSpace(request.Host))
+            errors["host"] = ["Host must not be empty."];
+        if (request.Port is { } port && port is < 1 or > 65535)
+            errors["port"] = ["Port must be between 1 and 65535."];
+        if (request.FromAddress is not null && !IsValidEmail(request.FromAddress))
+            errors["fromAddress"] = ["From address must be a valid email address."];
+        return errors;
+    }
 
     private static bool IsValidEmail(string value)
         => !string.IsNullOrWhiteSpace(value) && EmailRegex().IsMatch(value.Trim());
