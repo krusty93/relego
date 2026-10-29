@@ -290,7 +290,11 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
         </p>
         <p>
           Get the extension from the{" "}
-          <a href="https://chromewebstore.google.com/detail/relego" target="_blank" rel="noreferrer">
+          <a
+            href="https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp"
+            target="_blank"
+            rel="noreferrer"
+          >
             Chrome Web Store
           </a>
           ,{" "}

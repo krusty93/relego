@@ -305,7 +305,7 @@ test.describe("sync", () => {
     await expect(page.getByText("Publisher limits")).toBeVisible();
     await expect(page.getByRole("heading", { name: "What this needs" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Chrome Web Store" })).toHaveAttribute(
-      "href", "https://chromewebstore.google.com/detail/relego",
+      "href", "https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp",
     );
     await expect(page.getByRole("link", { name: "Firefox Add-ons" })).toHaveAttribute(
       "href", "https://addons.mozilla.org/en-US/firefox/addon/relego/",
