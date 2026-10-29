@@ -345,6 +345,15 @@ test.describe("sync", () => {
       expect(needsBox.y + needsBox.height).toBeLessThan((await outcome.boundingBox())!.y);
 
       const details = page.getByRole("region", { name: "How it works" });
+      const panelBox = (await outcome.locator("..").locator("..").boundingBox())!;
+      for (const text of [
+        ...await needs.locator("p").all(),
+        ...await details.locator("dd").all(),
+      ]) {
+        const box = (await text.boundingBox())!;
+        expect(box.x).toBe(panelBox.x);
+        expect(box.width).toBeCloseTo(panelBox.width, 0);
+      }
       await expect(details.locator("dt")).toHaveCount(5);
       await expect(details.getByText("Your data path", { exact: true })).toBeVisible();
       for (const item of await details.locator(".tip").all()) {
