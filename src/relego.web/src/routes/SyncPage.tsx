@@ -313,7 +313,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           </a>
           ,{" "}
           <a
-            href="https://addons.mozilla.org/en-US/firefox/search/?q=relego"
+            href="https://addons.mozilla.org/en-US/firefox/addon/relego/"
             target="_blank"
             rel="noreferrer"
           >
