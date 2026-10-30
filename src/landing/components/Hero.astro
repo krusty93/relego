@@ -32,7 +32,7 @@ const letters = siteConfig.logotype.split('');
 
 		<div class="hero__device">
 			<Reader class="hero__reader" label="Sample recap">
-				<div class="recap">
+				<div class="recap" data-recap-page>
 					<div class="recap__head">
 						<span class="recap__logo">relego.</span>
 						<span>Recap · 5 highlights</span>
@@ -50,13 +50,44 @@ const letters = siteConfig.logotype.split('');
 					<div class="recap__book">Moby-Dick · Herman Melville</div>
 					<div class="recap__foot">1 / 5</div>
 				</div>
+				<div class="recap" data-recap-page hidden>
+					<div class="recap__head">
+						<span class="recap__logo">relego.</span>
+						<span>Recap · 5 highlights</span>
+					</div>
+					<div class="recap__title">Read again.</div>
+					<blockquote class="recap__quote">
+						<span class="recap__mark">There is no frigate like a book</span>{' '}
+						to take us lands away.
+					</blockquote>
+					<div class="recap__book">There is no Frigate like a Book · Emily Dickinson</div>
+					<span class="recap__rule"></span>
+					<blockquote class="recap__quote recap__quote--next">
+						I am a part of all that I have met.
+					</blockquote>
+					<div class="recap__book">Ulysses · Alfred, Lord Tennyson</div>
+					<div class="recap__foot">2 / 5</div>
+				</div>
 			</Reader>
+			<div class="hero__page-controls" hidden>
+				<button type="button" data-page-direction="-1" aria-label="Previous sample page">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
+				</button>
+				<span data-page-status role="status">Sample page 1 of 2</span>
+				<button type="button" data-page-direction="1" aria-label="Next sample page">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m10 6 6 6-6 6" /></svg>
+				</button>
+			</div>
 		</div>
 	</div>
 	<a class="hero__cue" href="#journey" aria-label="Scroll to how it works">
 		<span></span>
 	</a>
 </section>
+
+<script>
+	import '../scripts/reader-pages';
+</script>
 
 <style>
 	.hero {
@@ -214,16 +245,53 @@ const letters = siteConfig.logotype.split('');
 
 	.hero__device {
 		display: flex;
+		flex-direction: column;
+		align-items: center;
 		justify-content: center;
 		perspective: 1600px;
+	}
+
+	.hero__page-controls {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-top: 1.25rem;
+		font-size: 0.75rem;
+		color: var(--color-soft);
+	}
+
+	.hero__page-controls[hidden],
+	.recap[hidden] {
+		display: none;
+	}
+
+	.hero__page-controls button {
+		display: grid;
+		place-items: center;
+		width: 2.75rem;
+		height: 2.75rem;
+		border: 1px solid var(--color-border-strong);
+		border-radius: 50%;
+		background: transparent;
+		color: var(--color-text);
+		cursor: pointer;
+	}
+
+	.hero__page-controls button:hover {
+		background: var(--color-panel);
+	}
+
+	.hero__page-controls svg {
+		width: 1.125rem;
+		height: 1.125rem;
 	}
 
 	.hero__device :global(.hero__reader) {
 		max-width: 21rem;
 		transform:
 			translate3d(0, calc(var(--p, 0) * -3rem), 0)
-			rotateX(calc(8deg - var(--p, 0) * 8deg))
-			rotateY(calc(-16deg + var(--p, 0) * 16deg))
+			rotateX(calc(8deg - var(--p, 0) * 8deg + var(--reader-y, 0) * -7deg))
+			rotateY(calc(-16deg + var(--p, 0) * 16deg + var(--reader-x, 0) * 12deg))
 			rotateZ(calc(2deg - var(--p, 0) * 2deg));
 		transform-style: preserve-3d;
 	}
@@ -325,6 +393,12 @@ const letters = siteConfig.logotype.split('');
 		font-family: var(--font-body);
 		font-size: 0.68em;
 		color: var(--ink-soft);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hero__device :global(.hero__reader) {
+			transform: none;
+		}
 	}
 
 	.hero__cue {
