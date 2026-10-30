@@ -64,3 +64,4 @@ if (hero && reader && controls && status && pages.length) {
 	document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
 	new IntersectionObserver(([entry]) => { if (!entry.isIntersecting) stop(); }).observe(hero);
 }
+export {};
