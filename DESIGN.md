@@ -196,6 +196,16 @@ components:
 
 # Design System: Relego
 
+## Hero experiment: reader in hand
+
+The hero reader follows a fine mouse pointer with damped, bounded tilt while
+retaining its existing scroll pose. Previous/next controls cycle two illustrative
+recap pages with a brief e-ink refresh, not a physical paper curl. The controls
+remain keyboard and touch accessible; the drawn screen stays decorative.
+Reduced motion removes tilt and refresh movement, while page switching remains
+available. Pointer work runs only until settled and stops offscreen or hidden.
+No new dependency, autoplay, or changes to the rest of the landing page. System: Relego
+
 ## Overview
 
 **Creative North Star: "The Paper Circuit"**
