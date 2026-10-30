@@ -196,6 +196,18 @@ components:
 
 # Design System: Relego
 
+## Hero experiment: rediscover through condensation
+
+The original reader faces forward behind a misted screen. Inspired by the
+Condensation reference's wipe-to-reveal interaction, an original canvas layer
+uses warm paper fog and seeded droplets, not external imagery or shaders.
+Moving a mouse wipes a soft trail; holding the pointer widens it. Touch taps
+also wipe without blocking vertical page scrolling. Keyboard/touch controls
+reveal the whole recap or mist it again. Wiped areas stay clear until reset.
+Reduced motion and no JavaScript both show the unobscured original recap.
+Drawing runs only on input or resize; pending work stops offscreen or hidden.
+The effect is isolated to the sample screen; all surrounding copy stays intact. System: Relego
+
 ## Overview
 
 **Creative North Star: "The Paper Circuit"**
