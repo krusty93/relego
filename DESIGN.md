@@ -196,6 +196,17 @@ components:
 
 # Design System: Relego
 
+## Hero experiment: a reader made of reading
+
+An original letter-field reader takes inspiration from Signal & Soil's
+typographic silhouettes, without using its code or imagery. Lowercase letters
+from "relego / read / remember" form the bezel and recap lines. A mouse pushes
+letters out of place; a damped spring brings them home. A keyboard/touch button
+scatters the field once. No perpetual animation: rendering sleeps when settled,
+offscreen, or hidden. Reduced motion shows the assembled letter reader with no
+scatter control. Without JavaScript, the existing illustrated reader remains.
+The palette, surrounding content, and other page interactions are unchanged. System: Relego
+
 ## Overview
 
 **Creative North Star: "The Paper Circuit"**
