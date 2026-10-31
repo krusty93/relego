@@ -12,6 +12,7 @@ namespace Relego.Server.Sync;
 /// </summary>
 public sealed class SyncService(
     SyncConnectionRepository connections,
+    SyncReminderRepository reminders,
     SyncJobRepository jobs,
     SyncRepository syncRepository,
     ProvenanceRepository provenance,
@@ -241,6 +242,10 @@ public sealed class SyncService(
 
         await jobs.CompleteAsync(jobId, status, booksTotal, booksDone, truncatedBooks, now);
         await connections.RecordSyncCompletedAsync(job.ConnectionId, now, hasChanges ? now : null);
+
+        // New content ends the quiet period, so the next reminder counts from this moment.
+        if (hasChanges)
+            await reminders.ResolveOpenAsync(job.ConnectionId, now);
 
         return await jobs.GetByIdAsync(jobId)
             ?? throw new SyncOperationException($"Unknown job {jobId}.", StatusCodes.Status404NotFound);
