@@ -25,6 +25,42 @@ export function describeFrequency(minutes: number): string {
   return minutes < 60 ? plural(minutes, "minute") : plural(minutes / 60, "hour");
 }
 
+/**
+ * A coarse duration for progress copy: "8 s", "1 min 20 s", "1 h 5 min".
+ *
+ * Seconds are dropped once the span is an hour or more, and a whole number of minutes stays "2 min"
+ * rather than "2 min 0 s".
+ */
+export function formatDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  if (seconds < 60) return `${seconds} s`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    const rest = seconds % 60;
+
+    return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+
+  return restMinutes === 0 ? `${hours} h` : `${hours} h ${restMinutes} min`;
+}
+
+/**
+ * Whole seconds between a past timestamp and `nowMs`, or `null` when the timestamp is missing or
+ * unreadable. A timestamp in the future reads as zero rather than as a negative age.
+ */
+export function secondsSince(iso: string | null | undefined, nowMs: number): number | null {
+  if (!iso) return null;
+
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return null;
+
+  return Math.max(0, Math.round((nowMs - then) / 1000));
+}
+
 export function capitalise(value: string): string {
   return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
 }

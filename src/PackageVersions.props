@@ -4,6 +4,7 @@
     <RelegoCoreVersion>0.10.0</RelegoCoreVersion>
     <RelegoCliVersion>0.17.0</RelegoCliVersion>
     <RelegoServerVersion>0.20.0</RelegoServerVersion>
+    <RelegoExtensionVersion>0.1.0</RelegoExtensionVersion>
     <PollyVersion>8.6.6</PollyVersion>
     <MicrosoftDataSqliteVersion>10.0.5</MicrosoftDataSqliteVersion>
   </PropertyGroup>

@@ -5,16 +5,31 @@
  * choice to `region-change.ts`, which owns the order of operations — ask for host access, tell the
  * server, release the host that is no longer read — so a refusal changes nothing. The region the
  * connection reads is always read back from the server, which stays the single source of truth.
+ *
+ * It has two views and shows exactly one of them. A connection that answers shows the confirmation
+ * and a way into the form; the form appears only while something has to be connected, or when the
+ * user asks to edit it. Saving successfully returns to the confirmation. Both views also offer a
+ * button that opens the Kindle Notebook Sync page of the Relego server in a new tab: the form's
+ * button follows the address being typed, the confirmation's uses the paired server.
  */
 
-import { PROVIDER_ID, RelegoClient } from "./client";
+import { PROVIDER_ID, RelegoClient, statusRegion } from "./client";
 import type { RelegoClientConfig } from "./client";
 import { CONFIGURED_MESSAGE } from "./messages";
 import { browserHostPermissions } from "./permissions";
+import { isWindowed, windowedUrl, WINDOW_HEIGHT, WINDOW_WIDTH } from "./popout";
 import { REGION_DISCLOSURE, resolveRegion } from "./profile";
 import { chooseRegion, regionOptions } from "./region-change";
 import type { RegionChoice } from "./region-change";
-import { readConfig, writeConfig } from "./storage";
+import { kindleSyncUrl } from "./server-link";
+import {
+  readConfig,
+  readDraftRegion,
+  readDraftServerUrl,
+  writeConfig,
+  writeDraftRegion,
+  writeDraftServerUrl,
+} from "./storage";
 
 /** Wording for the statuses that ask the user to do something, mirrored from the web app. */
 const ATTENTION: Record<string, string> = {
@@ -28,14 +43,23 @@ const ATTENTION: Record<string, string> = {
 /** The elements the popup drives. */
 interface Elements {
   readonly form: HTMLFormElement;
+  readonly done: HTMLElement;
+  readonly edit: HTMLButtonElement;
+  readonly openDone: HTMLButtonElement;
+  readonly openForm: HTMLButtonElement;
   readonly state: HTMLParagraphElement;
+  readonly popout: HTMLButtonElement;
   readonly serverUrl: HTMLInputElement;
   readonly code: HTMLInputElement;
   readonly region: HTMLSelectElement;
   readonly disclosure: HTMLParagraphElement;
   readonly notice: HTMLParagraphElement;
   readonly save: HTMLButtonElement;
+  readonly cancel: HTMLButtonElement;
 }
+
+/** Which of the two views the popup is showing. */
+type PopupView = "form" | "done";
 
 /** Returns a required element, failing loudly when the markup and this file disagree. */
 function required<T extends HTMLElement>(id: string): T {
@@ -52,10 +76,72 @@ function statusOf(error: unknown): number | null {
   return typeof status === "number" ? status : null;
 }
 
-/** Shows a sentence in the notice block. */
+/** Shows a sentence in the notice block, or clears it when there is nothing to say. */
 function say(elements: Elements, text: string, tone: "info" | "warn"): void {
+  if (text.length === 0) {
+    clearNotice(elements);
+
+    return;
+  }
+
   elements.notice.textContent = text;
   elements.notice.dataset["tone"] = tone;
+}
+
+/**
+ * Empties the notice block.
+ *
+ * The tone attribute is what makes the block visible, so clearing only the text would leave an
+ * empty box on screen.
+ */
+function clearNotice(elements: Elements): void {
+  elements.notice.textContent = "";
+  delete elements.notice.dataset["tone"];
+}
+
+/**
+ * Shows one view and hides the other.
+ *
+ * Cancel is offered only from a configuration that already works, because there is nothing to go
+ * back to before the first successful save.
+ */
+function show(elements: Elements, view: PopupView, paired: boolean): void {
+  elements.done.hidden = view !== "done";
+  elements.form.hidden = view !== "form";
+  elements.cancel.hidden = !paired || view !== "form";
+
+  if (view === "done") clearNotice(elements);
+  updateOpenForm(elements);
+}
+
+/**
+ * Enables the form's link to Relego only while the address typed in the form can be opened.
+ *
+ * The address field is also filled in by code, not just by typing, so this runs on every input and
+ * whenever a view is shown.
+ */
+function updateOpenForm(elements: Elements): void {
+  elements.openForm.disabled = kindleSyncUrl(elements.serverUrl.value) === null;
+}
+
+/**
+ * Opens the Kindle Notebook Sync page of a Relego server in a new tab.
+ *
+ * Opening a tab needs no permission. The toolbar popup closes when the new tab takes focus; the
+ * detached window stays open, which is what lets the one-time code be carried back into it.
+ *
+ * @param elements The popup's elements, used to report a tab the browser refused to open.
+ * @param serverUrl Server address to open; nothing happens when it is not an http(s) URL.
+ */
+async function openRelego(elements: Elements, serverUrl: string): Promise<void> {
+  const url = kindleSyncUrl(serverUrl);
+  if (url === null) return;
+
+  try {
+    await chrome.tabs.create({ url });
+  } catch {
+    say(elements, "The browser did not open a new tab.", "warn");
+  }
 }
 
 /** Fills the picker from the allowlist; there is no free-text host field anywhere. */
@@ -76,22 +162,24 @@ function renderPicker(elements: Elements): void {
  * Reads the connection state from the server and shows it.
  *
  * @param elements The popup's elements.
- * @returns The stored configuration, or `null` when the extension is not paired.
+ * @returns Whether the server reported a region, which is what makes the configuration usable.
  */
-async function refresh(elements: Elements): Promise<RelegoClientConfig | null> {
+async function refresh(elements: Elements): Promise<boolean> {
   const config = await readConfig();
   if (config === null) {
     elements.state.textContent = "Not connected yet.";
     say(elements, "Paste the one-time code Relego shows to connect this browser.", "warn");
+    await restoreDraft(elements);
 
-    return null;
+    return false;
   }
 
   elements.serverUrl.value = config.baseUrl;
 
   try {
     const status = await new RelegoClient(config).getStatus(PROVIDER_ID);
-    const region = status.region === null ? null : resolveRegion(status.region.id);
+    const reported = statusRegion(status);
+    const region = reported === null ? null : resolveRegion(reported.id);
     if (region !== null) elements.region.value = region.id;
 
     elements.state.textContent =
@@ -100,18 +188,70 @@ async function refresh(elements: Elements): Promise<RelegoClientConfig | null> {
         : `Reading ${region.displayName} · ${region.notebookHost}`;
 
     const attention = ATTENTION[status.status];
-    if (attention === undefined) elements.notice.textContent = "";
+    if (attention === undefined) clearNotice(elements);
     else say(elements, attention, "warn");
+
+    return region !== null;
   } catch {
     elements.state.textContent = `Relego at ${config.baseUrl} did not answer.`;
     say(elements, "Check that the server is running and that the address is right.", "warn");
-  }
 
-  return config;
+    return false;
+  }
+}
+
+/**
+ * Restores the fields the user filled in before pairing.
+ *
+ * The popup is torn down every time it loses focus, so anything typed before a pairing exists has to
+ * come back from storage — otherwise carrying the one-time code over from Relego would cost the
+ * address that was already entered.
+ *
+ * @param elements The popup's elements.
+ */
+async function restoreDraft(elements: Elements): Promise<void> {
+  const [serverUrl, regionId] = await Promise.all([readDraftServerUrl(), readDraftRegion()]);
+
+  if (serverUrl.length > 0) elements.serverUrl.value = serverUrl;
+  if (regionId !== null && resolveRegion(regionId) !== null) elements.region.value = regionId;
+}
+
+/** Keeps what the user types, so a popup that closes and reopens comes back filled in. */
+function keepDraft(elements: Elements): void {
+  elements.serverUrl.addEventListener("input", () => {
+    void writeDraftServerUrl(elements.serverUrl.value);
+    updateOpenForm(elements);
+  });
+  elements.region.addEventListener("change", () => {
+    void writeDraftRegion(elements.region.value);
+  });
+}
+
+/**
+ * Reopens the popup in a window of its own, then closes the toolbar popup.
+ *
+ * @param elements The popup's elements, used to report a window the browser refused to open.
+ */
+function popOut(elements: Elements): void {
+  chrome.windows.create(
+    {
+      url: windowedUrl(chrome.runtime.getURL("popup.html")),
+      type: "popup",
+      width: WINDOW_WIDTH,
+      height: WINDOW_HEIGHT,
+    },
+    () => {
+      if (chrome.runtime.lastError === undefined) window.close();
+      else say(elements, "The browser did not open a window. Check that popups are allowed.", "warn");
+    },
+  );
 }
 
 /**
  * Applies what the user saved, keeping the button disabled while it runs.
+ *
+ * The notice is written after the server state has been read back, so a message about this save is
+ * never replaced by the state the page already knew.
  *
  * @param elements The popup's elements.
  * @returns A task that completes once the outcome is on screen.
@@ -119,7 +259,21 @@ async function refresh(elements: Elements): Promise<RelegoClientConfig | null> {
 async function save(elements: Elements): Promise<void> {
   elements.save.disabled = true;
   try {
-    await applySave(elements);
+    const outcome = await applySave(elements);
+    if (outcome === null) return;
+
+    const paired = await refresh(elements);
+    const applied = outcome.kind === "region_selected" || outcome.kind === "already_selected";
+
+    if (applied) elements.code.value = "";
+
+    // A working configuration moves to the confirmation, which says everything that is left to say;
+    // anything else keeps the form on screen with the reason next to it.
+    if (applied && paired) show(elements, "done", true);
+    else {
+      show(elements, "form", paired);
+      announceOutcome(elements, outcome);
+    }
   } catch (error) {
     say(elements, describeFailure(statusOf(error)), "warn");
   } finally {
@@ -127,8 +281,14 @@ async function save(elements: Elements): Promise<void> {
   }
 }
 
-/** Resolves the target server, then hands the choice to the region decision. */
-async function applySave(elements: Elements): Promise<void> {
+/**
+ * Resolves the target server, then hands the choice to the region decision.
+ *
+ * @param elements The popup's elements.
+ * @returns What the region decision made of the choice, or `null` when the form itself was
+ * incomplete and the server was never called.
+ */
+async function applySave(elements: Elements): Promise<RegionChoice | null> {
   const config = await readConfig();
   const serverUrl = elements.serverUrl.value.trim();
   const code = elements.code.value.trim();
@@ -137,7 +297,7 @@ async function applySave(elements: Elements): Promise<void> {
   if (needsCode && code.length === 0) {
     say(elements, "Paste the one-time code from Relego to connect to this server.", "warn");
 
-    return;
+    return null;
   }
 
   const target: RelegoClientConfig = needsCode ? { baseUrl: serverUrl, token: code } : config;
@@ -162,26 +322,32 @@ async function applySave(elements: Elements): Promise<void> {
     },
   );
 
-  await applyOutcome(elements, outcome, target, needsCode);
+  await applyOutcome(outcome, target, needsCode);
+
+  return outcome;
 }
 
 /** Reads the region the server has for this connection; `null` when it has none yet. */
 async function readCurrentRegionId(client: RelegoClient): Promise<string | null> {
-  const status = await client.getStatus(PROVIDER_ID);
+  const reported = statusRegion(await client.getStatus(PROVIDER_ID));
 
-  return status.region === null ? null : status.region.id;
+  return reported === null ? null : reported.id;
 }
 
-/** Tells the worker to recreate its alarms, then shows what happened. */
+/** Tells the worker to recreate its alarms and persists the configuration the choice needs. */
 async function applyOutcome(
-  elements: Elements,
   outcome: RegionChoice,
   target: RelegoClientConfig,
   needsCode: boolean,
 ): Promise<void> {
+  if (outcome.kind === "region_selected") await notifyWorker(outcome.intervalMinutes);
+  if (needsCode) await writeConfig(target);
+}
+
+/** Shows what happened to the user's choice. */
+function announceOutcome(elements: Elements, outcome: RegionChoice): void {
   switch (outcome.kind) {
     case "region_selected":
-      await notifyWorker(outcome.intervalMinutes);
       say(
         elements,
         outcome.intervalMinutes === null
@@ -210,9 +376,6 @@ async function applyOutcome(
       say(elements, describeFailure(outcome.status), "warn");
       break;
   }
-
-  if (needsCode) await writeConfig(target);
-  await refresh(elements);
 }
 
 /**
@@ -250,22 +413,67 @@ function describeFailure(status: number | null): string {
 async function main(): Promise<void> {
   const elements: Elements = {
     form: required<HTMLFormElement>("settings"),
+    done: required<HTMLElement>("done"),
+    edit: required<HTMLButtonElement>("edit"),
+    openDone: required<HTMLButtonElement>("openDone"),
+    openForm: required<HTMLButtonElement>("openForm"),
     state: required<HTMLParagraphElement>("state"),
+    popout: required<HTMLButtonElement>("popout"),
     serverUrl: required<HTMLInputElement>("serverUrl"),
     code: required<HTMLInputElement>("code"),
     region: required<HTMLSelectElement>("region"),
     disclosure: required<HTMLParagraphElement>("disclosure"),
     notice: required<HTMLParagraphElement>("notice"),
     save: required<HTMLButtonElement>("save"),
+    cancel: required<HTMLButtonElement>("cancel"),
   };
 
   renderPicker(elements);
+  keepDraft(elements);
   elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
     void save(elements);
   });
 
-  await refresh(elements);
+  elements.edit.addEventListener("click", () => {
+    clearNotice(elements);
+    show(elements, "form", true);
+  });
+  elements.cancel.addEventListener("click", () => {
+    void openConfigured(elements);
+  });
+  elements.openForm.addEventListener("click", () => {
+    void openRelego(elements, elements.serverUrl.value);
+  });
+  elements.openDone.addEventListener("click", () => {
+    void openStoredRelego(elements);
+  });
+
+  if (isWindowed(location.search)) {
+    document.body.dataset["window"] = "";
+    elements.popout.hidden = true;
+  } else {
+    elements.popout.addEventListener("click", () => popOut(elements));
+  }
+
+  await openConfigured(elements);
+}
+
+/** Opens the page of the server this browser is paired with, the one the confirmation speaks of. */
+async function openStoredRelego(elements: Elements): Promise<void> {
+  const config = await readConfig();
+  if (config !== null) await openRelego(elements, config.baseUrl);
+}
+
+/**
+ * Reads the connection back and shows the view that matches it.
+ *
+ * @param elements The popup's elements.
+ * @returns A task that completes once the view is on screen.
+ */
+async function openConfigured(elements: Elements): Promise<void> {
+  const paired = await refresh(elements);
+  show(elements, paired ? "done" : "form", paired);
 }
 
 if (typeof document !== "undefined") void main();

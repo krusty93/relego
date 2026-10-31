@@ -127,9 +127,16 @@ jobs:
         working-directory: src/relego.extension
         run: npm test
 
-      - name: Build
+      - name: Package
         working-directory: src/relego.extension
-        run: npm run build
+        run: npm run package
+
+      - name: Upload extension packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: extension-packages
+          path: src/relego.extension/release/*.zip
+          if-no-files-found: error
 
   server-image:
     name: Build server image

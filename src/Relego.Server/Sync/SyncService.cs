@@ -257,8 +257,15 @@ public sealed class SyncService(
     /// <param name="code">Stable failure code.</param>
     /// <param name="detail">Sanitized failure detail, or <c>null</c>.</param>
     /// <param name="recoverySteps">Ordered recovery steps, or <c>null</c>.</param>
+    /// <param name="diagnostics">Structural diagnostics reported by the extension, or <c>null</c>.</param>
     /// <returns>A task that completes when the failure has been persisted.</returns>
-    public async Task FailAsync(int userId, long jobId, string code, string? detail, IReadOnlyList<string>? recoverySteps)
+    public async Task FailAsync(
+        int userId,
+        long jobId,
+        string code,
+        string? detail,
+        IReadOnlyList<string>? recoverySteps,
+        SyncFailureDiagnostics? diagnostics = null)
     {
         var job = await GetOwnedJobAsync(userId, jobId);
         if (job.Status != "running")
@@ -267,8 +274,21 @@ public sealed class SyncService(
         var status = string.Equals(code, "auth_expired", StringComparison.Ordinal) ? "auth_expired" : "failed";
         var now = DateTimeOffset.UtcNow.ToString("o");
         var steps = recoverySteps is { Count: > 0 } ? JsonSerializer.Serialize(recoverySteps) : null;
+        var storedDiagnostics = diagnostics is null ? null : JsonSerializer.Serialize(diagnostics);
 
-        await jobs.FailAsync(jobId, status, code, SanitizeDetail(detail), steps, now);
+        await jobs.FailAsync(jobId, status, code, SanitizeDetail(detail), steps, storedDiagnostics, now);
+
+        // The user is told to report the diagnostics, so the log has to carry them too.
+        if (diagnostics is not null)
+        {
+            logger.LogWarning(
+                "Sync job {JobId} failed with {Code}. Diagnostics: profile {ProfileVersion}, check {Check}, counts {Counts}.",
+                jobId,
+                LogValue(code),
+                LogValue(diagnostics.ProfileVersion ?? "unknown"),
+                LogValue(diagnostics.Check ?? "unknown"),
+                LogValue(string.Join(", ", diagnostics.Counts.Select(pair => $"{pair.Key}={pair.Value}"))));
+        }
 
         if (status == "auth_expired")
             await connections.RecordAuthExpiredAsync(job.ConnectionId, now);
@@ -341,6 +361,22 @@ public sealed class SyncService(
 
         return total;
     }
+
+    /// <summary>
+    /// Replaces control and separator characters so a reported value cannot forge a second
+    /// log line or overwrite the real message in a viewer.
+    /// </summary>
+    /// <param name="value">The value reported by the client.</param>
+    /// <returns>The value with every control or separator character replaced.</returns>
+    private static string LogValue(string value) =>
+        string.Create(value.Length, value, static (span, source) =>
+        {
+            for (var index = 0; index < span.Length; index++)
+            {
+                var character = source[index];
+                span[index] = char.IsControl(character) || char.IsSeparator(character) ? ' ' : character;
+            }
+        });
 
     private static string? SanitizeDetail(string? detail)
     {

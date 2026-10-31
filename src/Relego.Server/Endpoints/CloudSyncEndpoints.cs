@@ -16,7 +16,6 @@ public static class CloudSyncEndpoints
     private const int MaxRequestBodyBytes = 2 * 1024 * 1024;
     private const int HeartbeatSeconds = 60;
     private const int MaxProfileVersionLength = 32;
-    private const int MaxFailureCodeLength = 64;
     private const string NoCommand = "none";
     private const string FullResyncCommand = "full_resync";
     private const int DefaultJobsLimit = 20;
@@ -741,10 +740,8 @@ public static class CloudSyncEndpoints
             var code = (request.Code ?? string.Empty).Trim();
             var errors = new Dictionary<string, string[]>();
 
-            if (code.Length == 0)
-                errors["code"] = ["code must not be empty."];
-            else if (code.Length > MaxFailureCodeLength)
-                errors["code"] = [$"code must be at most {MaxFailureCodeLength} characters."];
+            if (SyncFailureRecovery.ValidateCode(code) is { } codeError)
+                errors["code"] = [codeError];
 
             if (SyncFailureRecovery.ValidateDiagnostics(request.Diagnostics) is { } diagnosticsError)
                 errors["diagnostics"] = [diagnosticsError];
@@ -759,14 +756,15 @@ public static class CloudSyncEndpoints
                     jobId,
                     code,
                     SyncFailureRecovery.DetailFor(code),
-                    SyncFailureRecovery.StepsFor(code));
+                    SyncFailureRecovery.StepsFor(code),
+                    request.Diagnostics);
 
                 return Results.NoContent();
             });
         })
         .WithTags("Sync")
         .WithSummary("Fail a sync job with a stable code.")
-        .WithDescription("Records the failure code with sanitized detail and recovery steps. Diagnostics accept structural identifiers and counts only; page free text is rejected.")
+        .WithDescription("Records the failure code with sanitized detail and recovery steps. The code must be a stable identifier, and diagnostics accept structural identifiers and counts only; page free text is rejected.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -928,6 +926,7 @@ public static class CloudSyncEndpoints
                 Code = code,
                 Detail = latestJob.FailureDetail ?? SyncFailureRecovery.DetailFor(code),
                 RecoverySteps = SyncFailureRecovery.ParseSteps(latestJob.RecoverySteps, code),
+                Diagnostics = ParseDiagnostics(latestJob.FailureDiagnostics),
                 OccurredAt = latestJob.EndedAt
             };
         }
@@ -944,6 +943,25 @@ public static class CloudSyncEndpoints
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Reads the stored diagnostics back into the contract shape, treating unreadable JSON as
+    /// absent rather than failing the status read.
+    /// </summary>
+    private static SyncFailureDiagnostics? ParseDiagnostics(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<SyncFailureDiagnostics>(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static SyncJobDto? MapJob(SyncJobRecord? job) =>

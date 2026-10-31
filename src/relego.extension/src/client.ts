@@ -44,14 +44,36 @@ export interface RelegoRegionChange {
   readonly pendingCommand: string;
 }
 
+/** The connection part of a provider status. */
+export interface RelegoConnection {
+  /** Connection state: `not_connected`, `awaiting_pairing`, `active`, `auth_expired` or `disconnected`. */
+  readonly state: string;
+  /** The selected region, or `null` until the extension pairs. */
+  readonly region: RelegoRegion | null;
+}
+
 /** The subset of the provider status the extension consumes. */
 export interface RelegoStatus {
   /** Provider id, for example `kindle-cloud`. */
   readonly providerId: string;
   /** Derived user-visible status. */
   readonly status: string;
-  /** The selected region, or `null` until the extension pairs. */
-  readonly region: RelegoRegion | null;
+  /** Connection state and the region it reads. */
+  readonly connection: RelegoConnection;
+}
+
+/**
+ * Reads the region a status payload reports.
+ *
+ * The region travels inside `connection`, which is the shape the server sends; a payload without it
+ * is treated as "no region" instead of throwing, so a server that predates the field cannot crash
+ * the worker.
+ *
+ * @param status Status payload from the server.
+ * @returns The reported region, or `null` when there is none.
+ */
+export function statusRegion(status: RelegoStatus): RelegoRegion | null {
+  return status.connection?.region ?? null;
 }
 
 /** A book the server has already imported, used to skip unchanged books. */
@@ -202,13 +224,23 @@ export class RelegoApiError extends Error {
   }
 }
 
+/**
+ * Strips trailing slashes from a server address, so a path can be appended without doubling them.
+ *
+ * @param baseUrl Server address as the user typed or stored it.
+ * @returns The address without trailing slashes.
+ */
+export function trimBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, "");
+}
+
 /** Typed HTTP client for the Relego cloud-sync channel. */
 export class RelegoClient {
   private readonly baseUrl: string;
   private readonly token: string;
 
   constructor(config: RelegoClientConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/+$/, "");
+    this.baseUrl = trimBaseUrl(config.baseUrl);
     this.token = config.token;
   }
 

@@ -6,8 +6,13 @@
  * allowlist, and a host-shaped region id is rejected before any navigation happens.
  */
 
-/** Version of the notebook parse profile mirrored by this extension build. */
-export const PROFILE_VERSION = "2";
+/**
+ * Version of the notebook parse profile mirrored by this extension build.
+ *
+ * Bumped to 4 when the annotations page stopped requiring a heading: the library row names the book,
+ * so a page without one is parsed instead of reported as a contract break.
+ */
+export const PROFILE_VERSION = "4";
 
 /**
  * Sync frequencies the server accepts, in minutes. Mirrors
@@ -129,15 +134,17 @@ export function notebookUrl(region: KindleRegion): string {
 /**
  * Absolute URL of a single book's highlight page.
  *
- * The library list carries the book key, so the book page is always built from the allowlisted
- * host plus that key; a book key is never treated as a URL.
+ * The library list carries the book key — Amazon's ASIN — and the book page is addressed with it:
+ * the notebook reads `?asin=`, so any other parameter name is ignored by Amazon and the page it
+ * answers is whichever book the notebook is already showing. The URL is always built from the
+ * allowlisted host plus that key; a book key is never treated as a URL.
  *
  * @param region Region the notebook is read from.
  * @param externalKey Book key taken from the library list.
  * @returns The book page URL.
  */
 export function notebookBookUrl(region: KindleRegion, externalKey: string): string {
-  return `${notebookUrl(region)}?bookKey=${encodeURIComponent(externalKey)}`;
+  return `${notebookUrl(region)}?asin=${encodeURIComponent(externalKey)}`;
 }
 
 /** Reports whether a URL is the Amazon sign-in surface of the given region. */

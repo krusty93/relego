@@ -48,6 +48,32 @@ sign-in is needed the extension opens the notebook tab and waits. It never fills
 4. Export-limit warning element → `truncated = true` for that book (never an error).
 5. Unrecognized required structure ⇒ `provider_contract_changed` (code + selector id + counts only).
 
+### Anchor matching is structural, not literal
+
+Anchors are the id or the class **token** of an opening tag, read from parsed attributes; `tag` is
+only a narrowing hint. Added classes, single quotes, unquoted attributes and reordered attributes
+therefore do not break the profile, and a few anchors carry tolerated alternatives tried in order:
+
+| Anchor | Accepted shapes |
+|--------|-----------------|
+| library list / empty | `div#kp-notebook-library`, `div#kp-notebook-empty` or `.kp-notebook-empty` |
+| book row | any tag whose class tokens include `kp-notebook-library-each-book` |
+| book key | `data-book-key`, `data-asin`, then an ASIN embedded in the row `id` (e.g. `id="B00LIVE001"`), then the normalized title |
+| row title | `h2#kp-notebook-book-title`, any `h2`, or `.kp-notebook-book-title` |
+| row author | `p#kp-notebook-book-author`, `.kp-notebook-book-author`, or the row's `p` |
+| annotations | `div#kp-notebook-annotations` |
+| annotation block | `.kp-notebook-annotation`, an `annotation-…` id, or `.kp-notebook-highlight` |
+| highlight text | `span#highlight`, a `highlight-…` id, or `span.highlight` |
+| book page title / author | `h2#kp-notebook-book-title` then any `h2`; the author stays id/class-only because a bare `<p>` there could be highlight prose |
+
+A missing `data-highlight-count` yields `highlightCount = null`, which means "unknown", never zero.
+
+When the row anchor still misses, the diagnostics carry a text-free fingerprint of the list —
+`bookRows`, `listElements`, `keyedRows`, `titleAnchors` — so a renamed wrapper is distinguishable
+from an empty document without shipping page content. The server stores these diagnostics with the
+failed job and returns them on `GET /sync/{provider}`, which is what makes the "report the
+diagnostics" step actionable.
+
 ## Failure codes → user recovery (surfaced in the web UI)
 
 | Code | Meaning | Recovery steps shown |

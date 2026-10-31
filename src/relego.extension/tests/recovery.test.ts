@@ -150,7 +150,7 @@ function installFetch(state: ServerState): Recorded {
     if (amazonHosts.has(url.hostname)) {
       if (!state.signedIn) return Promise.resolve(pageResponse(fixture("sign-in.html"), "https://www.amazon.com/ap/signin"));
 
-      const key = url.searchParams.get("bookKey");
+      const key = url.searchParams.get("asin");
       if (key !== null) {
         return Promise.resolve(pageResponse(fixture("book.html").replace("B00EXAMPLE01", key), url.toString()));
       }
@@ -175,7 +175,7 @@ function installFetch(state: ServerState): Recorded {
 
     if (path === `/sync/${PROVIDER_ID}`) {
       server.statusCalls++;
-      return Promise.resolve(jsonResponse({ providerId: PROVIDER_ID, status: "connected", region }));
+      return Promise.resolve(jsonResponse({ providerId: PROVIDER_ID, status: "connected", connection: { state: "active", region } }));
     }
 
     if (path === `/sync/${PROVIDER_ID}/jobs`) {

@@ -213,10 +213,17 @@ export interface SyncJob {
   endedAt: string | null;
 }
 
+export interface SyncFailureDiagnostics {
+  profileVersion: string | null;
+  check: string | null;
+  counts: Record<string, number>;
+}
+
 export interface SyncFailure {
   code: string;
   detail: string | null;
   recoverySteps: string[];
+  diagnostics: SyncFailureDiagnostics | null;
   occurredAt: string | null;
 }
 

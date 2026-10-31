@@ -11,7 +11,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import { RelegoApiError, PROVIDER_ID } from "../src/client";
-import type { RelegoBatch, RelegoBatchResult, RelegoClient, RelegoKnownBook } from "../src/client";
+import { RelegoClient } from "../src/client";
+import type { RelegoBatch, RelegoBatchResult, RelegoKnownBook } from "../src/client";
 import {
   ALLOWED_INTERVAL_MINUTES,
   DEFAULT_INTERVAL_MINUTES,
@@ -40,6 +41,10 @@ function page(html: string, url: string = notebookUrl(us as KindleRegion)): Page
   return { url, html };
 }
 
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
 describe("parse profile", () => {
   it("bundles exactly the eight allowlisted regions with their official hosts", () => {
     expect(REGIONS.map((region) => [region.id, region.notebookHost])).toEqual([
@@ -66,7 +71,7 @@ describe("parse profile", () => {
 
   it("derives every notebook URL from the allowlist host", () => {
     expect(notebookUrl(us)).toBe("https://read.amazon.com/notebook");
-    expect(notebookBookUrl(us, "B00 EXAMPLE")).toBe("https://read.amazon.com/notebook?bookKey=B00%20EXAMPLE");
+    expect(notebookBookUrl(us, "B00 EXAMPLE")).toBe("https://read.amazon.com/notebook?asin=B00%20EXAMPLE");
   });
 
   it("recognises the region sign-in host without treating the notebook host as sign-in", () => {
@@ -94,7 +99,7 @@ describe("parse profile - every allowlisted region", () => {
   it("derives both notebook URLs and the sign-in URL from the region host", () => {
     for (const region of REGIONS) {
       expect(notebookUrl(region)).toBe(`https://${region.notebookHost}/notebook`);
-      expect(notebookBookUrl(region, "B00EXAMPLE01")).toBe(`https://${region.notebookHost}/notebook?bookKey=B00EXAMPLE01`);
+      expect(notebookBookUrl(region, "B00EXAMPLE01")).toBe(`https://${region.notebookHost}/notebook?asin=B00EXAMPLE01`);
       expect(region.signInHostPatterns.length).toBeGreaterThan(0);
 
       for (const host of region.signInHostPatterns) {
@@ -135,7 +140,7 @@ describe("parse profile - every allowlisted region", () => {
       if (changed.kind !== "contract_changed") continue;
 
       expect(changed.diagnostics.check).toBe("bookRow");
-      expect(changed.diagnostics.counts).toEqual({ bookRows: 0 });
+      expect(changed.diagnostics.counts).toEqual({ bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 1 });
     }
   });
 
@@ -183,6 +188,23 @@ describe("notebook parser - library page", () => {
     expect(normalizeBookKey(third?.title)).toBe("thinking, fast and slow");
   });
 
+  it("decodes the accented named entities the notebook serves in titles and authors", () => {
+    const html = `<div id="kp-notebook-library">
+      <div class="kp-notebook-library-each-book" id="B00ITALIAN" data-highlight-count="1">
+        <h2 id="kp-notebook-book-title">Citt&agrave; invisibili &mdash; Italo Calvino</h2>
+        <p id="kp-notebook-book-author">Italo Calvino &amp; altri</p>
+      </div>
+    </div>`;
+
+    const outcome = parseLibrary(html, us);
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.books[0]?.title).toBe("Città invisibili — Italo Calvino");
+    expect(outcome.books[0]?.author).toBe("Italo Calvino & altri");
+  });
+
   it("flags the export limit as truncated instead of failing (invariant 4)", () => {
     const outcome = parseLibrary(fixture("library.html"), us);
     if (outcome.kind !== "ok") throw new Error("Expected the library fixture to parse.");
@@ -214,7 +236,7 @@ describe("notebook parser - library page", () => {
     if (outcome.kind !== "contract_changed") return;
 
     expect(outcome.diagnostics.check).toBe("bookRow");
-    expect(outcome.diagnostics.counts).toEqual({ bookRows: 0 });
+    expect(outcome.diagnostics.counts).toEqual({ bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 1 });
   });
 
   it("never leaks page text into the diagnostics (invariant 5)", () => {
@@ -320,8 +342,155 @@ describe("notebook parser - book page", () => {
     expect(outcome.result.books[0]?.externalKey).toBe("B00EXAMPLE01");
   });
 
+  it("parses a page that names no book, because the library row carries the title", () => {
+    const html = `
+      <div id="kp-notebook-main">
+        <div id="kp-notebook-annotations">
+          <div class="kp-notebook-annotation" data-highlight-id="H-1">
+            <span id="highlight">First.</span>
+          </div>
+          <div class="kp-notebook-annotation" data-highlight-id="H-2">
+            <span id="highlight">Second.</span>
+          </div>
+        </div>
+      </div>`;
+
+    const outcome = parseBookPage(html, us, "B00EXAMPLE01");
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    const book = outcome.result.books[0];
+    expect(book?.title).toBe("");
+    expect(book?.highlights.map((highlight) => highlight.text)).toEqual(["First.", "Second."]);
+  });
+
+  it("decodes every character reference the notebook serves, including Unicode text", () => {
+    const html = `
+      <div id="kp-notebook-main">
+        <div id="kp-notebook-annotations">
+          <div class="kp-notebook-annotation" data-highlight-id="H-1">
+            <span id="highlight">Cos&igrave;, si tratti di otto ore come di otto secondi, il cane metter&agrave; in atto un rituale. E il primo passo &egrave; ignorare il cane.</span>
+          </div>
+          <div class="kp-notebook-annotation" data-highlight-id="H-2">
+            <span id="highlight">L&rsquo;arte di &ldquo;leggere&rdquo; &egrave; un&rsquo;abitudine: &laquo;prova&raquo;.</span>
+          </div>
+          <div class="kp-notebook-annotation" data-highlight-id="H-3">
+            <span id="highlight">&#26085;&#26412;&#35486;&#12398;&#12486;&#12461;&#12473;&#12488;&#12290;&#x4E2D;&#x56FD;&#x8A9E;&#x3002;&#x1F600;</span>
+          </div>
+          <div class="kp-notebook-annotation" data-highlight-id="H-4">
+            <span id="highlight">Αρχή &alpha;&beta;&gamma; &mdash; &amp;lt; stays escaped</span>
+          </div>
+        </div>
+      </div>`;
+
+    const outcome = parseBookPage(html, us, "B00EXAMPLE01");
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.result.books[0]?.highlights.map((highlight) => highlight.text)).toEqual([
+      "Così, si tratti di otto ore come di otto secondi, il cane metterà in atto un rituale. E il primo passo è ignorare il cane.",
+      "L’arte di “leggere” è un’abitudine: «prova».",
+      "日本語のテキスト。中国語。😀",
+      "Αρχή αβγ — &lt; stays escaped",
+    ]);
+  });
+
   it("detects the sign-in redirect on a book page", () => {
     expect(parseBookPage(fixture("sign-in.html"), us, "fallback")).toEqual({ kind: "sign_in" });
+  });
+});
+
+describe("notebook parser - structural tolerance", () => {
+  // The live notebook page is Amazon's own markup, not the committed fixture: it adds classes,
+  // quotes attributes its own way and marks a row with an ASIN id instead of a data attribute.
+  // Anchors are matched as id/class tokens, so none of that is a contract break.
+  const liveLibrary = `
+    <div id='kp-notebook-library' class='a-row kp-notebook-library'>
+      <div class='a-row kp-notebook-library-each-book aok-hidden' id='B00LIVE001'>
+        <h2 class='a-size-large'>The Pragmatic Programmer</h2>
+        <p class='a-size-base'>Andrew Hunt &amp; David Thomas</p>
+      </div>
+      <div class='kp-notebook-library-each-book a-row' id='B00LIVE002'>
+        <h2>Dune</h2>
+      </div>
+    </div>`;
+
+  it("reads rows that add classes, use single quotes and carry the ASIN as an id", () => {
+    const outcome = parseLibrary(liveLibrary, us);
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.books).toEqual([
+      { externalKey: "B00LIVE001", title: "The Pragmatic Programmer", author: "Andrew Hunt & David Thomas", highlightCount: null, truncated: false },
+      { externalKey: "B00LIVE002", title: "Dune", author: null, highlightCount: null, truncated: false },
+    ]);
+  });
+
+  it("reads an ISBN-style row id as the book key, not only B-prefixed ASINs", () => {
+    const html = `<div id="kp-notebook-library">
+      <div class="kp-notebook-library-each-book" id="0307887898"><h2>An Older Book</h2></div>
+    </div>`;
+
+    const outcome = parseLibrary(html, us);
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.books[0]?.externalKey).toBe("0307887898");
+  });
+
+  it("reports a row that exposes neither a key nor an ASIN, because a title cannot address a page", () => {
+    const html = liveLibrary.replace(/ id='B00LIVE00[12]'/g, "");
+    const outcome = parseLibrary(html, us);
+
+    expect(outcome.kind).toBe("contract_changed");
+    if (outcome.kind !== "contract_changed") return;
+
+    expect(outcome.diagnostics.check).toBe("bookKey");
+    expect(outcome.diagnostics.counts).toEqual({ bookRows: 2, keyedRows: 0, missingKeys: 2 });
+  });
+
+  it("accepts an empty library marked by class instead of id", () => {
+    const html = `<div id="kp-notebook-library"><div class="a-row kp-notebook-empty">You have no highlights yet.</div></div>`;
+
+    expect(parseLibrary(html, us)).toEqual({ kind: "ok", books: [] });
+  });
+
+  it("reads a book page whose annotations are marked by id prefix and classes", () => {
+    const html = `
+      <div id="kp-notebook-main">
+        <h2 class="a-size-extra-large">Dune</h2>
+        <div id="kp-notebook-annotations">
+          <div id="annotation-a1b2" class="a-row kp-notebook-highlight" data-color="yellow">
+            <span id="highlight-a1b2">Fear is the mind-killer.</span>
+            <span id="kp-annotation-location">Location 100-101</span>
+          </div>
+        </div>
+      </div>`;
+
+    const outcome = parseBookPage(html, us, "B00LIVE002");
+
+    expect(outcome.kind).toBe("ok");
+    if (outcome.kind !== "ok") return;
+
+    expect(outcome.result.books[0]?.title).toBe("Dune");
+    expect(outcome.result.books[0]?.highlights).toEqual([
+      { externalId: "a1b2", text: "Fear is the mind-killer.", note: null, location: "Location 100-101", color: "yellow" },
+    ]);
+  });
+
+  it("still refuses a list whose rows were genuinely replaced, and says what it saw", () => {
+    const html = `<div id="kp-notebook-library"><article class="kp-notebook-book-row" data-book-key="B00EXAMPLE01"><span>The Pragmatic Programmer</span></article></div>`;
+    const outcome = parseLibrary(html, us);
+
+    expect(outcome.kind).toBe("contract_changed");
+    if (outcome.kind !== "contract_changed") return;
+
+    expect(outcome.diagnostics.check).toBe("bookRow");
+    expect(outcome.diagnostics.counts).toEqual({ bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 0 });
   });
 });
 
@@ -418,7 +587,10 @@ function fakeClient(options: {
       return Promise.resolve({
         providerId: PROVIDER_ID,
         status: "connected",
-        region: region === null ? null : { id: region, displayName: region, host: "read.amazon.com" },
+        connection: {
+          state: "active",
+          region: region === null ? null : { id: region, displayName: region, host: "read.amazon.com" },
+        },
       });
     },
     startJob: (request: SyncRunOptions) => {
@@ -465,7 +637,7 @@ function pages(overrides: Record<string, string> = {}): (url: string) => Promise
     const override = overrides[url];
     if (override !== undefined) return Promise.resolve(page(override, url));
 
-    const key = new URL(url).searchParams.get("bookKey");
+    const key = new URL(url).searchParams.get("asin");
     if (key !== null) return Promise.resolve(page(fixture("book.html").replace("B00EXAMPLE01", key), url));
 
     return Promise.resolve(page(fixture("library.html"), url));
@@ -493,6 +665,50 @@ describe("sync runner", () => {
     expect(calls.completed).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
     expect(calls.failed).toEqual([]);
     expect(calls.progress.at(-1)).toEqual({ phase: "uploading", booksTotal: 3, booksDone: 3 });
+  });
+
+  it("files each book's highlights under the title and author of its library row", async () => {
+    const library = `
+      <div id="kp-notebook-library">
+        <div class="kp-notebook-library-each-book" id="B00LIBRARY">
+          <h2>Dune</h2><p>Frank Herbert</p>
+        </div>
+        <div class="kp-notebook-library-each-book" id="B00EDITION">
+          <h2>Emma</h2><p>Jane Austen</p>
+        </div>
+      </div>`;
+    // One page names another book, the other names none at all — the shapes Amazon serves — and both
+    // must still be filed under the row that selected them.
+    const bookPage = (key: string) => `
+      <div id="kp-notebook-main">
+        ${key === "B00LIBRARY" ? "<h2>Whichever book the notebook was showing</h2>" : ""}
+        <div id="kp-notebook-annotations">
+          <div class="kp-notebook-annotation" data-highlight-id="${key}-1">
+            <span id="highlight">highlight of ${key}</span>
+          </div>
+        </div>
+      </div>`;
+
+    const { client, calls } = fakeClient();
+    const deps: SyncRunnerDeps = {
+      client,
+      fetchPage: (url) => {
+        const asin = new URL(url).searchParams.get("asin");
+
+        return Promise.resolve(page(asin === null ? library : bookPage(asin), url));
+      },
+    };
+
+    const outcome = await runSync(deps, routine);
+
+    expect(outcome.kind).toBe("completed");
+    const books = calls.batches.flatMap((batch) => batch.books);
+    expect(books.map((book) => book.title)).toEqual(["Dune", "Emma"]);
+    expect(books.map((book) => book.author)).toEqual(["Frank Herbert", "Jane Austen"]);
+    expect(books.flatMap((book) => book.highlights.map((highlight) => highlight.text))).toEqual([
+      "highlight of B00LIBRARY",
+      "highlight of B00EDITION",
+    ]);
   });
 
   it("counts the books that hit the publisher export limit", async () => {
@@ -588,7 +804,7 @@ describe("sync runner", () => {
     expect(calls.failed[0]?.diagnostics).toEqual({
       profileVersion: PROFILE_VERSION,
       check: "bookRow",
-      counts: { bookRows: 0 },
+      counts: { bookRows: 0, listElements: 1, keyedRows: 1, titleAnchors: 1 },
     });
     expect(JSON.stringify(calls.failed[0])).not.toContain("Pragmatic");
   });
@@ -648,6 +864,49 @@ describe("sync runner", () => {
 
     expect(outcome).toEqual({ kind: "skipped", reason: "not_connected" });
     expect(calls.started).toEqual([]);
+  });
+
+  it("starts a job from the region the server nests under the connection", async () => {
+    const seen: string[] = [];
+    const fetchStub = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      seen.push(new URL(url).pathname);
+
+      if (url.endsWith(`/sync/${PROVIDER_ID}`)) {
+        return Promise.resolve(
+          jsonResponse({
+            providerId: PROVIDER_ID,
+            status: "connected",
+            connection: { state: "active", region: { id: "us", displayName: "United States", host: "read.amazon.com" } },
+            schedule: { intervalMinutes: 60, allowedIntervalMinutes: [60], nextRunAt: null, applied: true, pendingCommand: "none" },
+            currentJob: null,
+            lastCompletedJob: null,
+            failure: null,
+            reminder: null,
+            disclosure: { version: "1", items: [] },
+            prerequisites: [],
+          }),
+        );
+      }
+
+      if (url.endsWith(`/sync/${PROVIDER_ID}/jobs`)) {
+        return Promise.resolve(jsonResponse({ jobId: 7, knownBooks: [] }));
+      }
+
+      return Promise.resolve(jsonResponse({ batchIndex: 0, replayed: false, newHighlights: 9, duplicateHighlights: 0, newBooks: 3, newAuthors: 3 }));
+    });
+
+    vi.stubGlobal("fetch", fetchStub);
+
+    try {
+      const client = new RelegoClient({ baseUrl: "http://localhost:8080", token: "token" });
+      const outcome = await runSync({ client, fetchPage: pages() }, routine);
+
+      expect(outcome).toEqual({ kind: "completed", jobId: 7, newHighlights: 9, booksTotal: 3, truncatedBooks: 0 });
+      expect(seen).toContain(`/sync/${PROVIDER_ID}/jobs`);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("fails when the server reports a region this build does not know", async () => {

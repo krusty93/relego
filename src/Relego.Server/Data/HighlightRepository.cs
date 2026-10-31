@@ -57,11 +57,36 @@ public sealed class HighlightRepository(IDbConnection connection)
         };
     }
 
+    /// <summary>
+    /// Deletes a highlight and the provenance row a cloud sync attached to it. Provenance
+    /// references the highlight without a cascade, so deleting the parent first would fail the
+    /// foreign key and surface as a 500.
+    /// </summary>
+    /// <param name="userId">Owning user id.</param>
+    /// <param name="highlightId">Highlight to delete.</param>
+    /// <returns><c>true</c> when the highlight existed and was deleted.</returns>
     public async Task<bool> DeleteHighlightAsync(int userId, int highlightId)
     {
+        var param = new { HighlightId = highlightId, UserId = userId };
+        using var transaction = connection.BeginTransaction();
+
+        await connection.ExecuteAsync(
+            """
+            DELETE FROM highlight_provenance
+            WHERE highlight_id IN (SELECT id FROM highlights WHERE id = @HighlightId AND user_id = @UserId)
+            """,
+            param,
+            transaction);
+
         var affectedRows = await connection.ExecuteAsync(
             "DELETE FROM highlights WHERE id = @HighlightId AND user_id = @UserId",
-            new { HighlightId = highlightId, UserId = userId });
+            param,
+            transaction);
+
+        if (affectedRows > 0)
+            transaction.Commit();
+        else
+            transaction.Rollback();
 
         return affectedRows > 0;
     }
