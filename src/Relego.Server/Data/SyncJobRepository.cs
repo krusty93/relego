@@ -153,11 +153,14 @@ public sealed class SyncJobRepository(IDbConnection connection)
         await connection.ExecuteAsync(
             """
             UPDATE sync_connections
-            SET last_sync_started_at = @StartedAt, pending_command = NULL,
+            SET last_sync_started_at = @StartedAt,
+                pending_command = CASE
+                    WHEN pending_command = 'sync' OR (pending_command = 'full_resync' AND @Mode = 'full_resync')
+                    THEN NULL ELSE pending_command END,
                 state = CASE WHEN state = 'auth_expired' THEN 'active' ELSE state END,
                 last_auth_expired_at = NULL
             WHERE id = @ConnectionId;
-            """, new { ConnectionId = connectionId, StartedAt = startedAt }, transaction);
+            """, new { ConnectionId = connectionId, StartedAt = startedAt, Mode = mode }, transaction);
         var job = await connection.QuerySingleAsync<SyncJobRecord>(
             $"{SelectColumns} WHERE id = @Id", new { Id = id }, transaction);
         transaction.Commit();

@@ -131,22 +131,11 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             """,
             new { Id = id, Command = command });
 
-    /// <summary>Clears and returns the pending command, or <c>null</c> when none was queued.</summary>
-    public async Task<string?> ConsumePendingCommandAsync(long id)
-    {
-        var pending = await connection.QuerySingleOrDefaultAsync<string?>(
+    /// <summary>Reads the pending command without clearing it, or <c>null</c> when none is queued.</summary>
+    public Task<string?> GetPendingCommandAsync(long id) =>
+        connection.QuerySingleOrDefaultAsync<string?>(
             "SELECT pending_command FROM sync_connections WHERE id = @Id",
             new { Id = id });
-
-        if (pending is null)
-            return null;
-
-        await connection.ExecuteAsync(
-            "UPDATE sync_connections SET pending_command = NULL WHERE id = @Id",
-            new { Id = id });
-
-        return pending;
-    }
 
     /// <summary>Records the parse-profile version reported by the extension.</summary>
     public Task SetProfileVersionAsync(long id, string profileVersion) =>

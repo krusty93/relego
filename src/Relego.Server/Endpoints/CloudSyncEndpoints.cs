@@ -18,8 +18,12 @@ public static class CloudSyncEndpoints
     private const int MaxProfileVersionLength = 32;
     private const int MaxFailureCodeLength = 64;
     private const string NoCommand = "none";
+    private const int DefaultJobsLimit = 20;
+    private const int MaxJobsLimit = 50;
 
     private static readonly string[] AllowedPhases = ["discovering", "reading", "uploading", "done"];
+
+    private static readonly string[] AllowedCommands = ["sync", "full_resync"];
 
     private static readonly JsonSerializerOptions BatchJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -57,6 +61,7 @@ public static class CloudSyncEndpoints
         MapConnectionEndpoints(app);
         MapPairingEndpoint(app);
         MapHeartbeatEndpoint(app);
+        MapCommandEndpoint(app);
         MapJobEndpoints(app);
 
         return app;
@@ -256,7 +261,7 @@ public static class CloudSyncEndpoints
                 NormalizeTimestamp(heartbeat.NextSyncDueAt),
                 DateTimeOffset.UtcNow.ToString("o"));
 
-            var command = await connections.ConsumePendingCommandAsync(connection.Id) ?? NoCommand;
+            var command = await connections.GetPendingCommandAsync(connection.Id) ?? NoCommand;
 
             return Results.Ok(new SyncHeartbeatResponse
             {
@@ -268,14 +273,104 @@ public static class CloudSyncEndpoints
         })
         .WithTags("Sync")
         .WithSummary("Report extension liveness and pick up the pending command.")
-        .WithDescription("Records the heartbeat with the extension-reported schedule, consumes the single pending user-requested command and returns the stored frequency. A heartbeat never starts a sync.")
+        .WithDescription("Records the heartbeat with the extension-reported schedule and returns the pending user-requested command and stored frequency. Commands remain pending until matching work starts. A heartbeat never starts a sync.")
         .Produces<SyncHeartbeatResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
+    private static void MapCommandEndpoint(WebApplication app)
+    {
+        app.MapPost("/sync/{providerId}/commands", async (
+            string providerId,
+            SyncCommandRequest? request,
+            [FromServices] IEnumerable<ICloudSyncProvider> providers,
+            [FromServices] UserRepository userRepo,
+            [FromServices] SyncConnectionRepository connections) =>
+        {
+            if (ResolveProvider(providers, providerId) is not { } provider)
+                return UnknownProvider(providers, providerId);
+
+            var userId = await userRepo.EnsureUserAsync();
+
+            if (request is null)
+                return ValidationProblem("body", "A JSON body with command is required.");
+
+            var command = (request.Command ?? string.Empty).Trim();
+
+            if (!AllowedCommands.Contains(command))
+                return ValidationProblem("command", $"command must be one of: {string.Join(", ", AllowedCommands)}.");
+
+            var connection = await connections.GetLiveAsync(userId, providerId);
+
+            if (connection is null)
+                return Results.Problem(
+                    detail: "Connect Kindle cloud before requesting a sync.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Not connected");
+
+            if (connection.State == "pending_pairing")
+                return Results.Problem(
+                    detail: "Pair the browser extension before requesting a sync.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Extension not paired");
+
+            await connections.SetPendingCommandAsync(connection.Id, command);
+
+            // Read back what is actually queued: a sync request never downgrades a pending full
+            // resync, so the answer can differ from the requested command.
+            var pending = await connections.GetPendingCommandAsync(connection.Id) ?? NoCommand;
+
+            return Results.Accepted(value: new SyncCommandResponse
+            {
+                ProviderId = provider.Descriptor.Id,
+                PendingCommand = pending
+            });
+        })
+        .WithTags("Sync")
+        .WithSummary("Queue a user-requested sync command.")
+        .WithDescription("Queues exactly one pending command the extension picks up on its next heartbeat. A sync request never overwrites a pending full resync. Nothing is scheduled server-side.")
+        .Produces<SyncCommandResponse>(StatusCodes.Status202Accepted)
+        .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
     private static void MapJobEndpoints(WebApplication app)
     {
+        app.MapGet("/sync/{providerId}/jobs", async (
+            string providerId,
+            int? limit,
+            [FromServices] IEnumerable<ICloudSyncProvider> providers,
+            [FromServices] UserRepository userRepo,
+            [FromServices] SyncConnectionRepository connections,
+            [FromServices] SyncJobRepository jobs) =>
+        {
+            if (ResolveProvider(providers, providerId) is not { } provider)
+                return UnknownProvider(providers, providerId);
+
+            var requested = limit ?? DefaultJobsLimit;
+
+            if (requested < 1 || requested > MaxJobsLimit)
+                return ValidationProblem("limit", $"limit must be between 1 and {MaxJobsLimit}.");
+
+            var userId = await userRepo.EnsureUserAsync();
+            var connection = await connections.GetLiveAsync(userId, providerId);
+
+            if (connection is null)
+                return Results.Ok(Array.Empty<SyncJobDto>());
+
+            var recent = await jobs.ListRecentAsync(connection.Id, requested);
+
+            return Results.Ok(recent.Select(job => MapJob(job)!).ToList());
+        })
+        .WithTags("Sync")
+        .WithSummary("List the most recent sync jobs.")
+        .WithDescription("Returns the job history for the connection, newest first, with the failure code, detail and recovery steps of jobs that did not finish. An unconnected provider returns an empty list.")
+        .Produces<IReadOnlyList<SyncJobDto>>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
         app.MapPost("/sync/{providerId}/jobs", async (
             HttpContext http,
             string providerId,
@@ -637,7 +732,12 @@ public static class CloudSyncEndpoints
 
     private static SyncFailureDto? MapFailure(string status, SyncConnection? connection, SyncJobRecord? latestJob)
     {
-        if (latestJob?.Status is "failed" or "auth_expired")
+        // A failure report belongs to the status the user is seeing: while a retry is running, the
+        // previous failure is history, not a current problem.
+        if (status is not ("failed" or "auth_expired"))
+            return null;
+
+        if (latestJob?.Status is "failed" or "auth_expired" or "interrupted")
         {
             var code = latestJob.FailureCode ?? latestJob.Status;
 
@@ -679,6 +779,9 @@ public static class CloudSyncEndpoints
                 HighlightsNew = job.HighlightsNew,
                 HighlightsDuplicate = job.HighlightsDuplicate,
                 TruncatedBooks = job.TruncatedBooks,
+                FailureCode = job.FailureCode,
+                FailureDetail = job.FailureDetail ?? SyncFailureRecovery.DetailFor(job.FailureCode),
+                RecoverySteps = SyncFailureRecovery.ParseSteps(job.RecoverySteps, job.FailureCode),
                 StartedAt = job.StartedAt,
                 EndedAt = job.EndedAt
             };

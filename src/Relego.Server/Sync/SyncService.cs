@@ -58,8 +58,8 @@ public sealed class SyncService(
 
         await MarkStaleJobsAsync();
 
-        if (request.Mode == ModeFullResync && connection.State != "active")
-            throw new SyncOperationException("A full resync requires an active connection.", StatusCodes.Status409Conflict);
+        if (request.Mode == ModeFullResync && connection.State is not ("active" or "auth_expired"))
+            throw new SyncOperationException("A full resync requires a paired connection.", StatusCodes.Status409Conflict);
 
         var now = clock.GetUtcNow().ToString("o");
         var (job, reused) = await jobs.StartOrReuseAsync(connection.Id, userId, request.IdempotencyKey, request.Mode, request.Trigger, now);
