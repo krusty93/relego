@@ -27,8 +27,8 @@ const NAV = [
   { to: "/app", label: "Library", Icon: LibraryIcon, chord: "l" },
   { to: "/app/highlights", label: "Highlights", Icon: HighlightsIcon, chord: "h" },
   { to: "/app/recaps", label: "Recaps", Icon: RecapsIcon, chord: "r" },
-  { to: "/app/import", label: "Import", Icon: ImportIcon, chord: "i" },
-  { to: "/app/sync", label: "Sync", Icon: SyncIcon, chord: "y" },
+  { to: "/app/import", label: "Import Highlights", Icon: ImportIcon, chord: "i" },
+  { to: "/app/kindle-sync", label: "Kindle Notebook Sync", Icon: SyncIcon, chord: "y" },
   { to: "/app/settings", label: "Settings", Icon: SettingsIcon, chord: "s" },
 ] as const;
 

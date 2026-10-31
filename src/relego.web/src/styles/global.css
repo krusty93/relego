@@ -1293,6 +1293,68 @@ select.control {
   margin-top: var(--sp-4);
 }
 
+.panel-block {
+  margin-bottom: var(--sp-5);
+}
+
+.outcome {
+  margin: 0;
+  font-size: var(--t-lg);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.disconnect {
+  margin-top: var(--sp-5);
+}
+
+.secret {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-sunk);
+}
+
+.secret code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--t-sm);
+  color: var(--ink);
+}
+
+.field .notice {
+  margin-top: 0;
+}
+
+.steps,
+.plain-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-5);
+  padding-left: 1.4em;
+  color: var(--ink-muted);
+  font-size: var(--t-sm);
+  max-width: var(--measure-prose);
+}
+
+.plain-list {
+  margin-bottom: var(--sp-3);
+}
+
+.steps li::marker,
+.plain-list li::marker {
+  color: var(--accent-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.callout .steps {
+  margin: var(--sp-2) 0 0;
+}
+
 .dialog-actions {
   margin-top: var(--sp-5);
 }

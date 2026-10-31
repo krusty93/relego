@@ -1,15 +1,64 @@
-import { useQuery } from "@tanstack/react-query";
-import { AsyncSection, EmptyState } from "../components/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { Link } from "react-router";
+import { AsyncSection, EmptyState, ErrorNote, SkeletonRows } from "../components/ui";
 import { syncApi } from "../lib/api";
+import { formatCount, formatDateTime, plural } from "../lib/format";
+import { useToasts } from "../lib/toasts";
+import type {
+  SyncDisclosure,
+  SyncFailure,
+  SyncJob,
+  SyncProviderSummary,
+  SyncStatusResponse,
+} from "../lib/types";
+
+/** The extension checks in on its own cadence, so the page only polls fast while a job runs. */
+const POLL_RUNNING_MS = 2_000;
+const POLL_IDLE_MS = 30_000;
+
+const PREFERRED_PROVIDER_ID = "kindle-cloud";
+
+const PHASE_LABELS: Record<string, string> = {
+  discovering: "Finding your books",
+  reading: "Reading highlights",
+  uploading: "Sending highlights to Relego",
+  done: "Finishing up",
+};
+
+const STATE_LABELS: Record<string, string> = {
+  not_connected: "Not connected",
+  awaiting_pairing: "Waiting for your browser",
+  connected: "Connected",
+  syncing: "Syncing now",
+  completed: "Last sync finished",
+  auth_expired: "Amazon sign-in needed",
+  failed: "Last sync did not finish",
+  browser_not_reporting: "Your browser has not checked in",
+  reminder_due: "No recent sync",
+};
+
+const STATE_SUMMARIES: Record<string, string> = {
+  connected: "Your browser is checking in. The next sync starts on its own.",
+  completed: "The last sync finished and the highlights it found are already in your library.",
+  syncing: "Your browser is reading your Kindle Notebook and sending what it finds.",
+  auth_expired:
+    "Amazon ended the session Relego was reading. Sign in again in your browser, then sync.",
+  failed: "The last sync stopped before it finished. Highlights already saved are still in your library.",
+  browser_not_reporting:
+    "Relego has not heard from the extension recently, so syncs are not running. Open the browser where the extension is installed.",
+  reminder_due: "It has been a while since your highlights were read.",
+};
 
 /**
- * Cloud sync surface. This is the route and data seam only; the connect wizard, live progress,
- * recovery and frequency controls land with the user-story tasks.
+ * Cloud sync surface: the connect flow, live progress of a running sync, and the explicit
+ * outcome of the last one.
  */
 export function SyncPage() {
   const providers = useQuery({ queryKey: ["sync", "providers"], queryFn: syncApi.providers });
   const provider =
-    providers.data?.find((item) => item.providerId === "kindle-cloud") ?? providers.data?.[0];
+    providers.data?.find((item) => item.providerId === PREFERRED_PROVIDER_ID) ??
+    providers.data?.[0];
 
   return (
     <section className="view" aria-labelledby="sync-h">
@@ -20,24 +69,512 @@ export function SyncPage() {
         </div>
       </div>
 
+      <p className="subtle">
+        Sync is optional. <Link to="/app/import">Import a highlights file</Link> instead if you would
+        rather keep it manual.
+      </p>
+
       <AsyncSection
         isLoading={providers.isLoading}
         error={providers.error}
         onRetry={() => void providers.refetch()}
+        skeleton={<SkeletonRows rows={2} />}
       >
-        <EmptyState
-          title="Connect Kindle cloud"
-          action={
-            <button className="btn" type="button" disabled>
-              Connect Kindle cloud
-            </button>
-          }
-        >
-          {provider
-            ? `Automatic sync runs from the ${provider.displayName} browser extension. The connect wizard arrives with the next task.`
-            : "Automatic sync runs from a browser extension. The connect wizard arrives with the next task."}
-        </EmptyState>
+        {provider ? (
+          <SyncPanel provider={provider} />
+        ) : (
+          <ErrorNote message="This server exposes no cloud sync provider." />
+        )}
       </AsyncSection>
     </section>
+  );
+}
+
+function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
+  const queryClient = useQueryClient();
+  const { push } = useToasts();
+  const [code, setCode] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<"cancel" | "disconnect" | null>(null);
+  const actionPending = useRef(false);
+
+  const status = useQuery({
+    queryKey: ["sync", provider.providerId],
+    queryFn: () => syncApi.status(provider.providerId),
+    refetchInterval: (query) =>
+      query.state.data?.status === "syncing" ? POLL_RUNNING_MS : POLL_IDLE_MS,
+  });
+
+  function refresh() {
+    void queryClient.invalidateQueries({ queryKey: ["sync", provider.providerId] });
+  }
+
+  const connect = useMutation({
+    mutationFn: () => syncApi.createConnection(provider.providerId),
+    onSuccess: (response) => {
+      setCode(response.token);
+      setConfirming(null);
+      refresh();
+      push("One-time code created. Enter it in the Relego browser extension.");
+    },
+    onError: (error) =>
+      push(error instanceof Error ? error.message : "Could not start the connection.", {
+        tone: "bad",
+      }),
+    onSettled: () => { actionPending.current = false; },
+  });
+
+  const disconnect = useMutation({
+    mutationFn: () => syncApi.disconnect(provider.providerId),
+    onSuccess: () => {
+      setCode(null);
+      setConfirming(null);
+      refresh();
+      push("Disconnected. Your imported highlights are still here.");
+    },
+    onError: (error) =>
+      push(error instanceof Error ? error.message : "Could not disconnect.", { tone: "bad" }),
+    onSettled: () => { actionPending.current = false; },
+  });
+
+  function createCode() {
+    if (actionPending.current) return;
+    actionPending.current = true;
+    connect.mutate();
+  }
+
+  function removeConnection() {
+    if (actionPending.current) return;
+    actionPending.current = true;
+    disconnect.mutate();
+  }
+
+  async function copy(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      push(`${label} copied.`);
+    } catch {
+      push(`Copy by hand: the ${label.toLowerCase()} is shown above.`, { tone: "bad" });
+    }
+  }
+
+  if (status.isLoading) return <SkeletonRows rows={2} />;
+
+  if (status.error || !status.data) {
+    return (
+      <ErrorNote
+        message={
+          status.error instanceof Error ? status.error.message : "Could not read the sync status."
+        }
+        onRetry={() => void status.refetch()}
+      />
+    );
+  }
+
+  const data = status.data;
+  const isFirstRun = data.status === "not_connected";
+  const isPairing = data.status === "awaiting_pairing";
+
+  return (
+    <>
+      {/* Status changes arrive from the extension rather than from a click here, so the change
+          is announced instead of silently redrawn. */}
+      <p className="sr-only" aria-live="polite">
+        {`Sync status: ${STATE_LABELS[data.status] ?? data.status}.`}
+      </p>
+
+      {isFirstRun ? null : isPairing ? (
+        <PairingPanel
+          provider={provider}
+          code={code}
+          busy={connect.isPending || disconnect.isPending}
+          onRegenerate={createCode}
+          onCheck={() => void status.refetch()}
+          confirming={confirming === "cancel"}
+          onAsk={() => setConfirming("cancel")}
+          onDismiss={() => setConfirming(null)}
+          onCancel={removeConnection}
+          cancelling={disconnect.isPending}
+          onCopy={copy}
+        />
+      ) : (
+        <StatusPanel
+          data={data}
+          confirming={confirming === "disconnect"}
+          onAsk={() => setConfirming("disconnect")}
+          onDismiss={() => setConfirming(null)}
+          onDisconnect={removeConnection}
+          disconnecting={disconnect.isPending}
+        />
+      )}
+
+      <Disclosures disclosure={data.disclosure} prerequisites={data.prerequisites} />
+
+      {isFirstRun ? (
+        <div className="section">
+          <EmptyState
+            title="Connect Kindle cloud"
+            action={
+              <button
+                className="btn btn--primary"
+                type="button"
+                onClick={createCode}
+                disabled={connect.isPending || disconnect.isPending}
+                aria-busy={connect.isPending || undefined}
+              >
+                {connect.isPending ? "Starting…" : "Connect Kindle cloud"}
+              </button>
+            }
+          >
+            Relego hands your browser a one-time code, then reads your Kindle Notebook inside your
+            own Amazon session. The code is shown once, and you can cancel before a browser pairs.
+          </EmptyState>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function StatusPanel({
+  data,
+  confirming,
+  onAsk,
+  onDismiss,
+  onDisconnect,
+  disconnecting,
+}: {
+  data: SyncStatusResponse;
+  confirming: boolean;
+  onAsk: () => void;
+  onDismiss: () => void;
+  onDisconnect: () => void;
+  disconnecting: boolean;
+}) {
+  const { status, connection, currentJob, lastCompletedJob, failure } = data;
+  const running = status === "syncing" && currentJob !== null;
+
+  return (
+    <div className="panel">
+      <header>
+        <h2>{STATE_LABELS[status] ?? "Sync"}</h2>
+        <p>{STATE_SUMMARIES[status] ?? "Sync runs from the Relego browser extension."}</p>
+      </header>
+
+      {running && currentJob ? <JobProgress job={currentJob} /> : null}
+      {!running && lastCompletedJob ? <Outcome job={lastCompletedJob} /> : null}
+
+      <dl className="dl">
+        <dt>Last synced</dt>
+        <dd>
+          {lastCompletedJob?.endedAt ? (
+            <time dateTime={lastCompletedJob.endedAt}>
+              {formatDateTime(lastCompletedJob.endedAt)}
+            </time>
+          ) : (
+            <span className="subtle">Not yet</span>
+          )}
+        </dd>
+
+        <dt>Last heard from your browser</dt>
+        <dd>
+          {connection.lastHeartbeatAt ? (
+            <time dateTime={connection.lastHeartbeatAt}>
+              {formatDateTime(connection.lastHeartbeatAt)}
+            </time>
+          ) : (
+            <span className="subtle">Not yet</span>
+          )}
+        </dd>
+      </dl>
+
+      {failure ? <FailureNote failure={failure} /> : null}
+
+      <div className="confirm disconnect" role="group" aria-label="Disconnect">
+        {confirming ? (
+          <>
+            <span className="confirm-q">
+              Disconnect? Highlights already imported stay in your library.
+            </span>
+            <button
+              className="btn btn--danger btn--sm"
+              type="button"
+              onClick={onDisconnect}
+              disabled={disconnecting}
+              aria-busy={disconnecting || undefined}
+            >
+              {disconnecting ? "Disconnecting…" : "Yes, disconnect"}
+            </button>
+            <button className="btn btn--ghost btn--sm" type="button" onClick={onDismiss}>
+              Keep connected
+            </button>
+          </>
+        ) : (
+          <button className="btn btn--ghost btn--sm" type="button" onClick={onAsk}>
+            Disconnect
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function JobProgress({ job }: { job: SyncJob }) {
+  const total = job.booksTotal ?? 0;
+  const done = job.booksDone ?? 0;
+  const determinate = total > 0;
+  const ratio = determinate ? Math.min(1, done / total) : 0;
+
+  return (
+    <div className="panel-block">
+      <div
+        className="progress"
+        role="progressbar"
+        aria-label="Sync progress"
+        aria-valuemin={determinate ? 0 : undefined}
+        aria-valuemax={determinate ? total : undefined}
+        aria-valuenow={determinate ? done : undefined}
+      >
+        <i style={{ transform: `scaleX(${ratio})` }} />
+      </div>
+      <p className="subtle hint-line">
+        {PHASE_LABELS[job.phase ?? ""] ?? "Starting"} ·{" "}
+        {determinate
+          ? `${formatCount(done)} of ${formatCount(total)} books`
+          : "counting your books"}{" "}
+        · {plural(job.highlightsNew, "new highlight")} so far
+      </p>
+    </div>
+  );
+}
+
+function Outcome({ job }: { job: SyncJob }) {
+  return (
+    <div className="panel-block">
+      <p className="outcome">{outcomeText(job)}</p>
+      <p className="subtle hint-line">
+        {job.mode === "full_resync" ? "Full resync · " : null}
+        {plural(job.highlightsSeen, "highlight")} read
+        {job.highlightsDuplicate > 0
+          ? ` · ${plural(job.highlightsDuplicate, "duplicate")} skipped`
+          : null}
+      </p>
+      {job.truncatedBooks > 0 ? (
+        <p className="subtle hint-line">
+          {plural(job.truncatedBooks, "book")} capped by the publisher, so Relego imported only the
+          highlights Amazon returns.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function outcomeText(job: SyncJob): string {
+  return job.highlightsNew > 0
+    ? `Imported ${plural(job.highlightsNew, "new highlight")}`
+    : "Nothing new — Relego already had every highlight in this sync.";
+}
+
+function FailureNote({ failure }: { failure: SyncFailure }) {
+  return (
+    <div className="callout" data-tone="bad">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.5v5.5M12 16.2v.6" />
+      </svg>
+      <div>
+        <p>
+          <strong>{failure.code}</strong>
+          {failure.detail ? ` — ${failure.detail}` : null}
+        </p>
+        {failure.recoverySteps.length > 0 ? (
+          <ol className="steps">
+            {failure.recoverySteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function PairingPanel({
+  provider,
+  code,
+  busy,
+  onRegenerate,
+  onCheck,
+  confirming,
+  onAsk,
+  onDismiss,
+  onCancel,
+  cancelling,
+  onCopy,
+}: {
+  provider: SyncProviderSummary;
+  code: string | null;
+  busy: boolean;
+  onRegenerate: () => void;
+  onCheck: () => void;
+  confirming: boolean;
+  onAsk: () => void;
+  onDismiss: () => void;
+  onCancel: () => void;
+  cancelling: boolean;
+  onCopy: (value: string, label: string) => Promise<void>;
+}) {
+  // The extension has to reach this server, so the address shown is the one this page is
+  // served from.
+  const serverUrl = window.location.origin;
+
+  return (
+    <div className="panel">
+      <header>
+        <h2>{STATE_LABELS["awaiting_pairing"]}</h2>
+        <p>
+          Enter these two values in the Relego extension to connect {provider.displayName}. This page
+          updates by itself as soon as a browser pairs.
+        </p>
+      </header>
+
+      <div className="field">
+        <span className="label">Server URL</span>
+        <div className="secret">
+          <code>{serverUrl}</code>
+          <button
+            className="btn btn--ghost btn--sm"
+            type="button"
+            onClick={() => void onCopy(serverUrl, "Server URL")}
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <div className="field">
+        <span className="label">One-time code</span>
+        {code ? (
+          <div className="secret">
+            <code>{code}</code>
+            <button
+              className="btn btn--ghost btn--sm"
+              type="button"
+              onClick={() => void onCopy(code, "Code")}
+            >
+              Copy
+            </button>
+          </div>
+        ) : (
+          <p className="notice">
+            The code is shown once and this page no longer holds it. Generate a new one to pair a
+            browser — the old code stops working.
+          </p>
+        )}
+      </div>
+
+      <ol className="steps">
+        <li>Install the Relego extension in Chrome or Firefox and open its popup.</li>
+        <li>Paste the server URL and the one-time code, then save.</li>
+        <li>Choose your Amazon region in the extension. Only validated regions are offered.</li>
+        <li>
+          Sign in to that Amazon site in the same browser if you are not already, then let the first
+          sync run.
+        </li>
+      </ol>
+
+      <div className="inline">
+        <button className="btn" type="button" onClick={onRegenerate} disabled={busy} aria-busy={busy || undefined}>
+          {busy ? "Generating…" : "Generate a new code"}
+        </button>
+        <button className="btn btn--ghost" type="button" onClick={onCheck}>
+          Check again
+        </button>
+        {confirming ? (
+          <span className="confirm" role="group" aria-label="Cancel setup">
+            <span className="confirm-q">Cancel setup? Nothing has been imported yet.</span>
+            <button
+              className="btn btn--danger btn--sm"
+              type="button"
+              onClick={onCancel}
+              disabled={busy || cancelling}
+              aria-busy={cancelling || undefined}
+            >
+              {cancelling ? "Cancelling…" : "Yes, cancel"}
+            </button>
+            <button className="btn btn--ghost btn--sm" type="button" onClick={onDismiss}>
+              Keep waiting
+            </button>
+          </span>
+        ) : (
+          <button className="btn btn--ghost" type="button" onClick={onAsk} disabled={busy}>
+            Cancel setup
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const COVERAGE_KINDS = ["Coverage", "Sideloaded", "ExportLimit", "Availability"];
+
+function Disclosures({
+  disclosure,
+  prerequisites,
+}: {
+  disclosure: SyncDisclosure;
+  prerequisites: string[];
+}) {
+  const byKind = (kinds: string[]) => disclosure.items.filter((item) => kinds.includes(item.kind));
+
+  return (
+    <>
+      <section className="section" aria-labelledby="sync-coverage-h">
+        <h2 className="section-title" id="sync-coverage-h">
+          Coverage &amp; limits
+        </h2>
+        <dl className="tips">
+          {byKind(COVERAGE_KINDS).map((item) => (
+            <div className="tip" key={item.kind}>
+              <dt>{item.title}</dt>
+              <dd>{item.body}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="section" aria-labelledby="sync-needs-h">
+        <h2 className="section-title" id="sync-needs-h">
+          What this needs
+        </h2>
+        <ul className="plain-list">
+          {prerequisites.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+          {byKind(["Prerequisite"]).map((item) => (
+            <li key={item.kind}>{item.body}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="section" aria-labelledby="sync-privacy-h">
+        <h2 className="section-title" id="sync-privacy-h">
+          Privacy
+        </h2>
+        <dl className="tips">
+          {byKind(["Privacy"]).map((item) => (
+            <div className="tip" key={item.kind}>
+              <dt>{item.title}</dt>
+              <dd>{item.body}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </>
   );
 }
