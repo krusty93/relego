@@ -154,6 +154,8 @@ public sealed class SyncFoundationApiTests
 
         public CoverageDisclosure Disclosure { get; } = new("1", []);
 
+        public IReadOnlyList<string> Prerequisites { get; } = ["Signed in", "Extension installed"];
+
         public ParseProfile Profile { get; } = new("1", []);
 
         public SyncFrequencyPolicy Frequency { get; } = new() { AllowedMinutes = [60], Default = 60 };

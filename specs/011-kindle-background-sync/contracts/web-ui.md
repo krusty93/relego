@@ -1,6 +1,6 @@
 # Contract: Web UI (primary management surface, FR-010)
 
-**Route**: `/app/sync` (new nav item **Sync**, D6) + AppShell status indicator + Import page pointer.
+**Route**: `/app/kindle-sync` (new nav item **Sync**, D6) + AppShell status indicator + Import page pointer.
 UI implementation must run through the `impeccable` skill (AGENTS.md) and reuse existing
 `ui.tsx` components, TanStack Query, and the toast host.
 
