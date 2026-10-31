@@ -200,11 +200,20 @@ components:
 
 The hero reader follows a fine mouse pointer with damped, bounded tilt while
 retaining its existing scroll pose. Previous/next controls cycle two illustrative
-recap pages with a brief e-ink refresh, not a physical paper curl. The controls
-remain keyboard and touch accessible; the drawn screen stays decorative.
+recap pages with a brief e-ink refresh, not a physical paper curl. The controls sit
+inside the screen as reader software, remain keyboard and touch accessible, and
+hold the pointer tilt still while hovered or focused. The hero reader is an
+accessible recap preview; staged journey readers remain decorative. Highlighted
+passages use the same warm brand amber (`#d4a05e`) on every reader in both themes.
 Reduced motion removes tilt and refresh movement, while page switching remains
 available. Pointer work runs only until settled and stops offscreen or hidden.
-No new dependency, autoplay, or changes to the rest of the landing page. System: Relego
+There is no autoplay or new dependency. The hero repeats the copyable Docker
+command below its primary actions; both command instances share one component.
+The navbar reserves its logo's space but reveals it only once the hero has passed
+behind the fixed header, including with reduced motion. Without JavaScript the
+logo and command text remain available, with inactive copy/page controls hidden.
+The journey retains its four numbered steps without the orbit diagram or sample
+captions.
 
 ## Overview
 
@@ -428,12 +437,12 @@ that same highlight at a different stop on the circuit.
 - **The highlighter mark.** `.mark` is a low-opacity accent wash
   (`--color-mark`) that sweeps left to right behind a phrase. It is the page's only
   emphasis device besides the italic accent tail on section headlines; on e-ink
-  objects it becomes a gray stepped sweep (`steps(9)`) because that is how e-ink
-  refreshes.
+  objects it uses a warm amber stepped sweep (`steps(9)`) to echo an e-ink refresh
+  while retaining Relego's highlighter color.
 - **The Reader.** A drawn e-reader (espresso bezel, `#ebe6dc` screen, serif page)
   that carries sample recaps. It is a depicted physical object, so it is the one
-  place where a soft drop shadow and a `1.6rem` device radius are allowed. Every
-  Reader and every staged object is captioned as sample data.
+  place where a soft drop shadow and a `1.6rem` device radius are allowed. The
+  interactive hero preview and staged journey omit visible sample captions.
 - **Framed objects.** The terminal (night fill, `0.75rem`), the browser frame
   (`0.9rem`, flattening from a slight tilt as it scrolls in) and the segmented control
   (`999px` capsule with a sliding thumb) depict real Relego surfaces. Content itself
@@ -447,7 +456,9 @@ scroll-lit statement at `landing-statement`, FAQ questions at `landing-question`
 the closing call at `landing-closing`. Sans steps are `landing-lede`,
 `landing-body-lg`, `landing-ui`, `landing-small` and the `label` caption. Sizes in
 `em` inside the Reader, the clippings file and the queue are object-relative and
-scale with the object, not with the page; SVG labels use viewBox user units.
+scale with the object, not with the page; the hero recap uses screen-relative
+container units so its software footer fits small readers. SVG labels use viewBox
+user units.
 
 ### Motion grammar
 

@@ -30,13 +30,6 @@ const queue = [
 	{ quote: 'It was the best of times, it was the worst of times…', book: 'A Tale of Two Cities', weight: 2, seen: '77 days ago', pick: true },
 ];
 
-// Ring geometry for the circuit indicator.
-const r = 44;
-const circumference = 2 * Math.PI * r;
-const nodes = [0, 1, 2, 3].map((i) => {
-	const angle = (i / 4) * Math.PI * 2 - Math.PI / 2;
-	return { x: 60 + r * Math.cos(angle), y: 60 + r * Math.sin(angle) };
-});
 ---
 
 <section id="journey" class="journey" data-progress="enter" data-night>
@@ -63,22 +56,6 @@ const nodes = [0, 1, 2, 3].map((i) => {
 				</ol>
 
 				<div class="journey__stage" aria-hidden="true">
-					<svg class="journey__ring" viewBox="0 0 120 120">
-						<circle class="journey__ring-base" cx="60" cy="60" r={r} />
-						<circle
-							class="journey__ring-fill"
-							cx="60"
-							cy="60"
-							r={r}
-							style={`--c:${circumference.toFixed(2)}`}
-							transform="rotate(-90 60 60)"
-						/>
-						{nodes.map((n, i) => (
-							<circle class="journey__node" data-node={i} cx={n.x.toFixed(2)} cy={n.y.toFixed(2)} r="4.5" />
-						))}
-						<text x="60" y="66" class="journey__ring-label">relego.</text>
-					</svg>
-
 					<!-- Scene 0: the page where it was underlined -->
 					<div class="scene" data-scene="0">
 						<Reader class="scene__reader">
@@ -88,7 +65,7 @@ const nodes = [0, 1, 2, 3].map((i) => {
 									The morning wind forever blows, the poem of creation is uninterrupted; but few are the ears that hear it.
 								</p>
 								<p>
-									<span class="page__mark">I went to the woods because I wished to live deliberately, to front only the 									essential facts of life,</span>{' '}
+									<span class="page__mark">I went to the woods because I wished to live deliberately, to front only the essential facts of life,</span>{' '}
 									and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived.
 								</p>
 								<p>I did not wish to live what was not life, living is so dear.</p>
@@ -172,7 +149,6 @@ essential facts of life,</span>
 						</Reader>
 					</div>
 
-					<div class="journey__caption">Sample data</div>
 				</div>
 			</div>
 		</div>
@@ -344,66 +320,6 @@ essential facts of life,</span>
 		min-height: 22rem;
 	}
 
-	.journey__ring {
-		position: absolute;
-		top: 0;
-		right: 0;
-		width: 5.5rem;
-		z-index: 2;
-	}
-
-	.journey__ring-base,
-	.journey__ring-fill {
-		fill: none;
-		stroke-width: 1;
-	}
-
-	.journey__ring-base {
-		stroke: var(--color-border);
-	}
-
-	.journey__ring-fill {
-		stroke: var(--color-accent);
-		stroke-width: 1.5;
-		stroke-dasharray: var(--c);
-		stroke-dashoffset: 0;
-	}
-
-	:global(.motion) .journey__ring-fill {
-		stroke-dashoffset: calc(var(--c) * (1 - var(--p, 0)));
-	}
-
-	.journey__node {
-		fill: var(--color-bg);
-		stroke: var(--color-accent);
-		stroke-width: 1.25;
-		transition: fill 0.4s var(--ease-out);
-	}
-
-	.journey__track[data-stage='0'] .journey__node[data-node='0'],
-	.journey__track[data-stage='1'] .journey__node:is([data-node='0'], [data-node='1']),
-	.journey__track[data-stage='2'] .journey__node:not([data-node='3']),
-	.journey__track[data-stage='3'] .journey__node {
-		fill: var(--color-accent);
-	}
-
-	.journey__ring-label {
-		font-family: var(--font-display);
-		font-size: 15px;
-		text-anchor: middle;
-		fill: var(--color-text);
-	}
-
-	.journey__caption {
-		position: absolute;
-		left: 0;
-		bottom: -0.25rem;
-		font-size: 0.75rem;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--color-soft);
-	}
-
 	.scene {
 		grid-area: 1 / 1;
 		display: grid;
@@ -456,7 +372,7 @@ essential facts of life,</span>
 	}
 
 	.page__mark {
-		background-image: linear-gradient(rgba(43, 36, 32, 0.17), rgba(43, 36, 32, 0.17));
+		background-image: linear-gradient(var(--eink-highlight), var(--eink-highlight));
 		background-repeat: no-repeat;
 		background-size: 100% 100%;
 		box-decoration-break: clone;
@@ -752,14 +668,6 @@ essential facts of life,</span>
 			opacity: 0;
 			transform: translateY(0.75rem);
 			pointer-events: none;
-		}
-
-		.journey__ring {
-			width: 4rem;
-		}
-
-		:global(.motion) .journey__stage {
-			padding-top: 4.5rem;
 		}
 
 		.file,

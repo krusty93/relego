@@ -20,7 +20,7 @@ if (hero && reader && controls && status && pages.length) {
 		button.addEventListener('click', () => {
 			page = (page + Number(button.dataset.pageDirection) + pages.length) % pages.length;
 			pages.forEach((element, index) => { element.hidden = index !== page; });
-			status.textContent = `Sample page ${page + 1} of ${pages.length}`;
+			status.textContent = `Page ${page + 1} of ${pages.length}`;
 			refresh?.cancel();
 			if (!reduced.matches) {
 				// A brief e-ink refresh, rather than a paper curl on a digital screen.
@@ -50,9 +50,18 @@ if (hero && reader && controls && status && pages.length) {
 		reader.style.removeProperty('--reader-y');
 		refresh?.cancel();
 	};
+	const hold = () => {
+		cancelAnimationFrame(frame);
+		frame = 0;
+		targetX = x;
+		targetY = y;
+	};
 
+	controls.addEventListener('pointerenter', hold);
+	controls.addEventListener('focusin', hold);
 	hero.addEventListener('pointermove', (event) => {
 		if (reduced.matches || !fine.matches || event.pointerType !== 'mouse') return;
+		if (controls.matches(':hover') || controls.contains(document.activeElement)) return;
 		const rect = hero.getBoundingClientRect();
 		targetX = Math.max(-1, Math.min(1, (event.clientX - rect.left) / rect.width * 2 - 1));
 		targetY = Math.max(-1, Math.min(1, (event.clientY - rect.top) / rect.height * 2 - 1));
