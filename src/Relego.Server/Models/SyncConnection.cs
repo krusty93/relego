@@ -33,7 +33,7 @@ public sealed class SyncConnection
     public string? RegionChangedAt { get; set; }
 
     /// <summary>Stored sync frequency in minutes.</summary>
-    public int SyncIntervalMinutes { get; set; } = 360;
+    public int SyncIntervalMinutes { get; set; } = 60;
 
     /// <summary>Time the frequency was last changed, or <c>null</c>.</summary>
     public string? ScheduleUpdatedAt { get; set; }

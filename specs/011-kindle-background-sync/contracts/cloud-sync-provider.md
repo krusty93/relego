@@ -15,7 +15,7 @@ public interface ICloudSyncProvider
     int InactivityReminderDays { get; }               // 45 (FR-019)
     CoverageDisclosure Disclosure { get; }            // versioned, see below
     ParseProfile Profile { get; }                     // version + region allowlist (id, name, host, sign-in patterns)
-    SyncFrequencyPolicy Frequency { get; }            // AllowedMinutes = {15,30,45,60,120,240,360,720,1080,1440}, Default = 360 (validation/default only)
+    SyncFrequencyPolicy Frequency { get; }            // AllowedMinutes = {15,30,45,60,120,240,360,720,1080,1440}, Default = 60 (validation/default only)
 
     // Validates and normalizes a provider payload into the existing SyncRequest.
     // Returns validation errors rather than throwing; never performs I/O.

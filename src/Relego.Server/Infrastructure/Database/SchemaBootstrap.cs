@@ -102,7 +102,7 @@ public sealed class SchemaBootstrap
             profile_version          TEXT    NULL,
             region_id                TEXT    NULL,
             region_changed_at        TEXT    NULL,
-            sync_interval_minutes    INTEGER NOT NULL DEFAULT 360 CHECK(sync_interval_minutes IN (15,30,45,60,120,240,360,720,1080,1440)),
+            sync_interval_minutes    INTEGER NOT NULL DEFAULT 60 CHECK(sync_interval_minutes IN (15,30,45,60,120,240,360,720,1080,1440)),
             schedule_updated_at      TEXT    NULL,
             applied_interval_minutes INTEGER NULL,
             next_sync_due_at         TEXT    NULL,

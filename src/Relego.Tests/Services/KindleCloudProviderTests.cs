@@ -54,11 +54,11 @@ public sealed class KindleCloudProviderTests
     }
 
     [Fact]
-    public void FrequencyPolicy_ExposesExactlyTenValuesAndDefaultOfSixHours()
+    public void FrequencyPolicy_ExposesExactlyTenValuesAndDefaultOfOneHour()
     {
         Assert.Equal(10, Provider.Frequency.AllowedMinutes.Count);
         Assert.Equal(new[] { 15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440 }, Provider.Frequency.AllowedMinutes.ToArray());
-        Assert.Equal(360, Provider.Frequency.Default);
+        Assert.Equal(60, Provider.Frequency.Default);
         Assert.True(Provider.Frequency.IsAllowed(15));
         Assert.True(Provider.Frequency.IsAllowed(1440));
         Assert.False(Provider.Frequency.IsAllowed(11));

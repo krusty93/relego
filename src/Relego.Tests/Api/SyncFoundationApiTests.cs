@@ -89,7 +89,7 @@ public sealed class SyncFoundationApiTests
         Assert.NotNull(live);
         Assert.Equal(created.Id, live!.Id);
         Assert.Equal("pending_pairing", live.State);
-        Assert.Equal(360, live.SyncIntervalMinutes);
+        Assert.Equal(60, live.SyncIntervalMinutes);
 
         var job = await jobs.InsertAsync(created.Id, 1, "idem-1", "routine", "initial", now);
         Assert.Equal("running", job.Status);

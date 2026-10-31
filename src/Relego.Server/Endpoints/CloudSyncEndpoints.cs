@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Relego.Core.Contracts;
 using Relego.Server.Data;
@@ -62,6 +62,7 @@ public static class CloudSyncEndpoints
         MapConnectionEndpoints(app);
         MapPairingEndpoint(app);
         MapRegionEndpoints(app);
+        MapScheduleEndpoint(app);
         MapHeartbeatEndpoint(app);
         MapCommandEndpoint(app);
         MapJobEndpoints(app);
@@ -135,7 +136,8 @@ public static class CloudSyncEndpoints
             var existing = await connections.GetLiveAsync(userId, providerId);
             if (existing is null)
             {
-                await connections.CreateAsync(userId, providerId, SyncTokenService.HashToken(token), provider.Disclosure.Version, now);
+                await connections.CreateAsync(
+                    userId, providerId, SyncTokenService.HashToken(token), provider.Disclosure.Version, now, provider.Frequency.Default);
             }
             else
             {
@@ -308,6 +310,55 @@ public static class CloudSyncEndpoints
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapScheduleEndpoint(WebApplication app)
+    {
+        app.MapPut("/sync/{providerId}/schedule", async (
+            string providerId,
+            SyncScheduleChangeRequest? request,
+            [FromServices] IEnumerable<ICloudSyncProvider> providers,
+            [FromServices] UserRepository userRepo,
+            [FromServices] SyncConnectionRepository connections) =>
+        {
+            if (ResolveProvider(providers, providerId) is not { } provider)
+                return UnknownProvider(providers, providerId);
+
+            // Management endpoint: the web UI chooses the frequency, so it carries no pairing token.
+            var userId = await userRepo.EnsureUserAsync();
+            var connection = await connections.GetLiveAsync(userId, provider.Descriptor.Id);
+            if (connection is null)
+                return NoConnection(provider);
+
+            if (request is null)
+                return ValidationProblem("body", "A JSON body with intervalMinutes is required.");
+
+            if (!provider.Frequency.IsAllowed(request.IntervalMinutes))
+                return ValidationProblem("intervalMinutes", UnsupportedInterval(provider));
+
+            await connections.SetScheduleAsync(
+                connection.Id, request.IntervalMinutes, DateTimeOffset.UtcNow.ToString("o"));
+
+            // The server does not schedule routine sync, so the new period is only in force once the
+            // extension reports having replaced its alarm. Until then the stored due time still
+            // belongs to the previous period and must not be presented as this frequency's next run.
+            var applied = connection.State == "active"
+                && connection.AppliedIntervalMinutes == request.IntervalMinutes;
+
+            return Results.Ok(new SyncScheduleChangeResponse
+            {
+                IntervalMinutes = request.IntervalMinutes,
+                Applied = applied,
+                NextRunAt = applied ? connection.NextSyncDueAt : null
+            });
+        })
+        .WithTags("Sync")
+        .WithSummary("Change how often routine sync runs.")
+        .WithDescription("Stores the requested frequency after checking it against the provider's allowed values. Unauthenticated: the web UI sets it directly, consistent with the other management endpoints. The extension applies it on its next heartbeat; no server-side schedule is created or changed.")
+        .Produces<SyncScheduleChangeResponse>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static void MapHeartbeatEndpoint(WebApplication app)
@@ -700,6 +751,12 @@ public static class CloudSyncEndpoints
             statusCode: StatusCodes.Status404NotFound,
             title: "Unknown provider");
 
+    private static IResult NoConnection(ICloudSyncProvider provider) =>
+        Results.Problem(
+            detail: $"Connect {provider.Descriptor.DisplayName} first.",
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Not connected");
+
     private static IResult Unauthorized() =>
         Results.Problem(
             detail: "The pairing token is missing, invalid or revoked. Pair the extension again to continue.",
@@ -794,12 +851,18 @@ public static class CloudSyncEndpoints
             };
         }
 
+        var applied = connection.State == "active"
+            && connection.AppliedIntervalMinutes == connection.SyncIntervalMinutes;
+
         return new SyncScheduleDto
         {
             IntervalMinutes = connection.SyncIntervalMinutes,
             AllowedIntervalMinutes = provider.Frequency.AllowedMinutes,
-            NextRunAt = connection.State == "active" ? connection.NextSyncDueAt : null,
-            Applied = connection.AppliedIntervalMinutes == connection.SyncIntervalMinutes,
+
+            // The stored due time belongs to the frequency the extension is still running, so it is
+            // only this frequency's next run once the extension has reported applying it.
+            NextRunAt = applied ? connection.NextSyncDueAt : null,
+            Applied = applied,
             PendingCommand = connection.PendingCommand ?? NoCommand
         };
     }
@@ -882,6 +945,9 @@ public static class CloudSyncEndpoints
 
     private static string UnsupportedRegion(ICloudSyncProvider provider) =>
         $"regionId must be one of: {string.Join(", ", provider.Profile.Regions.Select(region => region.Id))}. Hosts are never accepted.";
+
+    private static string UnsupportedInterval(ICloudSyncProvider provider) =>
+        $"intervalMinutes must be one of: {string.Join(", ", provider.Frequency.AllowedMinutes)}.";
 
     private static string? NormalizeText(string? value, int maxLength)
     {

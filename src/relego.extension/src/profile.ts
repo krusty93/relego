@@ -16,7 +16,7 @@ export const PROFILE_VERSION = "2";
 export const ALLOWED_INTERVAL_MINUTES: readonly number[] = [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440];
 
 /** Sync frequency applied until the user chooses another one. */
-export const DEFAULT_INTERVAL_MINUTES = 360;
+export const DEFAULT_INTERVAL_MINUTES = 60;
 
 /** Fixed heartbeat cadence in seconds; never derived from the sync frequency. */
 export const HEARTBEAT_SECONDS = 60;

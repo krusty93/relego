@@ -29,7 +29,7 @@ password and stores no Amazon session), and a **local import fallback** link to 
   `completed`, failure/attention states — a native `<select>`/radio group labelled "Sync frequency") with
   **exactly ten options in this order**: 15 minutes, 30 minutes, 45 minutes, 1 hour, 2 hours,
   4 hours, 6 hours, 12 hours, 18 hours, 24 hours. Options come from
-  `schedule.allowedIntervalMinutes`; the current value is `schedule.intervalMinutes` (default 6 hours).
+  `schedule.allowedIntervalMinutes`; the current value is `schedule.intervalMinutes` (default 1 hour).
   Saving calls `PUT /sync/{providerId}/schedule`; success shows the saved value immediately and
   announces it politely. While `schedule.applied` is false, **Next run** reads "Applies when your
   browser next reports" (the extension applies it within one 60 s heartbeat while the browser is open);
