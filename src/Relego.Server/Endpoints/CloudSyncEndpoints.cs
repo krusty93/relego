@@ -284,11 +284,15 @@ public static class CloudSyncEndpoints
             // interrupted rather than failed: nothing went wrong, the user changed the target.
             var running = await jobs.GetRunningAsync(connection.Id);
             if (running is not null)
-                await jobs.InterruptAsync(running.Id, now);
+                await jobs.FailAsync(
+                    running.Id, "interrupted", "interrupted",
+                    SyncFailureRecovery.DetailFor("interrupted"),
+                    JsonSerializer.Serialize(SyncFailureRecovery.StepsFor("interrupted")), now);
 
             // The new region is a different notebook: everything must be read again, and the
             // connection keeps its id, token, frequency and history.
             await connections.SetRegionAsync(connection.Id, region!.Id, now);
+            await connections.ClearAuthExpiredAsync(connection.Id);
             await connections.SetPendingCommandAsync(connection.Id, FullResyncCommand);
 
             return Results.Ok(new SyncRegionChangeResponse

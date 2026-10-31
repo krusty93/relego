@@ -100,14 +100,48 @@ public sealed class SyncRegionApiTests
         Assert.Equal("full_resync", heartbeat.Command);
         Assert.Equal("de", heartbeat.Region!.Id);
 
-        // Exactly one command is queued, and picking it up consumes it.
+        // Heartbeats keep the command pending until matching work starts.
         var second = await HeartbeatAsync(client, token);
-        Assert.Equal("none", second.Command);
+        Assert.Equal("full_resync", second.Command);
+        await StartJobAsync(client, token, "new-region", "full_resync", "region_change");
+        Assert.Equal("none", (await HeartbeatAsync(client, token)).Command);
 
         var (_, summary) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
         Assert.Equal("de", summary!.Connection.Region!.Id);
         Assert.Equal("active", summary.Connection.State);
         Assert.Equal("none", summary.Schedule.PendingCommand);
+    }
+
+    [Fact]
+    public async Task PutRegion_ClearsOldAuthenticationFailureAndStartsTheNewRegionFullResync()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client, "us");
+        var oldJob = await StartJobAsync(client, token, "old-region", "routine", "initial");
+        var (failed, _) = await SendAsync<object>(
+            client, HttpMethod.Post, $"/sync/{Provider}/jobs/{oldJob}/fail",
+            new { code = "auth_expired" }, token);
+        Assert.Equal(HttpStatusCode.NoContent, failed);
+
+        var (changed, _) = await SendAsync<SyncRegionChangeResponse>(
+            client, HttpMethod.Put, $"/sync/{Provider}/region",
+            new SyncRegionChangeRequest { RegionId = "de" }, token);
+        Assert.Equal(HttpStatusCode.OK, changed);
+        var (_, status) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+        Assert.Equal("active", status!.Connection.State);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+            Assert.Null(await db.QuerySingleAsync<string?>("SELECT last_auth_expired_at FROM sync_connections"));
+        }
+
+        var command = await HeartbeatAsync(client, token);
+        Assert.Equal("full_resync", command.Command);
+        Assert.Equal("de", command.Region!.Id);
+        var newJob = await StartJobAsync(client, token, "new-region", "full_resync", "region_change");
+        Assert.NotEqual(oldJob, newJob);
+        Assert.Equal("none", (await HeartbeatAsync(client, token)).Command);
     }
 
     [Fact]

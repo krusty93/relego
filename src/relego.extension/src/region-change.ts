@@ -98,13 +98,18 @@ export async function chooseRegion(
     return { kind: "invalid_server_url", serverBaseUrl: request.serverBaseUrl };
   }
 
-  if (serverPattern === null && request.currentRegionId === region.id) {
-    return await reselect(region, ports.permissions);
+  const origins = serverPattern === null ? [notebookOrigin(region)] : [serverPattern, notebookOrigin(region)];
+  // Start the request before any await so it retains the submit gesture's user activation.
+  const [alreadyGranted, granted] = await Promise.all([
+    ports.permissions.contains([notebookOrigin(region)]),
+    ports.permissions.request(origins),
+  ]);
+  if (!granted) {
+    return { kind: "access_denied", region, origins };
   }
 
-  const origins = serverPattern === null ? [notebookOrigin(region)] : [serverPattern, notebookOrigin(region)];
-  if (!(await ports.permissions.request(origins))) {
-    return { kind: "access_denied", region, origins };
+  if (serverPattern === null && request.currentRegionId === region.id) {
+    return { kind: "already_selected", region };
   }
 
   try {
@@ -119,28 +124,10 @@ export async function chooseRegion(
       released: await releaseOtherNotebookOrigins(region, ports.permissions),
     };
   } catch (error) {
-    // Access was the only thing that changed, so hand it back: the connection still reads the
-    // region it read before this attempt.
-    await ports.permissions.remove([notebookOrigin(region)]);
+    if (!alreadyGranted) await ports.permissions.remove([notebookOrigin(region)]);
 
     return { kind: "failed", region, status: statusOf(error) };
   }
-}
-
-/**
- * Handles re-selecting the region the connection already reads.
- *
- * Nothing is asked of the server: switching to the same region would interrupt a running job and
- * queue a full resync for a notebook that did not change. The host grant is still repaired, because
- * a reinstalled or newly granted extension can have the region without the access.
- */
-async function reselect(region: KindleRegion, permissions: HostPermissions): Promise<RegionChoice> {
-  const origins = [notebookOrigin(region)];
-
-  if (await permissions.contains(origins)) return { kind: "already_selected", region };
-  if (await permissions.request(origins)) return { kind: "already_selected", region };
-
-  return { kind: "access_denied", region, origins };
 }
 
 /** Releases every granted notebook host the selected region does not read. */

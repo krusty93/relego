@@ -37,6 +37,11 @@ interface Elements {
   readonly save: HTMLButtonElement;
 }
 
+interface PopupState {
+  config: RelegoClientConfig | null;
+  currentRegionId: string | null;
+}
+
 /** Returns a required element, failing loudly when the markup and this file disagree. */
 function required<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -76,22 +81,25 @@ function renderPicker(elements: Elements): void {
  * Reads the connection state from the server and shows it.
  *
  * @param elements The popup's elements.
- * @returns The stored configuration, or `null` when the extension is not paired.
+ * @param state Cached configuration and region used during the next Save gesture.
  */
-async function refresh(elements: Elements): Promise<RelegoClientConfig | null> {
+async function refresh(elements: Elements, state: PopupState): Promise<void> {
   const config = await readConfig();
+  state.config = config;
+  state.currentRegionId = null;
   if (config === null) {
     elements.state.textContent = "Not connected yet.";
     say(elements, "Paste the one-time code Relego shows to connect this browser.", "warn");
 
-    return null;
+    return;
   }
 
   elements.serverUrl.value = config.baseUrl;
 
   try {
     const status = await new RelegoClient(config).getStatus(PROVIDER_ID);
-    const region = status.region === null ? null : resolveRegion(status.region.id);
+    const region = resolveRegion(status.connection.region?.id ?? null);
+    state.currentRegionId = region?.id ?? null;
     if (region !== null) elements.region.value = region.id;
 
     elements.state.textContent =
@@ -106,20 +114,20 @@ async function refresh(elements: Elements): Promise<RelegoClientConfig | null> {
     elements.state.textContent = `Relego at ${config.baseUrl} did not answer.`;
     say(elements, "Check that the server is running and that the address is right.", "warn");
   }
-
-  return config;
 }
 
 /**
  * Applies what the user saved, keeping the button disabled while it runs.
  *
  * @param elements The popup's elements.
+ * @param state Configuration loaded before the Save gesture.
  * @returns A task that completes once the outcome is on screen.
  */
-async function save(elements: Elements): Promise<void> {
+async function save(elements: Elements, state: PopupState): Promise<void> {
+  if (elements.save.disabled) return;
   elements.save.disabled = true;
   try {
-    await applySave(elements);
+    await applySave(elements, state);
   } catch (error) {
     say(elements, describeFailure(statusOf(error)), "warn");
   } finally {
@@ -128,11 +136,12 @@ async function save(elements: Elements): Promise<void> {
 }
 
 /** Resolves the target server, then hands the choice to the region decision. */
-async function applySave(elements: Elements): Promise<void> {
-  const config = await readConfig();
+async function applySave(elements: Elements, state: PopupState): Promise<void> {
+  const config = state.config;
   const serverUrl = elements.serverUrl.value.trim();
   const code = elements.code.value.trim();
-  const needsCode = config === null || config.baseUrl !== serverUrl;
+  const needsCode =
+    config === null || config.baseUrl !== serverUrl || (code.length > 0 && code !== config.token);
 
   if (needsCode && code.length === 0) {
     say(elements, "Paste the one-time code from Relego to connect to this server.", "warn");
@@ -142,7 +151,7 @@ async function applySave(elements: Elements): Promise<void> {
 
   const target: RelegoClientConfig = needsCode ? { baseUrl: serverUrl, token: code } : config;
   const client = new RelegoClient(target);
-  const currentRegionId = needsCode ? null : await readCurrentRegionId(client);
+  const currentRegionId = needsCode ? null : state.currentRegionId;
 
   const outcome = await chooseRegion(
     {
@@ -162,26 +171,25 @@ async function applySave(elements: Elements): Promise<void> {
     },
   );
 
-  await applyOutcome(elements, outcome, target, needsCode);
-}
-
-/** Reads the region the server has for this connection; `null` when it has none yet. */
-async function readCurrentRegionId(client: RelegoClient): Promise<string | null> {
-  const status = await client.getStatus(PROVIDER_ID);
-
-  return status.region === null ? null : status.region.id;
+  await applyOutcome(elements, state, outcome, needsCode);
 }
 
 /** Tells the worker to recreate its alarms, then shows what happened. */
 async function applyOutcome(
   elements: Elements,
+  state: PopupState,
   outcome: RegionChoice,
-  target: RelegoClientConfig,
   needsCode: boolean,
 ): Promise<void> {
   switch (outcome.kind) {
-    case "region_selected":
-      await notifyWorker(outcome.intervalMinutes);
+    case "region_selected": {
+      elements.code.value = "";
+      const notified = await notifyWorker(outcome.intervalMinutes, needsCode);
+      await refresh(elements, state);
+      if (!notified) {
+        say(elements, "Saved, but the background sync could not be started. Reload the extension, then sync from Relego.", "warn");
+        break;
+      }
       say(
         elements,
         outcome.intervalMinutes === null
@@ -190,6 +198,7 @@ async function applyOutcome(
         "info",
       );
       break;
+    }
     case "already_selected":
       say(elements, `Already reading ${outcome.region.displayName}. Nothing changed.`, "info");
       break;
@@ -210,24 +219,24 @@ async function applyOutcome(
       say(elements, describeFailure(outcome.status), "warn");
       break;
   }
-
-  if (needsCode) await writeConfig(target);
-  await refresh(elements);
 }
 
 /**
  * Asks the worker to recreate its alarms and pick up any command the change queued.
  *
  * @param intervalMinutes Frequency the server reported, or `null` when none was learned.
+ * @param paired Whether a new pairing needs its first sync.
  */
-async function notifyWorker(intervalMinutes: number | null): Promise<void> {
+async function notifyWorker(intervalMinutes: number | null, paired: boolean): Promise<boolean> {
   try {
     await chrome.runtime.sendMessage({
       type: CONFIGURED_MESSAGE,
+      reason: paired ? "paired" : "region_changed",
       intervalMinutes: intervalMinutes ?? undefined,
     });
+    return true;
   } catch {
-    // The worker recreates its alarms when it next starts, so a missed message only delays a run.
+    return false;
   }
 }
 
@@ -259,13 +268,15 @@ async function main(): Promise<void> {
     save: required<HTMLButtonElement>("save"),
   };
 
+  const state: PopupState = { config: null, currentRegionId: null };
+  elements.save.disabled = true;
   renderPicker(elements);
+  await refresh(elements, state);
+  elements.save.disabled = false;
   elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
-    void save(elements);
+    void save(elements, state);
   });
-
-  await refresh(elements);
 }
 
 if (typeof document !== "undefined") void main();

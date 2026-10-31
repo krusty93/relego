@@ -12,6 +12,8 @@ export const CONFIGURED_MESSAGE = "relego:configured";
 export interface ConfiguredMessage {
   /** Discriminator the popup sends. */
   readonly type: typeof CONFIGURED_MESSAGE;
+  /** Pairing starts an initial sync; a region change picks up the queued full resync. */
+  readonly reason: "paired" | "region_changed";
   /** Frequency the server reported, when the popup learned one. */
   readonly intervalMinutes?: number;
 }
@@ -22,5 +24,7 @@ export interface ConfiguredMessage {
  * @param message Anything received on the runtime channel.
  */
 export function isConfiguredMessage(message: unknown): message is ConfiguredMessage {
-  return (message as { readonly type?: unknown } | null)?.type === CONFIGURED_MESSAGE;
+  if (typeof message !== "object" || message === null) return false;
+  return "type" in message && message.type === CONFIGURED_MESSAGE
+    && "reason" in message && (message.reason === "paired" || message.reason === "region_changed");
 }

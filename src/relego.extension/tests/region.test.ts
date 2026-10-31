@@ -342,6 +342,20 @@ describe("choosing a region", () => {
     expect(server.switched).toEqual([]);
     expect(permissions.removals).toEqual([["https://leer.amazon.es/*"]]);
   });
+
+  it("preserves a pre-existing notebook grant when switching servers with an invalid code", async () => {
+    const permissions = createPermissions([US_NOTEBOOK, SERVER_ORIGIN]);
+    const server = createServer(permissions.port, { failWith: 401 });
+
+    const outcome = await chooseRegion(
+      { regionId: "us", currentRegionId: null, serverBaseUrl: "http://new-relego.test" },
+      server.ports,
+    );
+
+    expect(outcome).toEqual({ kind: "failed", region: region("us"), status: 401 });
+    expect(permissions.removals).toEqual([]);
+    expect(permissions.granted.has(US_NOTEBOOK)).toBe(true);
+  });
 });
 
 describe("re-selecting the region already in use", () => {
@@ -355,7 +369,7 @@ describe("re-selecting the region already in use", () => {
     );
 
     expect(outcome).toEqual({ kind: "already_selected", region: region("de") });
-    expect(permissions.requests).toEqual([]);
+    expect(permissions.requests).toEqual([[DE_NOTEBOOK]]);
     expect(permissions.removals).toEqual([]);
     expect(server.switched).toEqual([]);
     expect(server.paired).toEqual([]);

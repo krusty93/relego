@@ -225,17 +225,21 @@ export async function heartbeat(): Promise<void> {
  * Applies a configuration change made in the popup.
  *
  * The popup owns the choice, because only a user gesture can request host access, but the worker
- * owns the schedule: this recreates the alarms, applies the frequency the server reported, and runs
- * one heartbeat. That heartbeat is what starts the full resync a region change queued, instead of
- * leaving it for the next sixty-second tick.
+ * owns the schedule: this recreates the alarms and applies the frequency the server reported.
+ * Pairing starts an initial sync; a region change picks up the queued full resync via heartbeat.
  *
  * @param intervalMinutes Frequency the server reported, or `null` when the popup learned none.
+ * @param reason Whether to start the first sync or pick up a region-change command.
  * @returns A task that completes once the change has been applied.
  */
-export async function applyConfiguration(intervalMinutes: number | null): Promise<void> {
+export async function applyConfiguration(
+  intervalMinutes: number | null,
+  reason: "paired" | "region_changed",
+): Promise<void> {
   await ensureAlarms();
   if (intervalMinutes !== null) await applyInterval(intervalMinutes);
 
+  if (reason === "paired") await syncNow("initial");
   await heartbeat();
 }
 
@@ -252,7 +256,7 @@ export async function start(): Promise<void> {
   });
 
   chrome.runtime.onMessage.addListener((message: unknown) => {
-    if (isConfiguredMessage(message)) void applyConfiguration(message.intervalMinutes ?? null);
+    if (isConfiguredMessage(message)) void applyConfiguration(message.intervalMinutes ?? null, message.reason);
   });
 
   await ensureAlarms();

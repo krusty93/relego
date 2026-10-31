@@ -40,4 +40,10 @@ only for the region selected, at the moment the user saves. A denied prompt, or 
 fails, leaves the connection reading the region it already read. The popup shows the connection state
 the server reports, which stays the source of truth for the selected region.
 
+Save requests notebook access directly from the user gesture, before any server request. A failed
+pairing keeps the previous server/token and any notebook access that was already granted. A
+replacement one-time code re-pairs even when the server address is unchanged. Successful pairing
+starts an initial sync immediately; changing region queues a full reread, retained until a distinct
+run can start if the browser is still finishing its previous sync.
+
 See `specs/011-kindle-background-sync/` for the feature specification and contracts.
