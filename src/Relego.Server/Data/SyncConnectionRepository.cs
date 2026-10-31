@@ -131,6 +131,12 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             """,
             new { Id = id, Command = command });
 
+    /// <summary>Reads the pending command without clearing it, or <c>null</c> when none is queued.</summary>
+    public Task<string?> GetPendingCommandAsync(long id) =>
+        connection.QuerySingleOrDefaultAsync<string?>(
+            "SELECT pending_command FROM sync_connections WHERE id = @Id",
+            new { Id = id });
+
     /// <summary>Clears and returns the pending command, or <c>null</c> when none was queued.</summary>
     public async Task<string?> ConsumePendingCommandAsync(long id)
     {

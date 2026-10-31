@@ -102,12 +102,13 @@ function job(overrides: Payload = {}): Payload {
 interface SyncMock {
   status: Payload;
   requests: string[];
+  commands: string[];
   statusCalls: number;
 }
 
 /** Serves the sync surface from a stub so every state is reachable without the extension. */
 async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
-  const mock: SyncMock = { status: initial, requests: [], statusCalls: 0 };
+  const mock: SyncMock = { status: initial, requests: [], commands: [], statusCalls: 0 };
 
   await page.route("**/sync/**", async (route) => {
     const request = route.request();
@@ -130,6 +131,17 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
       await route.fulfill({
         status: 201,
         json: { providerId: "kindle-cloud", token: "K7QP-2M4X-9TDH" },
+      });
+      return;
+    }
+
+    // Commands are queued server-side and picked up on the extension's next heartbeat.
+    if (path.endsWith("/commands")) {
+      const body = request.postDataJSON() as { command?: string };
+      mock.commands.push(body.command ?? "");
+      await route.fulfill({
+        status: 202,
+        json: { providerId: "kindle-cloud", pendingCommand: body.command ?? "none" },
       });
       return;
     }
@@ -329,5 +341,108 @@ test.describe("sync", () => {
     await expect
       .poll(() => mock.requests.includes("DELETE /sync/kindle-cloud/connection"))
       .toBe(true);
+  });
+
+  test("an expired Amazon session is explained, then retried in the paired region", async ({
+    page,
+  }) => {
+    const mock = await mockSync(
+      page,
+      statusResponse("auth_expired", {
+        failure: {
+          code: "auth_expired",
+          detail: "Amazon signed this browser out, so the notebook could not be read.",
+          recoverySteps: [
+            "Open your Kindle Notebook in this browser and sign in to Amazon.",
+            "Relego retries on its next check-in; nothing already imported is affected.",
+          ],
+          occurredAt: "2024-05-01T10:07:00Z",
+        },
+      }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    // The sign-in banner replaces the generic failure report instead of stacking on top of it.
+    await expect(page.locator(".callout")).toHaveCount(1);
+    await expect(page.getByText("Amazon asked for a sign-in")).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ hasText: "sign in to Amazon" })).toBeVisible();
+
+    // The way out is Amazon, on the region this connection was paired with.
+    await expect(page.getByRole("link", { name: /Open your Kindle Notebook/ })).toHaveAttribute(
+      "href",
+      "https://read.amazon.co.uk/notebook",
+    );
+    await expect(page.getByText("Relego never sees your Amazon password.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Retry sync" }).click();
+
+    await expect.poll(() => mock.commands).toEqual(["sync"]);
+    await expect(
+      page.getByText("Sync requested. Your browser starts on its next check-in."),
+    ).toBeVisible();
+  });
+
+  test("a failed sync offers both repairs and the local fallback", async ({ page }) => {
+    const mock = await mockSync(
+      page,
+      statusResponse("failed", {
+        failure: {
+          code: "provider_contract_changed",
+          detail: "The Kindle Notebook page no longer matches what the extension reads.",
+          recoverySteps: ["Update the Relego extension to the latest version."],
+          occurredAt: "2024-05-01T10:07:00Z",
+        },
+      }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeEnabled();
+    await expect(page.getByRole("link", { name: "Import a file instead" })).toHaveAttribute(
+      "href",
+      "/app/import",
+    );
+
+    await page.getByRole("button", { name: "Full resync" }).click();
+
+    await expect.poll(() => mock.commands).toEqual(["full_resync"]);
+    await expect(
+      page.getByText(
+        "Full resync requested. Your browser re-reads every book on its next check-in.",
+      ),
+    ).toBeVisible();
+  });
+
+  test("commands wait for the sync that is already running", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("syncing", { currentJob: job() }));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await expect(page.getByText("Commands run when this sync finishes.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+    expect(mock.commands).toEqual([]);
+  });
+
+  test("the navigation marks Sync when Amazon sign-in is needed", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("connected"));
+    await page.goto("/app", { waitUntil: "networkidle" });
+
+    const rail = page.locator('.nav-item[href="/app/kindle-sync"]');
+    await expect(rail).toBeVisible();
+    await expect(rail.locator(".attention")).toHaveCount(0);
+
+    mock.status = statusResponse("auth_expired", {
+      failure: {
+        code: "auth_expired",
+        detail: "Amazon signed this browser out, so the notebook could not be read.",
+        recoverySteps: ["Sign in to Amazon again."],
+        occurredAt: "2024-05-01T10:07:00Z",
+      },
+    });
+    await page.reload({ waitUntil: "networkidle" });
+
+    // Away from the Sync page the user still sees that something needs them.
+    await expect(rail.locator(".attention")).toBeVisible();
+    await expect(rail).toContainText("Amazon sign-in needed");
   });
 });
