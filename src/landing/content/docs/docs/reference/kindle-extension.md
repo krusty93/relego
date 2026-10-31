@@ -37,7 +37,7 @@ are not yet available.
 
 ### Firefox
 
-Firefox 128 or later is required.
+Firefox 140 or later is required.
 
 1. Download `relego-extension-<version>-firefox.zip`.
 2. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary
