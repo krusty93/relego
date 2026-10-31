@@ -1,24 +1,26 @@
 ---
 /**
- * A drawn e-ink reader. Decorative: whatever sits on its screen is sample content,
- * and the surrounding copy carries the meaning.
+ * A drawn e-ink reader, decorative unless its screen contains interactive controls.
  */
 interface Props {
 	class?: string;
-	label?: string;
+	interactive?: boolean;
 }
 
-const { class: className = '', label } = Astro.props;
+const { class: className = '', interactive = false } = Astro.props;
 ---
 
-<figure class:list={['reader', className]} aria-hidden="true">
+<figure
+	class:list={['reader', className]}
+	aria-hidden={interactive ? undefined : 'true'}
+	aria-label={interactive ? 'Recap preview' : undefined}
+>
 	<div class="reader__body">
-		<div class="reader__screen">
+		<div class:list={['reader__screen', { 'reader__screen--interactive': interactive }]}>
 			<slot />
 		</div>
 		<span class="reader__chin"></span>
 	</div>
-	{label && <figcaption class="reader__label">{label}</figcaption>}
 </figure>
 
 <style>
@@ -26,6 +28,7 @@ const { class: className = '', label } = Astro.props;
 		--ink: #2b2420;
 		--ink-soft: #6c6158;
 		--eink: #ebe6dc;
+		--eink-highlight: #d4a05e;
 		margin: 0;
 		width: 100%;
 		max-width: 26rem;
@@ -74,12 +77,9 @@ const { class: className = '', label } = Astro.props;
 		transform: translateX(-50%);
 	}
 
-	.reader__label {
-		margin-top: 1.1rem;
-		text-align: center;
-		font-size: 0.75rem;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--color-soft);
+	.reader__screen--interactive {
+		display: flex;
+		flex-direction: column;
+		container-type: inline-size;
 	}
 </style>
