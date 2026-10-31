@@ -83,6 +83,7 @@ builder.Services.AddScoped<SyncJobRepository>();
 builder.Services.AddScoped<ProvenanceRepository>();
 builder.Services.AddScoped<SyncTokenService>();
 builder.Services.AddScoped<SyncService>();
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddQuartz(q =>
 {

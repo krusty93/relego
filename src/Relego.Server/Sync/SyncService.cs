@@ -16,7 +16,8 @@ public sealed class SyncService(
     SyncRepository syncRepository,
     ProvenanceRepository provenance,
     IEnumerable<ICloudSyncProvider> providers,
-    ILogger<SyncService> logger)
+    ILogger<SyncService> logger,
+    TimeProvider clock)
 {
     private const string ModeRoutine = "routine";
     private const string ModeFullResync = "full_resync";
@@ -55,29 +56,15 @@ public sealed class SyncService(
         if (connection.State == "pending_pairing")
             throw new SyncOperationException("Pair the browser extension before starting a sync.", StatusCodes.Status409Conflict);
 
-        var existing = await jobs.GetByKeyAsync(userId, request.IdempotencyKey);
-        if (existing is not null)
-            return await BuildStartResultAsync(existing, connection, provider, reused: true);
-
-        var running = await jobs.GetRunningAsync(connection.Id);
-        if (running is not null)
-        {
-            if (request.Mode == ModeFullResync)
-                throw new SyncOperationException($"A sync job ({running.Id}) is already running.", StatusCodes.Status409Conflict);
-
-            return await BuildStartResultAsync(running, connection, provider, reused: true);
-        }
+        await MarkStaleJobsAsync();
 
         if (request.Mode == ModeFullResync && connection.State != "active")
             throw new SyncOperationException("A full resync requires an active connection.", StatusCodes.Status409Conflict);
 
-        var now = DateTimeOffset.UtcNow.ToString("o");
-        var job = await jobs.InsertAsync(connection.Id, userId, request.IdempotencyKey, request.Mode, request.Trigger, now);
-        await connections.RecordSyncStartedAsync(connection.Id, now);
-        await connections.ClearAuthExpiredAsync(connection.Id);
-
-        // A user-requested command is satisfied by this job rather than duplicated.
-        await connections.ConsumePendingCommandAsync(connection.Id);
+        var now = clock.GetUtcNow().ToString("o");
+        var (job, reused) = await jobs.StartOrReuseAsync(connection.Id, userId, request.IdempotencyKey, request.Mode, request.Trigger, now);
+        if (reused)
+            return await BuildStartResultAsync(job, connection, provider, reused: true);
 
         logger.LogInformation(
             "Sync job {JobId} started for provider {ProviderId} ({Mode}/{Trigger}).",
@@ -173,7 +160,7 @@ public sealed class SyncService(
             job.ConnectionId,
             normalized.Books,
             observed,
-            DateTimeOffset.UtcNow.ToString("o"));
+            clock.GetUtcNow().ToString("o"));
 
         await jobs.SaveBatchAsync(new SyncJobBatchRecord
         {
@@ -183,10 +170,10 @@ public sealed class SyncService(
             DuplicateHighlights = response.DuplicateHighlights,
             NewBooks = response.NewBooks,
             NewAuthors = response.NewAuthors,
-            ReceivedAt = DateTimeOffset.UtcNow.ToString("o")
+            ReceivedAt = clock.GetUtcNow().ToString("o")
         });
 
-        await jobs.AddCountersAsync(jobId, CountHighlights(batch), response.NewHighlights, response.DuplicateHighlights);
+        await jobs.AddCountersAsync(jobId, CountHighlights(batch), response.NewHighlights, response.DuplicateHighlights, clock.GetUtcNow().ToString("o"));
 
         return new SyncBatchResult
         {
@@ -209,7 +196,8 @@ public sealed class SyncService(
         if (job.Status != "running")
             throw new SyncOperationException($"Job {jobId} is already {job.Status}.", StatusCodes.Status409Conflict);
 
-        await jobs.UpdatePhaseAsync(jobId, phase, booksTotal, booksDone);
+        if (await jobs.UpdatePhaseAsync(jobId, phase, booksTotal, booksDone, clock.GetUtcNow().ToString("o")) == 0)
+            throw new SyncOperationException($"Job {jobId} is no longer running.", StatusCodes.Status409Conflict);
     }
 
     /// <summary>
@@ -233,9 +221,10 @@ public sealed class SyncService(
 
         var hasChanges = job.HighlightsNew > 0;
         var status = hasChanges ? "completed_with_changes" : "completed_no_changes";
-        var now = DateTimeOffset.UtcNow.ToString("o");
+        var now = clock.GetUtcNow().ToString("o");
 
-        await jobs.CompleteAsync(jobId, status, booksTotal, booksDone, truncatedBooks, now);
+        if (await jobs.CompleteAsync(jobId, status, booksTotal, booksDone, truncatedBooks, now) == 0)
+            throw new SyncOperationException($"Job {jobId} is no longer running.", StatusCodes.Status409Conflict);
         await connections.RecordSyncCompletedAsync(job.ConnectionId, now, hasChanges ? now : null);
 
         return await jobs.GetByIdAsync(jobId)
@@ -256,10 +245,11 @@ public sealed class SyncService(
             throw new SyncOperationException($"Job {jobId} is already {job.Status}.", StatusCodes.Status409Conflict);
 
         var status = string.Equals(code, "auth_expired", StringComparison.Ordinal) ? "auth_expired" : "failed";
-        var now = DateTimeOffset.UtcNow.ToString("o");
+        var now = clock.GetUtcNow().ToString("o");
         var steps = recoverySteps is { Count: > 0 } ? JsonSerializer.Serialize(recoverySteps) : null;
 
-        await jobs.FailAsync(jobId, status, code, SanitizeDetail(detail), steps, now);
+        if (await jobs.FailAsync(jobId, status, code, SanitizeDetail(detail), steps, now) == 0)
+            throw new SyncOperationException($"Job {jobId} is no longer running.", StatusCodes.Status409Conflict);
 
         if (status == "auth_expired")
             await connections.RecordAuthExpiredAsync(job.ConnectionId, now);
@@ -272,17 +262,21 @@ public sealed class SyncService(
     /// <returns>The number of jobs marked interrupted.</returns>
     public async Task<int> MarkStaleJobsAsync()
     {
-        var cutoff = DateTimeOffset.UtcNow.Subtract(StaleWindow).ToString("o");
+        var cutoff = clock.GetUtcNow().Subtract(StaleWindow).ToString("o");
         var stale = await jobs.GetStaleRunningAsync(cutoff);
-        var now = DateTimeOffset.UtcNow.ToString("o");
+        var now = clock.GetUtcNow().ToString("o");
+        var interrupted = 0;
 
         foreach (var job in stale)
         {
-            await jobs.InterruptAsync(job.Id, now);
-            logger.LogWarning("Sync job {JobId} marked interrupted after {Minutes} minutes without progress.", job.Id, StaleWindow.TotalMinutes);
+            if (await jobs.InterruptAsync(job.Id, now, cutoff) > 0)
+            {
+                interrupted++;
+                logger.LogWarning("Sync job {JobId} marked interrupted after {Minutes} minutes without progress.", job.Id, StaleWindow.TotalMinutes);
+            }
         }
 
-        return stale.Count;
+        return interrupted;
     }
 
     /// <summary>
@@ -349,7 +343,7 @@ public sealed record SyncJobStartResult
     /// <summary>The started or reused job.</summary>
     public SyncJobRecord Job { get; init; } = new();
 
-    /// <summary>Known book fingerprints for routine-run skipping; empty in this foundational phase.</summary>
+    /// <summary>Provider-keyed book fingerprints for routine-run skipping.</summary>
     public IReadOnlyList<SyncKnownBookDto> KnownBooks { get; init; } = [];
 
     /// <summary>Whether an existing job (by key or single-flight) was returned instead of a new one.</summary>

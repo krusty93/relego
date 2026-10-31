@@ -147,10 +147,8 @@ export function isSignInUrl(region: KindleRegion, url: string): boolean {
 }
 
 /**
- * Normalizes a book title into the shared book key the Relego server returns in `knownBooks`.
- *
- * This must match `SyncBookKey.Normalize` on the server: collapse every whitespace run to one
- * space, trim, and lowercase. A mismatch only costs a re-read of the book, never correctness.
+ * Normalizes a book title into a fallback notebook lookup key when no provider key is present.
+ * This is not a stable provider identity and must never be used to skip a book via `knownBooks`.
  *
  * @param title Raw book title, or `null`.
  * @returns The normalized key, or an empty string when there is no usable title.

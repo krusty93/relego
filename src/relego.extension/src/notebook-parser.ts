@@ -36,6 +36,8 @@ export const SELECTORS = {
 export interface LibraryBook {
   /** Provider-stable book key when the row exposes one, otherwise a title-derived key. */
   readonly externalKey: string;
+  /** Stable provider identity, or null when the row only supplies a title-derived lookup key. */
+  readonly fingerprintKey: string | null;
   /** Book title as shown on the page. */
   readonly title: string;
   /** Book author as shown on the page, when present. */
@@ -63,7 +65,7 @@ export interface ParsedHighlight {
 /** A book with its highlights, as parsed from a Kindle notebook page. */
 export interface ParsedBook {
   /** Provider-stable book key when available, otherwise a title-derived key. */
-  readonly externalKey: string;
+  readonly externalKey: string | null;
   /** Book title as shown on the page. */
   readonly title: string;
   /** Book author as shown on the page, when present. */
@@ -136,6 +138,7 @@ export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome
 
     books.push({
       externalKey: attribute(row.open, "data-book-key") ?? normalizeBookKey(title),
+      fingerprintKey: attribute(row.open, "data-book-key"),
       title,
       author: elementText(row.content, SELECTORS.bookAuthor),
       highlightCount: parseCount(attribute(row.open, "data-highlight-count")),
@@ -156,9 +159,12 @@ export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome
  * @param html Page HTML as served to the user's own authenticated session.
  * @param region Region whose notebook host was read.
  * @param fallbackKey Book key from the library row, used when the page does not expose one.
+ * @param advertisedCount Highlight count from the library, used to recognize an empty book.
  * @returns The parsed book, a sign-in signal, or a contract break.
  */
-export function parseBookPage(html: string, region: KindleRegion, fallbackKey: string): ParseOutcome {
+export function parseBookPage(
+  html: string, region: KindleRegion, fallbackKey: string | null, advertisedCount: number | null = null,
+): ParseOutcome {
   if (isSignInPage(html, region)) return { kind: "sign_in" };
 
   const annotations = elementContent(html, SELECTORS.annotations);
@@ -169,6 +175,9 @@ export function parseBookPage(html: string, region: KindleRegion, fallbackKey: s
 
   const truncated = elementContent(annotations, SELECTORS.exportLimit) !== null;
   const blocks = findElements(annotations, SELECTORS.annotation);
+  if (blocks.length === 0 && advertisedCount !== 0) {
+    return contractBreak("annotation", { annotations: 0, advertisedCount: advertisedCount ?? -1 });
+  }
   const highlights: ParsedHighlight[] = [];
   let missingText = 0;
 

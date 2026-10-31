@@ -175,6 +175,21 @@ public sealed class SchemaBootstrap
             resolved_at    TEXT    NULL
         );
 
+        CREATE TABLE IF NOT EXISTS sync_book_highlights (
+            user_id      INTEGER NOT NULL REFERENCES users(id),
+            source_id    TEXT    NOT NULL,
+            region_id    TEXT    NOT NULL,
+            external_key TEXT    NOT NULL,
+            highlight_id INTEGER NOT NULL REFERENCES highlights(id),
+            PRIMARY KEY (user_id, source_id, region_id, external_key, highlight_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS sync_job_activity (
+            job_id           INTEGER PRIMARY KEY REFERENCES sync_jobs(id),
+            user_id          INTEGER NOT NULL REFERENCES users(id),
+            last_activity_at TEXT    NOT NULL
+        );
+
         CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_connections_user_provider ON sync_connections(user_id, provider_id) WHERE state <> 'disconnected';
         CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_jobs_user_idempotency ON sync_jobs(user_id, idempotency_key);
         CREATE UNIQUE INDEX IF NOT EXISTS uq_highlight_provenance_external ON highlight_provenance(source_id, region_id, external_id) WHERE external_id IS NOT NULL;
@@ -189,8 +204,30 @@ public sealed class SchemaBootstrap
         command.CommandText = SchemaSql;
         await command.ExecuteNonQueryAsync(cancellationToken);
 
+        await MigrateSingleRunningJobAsync(connection, cancellationToken);
+
         // Migration: add delivery_email column if it doesn't exist (existing databases)
         await MigrateAddDeliveryEmailColumnAsync(connection, cancellationToken);
+    }
+
+    private static async Task MigrateSingleRunningJobAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var transaction = connection.BeginTransaction();
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE sync_jobs
+            SET status = 'interrupted', failure_code = 'interrupted',
+                ended_at = @Now
+            WHERE status = 'running' AND id NOT IN (
+                SELECT MAX(id) FROM sync_jobs WHERE status = 'running' GROUP BY connection_id
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_jobs_running
+                ON sync_jobs(connection_id) WHERE status = 'running';
+            """;
+        command.Parameters.AddWithValue("@Now", DateTimeOffset.UtcNow.ToString("o"));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static async Task MigrateAddDeliveryEmailColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -236,8 +273,6 @@ public sealed class SchemaBootstrap
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        await using var command = connection.CreateCommand();
-        command.CommandText = SchemaSql;
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        await ApplyAsync(connection, cancellationToken);
     }
 }

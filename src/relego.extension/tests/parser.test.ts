@@ -8,10 +8,10 @@
  */
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RelegoApiError, PROVIDER_ID } from "../src/client";
-import type { RelegoBatch, RelegoBatchResult, RelegoClient, RelegoKnownBook } from "../src/client";
+import { RelegoApiError, RelegoClient, PROVIDER_ID } from "../src/client";
+import type { RelegoBatch, RelegoBatchResult, RelegoJobStart, RelegoKnownBook } from "../src/client";
 import {
   ALLOWED_INTERVAL_MINUTES,
   DEFAULT_INTERVAL_MINUTES,
@@ -31,6 +31,8 @@ import type { PageResponse, SyncRunOptions, SyncRunnerDeps } from "../src/sync-r
 
 const us = resolveRegion("us");
 if (us === null) throw new Error("The US region must be part of the bundled profile.");
+
+afterEach(() => vi.unstubAllGlobals());
 
 function fixture(name: string): string {
   return readFileSync(new URL(`./fixtures/us/${name}`, import.meta.url), "utf8");
@@ -75,7 +77,7 @@ describe("parse profile", () => {
     expect(isSignInUrl(us, "not a url")).toBe(false);
   });
 
-  it("normalizes book keys exactly like the server's SyncBookKey", () => {
+  it("normalizes title-derived fallback lookup keys", () => {
     expect(normalizeBookKey("  The   Pragmatic\tProgrammer \n")).toBe("the pragmatic programmer");
     expect(normalizeBookKey("Thinking,   Fast and Slow")).toBe("thinking, fast and slow");
     expect(normalizeBookKey(null)).toBe("");
@@ -101,6 +103,7 @@ describe("notebook parser - library page", () => {
     expect(outcome.books.every((book) => book.title.length > 0)).toBe(true);
     expect(outcome.books[0]).toEqual({
       externalKey: "B00EXAMPLE01",
+      fingerprintKey: "B00EXAMPLE01",
       title: "The Pragmatic Programmer",
       author: "Andrew Hunt & David Thomas",
       highlightCount: 3,
@@ -175,6 +178,24 @@ describe("notebook parser - library page", () => {
 });
 
 describe("notebook parser - book page", () => {
+  it.each([null, 3])("rejects unrecognized annotation markup with advertised count %s", (count) => {
+    const html = fixture("book.html").replaceAll('class="kp-notebook-annotation"', 'class="new-annotation"');
+    const outcome = parseBookPage(html, us, "B00EXAMPLE01", count);
+    expect(outcome).toMatchObject({
+      kind: "contract_changed",
+      diagnostics: { check: "annotation", counts: { annotations: 0, advertisedCount: count ?? -1 } },
+    });
+    expect(JSON.stringify(outcome)).not.toContain("Care about");
+  });
+
+  it("accepts an empty annotations container only with an advertised zero count", () => {
+    const html = '<h2 id="kp-notebook-book-title">Empty book</h2><div id="kp-notebook-annotations"></div>';
+    expect(parseBookPage(html, us, "B00EMPTY", 0)).toMatchObject({
+      kind: "ok", result: { books: [{ highlights: [] }] },
+    });
+    expect(parseBookPage(html, us, "B00EMPTY").kind).toBe("contract_changed");
+  });
+
   it("parses highlights with their id, note, location and color (invariant 3)", () => {
     const outcome = parseBookPage(fixture("book.html"), us, "fallback");
 
@@ -313,7 +334,35 @@ describe("chunked upload", () => {
     const batches = chunkBooks([huge]);
     expect(batches.length).toBeGreaterThan(1);
     for (const batch of batches) {
-      expect(JSON.stringify(batch.books).length).toBeLessThan(2 * 1024 * 1024);
+      expect(new TextEncoder().encode(JSON.stringify(batch)).length).toBeLessThanOrEqual(2 * 1024 * 1024);
+    }
+  });
+
+  it("includes the request envelope and UTF-8 bytes at the exact boundary", () => {
+    const base = book("A", 1);
+    const overhead = new TextEncoder().encode(JSON.stringify({
+      batchIndex: 2_147_483_647,
+      books: [{ ...base, highlights: [{ ...base.highlights[0], text: "" }] }],
+    })).length;
+    const text = "é".repeat(Math.floor((2 * 1024 * 1024 - overhead) / 2))
+      + "x".repeat((2 * 1024 * 1024 - overhead) % 2);
+    const exact = { ...base, highlights: [{ ...base.highlights[0]!, text }] };
+    const batches = chunkBooks([exact]);
+    expect(new TextEncoder().encode(JSON.stringify({ ...batches[0], batchIndex: 2_147_483_647 })).length)
+      .toBe(2 * 1024 * 1024);
+    expect(() => chunkBooks([{ ...base, highlights: [{ ...base.highlights[0]!, text: text + "x" }] }]))
+      .toThrow(RelegoApiError);
+  });
+
+  it("keeps every highlight exactly once when escaped text forces byte-budget splits", () => {
+    const base = book("A", 12);
+    const highlights = base.highlights.map((highlight) => ({ ...highlight, text: '"\\é'.repeat(50_000) }));
+    const batches = chunkBooks([{ ...base, highlights }]);
+    expect(batches.length).toBeGreaterThan(1);
+    expect(batches.flatMap((batch) => batch.books.flatMap((entry) => entry.highlights)))
+      .toEqual(highlights);
+    for (const batch of batches) {
+      expect(new TextEncoder().encode(JSON.stringify(batch)).length).toBeLessThanOrEqual(2 * 1024 * 1024);
     }
   });
 
@@ -335,6 +384,7 @@ function fakeClient(options: {
   readonly region?: string | null;
   readonly knownBooks?: readonly RelegoKnownBook[];
   readonly batchStatus?: number;
+  readonly startResults?: readonly RelegoJobStart[];
 } = {}): { client: RelegoClient; calls: FakeCalls } {
   const calls = {
     started: [] as SyncRunOptions[],
@@ -353,12 +403,13 @@ function fakeClient(options: {
       return Promise.resolve({
         providerId: PROVIDER_ID,
         status: "connected",
-        region: region === null ? null : { id: region, displayName: region, host: "read.amazon.com" },
+        connection: { region: region === null ? null : { id: region, displayName: region, host: "read.amazon.com" } },
       });
     },
     startJob: (request: SyncRunOptions) => {
       calls.started.push(request);
-      return Promise.resolve({ jobId: 42, knownBooks: options.knownBooks ?? [] });
+      return Promise.resolve(options.startResults?.[calls.started.length - 1]
+        ?? { jobId: 42, knownBooks: options.knownBooks ?? [], reused: false, status: "running" });
     },
     postBatch: (_jobId: number, batch: RelegoBatch) => {
       calls.batches.push(batch);
@@ -410,6 +461,71 @@ function pages(overrides: Record<string, string> = {}): (url: string) => Promise
 const routine: SyncRunOptions = { mode: "routine", trigger: "scheduled", idempotencyKey: "key-1" };
 
 describe("sync runner", () => {
+  it("runs through the real HTTP client using the server's nested connection.region response", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const path = new URL(url).pathname;
+      requests.push(path);
+      if (init?.method === "GET") return Response.json({
+        providerId: PROVIDER_ID, status: "connected",
+        connection: { state: "active", region: { id: "us", displayName: "United States", host: "read.amazon.com" } },
+      });
+      if (path.endsWith("/jobs")) return Response.json({
+        jobId: 42, knownBooks: [], reused: false, status: "running",
+      });
+      if (path.endsWith("/batches")) return Response.json({ newHighlights: 9 });
+      return new Response(null, { status: 204 });
+    }));
+    const client = new RelegoClient({ baseUrl: "https://relego.test", token: "test-pairing" });
+    expect(await runSync({ client, fetchPage: pages() }, routine)).toMatchObject({ kind: "completed", newHighlights: 9 });
+    expect(requests).toContain(`/sync/${PROVIDER_ID}/jobs/42/complete`);
+  });
+
+  it.each(["running", "completed_with_changes", "completed_no_changes"])(
+    "does not rebuild uploads for a reused %s job", async (status) => {
+      const { client, calls } = fakeClient({ startResults: [{ jobId: 42, knownBooks: [], reused: true, status }] });
+      const fetchPage = vi.fn(pages());
+      expect(await runSync({ client, fetchPage }, routine)).toEqual({
+        kind: "skipped", reason: status === "running" ? "already_running" : "already_completed",
+      });
+      expect(fetchPage).not.toHaveBeenCalled();
+      expect(calls.batches).toEqual([]);
+      expect(calls.completed).toEqual([]);
+    },
+  );
+
+  it("starts a fresh attempt after an interrupted job and never reuses its batch mapping", async () => {
+    const { client, calls } = fakeClient({ startResults: [
+      { jobId: 41, knownBooks: [], reused: true, status: "interrupted" },
+      { jobId: 42, knownBooks: [{ key: "B00EXAMPLE01", highlightCount: 3 }], reused: false, status: "running" },
+    ] });
+    const outcome = await runSync({ client, fetchPage: pages() }, routine);
+    expect(outcome).toMatchObject({ kind: "completed", jobId: 42, booksTotal: 2 });
+    expect(calls.started[1]?.idempotencyKey).not.toBe(routine.idempotencyKey);
+    expect(calls.batches[0]?.batchIndex).toBe(0);
+    expect(calls.batches[0]?.books.map((book) => book.externalKey)).not.toContain("B00EXAMPLE01");
+  });
+
+  it("does not skip different provider identities with the same title or missing stable keys", async () => {
+    const { client, calls } = fakeClient({ knownBooks: [{ key: "B00OTHER", highlightCount: 3 }] });
+    const fetchPage = pages({
+      [notebookUrl(us)]: fixture("library.html").replace('data-book-key="B00EXAMPLE01"', ""),
+    });
+    expect((await runSync({ client, fetchPage }, routine)).kind).toBe("completed");
+    expect(calls.completed[0]?.booksTotal).toBe(3);
+  });
+
+  it("only skips the matching provider key when titles and counts are identical", async () => {
+    const { client, calls } = fakeClient({ knownBooks: [{ key: "B00EXAMPLE01", highlightCount: 3 }] });
+    const library = fixture("library.html")
+      .replace(">Dune</h2>", ">The Pragmatic Programmer</h2>")
+      .replace('data-highlight-count="2"', 'data-highlight-count="3"');
+    const outcome = await runSync({ client, fetchPage: pages({ [notebookUrl(us)]: library }) }, routine);
+    expect(outcome).toMatchObject({ kind: "completed", booksTotal: 2 });
+    expect(calls.batches[0]?.books.map((book) => book.externalKey)).toContain("B00EXAMPLE02");
+    expect(calls.batches[0]?.books.map((book) => book.externalKey)).not.toContain("B00EXAMPLE01");
+  });
+
   it("reads the library, uploads in batches and completes with matching counts", async () => {
     const { client, calls } = fakeClient();
     const deps: SyncRunnerDeps = { client, fetchPage: pages() };
@@ -452,8 +568,8 @@ describe("sync runner", () => {
   it("skips books whose advertised count matches the fingerprint on a routine run", async () => {
     const { client, calls } = fakeClient({
       knownBooks: [
-        { key: "the pragmatic programmer", highlightCount: 3 },
-        { key: "dune", highlightCount: 99 },
+        { key: "B00EXAMPLE01", highlightCount: 3 },
+        { key: "B00EXAMPLE02", highlightCount: 99 },
       ],
     });
 
@@ -470,7 +586,7 @@ describe("sync runner", () => {
   });
 
   it("re-reads every book on a full resync even when the server sends a fingerprint", async () => {
-    const { client, calls } = fakeClient({ knownBooks: [{ key: "the pragmatic programmer", highlightCount: 3 }] });
+    const { client, calls } = fakeClient({ knownBooks: [{ key: "B00EXAMPLE01", highlightCount: 3 }] });
 
     const outcome = await runSync({ client, fetchPage: pages() }, { ...routine, mode: "full_resync", trigger: "manual" });
 

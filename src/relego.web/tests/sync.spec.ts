@@ -150,6 +150,66 @@ function oneTimeCode(page: Page) {
 }
 
 test.describe("sync", () => {
+  for (const width of [1440, 390]) {
+    for (const initial of ["not_connected", "awaiting_pairing"]) {
+      test(`serializes token creation from ${initial} at ${width}px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 950 });
+        const mock = await mockSync(page, statusResponse(initial));
+        let release!: () => void;
+        const pending = new Promise<void>((resolve) => { release = resolve; });
+        let posts = 0;
+        await page.route("**/sync/kindle-cloud/connection", async (route) => {
+          posts++;
+          await pending;
+          mock.status = statusResponse("awaiting_pairing");
+          await route.fulfill({ status: 201, json: { providerId: "kindle-cloud", token: "LATEST-CODE" } });
+        });
+        await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+        const button = page.getByRole("button", {
+          name: initial === "not_connected" ? "Connect Kindle cloud" : "Generate a new code",
+        });
+        await button.evaluate((element: HTMLButtonElement) => {
+          element.click();
+          element.click();
+          element.click();
+        });
+        await expect.poll(() => posts).toBe(1);
+        await expect(page.getByRole("button", { name: initial === "not_connected" ? "Starting…" : "Generating…" }))
+          .toBeDisabled();
+        if (initial === "awaiting_pairing") {
+          await expect(page.getByRole("button", { name: "Cancel setup" })).toBeDisabled();
+        }
+        release();
+        await expect(oneTimeCode(page)).toHaveText("LATEST-CODE");
+        await expect(page.getByRole("button", { name: "Generate a new code" })).toBeEnabled();
+        expect(posts).toBe(1);
+      });
+    }
+  }
+
+  test("token creation can retry after a failed request", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("not_connected"));
+    let posts = 0;
+    await page.route("**/sync/kindle-cloud/connection", async (route) => {
+      posts++;
+      if (posts === 1) {
+        await route.fulfill({ status: 503, json: { detail: "Server is temporarily unavailable." } });
+        return;
+      }
+      mock.status = statusResponse("awaiting_pairing");
+      await route.fulfill({ status: 201, json: { providerId: "kindle-cloud", token: "RETRY-CODE" } });
+    });
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+    const button = page.getByRole("button", { name: "Connect Kindle cloud" });
+    await button.click();
+    await expect.poll(() => posts).toBe(1);
+    await expect(page.getByText("Server is temporarily unavailable.", { exact: false })).toBeVisible();
+    await expect(button).toBeEnabled();
+    await button.click();
+    await expect(oneTimeCode(page)).toHaveText("RETRY-CODE");
+    expect(posts).toBe(2);
+  });
+
   test("the connect flow reads the limits before it offers the button", async ({ page }) => {
     const mock = await mockSync(page, statusResponse("not_connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
@@ -296,6 +356,8 @@ test.describe("sync", () => {
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     await expect(page.getByRole("heading", { name: "Last sync did not finish" })).toBeVisible();
+    await expect(page.getByText("Highlights already saved are still in your library.", { exact: false })).toBeVisible();
+    await expect(page.getByText("Nothing partial was imported.", { exact: false })).toHaveCount(0);
     await expect(page.getByText("provider_contract_changed")).toBeVisible();
     await expect(page.getByText("no longer matches what the extension reads")).toBeVisible();
     await expect(page.getByRole("listitem").filter({ hasText: "Update the Relego extension" })).toBeVisible();

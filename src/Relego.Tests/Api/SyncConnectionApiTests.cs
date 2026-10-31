@@ -240,7 +240,7 @@ public sealed class SyncConnectionApiTests
         Assert.NotNull(replay);
         Assert.Equal(routine.JobId, replay!.JobId);
         var book = Assert.Single(replay.KnownBooks);
-        Assert.Equal("the pragmatic programmer", book.Key);
+        Assert.Equal("B00EXAMPLE", book.Key);
         Assert.Equal(2, book.HighlightCount);
     }
 
@@ -613,6 +613,170 @@ public sealed class SyncConnectionApiTests
         Assert.NotEmpty(summary.Prerequisites);
         Assert.Equal(360, summary.Schedule.IntervalMinutes);
         Assert.Equal(10, summary.Schedule.AllowedIntervalMinutes.Count);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task KnownBooks_DistinctProviderKeysNeverCollideOnTitleOrCanonicalHighlight(bool sameAuthor)
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var job = await StartJobAsync(client, token, "first", "routine", "initial");
+        var first = new BatchBook
+        {
+            ExternalKey = "BOOK-A",
+            Title = "Same title",
+            Author = "Author A",
+            Highlights = [new BatchHighlight { ExternalId = "H-A", Text = "Same text" }]
+        };
+        var second = first with
+        {
+            ExternalKey = "BOOK-B",
+            Author = sameAuthor ? "Author A" : "Author B",
+            Highlights = [new BatchHighlight { ExternalId = "H-B", Text = "Same text" }]
+        };
+        await SendBatchAsync(client, token, job, 0, [first]);
+        var (_, before) = await SendAsync<SyncJobStartResponse>(client, HttpMethod.Post, $"/sync/{Provider}/jobs",
+            new SyncJobStartRequest { IdempotencyKey = "first", Mode = "routine", Trigger = "initial" }, token);
+        Assert.True(before!.Reused);
+        Assert.Equal("running", before.Status);
+        Assert.Equal("BOOK-A", Assert.Single(before.KnownBooks).Key);
+
+        await SendBatchAsync(client, token, job, 1, [second]);
+        await SendBatchAsync(client, token, job, 2, [second]);
+        await CompleteAsync(client, token, job, 2);
+        var (_, next) = await SendAsync<SyncJobStartResponse>(client, HttpMethod.Post, $"/sync/{Provider}/jobs",
+            new SyncJobStartRequest { IdempotencyKey = "next", Mode = "routine", Trigger = "scheduled" }, token);
+        Assert.False(next!.Reused);
+        Assert.Equal(2, next.KnownBooks.Count);
+        Assert.All(next.KnownBooks, book => Assert.Equal(1, book.HighlightCount));
+        Assert.Equal(["BOOK-A", "BOOK-B"], next.KnownBooks.Select(book => book.Key).Order().ToArray());
+    }
+
+    [Fact]
+    public async Task KnownBooks_RegionAndMissingKeyDoNotProduceUnsafeFingerprints()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var job = await StartJobAsync(client, token, "first", "routine", "initial");
+        await CommitBatchAsync(client, token, job, 0, [("BOOK-A", "Known", 1)]);
+        await SendBatchAsync(client, token, job, 1,
+            [new BatchBook { Title = "No provider key", Highlights = [new BatchHighlight { Text = "Read me" }] }]);
+        await CompleteAsync(client, token, job, 2);
+        await SendAsync<SyncPairResponse>(client, HttpMethod.Post, $"/sync/{Provider}/pair",
+            new SyncPairRequest { ProfileVersion = "1", RegionId = "uk" }, token);
+        var (_, next) = await SendAsync<SyncJobStartResponse>(client, HttpMethod.Post, $"/sync/{Provider}/jobs",
+            new SyncJobStartRequest { IdempotencyKey = "uk", Mode = "routine", Trigger = "scheduled" }, token);
+        Assert.Empty(next!.KnownBooks);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        Assert.Equal(1, await db.QuerySingleAsync<int>("SELECT COUNT(*) FROM sync_book_highlights"));
+        Assert.Equal(2, await db.QuerySingleAsync<int>("SELECT COUNT(*) FROM highlights"));
+    }
+
+    [Theory]
+    [InlineData(899, "running")]
+    [InlineData(900, "interrupted")]
+    [InlineData(901, "interrupted")]
+    public async Task GetStatus_ExpiresOnlyAfterFifteenMinutesWithoutActivity(int seconds, string expected)
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        using var factory = ClockFactory(clock);
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var job = await StartJobAsync(client, token, "first", "routine", "initial");
+        clock.Now = clock.Now.AddSeconds(seconds);
+        await client.GetAsync($"/sync/{Provider}");
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        Assert.Equal(expected, await db.QuerySingleAsync<string>("SELECT status FROM sync_jobs WHERE id = @Job", new { Job = job }));
+        Assert.Null(await db.QuerySingleAsync<string?>("SELECT last_sync_completed_at FROM sync_connections"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetStatus_ProgressAndCommittedBatchesKeepLongRunningJobsAlive(bool reportProgress)
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        using var factory = ClockFactory(clock);
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var job = await StartJobAsync(client, token, "first", "routine", "initial");
+        clock.Now = clock.Now.AddMinutes(14);
+        if (reportProgress)
+            await SendAsync<object>(client, HttpMethod.Post, $"/sync/{Provider}/jobs/{job}/progress",
+                new SyncJobProgressRequest { Phase = "reading", BooksTotal = 2, BooksDone = 1 }, token);
+        else
+            await CommitBatchAsync(client, token, job, 0, [("A", "A book", 1)]);
+
+        clock.Now = clock.Now.AddMinutes(2);
+        var (_, status) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+        Assert.Equal(job, status!.CurrentJob?.Id);
+        clock.Now = clock.Now.AddMinutes(14);
+        await client.GetAsync($"/sync/{Provider}");
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        Assert.Equal("interrupted", await db.QuerySingleAsync<string>("SELECT status FROM sync_jobs"));
+    }
+
+    [Fact]
+    public async Task PostJobs_StaleKeyReplayIsInterruptedAndFreshAttemptRetainsEarlierImports()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        using var factory = ClockFactory(clock);
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var job = await StartJobAsync(client, token, "first", "routine", "initial");
+        await CommitBatchAsync(client, token, job, 0, [("A", "Book A", 1)]);
+        clock.Now = clock.Now.AddMinutes(16);
+        await SendAsync<SyncHeartbeatResponse>(client, HttpMethod.Post, $"/sync/{Provider}/heartbeat",
+            new SyncHeartbeatRequest { ProfileVersion = "1" }, token);
+        var (_, replay) = await SendAsync<SyncJobStartResponse>(client, HttpMethod.Post, $"/sync/{Provider}/jobs",
+            new SyncJobStartRequest { IdempotencyKey = "first", Mode = "routine", Trigger = "initial" }, token);
+        Assert.Equal(job, replay!.JobId);
+        Assert.True(replay.Reused);
+        Assert.Equal("interrupted", replay.Status);
+
+        var fresh = await StartJobAsync(client, token, "fresh", "routine", "retry");
+        Assert.NotEqual(job, fresh);
+        await CommitBatchAsync(client, token, fresh, 0, [("B", "Book B", 1)]);
+        await CompleteAsync(client, token, fresh, 1);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        Assert.Equal(2, await db.QuerySingleAsync<int>("SELECT COUNT(*) FROM highlights"));
+        Assert.Equal(2, await db.QuerySingleAsync<int>("SELECT COUNT(*) FROM sync_job_batches WHERE batch_index = 0"));
+    }
+
+    [Fact]
+    public async Task PostFail_PreservesHighlightsFromEarlierCommittedBatches()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var job = await StartJobAsync(client, token, "first", "routine", "initial");
+        await CommitBatchAsync(client, token, job, 0, [("A", "Book A", 2)]);
+        var (status, _) = await SendAsync<object>(client, HttpMethod.Post, $"/sync/{Provider}/jobs/{job}/fail",
+            new { code = "network" }, token);
+        Assert.Equal(HttpStatusCode.NoContent, status);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        Assert.Equal(2, await db.QuerySingleAsync<int>("SELECT COUNT(*) FROM highlights"));
+        Assert.Equal("failed", await db.QuerySingleAsync<string>("SELECT status FROM sync_jobs"));
+        Assert.Null(await db.QuerySingleAsync<string?>("SELECT last_sync_completed_at FROM sync_connections"));
+    }
+
+    private static RelegoTestApplicationFactory ClockFactory(TestClock clock) =>
+        new(builder => builder.ConfigureServices(services => services.AddSingleton<TimeProvider>(clock)));
+
+    private sealed class TestClock(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 
     private static async Task<(HttpStatusCode Status, T? Body)> SendAsync<T>(

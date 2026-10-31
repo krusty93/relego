@@ -160,14 +160,24 @@ function idempotencyKey(trigger: SyncTrigger, intervalMinutes: number): string {
 }
 
 /** Fetches a notebook page inside the user's own Amazon session. */
-async function fetchNotebookPage(url: string): Promise<PageResponse> {
-  const response = await fetch(url, { credentials: "include", redirect: "follow" });
+export async function fetchNotebookPage(url: string, signal?: AbortSignal): Promise<PageResponse> {
+  const controller = new AbortController();
+  const abort = (): void => controller.abort(signal?.reason);
+  if (signal?.aborted === true) abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  const timeout = setTimeout(() => controller.abort(new DOMException("Notebook request timed out.", "TimeoutError")), 60_000);
 
-  if (!response.ok) {
-    throw new Error(`Notebook page responded with ${response.status}.`);
+  try {
+    const response = await fetch(url, { credentials: "include", redirect: "follow", signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Notebook page responded with ${response.status}.`);
+    }
+
+    return { url: response.url, html: await response.text() };
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
-
-  return { url: response.url, html: await response.text() };
 }
 
 if (typeof chrome !== "undefined" && chrome.alarms !== undefined) {

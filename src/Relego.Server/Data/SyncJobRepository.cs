@@ -1,6 +1,8 @@
 using System.Data;
 using Dapper;
+using Microsoft.Data.Sqlite;
 using Relego.Server.Models;
+using Relego.Server.Sync;
 
 namespace Relego.Server.Data;
 
@@ -109,21 +111,82 @@ public sealed class SyncJobRepository(IDbConnection connection)
             ?? throw new InvalidOperationException("The newly created sync job could not be read back.");
     }
 
+    /// <summary>Atomically starts or reuses a job, serializing writers across database connections.</summary>
+    public async Task<(SyncJobRecord Job, bool Reused)> StartOrReuseAsync(
+        long connectionId, int userId, string idempotencyKey, string mode, string trigger, string startedAt)
+    {
+        // SQLite's immediate transaction reserves the write lock before either lookup.
+        using var transaction = ((SqliteConnection)connection).BeginTransaction(deferred: false);
+        var existing = await connection.QuerySingleOrDefaultAsync<SyncJobRecord>(
+            $"{SelectColumns} WHERE user_id = @UserId AND idempotency_key = @IdempotencyKey",
+            new { UserId = userId, IdempotencyKey = idempotencyKey }, transaction);
+
+        if (existing is not null)
+        {
+            if (existing.ConnectionId != connectionId)
+                throw new SyncOperationException("The idempotency key belongs to a different connection. Use a new key.", StatusCodes.Status409Conflict);
+
+            transaction.Commit();
+            return (existing, true);
+        }
+
+        var running = await connection.QuerySingleOrDefaultAsync<SyncJobRecord>(
+            $"{SelectColumns} WHERE connection_id = @ConnectionId AND status = 'running'",
+            new { ConnectionId = connectionId }, transaction);
+        if (running is not null)
+        {
+            if (mode == "full_resync")
+                throw new SyncOperationException($"A sync job ({running.Id}) is already running.", StatusCodes.Status409Conflict);
+
+            transaction.Commit();
+            return (running, true);
+        }
+
+        var id = await connection.QuerySingleAsync<long>(
+            """
+            INSERT INTO sync_jobs (connection_id, user_id, idempotency_key, mode, trigger, status, started_at)
+            VALUES (@ConnectionId, @UserId, @IdempotencyKey, @Mode, @Trigger, 'running', @StartedAt);
+            SELECT last_insert_rowid();
+            """,
+            new { ConnectionId = connectionId, UserId = userId, IdempotencyKey = idempotencyKey, Mode = mode, Trigger = trigger, StartedAt = startedAt },
+            transaction);
+        await connection.ExecuteAsync(
+            """
+            UPDATE sync_connections
+            SET last_sync_started_at = @StartedAt, pending_command = NULL,
+                state = CASE WHEN state = 'auth_expired' THEN 'active' ELSE state END,
+                last_auth_expired_at = NULL
+            WHERE id = @ConnectionId;
+            """, new { ConnectionId = connectionId, StartedAt = startedAt }, transaction);
+        var job = await connection.QuerySingleAsync<SyncJobRecord>(
+            $"{SelectColumns} WHERE id = @Id", new { Id = id }, transaction);
+        transaction.Commit();
+        return (job, false);
+    }
+
     /// <summary>Updates the job phase and, when supplied, the book progress counters.</summary>
-    public Task UpdatePhaseAsync(long jobId, string phase, int? booksTotal, int? booksDone) =>
-        connection.ExecuteAsync(
+    public async Task<int> UpdatePhaseAsync(long jobId, string phase, int? booksTotal, int? booksDone, string activityAt)
+    {
+        using var transaction = connection.BeginTransaction();
+        var updated = await connection.ExecuteAsync(
             """
             UPDATE sync_jobs
             SET phase = @Phase,
                 books_total = COALESCE(@BooksTotal, books_total),
                 books_done = COALESCE(@BooksDone, books_done)
-            WHERE id = @JobId
+            WHERE id = @JobId AND status = 'running'
             """,
-            new { JobId = jobId, Phase = phase, BooksTotal = booksTotal, BooksDone = booksDone });
+            new { JobId = jobId, Phase = phase, BooksTotal = booksTotal, BooksDone = booksDone }, transaction);
+        await RecordActivityAsync(jobId, activityAt, transaction);
+        transaction.Commit();
+        return updated;
+    }
 
     /// <summary>Adds the counters observed by a committed batch to the job totals.</summary>
-    public Task AddCountersAsync(long jobId, int highlightsSeen, int newHighlights, int duplicates) =>
-        connection.ExecuteAsync(
+    public async Task AddCountersAsync(long jobId, int highlightsSeen, int newHighlights, int duplicates, string activityAt)
+    {
+        using var transaction = connection.BeginTransaction();
+        await connection.ExecuteAsync(
             """
             UPDATE sync_jobs
             SET highlights_seen = highlights_seen + @Seen,
@@ -131,7 +194,18 @@ public sealed class SyncJobRepository(IDbConnection connection)
                 highlights_duplicate = highlights_duplicate + @Duplicates
             WHERE id = @JobId
             """,
-            new { JobId = jobId, Seen = highlightsSeen, NewHighlights = newHighlights, Duplicates = duplicates });
+            new { JobId = jobId, Seen = highlightsSeen, NewHighlights = newHighlights, Duplicates = duplicates }, transaction);
+        await RecordActivityAsync(jobId, activityAt, transaction);
+        transaction.Commit();
+    }
+
+    private Task RecordActivityAsync(long jobId, string activityAt, IDbTransaction transaction) =>
+        connection.ExecuteAsync(
+            """
+            INSERT INTO sync_job_activity (job_id, user_id, last_activity_at)
+            SELECT id, user_id, @ActivityAt FROM sync_jobs WHERE id = @JobId AND status = 'running'
+            ON CONFLICT(job_id) DO UPDATE SET last_activity_at = MAX(last_activity_at, excluded.last_activity_at)
+            """, new { JobId = jobId, ActivityAt = activityAt }, transaction);
 
     /// <summary>Stores a batch result; a replay of the same index is ignored.</summary>
     public Task SaveBatchAsync(SyncJobBatchRecord batch) =>
@@ -162,7 +236,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
             new { JobId = jobId, BatchIndex = batchIndex });
 
     /// <summary>Marks a job complete with its final counts.</summary>
-    public Task CompleteAsync(
+    public Task<int> CompleteAsync(
         long jobId,
         string status,
         int booksTotal,
@@ -178,7 +252,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
                 books_done = @BooksDone,
                 truncated_books = @TruncatedBooks,
                 ended_at = @EndedAt
-            WHERE id = @JobId
+            WHERE id = @JobId AND status = 'running'
             """,
             new
             {
@@ -191,7 +265,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
             });
 
     /// <summary>Marks a job failed with a sanitized failure report.</summary>
-    public Task FailAsync(
+    public Task<int> FailAsync(
         long jobId,
         string status,
         string failureCode,
@@ -206,7 +280,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
                 failure_detail = @FailureDetail,
                 recovery_steps = @RecoverySteps,
                 ended_at = @EndedAt
-            WHERE id = @JobId
+            WHERE id = @JobId AND status = 'running'
             """,
             new
             {
@@ -219,7 +293,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
             });
 
     /// <summary>Marks a stale job interrupted.</summary>
-    public Task InterruptAsync(long jobId, string endedAt) =>
+    public Task<int> InterruptAsync(long jobId, string endedAt, string cutoffIso) =>
         connection.ExecuteAsync(
             """
             UPDATE sync_jobs
@@ -227,8 +301,11 @@ public sealed class SyncJobRepository(IDbConnection connection)
                 failure_code = 'interrupted',
                 ended_at = @EndedAt
             WHERE id = @JobId AND status = 'running'
+              AND COALESCE(
+                  (SELECT last_activity_at FROM sync_job_activity WHERE job_id = @JobId),
+                  started_at) <= @Cutoff
             """,
-            new { JobId = jobId, EndedAt = endedAt });
+            new { JobId = jobId, EndedAt = endedAt, Cutoff = cutoffIso });
 
     /// <summary>Lists the most recent jobs for a connection, newest first.</summary>
     public async Task<IReadOnlyList<SyncJobRecord>> ListRecentAsync(long connectionId, int limit)
@@ -240,13 +317,15 @@ public sealed class SyncJobRepository(IDbConnection connection)
         return rows.AsList();
     }
 
-    /// <summary>Returns running jobs started before the cutoff so they can be marked interrupted.</summary>
+    /// <summary>Returns jobs without activity since the cutoff so they can be marked interrupted.</summary>
     public async Task<IReadOnlyList<SyncJobRecord>> GetStaleRunningAsync(string cutoffIso)
     {
         var rows = await connection.QueryAsync<SyncJobRecord>(
             $"""
             {SelectColumns}
-            WHERE status = 'running' AND started_at IS NOT NULL AND started_at < @Cutoff
+            WHERE status = 'running' AND COALESCE(
+                (SELECT last_activity_at FROM sync_job_activity WHERE job_id = sync_jobs.id),
+                started_at) <= @Cutoff
             """,
             new { Cutoff = cutoffIso });
 

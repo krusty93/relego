@@ -34,13 +34,13 @@ export interface RelegoStatus {
   readonly providerId: string;
   /** Derived user-visible status. */
   readonly status: string;
-  /** The selected region, or `null` until the extension pairs. */
-  readonly region: RelegoRegion | null;
+  /** Connection fields follow the server's status response, not the heartbeat response. */
+  readonly connection: { readonly region: RelegoRegion | null };
 }
 
 /** A book the server has already imported, used to skip unchanged books. */
 export interface RelegoKnownBook {
-  /** Normalized book key shared with the server. */
+  /** Provider-stable book key shared with the server. */
   readonly key: string;
   /** Highlight count the server last stored for that key. */
   readonly highlightCount: number;
@@ -50,7 +50,11 @@ export interface RelegoKnownBook {
 export interface RelegoJobStart {
   /** Identifier of the job to report batches and progress against. */
   readonly jobId: number;
-  /** Fingerprint of already imported books; empty for routine (incremental) jobs. */
+  /** Whether this job already existed and must not receive a reconstructed run. */
+  readonly reused: boolean;
+  /** Current job status, including terminal states on key replay. */
+  readonly status: string;
+  /** Fingerprint of already imported books; empty for full-resync jobs. */
   readonly knownBooks: readonly RelegoKnownBook[];
 }
 
@@ -261,6 +265,7 @@ export class RelegoClient {
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       method,
+      signal: AbortSignal.timeout(60_000),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${this.token}`,

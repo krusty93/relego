@@ -69,12 +69,14 @@ public static class CloudSyncEndpoints
             [FromServices] IEnumerable<ICloudSyncProvider> providers,
             [FromServices] UserRepository userRepo,
             [FromServices] SyncConnectionRepository connections,
-            [FromServices] SyncJobRepository jobs) =>
+            [FromServices] SyncJobRepository jobs,
+            [FromServices] SyncService syncService) =>
         {
             if (ResolveProvider(providers, providerId) is not { } provider)
                 return UnknownProvider(providers, providerId);
 
             var userId = await userRepo.EnsureUserAsync();
+            await syncService.MarkStaleJobsAsync();
             var connection = await connections.GetLiveAsync(userId, providerId);
             var currentJob = connection is null ? null : await jobs.GetRunningAsync(connection.Id);
             var latestJob = connection is null ? null : await jobs.GetLatestTerminalAsync(connection.Id);
@@ -296,12 +298,18 @@ public static class CloudSyncEndpoints
             return await GuardAsync(async () =>
             {
                 var result = await syncService.StartJobAsync(userId, provider.Descriptor.Id, request);
-                return Results.Ok(new SyncJobStartResponse { JobId = result.Job.Id, KnownBooks = result.KnownBooks });
+                return Results.Ok(new SyncJobStartResponse
+                {
+                    JobId = result.Job.Id,
+                    KnownBooks = result.KnownBooks,
+                    Reused = result.Reused,
+                    Status = result.Job.Status
+                });
             });
         })
         .WithTags("Sync")
         .WithSummary("Start a sync job, or return the running one.")
-        .WithDescription("Single-flight: a start while another job is running returns that job. A repeated idempotency key returns the same job, and a full resync carries the known-book fingerprint.")
+        .WithDescription("Single-flight: routine overlap returns the running job; full resync overlap returns a conflict. Key replay returns the original job with reused and status. Routine jobs carry provider-keyed fingerprints; reconstructed batches require a new job.")
         .Produces<SyncJobStartResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status401Unauthorized)

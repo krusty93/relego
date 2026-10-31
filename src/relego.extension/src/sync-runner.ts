@@ -17,8 +17,8 @@
  */
 
 import type { RelegoBatch, RelegoBatchBook, RelegoBatchHighlight, RelegoClient, RelegoKnownBook } from "./client";
-import { PROVIDER_ID } from "./client";
-import { isSignInUrl, notebookBookUrl, notebookUrl, normalizeBookKey, resolveRegion } from "./profile";
+import { PROVIDER_ID, RelegoApiError } from "./client";
+import { isSignInUrl, notebookBookUrl, notebookUrl, resolveRegion } from "./profile";
 import type { KindleRegion } from "./profile";
 import { parseBookPage, parseLibrary } from "./notebook-parser";
 
@@ -58,7 +58,7 @@ export interface SyncRunnerDeps {
   /** Authenticated client for the user's Relego server. */
   readonly client: RelegoClient;
   /** Fetches a notebook page in the user's own Amazon session. */
-  readonly fetchPage: (url: string) => Promise<PageResponse>;
+  readonly fetchPage: (url: string, signal?: AbortSignal) => Promise<PageResponse>;
   /** Aborts the run, for example when the browser is shutting down. */
   readonly signal?: AbortSignal;
 }
@@ -77,6 +77,7 @@ export interface SyncRunOptions {
 export type SyncRunOutcome =
   | { readonly kind: "skipped"; readonly reason: "already_running" }
   | { readonly kind: "skipped"; readonly reason: "not_connected" }
+  | { readonly kind: "skipped"; readonly reason: "already_completed" }
   | {
       readonly kind: "completed";
       readonly jobId: number;
@@ -116,17 +117,24 @@ export function runSync(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<
 
 async function execute(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<SyncRunOutcome> {
   const status = await deps.client.getStatus(PROVIDER_ID);
-  const region = resolveRegion(status.region?.id ?? null);
+  const region = resolveRegion(status.connection.region?.id ?? null);
 
   if (region === null) {
     // No stored region means the connection is not paired yet; a region the extension does not
     // know means the server and the extension disagree on the profile.
-    return status.region === null
+    return status.connection.region === null
       ? { kind: "skipped", reason: "not_connected" }
       : { kind: "failed", jobId: null, code: "provider_contract_changed" };
   }
 
-  const start = await deps.client.startJob(options);
+  let start = await deps.client.startJob(options);
+  if (start.reused) {
+    if (start.status === "running") return { kind: "skipped", reason: "already_running" };
+    if (start.status.startsWith("completed_")) return { kind: "skipped", reason: "already_completed" };
+
+    start = await deps.client.startJob({ ...options, idempotencyKey: `${options.idempotencyKey}-${crypto.randomUUID()}` });
+    if (start.reused || start.status !== "running") return { kind: "skipped", reason: "already_running" };
+  }
   const jobId = start.jobId;
 
   try {
@@ -151,7 +159,7 @@ async function execute(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<S
         return { kind: "failed", jobId, code: "interrupted" };
       }
 
-      const page = await readBook(deps, region, book.externalKey, book.title, book.author);
+      const page = await readBook(deps, region, book.externalKey, book.fingerprintKey, book.highlightCount, book.title, book.author);
 
       if (page.kind === "failed") {
         await reportFailure(deps, jobId, page.code, page.diagnostics);
@@ -185,7 +193,7 @@ async function execute(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<S
 
     return { kind: "completed", jobId, newHighlights, booksTotal: total, truncatedBooks };
   } catch (error) {
-    const code = classify(error);
+    const code = deps.signal?.aborted === true ? "interrupted" : classify(error);
     await reportFailure(deps, jobId, code, null);
     return { kind: "failed", jobId, code };
   }
@@ -195,6 +203,7 @@ interface LibraryRead {
   readonly kind: "ok";
   readonly books: readonly {
     readonly externalKey: string;
+    readonly fingerprintKey: string | null;
     readonly title: string;
     readonly author: string | null;
     readonly highlightCount: number | null;
@@ -241,6 +250,8 @@ async function readBook(
   deps: SyncRunnerDeps,
   region: KindleRegion,
   externalKey: string,
+  fingerprintKey: string | null,
+  advertisedCount: number | null,
   title: string,
   author: string | null,
 ): Promise<BookOutcome> {
@@ -248,7 +259,7 @@ async function readBook(
   if (page === null) return { kind: "failed", code: "network", diagnostics: null };
   if (isSignInUrl(region, page.url)) return { kind: "failed", code: "auth_expired", diagnostics: null };
 
-  const outcome = parseBookPage(page.html, region, externalKey);
+  const outcome = parseBookPage(page.html, region, fingerprintKey, advertisedCount);
 
   switch (outcome.kind) {
     case "ok": {
@@ -275,8 +286,9 @@ async function readBook(
 
 async function fetchOrNetworkFailure(deps: SyncRunnerDeps, url: string): Promise<PageResponse | null> {
   try {
-    return await deps.fetchPage(url);
+    return await deps.fetchPage(url, deps.signal);
   } catch {
+    if (deps.signal?.aborted === true) throw deps.signal.reason;
     return null;
   }
 }
@@ -301,7 +313,7 @@ function selectBooks(
   return books.filter((book) => {
     if (book.highlightCount === null) return true;
 
-    return fingerprint.get(normalizeBookKey(book.title)) !== book.highlightCount;
+    return book.fingerprintKey === null || fingerprint.get(book.fingerprintKey) !== book.highlightCount;
   });
 }
 
@@ -360,14 +372,15 @@ export function chunkBooks(
       if (!exceedsByteBudget(current)) continue;
 
       if (count === 1) {
-        // A single highlight larger than the cap cannot be split further; the server rejects it.
-        flush();
-        continue;
+        throw new RelegoApiError("A highlight exceeds the server's batch size limit.", 413);
       }
 
       dropLast();
       flush();
       append(book, highlight);
+      if (exceedsByteBudget(current)) {
+        throw new RelegoApiError("A highlight exceeds the server's batch size limit.", 413);
+      }
     }
   }
 
@@ -378,7 +391,7 @@ export function chunkBooks(
 type MutableBook = Omit<RelegoBatchBook, "highlights"> & { highlights: RelegoBatchHighlight[] };
 
 function exceedsByteBudget(books: readonly RelegoBatchBook[]): boolean {
-  return new TextEncoder().encode(JSON.stringify(books)).length > MAX_BATCH_BYTES;
+  return new TextEncoder().encode(JSON.stringify({ batchIndex: 2_147_483_647, books })).length > MAX_BATCH_BYTES;
 }
 function classify(error: unknown): SyncFailureCode {
   if (typeof error === "object" && error !== null && "status" in error) {

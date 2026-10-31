@@ -159,6 +159,18 @@ public sealed class ProvenanceRepository(IDbConnection connection)
                 if (highlightId is null)
                     continue;
 
+                if (!string.IsNullOrWhiteSpace(book.ExternalKey) && regionId is not null)
+                {
+                    await connection.ExecuteAsync(
+                        """
+                        INSERT OR IGNORE INTO sync_book_highlights
+                            (user_id, source_id, region_id, external_key, highlight_id)
+                        VALUES (@UserId, @SourceId, @RegionId, @ExternalKey, @HighlightId)
+                        """,
+                        new { UserId = userId, SourceId = sourceId, RegionId = regionId, book.ExternalKey, HighlightId = highlightId.Value },
+                        transaction);
+                }
+
                 written += await connection.ExecuteAsync(
                     UpsertSql,
                     new HighlightProvenanceRecord
@@ -185,7 +197,7 @@ public sealed class ProvenanceRepository(IDbConnection connection)
 
     /// <summary>
     /// Returns the fingerprint of the books already known for a connection's current region, keyed
-    /// by the shared normalized book title (<see cref="Sync.SyncBookKey"/>), so the extension can
+    /// by the provider's stable external book key, so the extension can
     /// skip unchanged books on routine runs. Because provenance is region-scoped, changing region
     /// discards the fingerprint. This is an optimization only: it never affects dedup.
     /// </summary>
@@ -195,35 +207,18 @@ public sealed class ProvenanceRepository(IDbConnection connection)
     /// <returns>One entry per known book; empty when nothing has been imported yet.</returns>
     public async Task<IReadOnlyList<SyncKnownBookDto>> ListKnownBooksAsync(int userId, string sourceId, string? regionId)
     {
-        var rows = await connection.QueryAsync<KnownBookRow>(
+        var rows = await connection.QueryAsync<SyncKnownBookDto>(
             """
-            SELECT b.title AS Title, COUNT(h.id) AS HighlightCount
-            FROM highlight_provenance p
-            JOIN highlights h ON h.id = p.highlight_id
-            JOIN books b ON b.id = h.book_id
-            WHERE h.user_id = @UserId
+            SELECT external_key AS Key, COUNT(*) AS HighlightCount
+            FROM sync_book_highlights p
+            WHERE p.user_id = @UserId
               AND p.source_id = @SourceId
-              AND p.region_id IS @RegionId
-            GROUP BY b.id
+              AND p.region_id = @RegionId
+            GROUP BY external_key
             """,
             new { UserId = userId, SourceId = sourceId, RegionId = regionId });
 
-        return rows
-            .GroupBy(row => Sync.SyncBookKey.Normalize(row.Title), StringComparer.Ordinal)
-            .Where(group => group.Key.Length > 0)
-            .Select(group => new SyncKnownBookDto
-            {
-                Key = group.Key,
-                HighlightCount = group.Sum(row => row.HighlightCount)
-            })
-            .ToList();
-    }
-
-    private sealed class KnownBookRow
-    {
-        public string Title { get; set; } = string.Empty;
-
-        public int HighlightCount { get; set; }
+        return rows.AsList();
     }
 
     private sealed class ObservedRow

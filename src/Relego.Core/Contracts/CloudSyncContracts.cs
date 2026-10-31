@@ -294,6 +294,12 @@ public sealed record SyncJobStartResponse
     /// <summary>Identifier of the started (or already running) job.</summary>
     public long JobId { get; init; }
 
+    /// <summary>True when the returned job already existed and must not receive a rebuilt run.</summary>
+    public bool Reused { get; init; }
+
+    /// <summary>Current state of the returned job, including terminal states on key replay.</summary>
+    public string Status { get; init; } = string.Empty;
+
     /// <summary>Known book fingerprints used to skip unchanged books on routine runs.</summary>
     public IReadOnlyList<SyncKnownBookDto> KnownBooks { get; init; } = [];
 }

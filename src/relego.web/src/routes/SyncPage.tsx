@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { AsyncSection, EmptyState, ErrorNote, SkeletonRows } from "../components/ui";
 import { syncApi } from "../lib/api";
@@ -44,7 +44,7 @@ const STATE_SUMMARIES: Record<string, string> = {
   syncing: "Your browser is reading your Kindle Notebook and sending what it finds.",
   auth_expired:
     "Amazon ended the session Relego was reading. Sign in again in your browser, then sync.",
-  failed: "The last sync stopped before it finished. Nothing partial was imported.",
+  failed: "The last sync stopped before it finished. Highlights already saved are still in your library.",
   browser_not_reporting:
     "Relego has not heard from the extension recently, so syncs are not running. Open the browser where the extension is installed.",
   reminder_due: "It has been a while since your highlights were read.",
@@ -95,6 +95,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
   const { push } = useToasts();
   const [code, setCode] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<"cancel" | "disconnect" | null>(null);
+  const actionPending = useRef(false);
 
   const status = useQuery({
     queryKey: ["sync", provider.providerId],
@@ -119,6 +120,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
       push(error instanceof Error ? error.message : "Could not start the connection.", {
         tone: "bad",
       }),
+    onSettled: () => { actionPending.current = false; },
   });
 
   const disconnect = useMutation({
@@ -131,7 +133,20 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
     },
     onError: (error) =>
       push(error instanceof Error ? error.message : "Could not disconnect.", { tone: "bad" }),
+    onSettled: () => { actionPending.current = false; },
   });
+
+  function createCode() {
+    if (actionPending.current) return;
+    actionPending.current = true;
+    connect.mutate();
+  }
+
+  function removeConnection() {
+    if (actionPending.current) return;
+    actionPending.current = true;
+    disconnect.mutate();
+  }
 
   async function copy(value: string, label: string) {
     try {
@@ -171,13 +186,13 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
         <PairingPanel
           provider={provider}
           code={code}
-          busy={connect.isPending}
-          onRegenerate={() => connect.mutate()}
+          busy={connect.isPending || disconnect.isPending}
+          onRegenerate={createCode}
           onCheck={() => void status.refetch()}
           confirming={confirming === "cancel"}
           onAsk={() => setConfirming("cancel")}
           onDismiss={() => setConfirming(null)}
-          onCancel={() => disconnect.mutate()}
+          onCancel={removeConnection}
           cancelling={disconnect.isPending}
           onCopy={copy}
         />
@@ -187,7 +202,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           confirming={confirming === "disconnect"}
           onAsk={() => setConfirming("disconnect")}
           onDismiss={() => setConfirming(null)}
-          onDisconnect={() => disconnect.mutate()}
+          onDisconnect={removeConnection}
           disconnecting={disconnect.isPending}
         />
       )}
@@ -202,7 +217,8 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
               <button
                 className="btn btn--primary"
                 type="button"
-                onClick={() => connect.mutate()}
+                onClick={createCode}
+                disabled={connect.isPending || disconnect.isPending}
                 aria-busy={connect.isPending || undefined}
               >
                 {connect.isPending ? "Starting…" : "Connect Kindle cloud"}
@@ -282,6 +298,7 @@ function StatusPanel({
               className="btn btn--danger btn--sm"
               type="button"
               onClick={onDisconnect}
+              disabled={disconnecting}
               aria-busy={disconnecting || undefined}
             >
               {disconnecting ? "Disconnecting…" : "Yes, disconnect"}
@@ -472,7 +489,7 @@ function PairingPanel({
       </ol>
 
       <div className="inline">
-        <button className="btn" type="button" onClick={onRegenerate} aria-busy={busy || undefined}>
+        <button className="btn" type="button" onClick={onRegenerate} disabled={busy} aria-busy={busy || undefined}>
           {busy ? "Generating…" : "Generate a new code"}
         </button>
         <button className="btn btn--ghost" type="button" onClick={onCheck}>
@@ -485,6 +502,7 @@ function PairingPanel({
               className="btn btn--danger btn--sm"
               type="button"
               onClick={onCancel}
+              disabled={busy || cancelling}
               aria-busy={cancelling || undefined}
             >
               {cancelling ? "Cancelling…" : "Yes, cancel"}
@@ -494,7 +512,7 @@ function PairingPanel({
             </button>
           </span>
         ) : (
-          <button className="btn btn--ghost" type="button" onClick={onAsk}>
+          <button className="btn btn--ghost" type="button" onClick={onAsk} disabled={busy}>
             Cancel setup
           </button>
         )}
