@@ -34,6 +34,12 @@ test.describe('Content Sections', () => {
 		await expect(featTitle).toHaveText('Built for readers');
 	});
 
+	test('the highlight journey has no orbit ornament or sample-data caption', async ({ page }) => {
+		await expect(page.locator('#journey .journey__ring')).toHaveCount(0);
+		await expect(page.locator('#journey .journey__caption')).toHaveCount(0);
+		await expect(page.getByText('Sample data', { exact: true })).toHaveCount(0);
+	});
+
 	test('Getting Started renders 3 step tabs with correct titles', async ({ page }) => {
 		const section = page.locator('#getting-started');
 		const tabs = section.locator('[data-step-tab]');

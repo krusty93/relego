@@ -1,6 +1,7 @@
 ---
 import { siteConfig } from '../config/site';
 import Button from './Button.astro';
+import DockerCommand from './DockerCommand.astro';
 import Reader from './Reader.astro';
 
 const letters = siteConfig.logotype.split('');
@@ -23,6 +24,9 @@ const letters = siteConfig.logotype.split('');
 				<Button href="#getting-started" variant="primary" arrow>Get started</Button>
 				<Button href="#journey" variant="outline">See how it works</Button>
 			</div>
+			<div class="hero__command">
+				<DockerCommand />
+			</div>
 			<ul class="hero__facts" aria-label="At a glance">
 				<li>Kindle &amp; Kobo</li>
 				<li>Self-hosted</li>
@@ -31,15 +35,15 @@ const letters = siteConfig.logotype.split('');
 		</div>
 
 		<div class="hero__device">
-			<Reader class="hero__reader" label="Sample recap">
-				<div class="recap">
+			<Reader class="hero__reader" interactive>
+				<div class="recap" data-recap-page>
 					<div class="recap__head">
 						<span class="recap__logo">relego.</span>
 						<span>Recap · 5 highlights</span>
 					</div>
 					<div class="recap__title">Your recap</div>
 					<blockquote class="recap__quote">
-						<span class="recap__mark">I went to the woods because I wished to live 						deliberately,</span>{' '}
+						<span class="recap__mark">I went to the woods because I wished to live deliberately,</span>{' '}
 						to front only the essential facts of life, and see if I could not learn what it had to teach.
 					</blockquote>
 					<div class="recap__book">Walden · Henry David Thoreau</div>
@@ -48,7 +52,32 @@ const letters = siteConfig.logotype.split('');
 						It is not down in any map; true places never are.
 					</blockquote>
 					<div class="recap__book">Moby-Dick · Herman Melville</div>
-					<div class="recap__foot">1 / 5</div>
+				</div>
+				<div class="recap" data-recap-page hidden>
+					<div class="recap__head">
+						<span class="recap__logo">relego.</span>
+						<span>Recap · 5 highlights</span>
+					</div>
+					<div class="recap__title">Read again.</div>
+					<blockquote class="recap__quote">
+						<span class="recap__mark">There is no frigate like a book</span>{' '}
+						to take us lands away.
+					</blockquote>
+					<div class="recap__book">There is no Frigate like a Book · Emily Dickinson</div>
+					<span class="recap__rule"></span>
+					<blockquote class="recap__quote recap__quote--next">
+						I am a part of all that I have met.
+					</blockquote>
+					<div class="recap__book">Ulysses · Alfred, Lord Tennyson</div>
+				</div>
+				<div class="hero__page-controls" hidden>
+					<button type="button" data-page-direction="-1" aria-label="Previous recap page">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
+					</button>
+					<span data-page-status role="status">Page 1 of 2</span>
+					<button type="button" data-page-direction="1" aria-label="Next recap page">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m10 6 6 6-6 6" /></svg>
+					</button>
 				</div>
 			</Reader>
 		</div>
@@ -58,9 +87,14 @@ const letters = siteConfig.logotype.split('');
 	</a>
 </section>
 
+<script>
+	import '../scripts/reader-pages';
+</script>
+
 <style>
 	.hero {
 		position: relative;
+		overflow: clip;
 		min-height: 100svh;
 		display: flex;
 		flex-direction: column;
@@ -164,6 +198,10 @@ const letters = siteConfig.logotype.split('');
 		margin-top: 2.25rem;
 	}
 
+	.hero__command {
+		margin-top: 1.25rem;
+	}
+
 	.hero__facts {
 		display: flex;
 		flex-wrap: wrap;
@@ -193,6 +231,7 @@ const letters = siteConfig.logotype.split('');
 	:global(.motion) .hero__statement,
 	:global(.motion) .hero__tagline,
 	:global(.motion) .hero__actions,
+	:global(.motion) .hero__command,
 	:global(.motion) .hero__facts {
 		animation: fade-up 1.1s var(--ease-out) backwards;
 	}
@@ -200,6 +239,7 @@ const letters = siteConfig.logotype.split('');
 	:global(.motion) .hero__statement { animation-delay: 0.45s; }
 	:global(.motion) .hero__tagline { animation-delay: 0.6s; }
 	:global(.motion) .hero__actions { animation-delay: 0.72s; }
+	:global(.motion) .hero__command { animation-delay: 0.78s; }
 	:global(.motion) .hero__facts { animation-delay: 0.84s; }
 
 	@keyframes fade-up {
@@ -214,16 +254,61 @@ const letters = siteConfig.logotype.split('');
 
 	.hero__device {
 		display: flex;
+		flex-direction: column;
+		align-items: center;
 		justify-content: center;
 		perspective: 1600px;
+	}
+
+	.hero__page-controls {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex: none;
+		gap: 0.75rem;
+		margin: 0 9% 4%;
+		padding-top: 0.125rem;
+		border-top: 1px solid rgba(43, 36, 32, 0.2);
+		font-size: 0.75rem;
+		color: var(--ink-soft);
+	}
+
+	.hero__page-controls[hidden],
+	.recap[hidden] {
+		display: none;
+	}
+
+	.hero__page-controls button {
+		display: grid;
+		place-items: center;
+		width: 2.75rem;
+		height: 2.75rem;
+		border: 0;
+		border-radius: 0.25rem;
+		background: transparent;
+		color: var(--ink);
+		cursor: pointer;
+	}
+
+	.hero__page-controls button:hover {
+		background: rgba(43, 36, 32, 0.08);
+	}
+
+	.hero__page-controls button:focus-visible {
+		outline-color: var(--ink);
+	}
+
+	.hero__page-controls svg {
+		width: 1.125rem;
+		height: 1.125rem;
 	}
 
 	.hero__device :global(.hero__reader) {
 		max-width: 21rem;
 		transform:
 			translate3d(0, calc(var(--p, 0) * -3rem), 0)
-			rotateX(calc(8deg - var(--p, 0) * 8deg))
-			rotateY(calc(-16deg + var(--p, 0) * 16deg))
+			rotateX(calc(8deg - var(--p, 0) * 8deg + var(--reader-y, 0) * -7deg))
+			rotateY(calc(-16deg + var(--p, 0) * 16deg + var(--reader-x, 0) * 12deg))
 			rotateZ(calc(2deg - var(--p, 0) * 2deg));
 		transform-style: preserve-3d;
 	}
@@ -246,11 +331,12 @@ const letters = siteConfig.logotype.split('');
 	.recap {
 		display: flex;
 		flex-direction: column;
-		height: 100%;
-		padding: 9% 9% 7%;
+		flex: 1;
+		min-height: 0;
+		padding: 9% 9% 5%;
 		box-sizing: border-box;
 		font-family: Georgia, 'Times New Roman', serif;
-		font-size: clamp(0.7rem, 0.55rem + 0.35vw, 0.86rem);
+		font-size: 4cqw;
 		line-height: 1.5;
 	}
 
@@ -284,7 +370,7 @@ const letters = siteConfig.logotype.split('');
 	}
 
 	.recap__mark {
-		background-image: linear-gradient(rgba(43, 36, 32, 0.16), rgba(43, 36, 32, 0.16));
+		background-image: linear-gradient(var(--eink-highlight), var(--eink-highlight));
 		background-repeat: no-repeat;
 		background-size: 100% 100%;
 		box-decoration-break: clone;
@@ -319,12 +405,10 @@ const letters = siteConfig.logotype.split('');
 		background: rgba(43, 36, 32, 0.16);
 	}
 
-	.recap__foot {
-		margin-top: auto;
-		text-align: center;
-		font-family: var(--font-body);
-		font-size: 0.68em;
-		color: var(--ink-soft);
+	@media (prefers-reduced-motion: reduce) {
+		.hero__device :global(.hero__reader) {
+			transform: none;
+		}
 	}
 
 	.hero__cue {

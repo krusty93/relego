@@ -28,10 +28,11 @@ test.describe('Accessibility', () => {
 
 	test('keyboard navigation reaches all interactive elements', async ({ page }) => {
 		const interactiveSelectors = [
-			'nav a[href="#"]',                                  // logotype
 			'nav a[href*="github.com"]',                        // GitHub icon link
 			'#theme-toggle',                                     // theme toggle
 			'#hero a:has-text("Get started")',                   // hero CTA
+			'#hero [data-copy]',                                 // quick-start command
+			'#hero [data-page-direction="1"]',                   // in-reader page navigation
 			'#faq details summary',                              // first accordion
 			'#explore a:has-text("View on GitHub")',             // explore primary CTA
 			'#explore a:has-text("Documentation")',              // explore outline CTA
@@ -42,5 +43,10 @@ test.describe('Accessibility', () => {
 			await el.focus();
 			await expect(el, `${selector} must be focusable`).toBeFocused();
 		}
+
+		await page.locator('#getting-started').scrollIntoViewIfNeeded();
+		const logotype = page.locator('nav a[href="#"]');
+		await logotype.focus();
+		await expect(logotype).toBeFocused();
 	});
 });

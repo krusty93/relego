@@ -12,7 +12,11 @@ const { sections = false } = Astro.props;
 
 <nav class="nav" aria-label="Main">
 	<div class="nav__inner wrap">
-		<a href="#" aria-label="relego. (go to top)" class="nav__logo">{siteConfig.logotype}</a>
+		<a
+			href="#"
+			aria-label="relego. (go to top)"
+			class:list={['nav__logo', { 'nav__logo--after-hero': sections }]}
+		>{siteConfig.logotype}</a>
 		{sections && (
 			<div class="nav__sections">
 				<a href="#journey">How it works</a>
@@ -90,6 +94,10 @@ const { sections = false } = Astro.props;
 		gap: 2rem;
 		font-size: 0.9rem;
 		color: var(--color-soft);
+	}
+
+	:global(html.js:not(.is-past-hero)) .nav__logo--after-hero {
+		visibility: hidden;
 	}
 
 	.nav__sections a {

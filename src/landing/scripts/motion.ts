@@ -11,8 +11,8 @@
  *     "through" 0 when the top enters, 1 when the bottom leaves.
  *     "leave"   0 while the element sits at the top, 1 once three quarters of it has
  *               scrolled out above the viewport (for the hero).
- * - <html> receives --page-p and .is-scrolled for the navigation bar, and .is-night
- *   while a [data-night] band sits under the header.
+ * - <html> receives --page-p, .is-scrolled, and .is-past-hero for the navigation
+ *   bar, and .is-night while a [data-night] band sits under the header.
  */
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
@@ -59,6 +59,8 @@ function measure(el: HTMLElement, mode: string, vh: number) {
 function setupProgress() {
 	const tracked = Array.from(document.querySelectorAll<HTMLElement>('[data-progress]'));
 	const nights = Array.from(document.querySelectorAll<HTMLElement>('[data-night]'));
+	const hero = document.querySelector<HTMLElement>('#hero');
+	const nav = document.querySelector<HTMLElement>('.nav');
 	let queued = false;
 
 	const update = () => {
@@ -67,6 +69,10 @@ function setupProgress() {
 		const max = Math.max(1, root.scrollHeight - vh);
 		root.style.setProperty('--page-p', clamp(window.scrollY / max).toFixed(4));
 		root.classList.toggle('is-scrolled', window.scrollY > 8);
+		root.classList.toggle(
+			'is-past-hero',
+			hero !== null && hero.getBoundingClientRect().bottom <= (nav?.getBoundingClientRect().bottom ?? 0),
+		);
 		root.classList.toggle(
 			'is-night',
 			nights.some((el) => {
@@ -99,6 +105,7 @@ function setupProgress() {
 
 	window.addEventListener('scroll', queue, { passive: true });
 	window.addEventListener('resize', queue);
+	window.addEventListener('pageshow', queue);
 	update();
 }
 
