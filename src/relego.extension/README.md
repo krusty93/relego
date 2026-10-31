@@ -8,6 +8,11 @@ The extension owns routine sync timing with a browser alarm whose period is the 
 frequency; a separate fixed 60-second heartbeat alarm reports liveness and picks up user-requested
 commands. The Relego server never schedules routine syncs.
 
+Commands stay queued until matching work starts, including when a sync is already running.
+If Amazon requires sign-in, the extension opens the paired region's Kindle Notebook and retries
+after sign-in. The interrupted run's mode is stored locally, so a full resync remains a full reread
+across service-worker or browser restarts; a routine alarm cannot downgrade it.
+
 ## Commands
 
 ```powershell

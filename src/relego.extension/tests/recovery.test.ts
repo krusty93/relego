@@ -41,6 +41,7 @@ interface FakeChrome {
   readonly alarms: Map<string, FakeAlarm>;
   readonly tabs: { readonly url: string; readonly active: boolean }[];
   readonly alarmListeners: ((alarm: { name: string }) => void)[];
+  readonly stored: Record<string, unknown>;
   readonly api: unknown;
 }
 
@@ -48,6 +49,7 @@ function createChrome(): FakeChrome {
   const alarms = new Map<string, FakeAlarm>();
   const tabs: { url: string; active: boolean }[] = [];
   const alarmListeners: ((alarm: { name: string }) => void)[] = [];
+  const stored: Record<string, unknown> = { serverUrl: SERVER, token: "pairing-token" };
 
   const api = {
     alarms: {
@@ -77,9 +79,15 @@ function createChrome(): FakeChrome {
     },
     storage: {
       local: {
-        get: () => Promise.resolve({ serverUrl: SERVER, token: "pairing-token" }),
-        set: () => Promise.resolve(),
-        remove: () => Promise.resolve(),
+        get: () => Promise.resolve({ ...stored }),
+        set: (values: Record<string, unknown>) => {
+          Object.assign(stored, values);
+          return Promise.resolve();
+        },
+        remove: (keys: string | string[]) => {
+          for (const key of typeof keys === "string" ? [keys] : keys) delete stored[key];
+          return Promise.resolve();
+        },
       },
     },
     runtime: {
@@ -88,7 +96,7 @@ function createChrome(): FakeChrome {
     },
   };
 
-  return { alarms, tabs, alarmListeners, api };
+  return { alarms, tabs, alarmListeners, stored, api };
 }
 
 interface FakeResponse {
@@ -118,6 +126,8 @@ interface ServerState {
   command: string;
   signedIn: boolean;
   library: string;
+  knownBooks: readonly { key: string; highlightCount: number }[];
+  reusedCompleted: boolean;
 }
 
 interface Recorded {
@@ -161,12 +171,17 @@ function installFetch(state: ServerState): Recorded {
 
     if (path === `/sync/${PROVIDER_ID}`) {
       server.statusCalls++;
-      return Promise.resolve(jsonResponse({ providerId: PROVIDER_ID, status: "connected", region }));
+      return Promise.resolve(jsonResponse({ providerId: PROVIDER_ID, status: "connected", connection: { region } }));
     }
 
     if (path === `/sync/${PROVIDER_ID}/jobs`) {
       server.starts.push(body);
-      return Promise.resolve(jsonResponse({ jobId: 42, knownBooks: [] }));
+      return Promise.resolve(jsonResponse({
+        jobId: 42,
+        reused: state.reusedCompleted,
+        status: state.reusedCompleted ? "completed_no_changes" : "running",
+        knownBooks: state.knownBooks,
+      }));
     }
 
     if (path.endsWith("/batches")) {
@@ -194,7 +209,9 @@ function installFetch(state: ServerState): Recorded {
 
 /** Loads a fresh worker module bound to a fresh fake browser. */
 async function loadWorker(overrides: Partial<ServerState> = {}) {
-  const state: ServerState = { command: "none", signedIn: true, library: "library.html", ...overrides };
+  const state: ServerState = {
+    command: "none", signedIn: true, library: "library.html", knownBooks: [], reusedCompleted: false, ...overrides,
+  };
   const chrome = createChrome();
   vi.stubGlobal("chrome", chrome.api);
   const server = installFetch(state);
@@ -296,6 +313,86 @@ describe("service worker recovery", () => {
 
     expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
     expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false);
+  });
+
+  it("persists full-resync mode through repeated auth failures and a worker restart", async () => {
+    const { worker, server, state, chrome } = await loadWorker({
+      command: "full_resync",
+      signedIn: false,
+      knownBooks: [
+        { key: "B00EXAMPLE01", highlightCount: 3 },
+        { key: "B00EXAMPLE02", highlightCount: 2 },
+        { key: "B00EXAMPLE03", highlightCount: 1 },
+      ],
+    });
+
+    await worker.heartbeat();
+    chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
+    await vi.waitFor(() => expect(server.failures).toHaveLength(2));
+    expect(server.starts.map((start) => start.mode)).toEqual(["full_resync", "full_resync"]);
+
+    chrome.alarmListeners.length = 0;
+    chrome.alarms.delete(worker.AUTH_RETRY_ALARM);
+    vi.resetModules();
+    const restarted = await import("../src/background");
+    await vi.waitFor(() => expect(chrome.alarms.has(restarted.AUTH_RETRY_ALARM)).toBe(true));
+
+    state.signedIn = true;
+    chrome.alarmListeners.forEach((listener) => listener({ name: restarted.AUTH_RETRY_ALARM }));
+    await vi.waitFor(() => expect(chrome.alarms.has(restarted.AUTH_RETRY_ALARM)).toBe(false));
+
+    expect(server.starts.at(-1)?.mode).toBe("full_resync");
+    expect(server.starts.at(-1)?.trigger).toBe("retry");
+    expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
+    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token" });
+    expect(chrome.tabs).toHaveLength(1);
+  });
+
+  it("does not downgrade a pending full-resync retry when the routine alarm fires", async () => {
+    const { worker, server, state, chrome } = await loadWorker({ command: "full_resync", signedIn: false });
+    await worker.heartbeat();
+    state.signedIn = true;
+
+    chrome.alarmListeners.forEach((listener) => listener({ name: worker.SYNC_ALARM }));
+    await vi.waitFor(() => expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false));
+
+    expect(server.starts.at(-1)?.mode).toBe("full_resync");
+    expect(server.completions).toHaveLength(1);
+  });
+
+  it("clears persisted retry state when a replay finds the job already completed", async () => {
+    const { worker, state, chrome } = await loadWorker({ command: "full_resync", signedIn: false });
+    await worker.heartbeat();
+    state.reusedCompleted = true;
+
+    chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
+    await vi.waitFor(() => expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false));
+    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token" });
+  });
+
+  it("leaves a full-resync command for the next heartbeat while a routine run is in flight", async () => {
+    const { worker, server, state } = await loadWorker();
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
+      if (new URL(input.toString()).hostname === us.notebookHost) await gate;
+      return originalFetch(input, init);
+    });
+
+    const routine = worker.syncNow("scheduled");
+    try {
+      await vi.waitFor(() => expect(server.starts).toHaveLength(1));
+      state.command = "full_resync";
+      await worker.heartbeat();
+      expect(server.starts).toHaveLength(1);
+    } finally {
+      release();
+      await routine;
+    }
+
+    await worker.heartbeat();
+    expect(server.starts.map((start) => start.mode)).toEqual(["routine", "full_resync"]);
   });
 
   it("does not open a sign-in tab for a failure the user cannot fix by signing in", async () => {

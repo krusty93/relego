@@ -40,6 +40,8 @@ sequenceDiagram
 
 Amazon authentication, CAPTCHA, and MFA are completed **by the user on Amazon's page**; when
 sign-in is needed the extension opens the notebook tab and waits. It never fills credentials.
+The authentication retry retains the interrupted mode in local extension storage and restores its
+alarm after a worker/browser restart. A pending full reread is never downgraded by a routine alarm.
 
 ## Parse-profile invariants (checked every run)
 

@@ -23,8 +23,8 @@ import {
   resolveRegion,
 } from "./profile";
 import type { KindleRegion } from "./profile";
-import { readConfig } from "./storage";
-import { runSync } from "./sync-runner";
+import { clearAuthRetryMode, readAuthRetryMode, readConfig, writeAuthRetryMode } from "./storage";
+import { isSyncRunning, runSync } from "./sync-runner";
 import type { PageResponse, SyncMode, SyncRunOutcome, SyncTrigger } from "./sync-runner";
 
 /** Name of the routine sync alarm. */
@@ -104,7 +104,7 @@ export async function appliedIntervalMinutes(): Promise<number> {
  *
  * @param trigger Why the run started.
  * @param mode Sync mode; defaults to a routine incremental run.
- * @returns The run outcome, or `null` when the extension is not paired.
+ * @returns The run outcome, or `null` when unpaired or already running.
  */
 export async function syncNow(
   trigger: SyncTrigger,
@@ -114,13 +114,16 @@ export async function syncNow(
   if (client === null) return null;
 
   const interval = await appliedIntervalMinutes();
+  const retryMode = await readAuthRetryMode();
+  const effectiveMode = retryMode === "full_resync" ? retryMode : mode;
+  if (isSyncRunning()) return null;
 
   const outcome = await runSync(
     { client, fetchPage: fetchNotebookPage },
-    { mode, trigger, idempotencyKey: idempotencyKey(trigger, interval) },
+    { mode: effectiveMode, trigger, idempotencyKey: idempotencyKey(trigger, interval) },
   );
 
-  await reactToOutcome(client, outcome);
+  await reactToOutcome(client, outcome, effectiveMode);
   return outcome;
 }
 
@@ -133,10 +136,11 @@ export async function syncNow(
  *
  * @param client Client for the run, used to resolve the region that needs signing in.
  * @param outcome Outcome of the run that just finished.
+ * @param mode Mode to retain if the run needs an authentication retry.
  * @returns A task that completes once the reaction has been applied.
  */
-async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome): Promise<void> {
-  if (outcome.kind === "completed") {
+async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome, mode: SyncMode): Promise<void> {
+  if (outcome.kind === "completed" || (outcome.kind === "skipped" && outcome.reason === "already_completed")) {
     await clearAuthRetry();
     return;
   }
@@ -149,15 +153,14 @@ async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome): Pr
   }
 
   const alreadyWaiting = (await chrome.alarms.get(AUTH_RETRY_ALARM)) !== undefined;
+  await scheduleAuthRetry(mode);
 
   if (!alreadyWaiting) {
     const status = await client.getStatus(PROVIDER_ID);
-    const region = resolveRegion(status.region?.id ?? null);
+    const region = resolveRegion(status.connection.region?.id ?? null);
 
     if (region !== null) await openNotebookForSignIn(region);
   }
-
-  await scheduleAuthRetry();
 }
 
 /**
@@ -174,7 +177,8 @@ export async function openNotebookForSignIn(region: KindleRegion): Promise<void>
 }
 
 /** Arms the short retry alarm that keeps a run moving while sign-in is pending. */
-export async function scheduleAuthRetry(): Promise<void> {
+export async function scheduleAuthRetry(mode: SyncMode): Promise<void> {
+  await writeAuthRetryMode(mode);
   const existing = await chrome.alarms.get(AUTH_RETRY_ALARM);
 
   if (existing === undefined) {
@@ -188,6 +192,7 @@ export async function scheduleAuthRetry(): Promise<void> {
 /** Disarms the retry alarm once a run succeeds or fails for a reason the user cannot fix by signing in. */
 export async function clearAuthRetry(): Promise<void> {
   await chrome.alarms.clear(AUTH_RETRY_ALARM);
+  await clearAuthRetryMode();
 }
 
 /**
@@ -228,6 +233,8 @@ export async function start(): Promise<void> {
   });
 
   await ensureAlarms();
+  const retryMode = await readAuthRetryMode();
+  if (retryMode !== null) await scheduleAuthRetry(retryMode);
 }
 
 /**

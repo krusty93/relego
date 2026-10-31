@@ -290,6 +290,9 @@ export function AppShell() {
                 ) : null}
               </span>
               {label}
+              {to === SYNC_ROUTE && syncNeedsSignIn ? (
+                <span className="sr-only">Amazon sign-in needed</span>
+              ) : null}
             </NavLink>
           ))}
         </nav>

@@ -35,7 +35,7 @@ erDiagram
 | schedule_updated_at | TEXT NULL | last frequency change |
 | applied_interval_minutes | INTEGER NULL | frequency the extension last reported as applied to its sync alarm (heartbeat); NULL until reported; display-only |
 | next_sync_due_at | TEXT NULL | next due time of the extension's sync alarm as last reported in a heartbeat; **display-only**, never used to trigger work |
-| pending_command | TEXT NULL | `sync` \| `full_resync` \| NULL; **at most one**; set only by user action (Sync now / Full resync / retry) or region change, consumed on heartbeat; `sync` never overwrites `full_resync`. Routine syncs never set it |
+| pending_command | TEXT NULL | `sync` \| `full_resync` \| NULL; **at most one**; set only by user action (Sync now / Full resync / retry) or region change, returned on heartbeat and acknowledged only when matching work starts; `sync` never overwrites `full_resync`, and a routine start never acknowledges `full_resync`. Routine syncs never set it |
 | connected_at | TEXT NULL | first successful pairing |
 | last_heartbeat_at | TEXT NULL | extension liveness (FR-012) |
 | last_sync_started_at / last_sync_completed_at | TEXT NULL | |

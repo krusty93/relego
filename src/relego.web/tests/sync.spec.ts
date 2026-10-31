@@ -475,14 +475,38 @@ test.describe("sync", () => {
     ).toBeVisible();
   });
 
-  test("commands wait for the sync that is already running", async ({ page }) => {
-    const mock = await mockSync(page, statusResponse("syncing", { currentJob: job() }));
+  for (const status of ["syncing", "browser_not_reporting"]) {
+    test(`commands wait for a running job while ${status}`, async ({ page }) => {
+      const mock = await mockSync(page, statusResponse(status, { currentJob: job() }));
+      await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+      await expect(page.getByText("Commands run when this sync finishes.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+      await expect(page.getByRole("progressbar", { name: "Sync progress" })).toBeVisible();
+      expect(mock.commands).toEqual([]);
+    });
+  }
+
+  test("mobile sign-in recovery keeps its link and password disclosure visible", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mockSync(page, statusResponse("auth_expired"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByText("Commands run when this sync finishes.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
-    expect(mock.commands).toEqual([]);
+    await expect(page.getByRole("link", { name: /Open your Kindle Notebook/ })).toBeVisible();
+    await expect(page.getByText("Relego never sees your Amazon password.")).toBeVisible();
+  });
+
+  test("mobile navigation exposes sign-in attention to screen readers away from Sync", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mockSync(page, statusResponse("auth_expired"));
+    await page.goto("/app", { waitUntil: "networkidle" });
+
+    const syncLink = page.getByRole("navigation", { name: "Primary" }).getByRole("link", {
+      name: /Sync.*Amazon sign-in needed/,
+    });
+    await expect(syncLink).toBeVisible();
+    await expect(syncLink.locator(".attention")).toBeVisible();
   });
 
   test("the navigation marks Sync when Amazon sign-in is needed", async ({ page }) => {

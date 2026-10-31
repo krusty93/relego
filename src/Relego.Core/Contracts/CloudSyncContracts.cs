@@ -348,8 +348,8 @@ public sealed record SyncPairResponse
 }
 
 /// <summary>
-/// An extension liveness report carrying the schedule it has applied. Display-only, except that it
-/// consumes the single pending command.
+/// An extension liveness report carrying the schedule it has applied. The response exposes the
+/// pending command, which remains queued until a matching job starts.
 /// </summary>
 public sealed record SyncHeartbeatRequest
 {
@@ -368,7 +368,7 @@ public sealed record SyncHeartbeatRequest
 /// </summary>
 public sealed record SyncHeartbeatResponse
 {
-    /// <summary>Command the extension must execute: <c>none</c>, <c>sync</c> or <c>full_resync</c>.</summary>
+    /// <summary>Command to execute when idle: <c>none</c>, <c>sync</c> or <c>full_resync</c>. A matching job start acknowledges it.</summary>
     public string Command { get; init; } = "none";
 
     /// <summary>The region the connection reads, or <c>null</c>.</summary>

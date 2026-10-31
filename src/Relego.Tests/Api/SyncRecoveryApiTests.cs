@@ -23,7 +23,7 @@ public sealed class SyncRecoveryApiTests
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public async Task PostCommands_QueuesRetryAndHeartbeatConsumesItExactlyOnce()
+    public async Task PostCommands_RetainsRetryUntilAJobStarts()
     {
         using var factory = new RelegoTestApplicationFactory();
         using var client = factory.CreateClient();
@@ -42,9 +42,11 @@ public sealed class SyncRecoveryApiTests
         var first = await HeartbeatAsync(client, token);
         Assert.Equal("sync", first.Command);
 
-        // At most one pending command: the pickup clears it, so the next heartbeat has nothing to do.
         var second = await HeartbeatAsync(client, token);
-        Assert.Equal("none", second.Command);
+        Assert.Equal("sync", second.Command);
+
+        await StartJobAsync(client, token, "key-1", "routine", "manual");
+        Assert.Equal("none", (await HeartbeatAsync(client, token)).Command);
 
         var (_, after) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
         Assert.Equal("none", after!.Schedule.PendingCommand);
@@ -73,19 +75,83 @@ public sealed class SyncRecoveryApiTests
         Assert.Equal("full_resync", heartbeat.Command);
     }
 
+    [Theory]
+    [InlineData("sync", "routine")]
+    [InlineData("sync", "full_resync")]
+    [InlineData("full_resync", "full_resync")]
+    public async Task PostCommands_JobStartSatisfiesThePendingCommand(string command, string mode)
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+
+        await SendAsync<SyncCommandResponse>(client, HttpMethod.Post, $"/sync/{Provider}/commands", new SyncCommandRequest { Command = command });
+        await StartJobAsync(client, token, "key-1", mode, "manual");
+
+        // The requested command is satisfied by the job it produced rather than left queued.
+        var heartbeat = await HeartbeatAsync(client, token);
+        Assert.Equal("none", heartbeat.Command);
+    }
+
     [Fact]
-    public async Task PostCommands_JobStartSatisfiesThePendingCommand()
+    public async Task PostCommands_RoutineStartPreservesFullResyncUntilItCanStart()
     {
         using var factory = new RelegoTestApplicationFactory();
         using var client = factory.CreateClient();
         var token = await PairAsync(client);
 
         await SendAsync<SyncCommandResponse>(client, HttpMethod.Post, $"/sync/{Provider}/commands", new SyncCommandRequest { Command = "full_resync" });
-        await StartJobAsync(client, token, "key-1", "full_resync", "manual");
+        var routineId = await StartJobAsync(client, token, "routine-key", "routine", "scheduled");
 
-        // The requested command is satisfied by the job it produced rather than left queued.
-        var heartbeat = await HeartbeatAsync(client, token);
-        Assert.Equal("none", heartbeat.Command);
+        Assert.Equal("full_resync", (await HeartbeatAsync(client, token)).Command);
+        var (rejected, _) = await SendAsync<object>(client, HttpMethod.Post, $"/sync/{Provider}/jobs",
+            new SyncJobStartRequest { IdempotencyKey = "blocked-resync", Mode = "full_resync", Trigger = "manual" }, token);
+        Assert.Equal(HttpStatusCode.Conflict, rejected);
+        Assert.Equal("full_resync", (await HeartbeatAsync(client, token)).Command);
+
+        await CompleteAsync(client, token, routineId, booksTotal: 0);
+        await StartJobAsync(client, token, "resync-key", "full_resync", "manual");
+        Assert.Equal("none", (await HeartbeatAsync(client, token)).Command);
+    }
+
+    [Fact]
+    public async Task PostCommands_FullResyncRecoversAPairedAuthExpiredConnection()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var jobId = await StartJobAsync(client, token, "key-1", "full_resync", "manual");
+        await SendAsync<object>(client, HttpMethod.Post, $"/sync/{Provider}/jobs/{jobId}/fail",
+            new SyncJobFailRequest { Code = "auth_expired" }, token);
+
+        await SendAsync<SyncCommandResponse>(client, HttpMethod.Post, $"/sync/{Provider}/commands", new SyncCommandRequest { Command = "full_resync" });
+        Assert.Equal("full_resync", (await HeartbeatAsync(client, token)).Command);
+        var recoveryId = await StartJobAsync(client, token, "key-2", "full_resync", "retry");
+        Assert.NotEqual(jobId, recoveryId);
+        Assert.Equal("none", (await HeartbeatAsync(client, token)).Command);
+        await CompleteAsync(client, token, recoveryId, booksTotal: 0);
+
+        var (_, summary) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+        Assert.Equal("active", summary!.Connection.State);
+        Assert.Equal("completed", summary.Status);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PostCommands_ReusedJobDoesNotAcknowledgeANewerCommand(bool completed)
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var jobId = await StartJobAsync(client, token, "key-1", "full_resync", "manual");
+        if (completed)
+            await CompleteAsync(client, token, jobId, booksTotal: 0);
+
+        await SendAsync<SyncCommandResponse>(client, HttpMethod.Post, $"/sync/{Provider}/commands",
+            new SyncCommandRequest { Command = "full_resync" });
+        Assert.Equal(jobId, await StartJobAsync(client, token, "key-1", "full_resync", "manual"));
+        Assert.Equal("full_resync", (await HeartbeatAsync(client, token)).Command);
     }
 
     [Theory]
@@ -331,6 +397,34 @@ public sealed class SyncRecoveryApiTests
 
         Assert.Equal("interrupted", jobs![1].Status);
         Assert.Equal("running", jobs[0].Status);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task StaleJob_RecentActivityKeepsAnOldJobRunning(bool reportProgress)
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var jobId = await StartJobAsync(client, token, "key-1", "routine", "scheduled");
+        await AgeJobAsync(factory, jobId, TimeSpan.FromMinutes(16));
+
+        if (reportProgress)
+        {
+            var (status, _) = await SendAsync<object>(client, HttpMethod.Post, $"/sync/{Provider}/jobs/{jobId}/progress",
+                new SyncJobProgressRequest { Phase = "reading", BooksTotal = 2, BooksDone = 1 }, token);
+            Assert.Equal(HttpStatusCode.NoContent, status);
+        }
+        else
+        {
+            await CommitBatchAsync(client, token, jobId, batchIndex: 0, [("B00EXAMPLE", "Dune", 1)]);
+        }
+
+        var (_, summary) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+        Assert.Equal(jobId, summary!.CurrentJob?.Id);
+        Assert.Equal(jobId, await StartJobAsync(client, token, "key-2", "routine", "scheduled"));
+        await CompleteAsync(client, token, jobId, booksTotal: reportProgress ? 2 : 1);
     }
 
     [Fact]
