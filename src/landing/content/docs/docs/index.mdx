@@ -10,14 +10,15 @@ Relego is a free, self-hosted way to revisit the passages you highlight while
 reading. It imports highlights from your Kindle or Kobo, selects a small set
 with spaced repetition, and delivers them back to your reader or inbox.
 
-Your highlights stay on your own hardware. There is no account, subscription,
-or cloud service involved.
+Relego stores your highlights on your own hardware and requires no Relego
+account or subscription. Optional Kindle Notebook sync uses your Amazon account.
 
 ![Relego's Library page showing imported books, authors, highlight counts, and recap status.](/images/docs/relego-web-library.webp)
 
 ## Set up your first recap
 
-You will need a Kindle or Kobo highlight file, Docker, and an SMTP relay.
+You will need Docker, an SMTP relay, and either a Kindle or Kobo highlight
+file or the Kindle browser extension for eligible cloud highlights.
 The [smtp4dev demo profile](/docs/reference/environment/#a-working-example)
 is there if you want to test delivery before choosing a relay.
 
@@ -32,7 +33,7 @@ is there if you want to test delivery before choosing a relay.
   </li>
   <li>
     <strong><a href="/docs/import/">Import your highlights</a></strong>
-    <span>Upload the Kindle or Kobo file and confirm the library reports what it added.</span>
+    <span>Upload a Kindle or Kobo file, or connect Kindle sync, then check your library.</span>
   </li>
   <li>
     <strong><a href="/docs/deliver/">Set a delivery address</a></strong>
