@@ -291,7 +291,7 @@ public static class CloudSyncEndpoints
                 await jobs.FailAsync(
                     running.Id, "interrupted", "interrupted",
                     SyncFailureRecovery.DetailFor("interrupted"),
-                    JsonSerializer.Serialize(SyncFailureRecovery.StepsFor("interrupted")), now);
+                    JsonSerializer.Serialize(SyncFailureRecovery.StepsFor("interrupted")), null, now);
 
             // The new region is a different notebook: everything must be read again, and the
             // connection keeps its id, token, frequency and history.
