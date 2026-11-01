@@ -215,6 +215,16 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             """,
             new { Id = id, CompletedAt = completedAt, NewContentAt = newContentAt });
 
+    /// <summary>
+    /// Records that new content arrived, without claiming the job completed. A batch that imports
+    /// highlights ends the quiet period even when a later batch or the completion request never
+    /// arrives, so the reminder cannot outlive the content that already reached the library.
+    /// </summary>
+    public Task RecordNewContentAsync(long id, string newContentAt) =>
+        connection.ExecuteAsync(
+            "UPDATE sync_connections SET last_new_content_at = @NewContentAt WHERE id = @Id",
+            new { Id = id, NewContentAt = newContentAt });
+
     /// <summary>Marks the connection as having expired authentication.</summary>
     public Task RecordAuthExpiredAsync(long id, string occurredAt) =>
         connection.ExecuteAsync(

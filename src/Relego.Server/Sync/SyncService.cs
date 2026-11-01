@@ -154,6 +154,16 @@ public sealed class SyncService(
         var response = await syncRepository.ImportAsync(userId, request);
         response.DuplicateHighlights += reobserved;
 
+        // Highlights are in the library now, so the quiet period is over even if this job never
+        // completes: a retry would see only duplicates and would not detect the content again.
+        // last_sync_completed_at stays untouched, because this job has not completed.
+        if (response.NewHighlights > 0)
+        {
+            var newContentAt = DateTimeOffset.UtcNow.ToString("o");
+            await connections.RecordNewContentAsync(job.ConnectionId, newContentAt);
+            await reminders.ResolveOpenAsync(job.ConnectionId, newContentAt);
+        }
+
         await provenance.RecordBatchAsync(
             userId,
             providerId,
