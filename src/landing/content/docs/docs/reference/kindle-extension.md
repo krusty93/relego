@@ -23,28 +23,42 @@ or VPN; do not expose it to the public internet.
 
 ## Install
 
-Download the extension package for your browser from the
-[GitHub releases](https://github.com/Krusty93/relego/releases). Store listings
-are not yet available.
+Install the extension from the store for your browser. Use a package from
+[GitHub releases](https://github.com/Krusty93/relego/releases) only for an
+unpacked or temporary development build.
+
+- [Relego on the Chrome Web Store](https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp)
+  for Chrome, Edge, and other Chromium browsers.
+- [Relego on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/relego/)
+  for Firefox 140 or later.
 
 ### Chrome, Edge, and other Chromium browsers
 
-1. Download `relego-extension-<version>-chrome.zip` and extract it to a folder
-   you intend to keep.
-2. Open `chrome://extensions` (or your browser's extensions page), enable
-   **Developer mode**, and choose **Load unpacked**.
-3. Select the extracted folder.
+1. Open the [Chrome Web Store listing](https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp)
+   and choose **Add to Chrome**.
+2. Approve the access the browser asks for.
+
+For a development build instead, download
+`relego-extension-<version>-chrome.zip` from
+[GitHub releases](https://github.com/Krusty93/relego/releases), extract it to a
+folder you intend to keep, open `chrome://extensions` (or your browser's
+extensions page), enable **Developer mode**, choose **Load unpacked**, and
+select the extracted folder.
 
 ### Firefox
 
 Firefox 140 or later is required.
 
-1. Download `relego-extension-<version>-firefox.zip`.
-2. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary
-   Add-on**, and select the ZIP file.
+1. Open the [Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/relego/)
+   and choose **Add to Firefox**.
+2. Approve the access the browser asks for.
 
-Firefox removes temporary add-ons when it restarts. Load the ZIP again after
-restarting; a permanent install requires a signed add-on.
+For a temporary development build instead, download
+`relego-extension-<version>-firefox.zip` from
+[GitHub releases](https://github.com/Krusty93/relego/releases), open
+`about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and
+select the ZIP file. Firefox removes temporary add-ons when it restarts;
+install from the store listing for a permanent install.
 
 ## Connect
 
@@ -102,7 +116,7 @@ imports and full resyncs do not duplicate previously imported highlights.
   site in the browser with the extension, then retry sync.
 - **Your browser has not checked in:** Open the browser and make sure the
   extension is installed and enabled and the server is reachable. On Firefox,
-  reload the temporary add-on after a restart.
+  reload a temporary development add-on after a restart.
 - **Last sync did not finish:** Follow the error and recovery steps on the Sync
   page, then retry. Amazon can change the Notebook layout, which may require
   an extension update.
