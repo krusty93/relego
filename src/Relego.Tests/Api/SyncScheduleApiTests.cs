@@ -35,7 +35,7 @@ public sealed class SyncScheduleApiTests
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public async Task GetStatus_NewConnectionDefaultsToSixHoursAndReportsItNotApplied()
+    public async Task GetStatus_NewConnectionDefaultsToOneHourAndReportsItNotApplied()
     {
         using var factory = new RelegoTestApplicationFactory();
         using var client = factory.CreateClient();
@@ -148,7 +148,7 @@ public sealed class SyncScheduleApiTests
         Assert.Equal(15, body!.IntervalMinutes);
         Assert.False(body.Applied);
 
-        // The stored due time still belongs to the six-hour alarm, so it must not be presented as
+        // The stored due time still belongs to the one-hour alarm, so it must not be presented as
         // the fifteen-minute frequency's next run.
         Assert.Null(body.NextRunAt);
 
@@ -165,6 +165,76 @@ public sealed class SyncScheduleApiTests
         Assert.Equal(15, applied!.Schedule.IntervalMinutes);
         Assert.True(applied.Schedule.Applied);
         Assert.Equal("2030-01-01T00:15:00.000Z", applied.Schedule.NextRunAt);
+    }
+
+    [Fact]
+    public async Task Applied_SurvivesTheAmazonSessionExpiring()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+
+        await HeartbeatAsync(client, token, DefaultInterval, "2030-01-01T06:00:00.000Z");
+
+        var jobId = await StartJobAsync(client, token, "expired-session", "routine", "scheduled");
+        var (failStatus, _) = await SendAsync<object>(
+            client,
+            HttpMethod.Post,
+            $"/sync/{Provider}/jobs/{jobId}/fail",
+            new SyncJobFailRequest { Code = "auth_expired" },
+            token);
+        Assert.Equal(HttpStatusCode.NoContent, failStatus);
+
+        // The extension stays paired and keeps heartbeating the frequency it runs, so the stored
+        // choice is still in force. Reporting it as pending would send the user to the wrong
+        // problem, because their browser is answering.
+        await HeartbeatAsync(client, token, DefaultInterval, "2030-01-01T06:00:00.000Z");
+
+        var (_, summary) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+        Assert.Equal("auth_expired", summary!.Connection.State);
+        Assert.True(summary.Schedule.Applied);
+
+        // No run can deliver until the user signs in again, so the due time stays withheld.
+        Assert.Null(summary.Schedule.NextRunAt);
+    }
+
+    [Fact]
+    public async Task PutSchedule_ReportsTheRunningFrequencyWhileSignInIsPending()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+
+        await HeartbeatAsync(client, token, DefaultInterval, "2030-01-01T06:00:00.000Z");
+
+        var jobId = await StartJobAsync(client, token, "expired-change", "routine", "scheduled");
+        await SendAsync<object>(
+            client,
+            HttpMethod.Post,
+            $"/sync/{Provider}/jobs/{jobId}/fail",
+            new SyncJobFailRequest { Code = "auth_expired" },
+            token);
+
+        // Re-selecting the frequency the extension is already running is not a pending change.
+        var (sameStatus, same) = await SendAsync<SyncScheduleChangeResponse>(
+            client,
+            HttpMethod.Put,
+            $"/sync/{Provider}/schedule",
+            new SyncScheduleChangeRequest { IntervalMinutes = DefaultInterval });
+
+        Assert.Equal(HttpStatusCode.OK, sameStatus);
+        Assert.True(same!.Applied);
+        Assert.Null(same.NextRunAt);
+
+        // A frequency the extension has not reported yet is still pending, as it is when active.
+        var (_, changed) = await SendAsync<SyncScheduleChangeResponse>(
+            client,
+            HttpMethod.Put,
+            $"/sync/{Provider}/schedule",
+            new SyncScheduleChangeRequest { IntervalMinutes = 15 });
+
+        Assert.False(changed!.Applied);
+        Assert.Null(changed.NextRunAt);
     }
 
     [Theory]

@@ -79,13 +79,14 @@ public sealed record SyncScheduleDto
 
     /// <summary>
     /// Next due time of the extension's sync alarm as last reported in a heartbeat, or <c>null</c>
-    /// when not reported, not connected, or not yet applied to <see cref="IntervalMinutes"/>.
-    /// Display-only.
+    /// when not reported, not connected, not yet applied to <see cref="IntervalMinutes"/>, or the
+    /// connection is waiting for Amazon sign-in again. Display-only.
     /// </summary>
     public string? NextRunAt { get; init; }
 
     /// <summary>
-    /// True when the extension has reported applying the stored <see cref="IntervalMinutes"/>.
+    /// True when the extension has reported applying the stored <see cref="IntervalMinutes"/>,
+    /// including while the connection waits for Amazon sign-in again.
     /// </summary>
     public bool Applied { get; init; }
 
@@ -466,7 +467,10 @@ public sealed record SyncScheduleChangeResponse
     /// </summary>
     public bool Applied { get; init; }
 
-    /// <summary>Extension-reported next due time, or <c>null</c> while the extension has not applied it.</summary>
+    /// <summary>
+    /// Extension-reported next due time, or <c>null</c> while the extension has not applied it or the
+    /// connection is waiting for Amazon sign-in again.
+    /// </summary>
     public string? NextRunAt { get; init; }
 }
 

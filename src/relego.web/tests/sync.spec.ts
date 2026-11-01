@@ -746,4 +746,123 @@ test.describe("sync frequency", () => {
     await expect(select).toHaveValue("360");
     await expect(page.getByTestId("sync-next-run")).toContainText("Next sync");
   });
+
+  test("does not promise a next run while the browser has gone quiet", async ({ page }) => {
+    await mockSync(
+      page,
+      statusResponse("browser_not_reporting", {
+        connection: {
+          state: "active",
+          connectedAt: "2024-05-01T09:00:00Z",
+          lastHeartbeatAt: "2024-04-20T10:05:00Z",
+          browserReporting: false,
+          region: { id: "uk", displayName: "United Kingdom", host: "read.amazon.co.uk" },
+        },
+        // The last reported due time is long past. Repeating it would claim a run that never came.
+        schedule: {
+          intervalMinutes: 360,
+          allowedIntervalMinutes: ALLOWED_INTERVALS,
+          nextRunAt: "2024-04-20T10:00:00Z",
+          applied: true,
+          pendingCommand: "none",
+        },
+      }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    const note = page.getByTestId("sync-next-run");
+    await expect(note).toContainText("Runs when your browser is available.");
+    await expect(note).not.toContainText("Next sync");
+    await expect(note).not.toContainText("2024");
+  });
+
+  test("says the next run waits for Amazon sign-in while the connection is expired", async ({ page }) => {
+    await mockSync(
+      page,
+      statusResponse("auth_expired", {
+        connection: {
+          state: "auth_expired",
+          connectedAt: "2024-05-01T09:00:00Z",
+          lastHeartbeatAt: "2024-05-01T10:05:00Z",
+          browserReporting: true,
+          region: { id: "uk", displayName: "United Kingdom", host: "read.amazon.co.uk" },
+        },
+        // The browser still runs the frequency and reports it, but no run can deliver.
+        schedule: {
+          intervalMinutes: 360,
+          allowedIntervalMinutes: ALLOWED_INTERVALS,
+          nextRunAt: null,
+          applied: true,
+          pendingCommand: "none",
+        },
+      }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await expect(page.getByTestId("sync-frequency")).toHaveValue("360");
+    await expect(page.getByTestId("sync-next-run")).toContainText(
+      "Next sync waits until you sign in to Amazon again.",
+    );
+  });
+
+  test("announces a saved frequency politely", async ({ page }) => {
+    await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    const status = page.getByTestId("sync-frequency-status");
+
+    // The region is mounted before any save, so the message has somewhere to arrive.
+    await expect(status).toHaveText("");
+    await expect(status).toHaveAttribute("aria-live", "polite");
+
+    await page.getByTestId("sync-frequency").selectOption("120");
+
+    await expect(status).toHaveText("Sync frequency saved: every 2 hours. It applies when your browser next reports.");
+  });
+
+  test("announces each save, including one whose message repeats an earlier save", async ({ page }) => {
+    await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    const select = page.getByTestId("sync-frequency");
+    const status = page.getByTestId("sync-frequency-status");
+
+    await select.selectOption("120");
+    await expect(status).toHaveText(/Sync frequency saved: every 2 hours/);
+
+    await select.selectOption("60");
+    await expect(status).toHaveText(/Sync frequency saved: every 1 hour/);
+
+    await select.selectOption("120");
+    await expect(status).toHaveText(/Sync frequency saved: every 2 hours/);
+  });
+
+  test("announces the hand-over once the browser applies the saved frequency", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("connected"));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    const status = page.getByTestId("sync-frequency-status");
+
+    await page.getByTestId("sync-frequency").selectOption("120");
+    await expect(status).toHaveText(/It applies when your browser next reports/);
+
+    // The extension reports the new period on its next heartbeat. Any action that rereads the
+    // status shows the hand-over, so the change is announced instead of silently redrawn.
+    reportApplied(mock, 120);
+    await page.getByRole("button", { name: "Sync now" }).click();
+
+    await expect(status).toHaveText("Your browser now runs the sync every 2 hours.");
+  });
+
+  test("announces that the stored frequency was kept when the server refuses the change", async ({ page }) => {
+    const mock = await mockSync(page, statusResponse("connected"));
+    mock.rejectInterval = 120;
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await page.getByTestId("sync-frequency").selectOption("120");
+
+    await expect(page.getByTestId("sync-frequency-status")).toHaveText(
+      "Sync frequency not changed. It stays every 6 hours.",
+    );
+  });
 });

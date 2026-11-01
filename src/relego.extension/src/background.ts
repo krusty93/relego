@@ -6,7 +6,8 @@
  * - `kindle-sync` fires at the user's chosen frequency and runs a routine sync. Its period is
  *   re-applied on every service-worker and browser start and whenever the server reports a
  *   different stored frequency. A period missed while the browser was away costs one catch-up run,
- *   never a backlog.
+ *   never a backlog, even when Chrome dropped the alarm: the due time is recorded alongside it, so
+ *   a recreated alarm cannot postpone the next run by a whole period.
  * - `kindle-heartbeat` fires every sixty seconds, reports liveness and the applied frequency, and
  *   executes at most one user-requested command. A heartbeat never starts a routine sync.
  *
@@ -25,7 +26,14 @@ import {
 } from "./profile";
 import type { KindleRegion } from "./profile";
 import { isConfiguredMessage } from "./messages";
-import { clearAuthRetryMode, readAuthRetryMode, readConfig, writeAuthRetryMode } from "./storage";
+import {
+  clearAuthRetryMode,
+  readAuthRetryMode,
+  readConfig,
+  readNextSyncDueAt,
+  writeAuthRetryMode,
+  writeNextSyncDueAt,
+} from "./storage";
 import { isSyncRunning, runSync } from "./sync-runner";
 import type { PageResponse, SyncMode, SyncRunOutcome, SyncTrigger } from "./sync-runner";
 
@@ -76,6 +84,11 @@ export async function ensureAlarms(): Promise<void> {
 
   if (sync === undefined || sync.periodInMinutes !== interval) {
     await chrome.alarms.create(SYNC_ALARM, { periodInMinutes: interval });
+
+    // A fresh profile has no due time to keep, so the recreated alarm supplies one. A recorded due
+    // time is left alone: it is the only evidence that a period elapsed while the browser was away,
+    // and overwriting it would postpone the catch-up run by a whole period.
+    if ((await readNextSyncDueAt()) === null) await recordSyncDueAt();
   }
 
   const heartbeat = await chrome.alarms.get(HEARTBEAT_ALARM);
@@ -86,13 +99,31 @@ export async function ensureAlarms(): Promise<void> {
 }
 
 /**
+ * Arms the routine alarm and records when it will fire.
+ *
+ * @param periodInMinutes Frequency to apply; clamped to the allowlist.
+ * @returns A task that completes once the alarm and the recorded due time agree.
+ */
+async function armSyncAlarm(periodInMinutes: number): Promise<void> {
+  await chrome.alarms.create(SYNC_ALARM, { periodInMinutes: clampIntervalMinutes(periodInMinutes) });
+  await recordSyncDueAt();
+}
+
+/** Records the routine alarm's current due time, so a lost alarm can still be caught up. */
+async function recordSyncDueAt(): Promise<void> {
+  const alarm = await chrome.alarms.get(SYNC_ALARM);
+
+  if (alarm !== undefined) await writeNextSyncDueAt(alarm.scheduledTime);
+}
+
+/**
  * Applies a sync frequency to the routine alarm.
  *
  * @param minutes Frequency requested by the server or the user; clamped to the allowlist.
  * @returns A task that completes once the alarm has been recreated.
  */
 export async function applyInterval(minutes: number): Promise<void> {
-  await chrome.alarms.create(SYNC_ALARM, { periodInMinutes: clampIntervalMinutes(minutes) });
+  await armSyncAlarm(minutes);
 }
 
 /** Reads the frequency currently applied to the routine alarm, in minutes. */
@@ -109,17 +140,20 @@ export async function appliedIntervalMinutes(): Promise<number> {
  * on the current period, so a firing the browser delivers late replays the same job instead of
  * importing twice. Missing ten periods therefore costs one sync, never ten.
  *
+ * A dropped alarm has no scheduled time at all, so the recorded due time stands in for it. Without
+ * that fallback the alarm recreated on start-up would look like a fresh one and the missed period
+ * would be postponed by a whole frequency, up to a day.
+ *
  * @param now Current time in milliseconds since the epoch.
  * @returns True when a catch-up sync was started.
  */
 export async function catchUpIfDue(now = Date.now()): Promise<boolean> {
   const alarm = await chrome.alarms.get(SYNC_ALARM);
+  const dueAt = alarm?.scheduledTime ?? (await readNextSyncDueAt());
 
-  if (alarm === undefined || alarm.scheduledTime > now) return false;
+  if (dueAt === null || dueAt > now) return false;
 
-  await chrome.alarms.create(SYNC_ALARM, {
-    periodInMinutes: alarm.periodInMinutes ?? DEFAULT_INTERVAL_MINUTES,
-  });
+  await armSyncAlarm(alarm?.periodInMinutes ?? DEFAULT_INTERVAL_MINUTES);
   await syncNow("scheduled");
   return true;
 }
@@ -275,7 +309,7 @@ export async function applyConfiguration(
  */
 export async function start(): Promise<void> {
   chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === SYNC_ALARM) void syncNow("scheduled");
+    if (alarm.name === SYNC_ALARM) void runScheduledSync();
     else if (alarm.name === HEARTBEAT_ALARM) void heartbeat();
     else if (alarm.name === AUTH_RETRY_ALARM) void syncNow("retry");
   });
@@ -284,12 +318,23 @@ export async function start(): Promise<void> {
     if (isConfiguredMessage(message)) void applyConfiguration(message.intervalMinutes ?? null, message.reason);
   });
 
+  // Before the alarms are reconciled: creating a missing alarm would push its due time a full
+  // period out and hide the period the browser was away for.
+  await catchUpIfDue();
   await ensureAlarms();
 
   const retryMode = await readAuthRetryMode();
   if (retryMode !== null) await scheduleAuthRetry(retryMode);
+}
 
-  await catchUpIfDue();
+/**
+ * Runs the scheduled sync and records the due time the alarm now carries.
+ *
+ * @returns A task that completes once the run and the recorded due time are settled.
+ */
+async function runScheduledSync(): Promise<void> {
+  await syncNow("scheduled");
+  await recordSyncDueAt();
 }
 
 /**

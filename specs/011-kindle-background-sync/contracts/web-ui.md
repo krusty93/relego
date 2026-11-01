@@ -33,12 +33,14 @@ password and stores no Amazon session), and a **local import fallback** link to 
   Saving calls `PUT /sync/{providerId}/schedule`; success shows the saved value immediately and
   announces it politely. While `schedule.applied` is false, **Next run** reads "Applies when your
   browser next reports" (the extension applies it within one 60 s heartbeat while the browser is open);
-  once applied it shows `nextRunAt`. A 422 restores the previous value and shows the allowed list.
+  once applied it shows `nextRunAt`, and that hand-over is announced politely too. A 422 restores the
+  previous value, shows the allowed list, and announces the restore.
   The control is not editable during a pending save. Helper text: "Your browser runs the sync at this
   frequency; Relego's server does not schedule it."
 - **Next run**: always visible with the selector ("Next run: today 14:30"), sourced from the extension's
-  last report; when `browser_not_reporting`, it reads "will run when your browser is available". Never
-  worded as a completed sync. The UI never calls the 60 s heartbeat a "sync".
+  last report; when `browser_not_reporting`, it reads "Runs when your browser is available."; when the
+  Amazon session needs renewing (`auth_expired`), it reads "Next sync waits until you sign in to Amazon
+  again." Never worded as a completed sync. The UI never calls the 60 s heartbeat a "sync".
 - **Region**: shown **read-only** in the status area ("Region: Germany (lesen.amazon.de)") with the
   hint "Change region in the Relego browser extension". No region editor and no host/URL input exist
   in the web UI. Before pairing it reads "Region: chosen in the extension". The Sync page also states:

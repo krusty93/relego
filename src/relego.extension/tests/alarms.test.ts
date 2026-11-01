@@ -49,13 +49,27 @@ interface FakeAlarm {
 interface FakeChrome {
   readonly alarms: Map<string, FakeAlarm>;
   readonly alarmListeners: ((alarm: { readonly name: string }) => void)[];
+  readonly store: Map<string, unknown>;
   readonly api: unknown;
 }
 
-/** Alarms that behave like Chrome's: a new alarm first fires one period from now. */
-function createChrome(seed: readonly Partial<FakeAlarm>[] = []): FakeChrome {
+/**
+ * Alarms that behave like Chrome's: a new alarm first fires one period from now.
+ *
+ * @param seed Alarms that already exist, as after a browser restart.
+ * @param stored Entries already in `chrome.storage.local`, such as a recorded due time.
+ */
+function createChrome(
+  seed: readonly Partial<FakeAlarm>[] = [],
+  stored: Readonly<Record<string, unknown>> = {},
+): FakeChrome {
   const alarms = new Map<string, FakeAlarm>();
   const alarmListeners: ((alarm: { readonly name: string }) => void)[] = [];
+  const store = new Map<string, unknown>([
+    ["serverUrl", SERVER],
+    ["token", "pairing-token"],
+    ...Object.entries(stored),
+  ]);
 
   seed.forEach((alarm) => {
     alarms.set(alarm.name ?? SYNC_ALARM, {
@@ -89,9 +103,24 @@ function createChrome(seed: readonly Partial<FakeAlarm>[] = []): FakeChrome {
     tabs: { create: () => Promise.resolve({ id: 1 }) },
     storage: {
       local: {
-        get: () => Promise.resolve({ serverUrl: SERVER, token: "pairing-token" }),
-        set: () => Promise.resolve(),
-        remove: () => Promise.resolve(),
+        get: (keys: string | readonly string[]) => {
+          const wanted = typeof keys === "string" ? [keys] : keys;
+          const found: Record<string, unknown> = {};
+
+          for (const key of wanted) if (store.has(key)) found[key] = store.get(key);
+
+          return Promise.resolve(found);
+        },
+        set: (items: Record<string, unknown>) => {
+          for (const [key, value] of Object.entries(items)) store.set(key, value);
+
+          return Promise.resolve();
+        },
+        remove: (keys: string | readonly string[]) => {
+          for (const key of typeof keys === "string" ? [keys] : keys) store.delete(key);
+
+          return Promise.resolve();
+        },
       },
     },
     runtime: {
@@ -101,7 +130,7 @@ function createChrome(seed: readonly Partial<FakeAlarm>[] = []): FakeChrome {
     },
   };
 
-  return { alarms, alarmListeners, api };
+  return { alarms, alarmListeners, store, api };
 }
 
 interface FakeResponse {
@@ -204,9 +233,13 @@ async function settle(times = 6): Promise<void> {
 }
 
 /** Loads a fresh worker bound to a fresh fake browser, with the given alarms already present. */
-async function loadWorker(overrides: Partial<ServerState> = {}, seed: readonly Partial<FakeAlarm>[] = []) {
+async function loadWorker(
+  overrides: Partial<ServerState> = {},
+  seed: readonly Partial<FakeAlarm>[] = [],
+  stored: Readonly<Record<string, unknown>> = {},
+) {
   const state: ServerState = { intervalMinutes: DEFAULT_INTERVAL_MINUTES, ...overrides };
-  const chrome = createChrome(seed);
+  const chrome = createChrome(seed, stored);
   vi.stubGlobal("chrome", chrome.api);
   const server = installFetch(state);
 
@@ -362,6 +395,57 @@ describe("extension alarms", () => {
     await settle();
 
     expect(server.starts).toHaveLength(1);
+  });
+
+  it("catches up one run when Chrome dropped the alarm and the recorded due time has passed", async () => {
+    // Ten periods elapsed while the browser was away and the alarm itself is gone.
+    const dueAt = Date.now() - 10 * DEFAULT_INTERVAL_MINUTES * 60_000;
+    const { server, chrome } = await loadWorker({}, [], { nextSyncDueAt: dueAt });
+
+    expect(chrome.alarms.has(SYNC_ALARM)).toBe(true);
+    expect(server.starts).toHaveLength(1);
+    expect(server.starts[0]?.trigger).toBe("scheduled");
+    expect(server.starts[0]?.mode).toBe("routine");
+  });
+
+  it("starts no run when the dropped alarm's recorded due time is still ahead", async () => {
+    const { server, chrome } = await loadWorker({}, [], { nextSyncDueAt: Date.now() + 30 * 60_000 });
+
+    expect(server.starts).toEqual([]);
+    expect(syncPeriod(chrome)).toBe(DEFAULT_INTERVAL_MINUTES);
+  });
+
+  it("starts no run on a fresh profile that never recorded a due time", async () => {
+    const { server, chrome } = await loadWorker();
+
+    expect(server.starts).toEqual([]);
+    expect(chrome.alarms.has(SYNC_ALARM)).toBe(true);
+  });
+
+  it("records the due time the routine alarm was armed with", async () => {
+    const { worker, chrome } = await loadWorker();
+
+    await worker.applyInterval(15);
+
+    expect(chrome.store.get("nextSyncDueAt")).toBe(chrome.alarms.get(SYNC_ALARM)?.scheduledTime);
+  });
+
+  it("moves the recorded due time to the period the alarm carries after a scheduled run", async () => {
+    const { chrome } = await loadWorker();
+    const listener = chrome.alarmListeners[0];
+    if (listener === undefined) throw new Error("The alarm listener must be registered on start-up.");
+
+    const alarm = chrome.alarms.get(SYNC_ALARM);
+    if (alarm === undefined) throw new Error("The routine alarm must exist after start-up.");
+
+    // Chrome advances a periodic alarm's due time when it fires; the recorded one is still behind.
+    alarm.scheduledTime = Date.now() + DEFAULT_INTERVAL_MINUTES * 60_000;
+    chrome.store.set("nextSyncDueAt", Date.now() - 60_000);
+
+    listener({ name: SYNC_ALARM });
+    await settle();
+
+    expect(chrome.store.get("nextSyncDueAt")).toBe(alarm.scheduledTime);
   });
 
   it("coalesces overlapping firings of the routine alarm into one run", async () => {

@@ -342,14 +342,16 @@ public static class CloudSyncEndpoints
             // The server does not schedule routine sync, so the new period is only in force once the
             // extension reports having replaced its alarm. Until then the stored due time still
             // belongs to the previous period and must not be presented as this frequency's next run.
-            var applied = connection.State == "active"
-                && connection.AppliedIntervalMinutes == request.IntervalMinutes;
+            var applied = FrequencyIsApplied(connection, request.IntervalMinutes);
 
             return Results.Ok(new SyncScheduleChangeResponse
             {
                 IntervalMinutes = request.IntervalMinutes,
                 Applied = applied,
-                NextRunAt = applied ? connection.NextSyncDueAt : null
+
+                // A connection waiting for Amazon sign-in keeps the frequency but cannot deliver a
+                // run, so its due time stays withheld.
+                NextRunAt = applied && connection.State == "active" ? connection.NextSyncDueAt : null
             });
         })
         .WithTags("Sync")
@@ -857,8 +859,7 @@ public static class CloudSyncEndpoints
             };
         }
 
-        var applied = connection.State == "active"
-            && connection.AppliedIntervalMinutes == connection.SyncIntervalMinutes;
+        var applied = FrequencyIsApplied(connection, connection.SyncIntervalMinutes);
 
         return new SyncScheduleDto
         {
@@ -866,12 +867,26 @@ public static class CloudSyncEndpoints
             AllowedIntervalMinutes = provider.Frequency.AllowedMinutes,
 
             // The stored due time belongs to the frequency the extension is still running, so it is
-            // only this frequency's next run once the extension has reported applying it.
-            NextRunAt = applied ? connection.NextSyncDueAt : null,
+            // only this frequency's next run once the extension has reported applying it — and only
+            // while a run can still deliver, which excludes a connection awaiting Amazon sign-in.
+            NextRunAt = applied && connection.State == "active" ? connection.NextSyncDueAt : null,
             Applied = applied,
             PendingCommand = connection.PendingCommand ?? NoCommand
         };
     }
+
+    /// <summary>
+    /// Whether the extension has reported running <paramref name="intervalMinutes"/>.
+    /// </summary>
+    /// <remarks>
+    /// A connection waiting for the user to sign in to Amazon is still paired and keeps heartbeating
+    /// the frequency it runs, so its choice is in force. Reporting it as pending instead would tell
+    /// the user their browser had stopped answering while it is answering, and send them to the
+    /// wrong problem.
+    /// </remarks>
+    private static bool FrequencyIsApplied(SyncConnection connection, int intervalMinutes) =>
+        connection.State is "active" or "auth_expired"
+        && connection.AppliedIntervalMinutes == intervalMinutes;
 
     private static SyncFailureDto? MapFailure(string status, SyncConnection? connection, SyncJobRecord? latestJob)
     {

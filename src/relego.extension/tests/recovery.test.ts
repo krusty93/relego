@@ -368,7 +368,7 @@ describe("service worker recovery", () => {
     expect(server.starts.at(-1)?.mode).toBe("full_resync");
     expect(server.starts.at(-1)?.trigger).toBe("retry");
     expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
-    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token" });
+    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token", nextSyncDueAt: expect.any(Number) });
     expect(chrome.tabs).toHaveLength(1);
   });
 
@@ -391,7 +391,7 @@ describe("service worker recovery", () => {
 
     chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
     await vi.waitFor(() => expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false));
-    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token" });
+    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token", nextSyncDueAt: expect.any(Number) });
   });
 
   it("leaves a full-resync command for the next heartbeat while a routine run is in flight", async () => {

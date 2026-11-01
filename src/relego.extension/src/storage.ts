@@ -1,8 +1,10 @@
 /**
  * Configuration helpers backed by `chrome.storage.local`.
  *
- * The server URL, pairing token and pending auth-retry mode are stored; no Amazon data (cookies,
- * session, page content) is ever written to storage.
+ * The server URL, pairing token, pending auth-retry mode and the next routine sync's due time are
+ * stored; no Amazon data (cookies, session, page content) is ever written to storage. The due time
+ * is a timestamp only: it exists so a lost alarm is still caught up instead of postponing the next
+ * run by a whole period.
  */
 
 import type { RelegoClientConfig } from "./client";
@@ -11,6 +13,30 @@ import type { SyncMode } from "./sync-runner";
 const SERVER_URL_KEY = "serverUrl";
 const TOKEN_KEY = "token";
 const AUTH_RETRY_MODE_KEY = "authRetryMode";
+const NEXT_SYNC_DUE_AT_KEY = "nextSyncDueAt";
+
+/** Reads the recorded due time of the next routine sync, or `null` when none is recorded. */
+export async function readNextSyncDueAt(): Promise<number | null> {
+  const stored = await chrome.storage.local.get(NEXT_SYNC_DUE_AT_KEY);
+  const dueAt = stored[NEXT_SYNC_DUE_AT_KEY];
+  if (dueAt === undefined) return null;
+  if (typeof dueAt !== "number" || !Number.isFinite(dueAt)) {
+    throw new Error("Stored sync due time is invalid.");
+  }
+
+  return dueAt;
+}
+
+/**
+ * Records when the routine sync alarm is due.
+ *
+ * Chrome persists alarms but can still drop one, and a worker start recreates a missing alarm a
+ * full period out. Keeping the due time lets the worker tell a dropped alarm apart from a fresh
+ * profile, so a period missed while the browser was away costs one catch-up run.
+ */
+export async function writeNextSyncDueAt(dueAt: number): Promise<void> {
+  await chrome.storage.local.set({ [NEXT_SYNC_DUE_AT_KEY]: dueAt });
+}
 
 /** Reads the interrupted sync mode, or `null` when no authentication retry is pending. */
 export async function readAuthRetryMode(): Promise<SyncMode | null> {
@@ -53,5 +79,10 @@ export async function writeConfig(config: RelegoClientConfig): Promise<void> {
 
 /** Clears the stored server configuration. */
 export async function clearConfig(): Promise<void> {
-  await chrome.storage.local.remove([SERVER_URL_KEY, TOKEN_KEY, AUTH_RETRY_MODE_KEY]);
+  await chrome.storage.local.remove([
+    SERVER_URL_KEY,
+    TOKEN_KEY,
+    AUTH_RETRY_MODE_KEY,
+    NEXT_SYNC_DUE_AT_KEY,
+  ]);
 }

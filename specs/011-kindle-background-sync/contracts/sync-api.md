@@ -32,7 +32,7 @@ Two audiences:
   "status": "syncing",
   "connection": { "state": "active", "connectedAt": "…", "lastHeartbeatAt": "…", "browserReporting": true,
                   "region": { "id": "uk", "displayName": "United Kingdom", "host": "read.amazon.co.uk" } },
-  "schedule": { "intervalMinutes": 360, "allowedIntervalMinutes": [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440],
+  "schedule": { "intervalMinutes": 60, "allowedIntervalMinutes": [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440],
                 "nextRunAt": "…", "pendingCommand": "none" },
   "currentJob": { "id": 41, "mode": "routine", "status": "running", "phase": "reading", "booksTotal": 120, "booksDone": 37, "highlightsNew": 212 },
   "lastCompletedJob": { "id": 40, "status": "completed_no_changes", "endedAt": "…" },
@@ -50,7 +50,9 @@ Two audiences:
 `host` is **derived by the server** from the allowlist and is display-only. `schedule.nextRunAt` is
 the next due time of the **extension's sync alarm** as last reported in a heartbeat (`null` until
 reported or when not `active`; display-only); `schedule.applied` is `true` when the extension has
-reported applying the stored `intervalMinutes`, else the UI shows a pending state;
+reported applying the stored `intervalMinutes`, else the UI shows a pending state. `applied` stays
+true while the Amazon session needs renewing (`auth_expired`) — the alarm still runs the requested
+frequency — while `nextRunAt` stays `null` there because an expired session cannot deliver a run;
 `schedule.pendingCommand` is `none | sync | full_resync` (user-requested only, never created by a
 routine schedule).
 
