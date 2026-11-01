@@ -61,6 +61,8 @@ interface Elements {
 interface PopupState {
   config: RelegoClientConfig | null;
   currentRegionId: string | null;
+  /** Whether the last read of the server found a usable configuration. */
+  paired: boolean;
 }
 
 /** What the Save gesture produced: the region decision, and whether the worker picked it up. */
@@ -180,6 +182,7 @@ async function refresh(elements: Elements, state: PopupState): Promise<boolean> 
   const config = await readConfig();
   state.config = config;
   state.currentRegionId = null;
+  state.paired = false;
   if (config === null) {
     elements.state.textContent = "Not connected yet.";
     say(elements, "Paste the one-time code Relego shows to connect this browser.", "warn");
@@ -194,6 +197,7 @@ async function refresh(elements: Elements, state: PopupState): Promise<boolean> 
     const status = await new RelegoClient(config).getStatus(PROVIDER_ID);
     const region = resolveRegion(status.connection.region?.id ?? null);
     state.currentRegionId = region?.id ?? null;
+    state.paired = region !== null;
     if (region !== null) elements.region.value = region.id;
 
     elements.state.textContent =
@@ -281,15 +285,16 @@ async function save(elements: Elements, state: PopupState): Promise<void> {
     const applied = result.outcome.kind === "region_selected" || result.outcome.kind === "already_selected";
     if (applied) elements.code.value = "";
 
-    const paired = await refresh(elements, state);
+    // Only a connection that changed has new server state to read back; the rest would ask the server
+    // the question the popup already knows the answer to.
+    const paired =
+      result.outcome.kind === "region_selected" ? await refresh(elements, state) : state.paired;
 
     // A working configuration moves to the confirmation, which says everything that is left to say;
-    // anything else keeps the form on screen with the reason next to it.
-    if (applied && paired && result.notified) show(elements, "done", true);
-    else {
-      show(elements, "form", paired);
-      announceOutcome(elements, result.outcome, result.notified);
-    }
+    // anything else keeps the form on screen with the reason next to it. The answer is written after
+    // the view so it is still there when Edit brings the form back.
+    show(elements, applied && paired && result.notified ? "done" : "form", paired);
+    announceOutcome(elements, result.outcome, result.notified);
   } catch (error) {
     say(elements, describeFailure(statusOf(error)), "warn");
   } finally {
@@ -340,22 +345,23 @@ async function applySave(elements: Elements, state: PopupState): Promise<SaveRes
     },
   );
 
-  const notified = await applyOutcome(outcome, target, needsCode);
+  const notified = await applyOutcome(outcome, needsCode);
 
   return { outcome, notified };
 }
 
-/** Tells the worker to recreate its alarms and persists the configuration the choice needs. */
-async function applyOutcome(
-  outcome: RegionChoice,
-  target: RelegoClientConfig,
-  needsCode: boolean,
-): Promise<boolean> {
-  const notified =
-    outcome.kind === "region_selected" ? await notifyWorker(outcome.intervalMinutes, needsCode) : true;
-  if (needsCode) await writeConfig(target);
-
-  return notified;
+/**
+ * Tells the worker to recreate its alarms.
+ *
+ * The configuration is persisted by the pairing call itself, so a code the server rejected never
+ * replaces one that works.
+ *
+ * @param outcome What the region decision made of the choice.
+ * @param paired Whether this save paired the connection, which changes the reason the worker is told.
+ * @returns Whether the worker picked the message up.
+ */
+async function applyOutcome(outcome: RegionChoice, paired: boolean): Promise<boolean> {
+  return outcome.kind === "region_selected" ? notifyWorker(outcome.intervalMinutes, paired) : true;
 }
 
 /** Shows what happened to the user's choice. */
@@ -450,7 +456,7 @@ async function main(): Promise<void> {
     cancel: required<HTMLButtonElement>("cancel"),
   };
 
-  const state: PopupState = { config: null, currentRegionId: null };
+  const state: PopupState = { config: null, currentRegionId: null, paired: false };
   elements.save.disabled = true;
   renderPicker(elements);
   keepDraft(elements);

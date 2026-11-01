@@ -440,8 +440,8 @@ describe("notebook parser - structural tolerance", () => {
     if (outcome.kind !== "ok") return;
 
     expect(outcome.books).toEqual([
-      { externalKey: "B00LIVE001", title: "The Pragmatic Programmer", author: "Andrew Hunt & David Thomas", highlightCount: null, truncated: false },
-      { externalKey: "B00LIVE002", title: "Dune", author: null, highlightCount: null, truncated: false },
+      { externalKey: "B00LIVE001", fingerprintKey: null, title: "The Pragmatic Programmer", author: "Andrew Hunt & David Thomas", highlightCount: null, truncated: false },
+      { externalKey: "B00LIVE002", fingerprintKey: null, title: "Dune", author: null, highlightCount: null, truncated: false },
     ]);
   });
 
@@ -737,8 +737,10 @@ describe("sync runner", () => {
 
   it("does not skip different provider identities with the same title or missing stable keys", async () => {
     const { client, calls } = fakeClient({ knownBooks: [{ key: "B00OTHER", highlightCount: 3 }] });
+    // The row keeps a key the book page can be addressed with, but loses the provider fingerprint
+    // the skip decision reads, so the book must be read rather than assumed unchanged.
     const fetchPage = pages({
-      [notebookUrl(us)]: fixture("library.html").replace('data-book-key="B00EXAMPLE01"', ""),
+      [notebookUrl(us)]: fixture("library.html").replace('data-book-key="B00EXAMPLE01"', 'data-asin="B00EXAMPLE01"'),
     });
     expect((await runSync({ client, fetchPage }, routine)).kind).toBe("completed");
     expect(calls.completed[0]?.booksTotal).toBe(3);
