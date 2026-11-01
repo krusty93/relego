@@ -30,8 +30,13 @@ async function readPackage(browser: "chrome" | "firefox") {
 
 describe("extension release packaging", () => {
   beforeAll(() => {
-    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-    execFileSync(npm, ["run", "package"], { cwd: extensionDir, stdio: "inherit" });
+    // `npm` is a .cmd shim on Windows, which execFileSync cannot spawn without a shell. The command
+    // goes in as one string there so Node does not concatenate arguments into it itself.
+    if (process.platform === "win32") {
+      execFileSync("npm.cmd run package", { cwd: extensionDir, stdio: "inherit", shell: true });
+    } else {
+      execFileSync("npm", ["run", "package"], { cwd: extensionDir, stdio: "inherit" });
+    }
   }, 600_000);
 
   it("stamps both packages with the centralized extension version", async () => {

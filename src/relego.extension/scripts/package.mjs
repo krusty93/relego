@@ -97,8 +97,19 @@ function addFiles(zip, dir, files) {
 }
 
 function run(command, args) {
-  const executable = process.platform === "win32" ? `${command}.cmd` : command;
-  execFileSync(executable, args, { cwd: extensionDir, stdio: "inherit" });
+  if (process.platform !== "win32") {
+    execFileSync(command, args, { cwd: extensionDir, stdio: "inherit" });
+
+    return;
+  }
+
+  // `npm` is a .cmd shim on Windows, which cannot be spawned without a shell. The whole line goes in
+  // as one string so Node does not concatenate arguments into it itself.
+  execFileSync([`${command}.cmd`, ...args].join(" "), {
+    cwd: extensionDir,
+    stdio: "inherit",
+    shell: true,
+  });
 }
 
 async function writeZip(path, addContents) {

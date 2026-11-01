@@ -212,8 +212,10 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
   // only means "your browser will hear about this", not "the sync already ran".
   const command = useMutation({
     mutationFn: (value: "sync" | "full_resync") => syncApi.command(provider.providerId, value),
-    onSuccess: (_response, value) => {
-      refresh();
+    // Awaiting the refetch keeps the mutation pending until the queued command is on screen, so the
+    // buttons never fall back to "Sync now" in the gap between the click and the new status.
+    onSuccess: async (_response, value) => {
+      await queryClient.invalidateQueries({ queryKey: ["sync", provider.providerId] });
       push(
         value === "full_resync"
           ? "Full resync requested. Your browser re-reads every book on its next check-in."

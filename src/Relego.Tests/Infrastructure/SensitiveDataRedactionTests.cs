@@ -17,6 +17,7 @@ public class SensitiveDataRedactionTests
     [InlineData("ubid-acbuk=123-4567890-1234567", "[redacted]")]
     [InlineData("at-acbuk=AbCdEf123456", "[redacted]")]
     [InlineData("Cookie: session-id=123-4567890-1234567", "Cookie: [redacted]")]
+    [InlineData("Rejected credential: Bearer AbCdEf123456", "Rejected credential: Bearer [redacted]")]
     [InlineData("Authorization: Bearer AbCdEf123456", "Authorization: [redacted]")]
     public void Scrub_WhenTheLineCarriesASecret_RedactsIt(string line, string expected)
     {
@@ -96,6 +97,18 @@ public class SensitiveDataRedactionTests
     }
 
     [Fact]
+    public void Enricher_WhenASecretNamedPropertyHoldsAStructure_ReplacesTheWholeValue()
+    {
+        var logEvent = CreateLogEventWithValues(
+            "Sync failed",
+            ("credentials", new SequenceValue([new ScalarValue("AbCdEf123456")])));
+
+        new SensitiveDataRedactionEnricher().Enrich(logEvent, null!);
+
+        Assert.Equal("[redacted]", Scalar(logEvent, "credentials"));
+    }
+
+    [Fact]
     public void RedactingTextFormatter_WhenTheTemplateBakesInASecret_RedactsTheRenderedLine()
     {
         var formatter = new RedactingTextFormatter(new MessageTemplateTextFormatter(SerilogConfiguration.OutputTemplate));
@@ -132,6 +145,16 @@ public class SensitiveDataRedactionTests
             null,
             new MessageTemplateParser().Parse(template),
             properties.Select(property => new LogEventProperty(property.Name, new ScalarValue(property.Value))));
+
+    private static LogEvent CreateLogEventWithValues(
+        string template,
+        params (string Name, LogEventPropertyValue Value)[] properties) =>
+        new(
+            DateTimeOffset.UnixEpoch,
+            LogEventLevel.Information,
+            null,
+            new MessageTemplateParser().Parse(template),
+            properties.Select(property => new LogEventProperty(property.Name, property.Value)));
 
     private static object? Scalar(LogEvent logEvent, string name) =>
         ((ScalarValue)logEvent.Properties[name]).Value;

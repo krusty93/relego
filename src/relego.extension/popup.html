@@ -71,6 +71,10 @@
         <p class="state" id="state">Reading your saved settings…</p>
       </header>
 
+      <!-- Outside both views on purpose: a warning about the connection has to stay readable in the
+           confirmation too, which is where a paired connection lands. -->
+      <p class="notice" id="notice" role="status" aria-live="polite"></p>
+
       <section class="done" id="done" hidden aria-labelledby="done-title">
         <p class="done__title" id="done-title">Configuration complete</p>
         <p class="done__note">
@@ -143,8 +147,6 @@
         </div>
 
         <p class="hint" id="disclosure"></p>
-
-        <p class="notice" id="notice" role="status" aria-live="polite"></p>
 
         <div class="actions">
           <button class="btn btn--primary" id="save" type="submit">Save</button>

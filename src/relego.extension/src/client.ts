@@ -226,9 +226,14 @@ export class RelegoClient {
     this.token = config.token;
   }
 
-  /** Fetches the provider status. */
-  getStatus(providerId: string): Promise<RelegoStatus> {
-    return this.getJson<RelegoStatus>(`/sync/${encodeURIComponent(providerId)}`);
+  /**
+   * Fetches the provider status.
+   *
+   * The caller may shorten the deadline: the popup is torn down as soon as it loses focus, so it
+   * cannot wait as long as a background job can.
+   */
+  getStatus(providerId: string, timeoutMs?: number): Promise<RelegoStatus> {
+    return this.getJson<RelegoStatus>(`/sync/${encodeURIComponent(providerId)}`, timeoutMs);
   }
 
   /** Lists the validated notebook regions, with the disclosure that travels with them. */
@@ -237,8 +242,8 @@ export class RelegoClient {
   }
 
   /** Sends a GET request with the bearer token. */
-  getJson<T>(path: string): Promise<T> {
-    return this.send<T>(path, "GET");
+  getJson<T>(path: string, timeoutMs?: number): Promise<T> {
+    return this.send<T>(path, "GET", undefined, timeoutMs);
   }
 
   /** Sends a POST request with a JSON body and the bearer token. */
@@ -301,12 +306,12 @@ export class RelegoClient {
     return this.postJson<RelegoHeartbeat>(`/sync/${PROVIDER_ID}/heartbeat`, report);
   }
 
-  private async send<T>(path: string, method: string, body?: unknown): Promise<T> {
+  private async send<T>(path: string, method: string, body?: unknown, timeoutMs = 60_000): Promise<T> {
     const hasBody = body !== undefined;
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       method,
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${this.token}`,

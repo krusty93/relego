@@ -44,8 +44,9 @@ public sealed class StatusCommand(RelegoHttpClient client, ILogger<StatusCommand
         table.AddRow("Kindle Email", FormatKindleEmail(response.KindleEmailConfigured));
         table.AddRow("Delivery Email", FormatDeliveryEmail(response.DeliveryEmailConfigured));
 
-        if (response.KindleCloud is { } kindleCloud)
+        if (ShowsKindleCloud(response.KindleCloud))
         {
+            var kindleCloud = response.KindleCloud!;
             table.AddRow("Kindle Cloud", FormatKindleCloud(kindleCloud));
 
             if (kindleCloud.FailureDetail is { } cloudError)
@@ -82,6 +83,16 @@ public sealed class StatusCommand(RelegoHttpClient client, ILogger<StatusCommand
         configured
             ? "[green]\u2713 Configured[/]"
             : "[grey]Not configured[/]";
+
+    /// <summary>
+    /// Whether the Kindle cloud rows belong in the table. The server always answers with a cloud
+    /// block, and an unconfigured one reads <c>not_connected</c>: that is the absence of a
+    /// connection, not a state worth a row, so the output stays as it was before cloud sync existed.
+    /// </summary>
+    /// <param name="cloud">The cloud block the server reported, if any.</param>
+    /// <returns><c>true</c> when the block describes a connection.</returns>
+    internal static bool ShowsKindleCloud(KindleCloudStatus? cloud) =>
+        cloud is { Status: not "not_connected" };
 
     /// <summary>
     /// Renders the Kindle cloud state on one line, using the same words as the web UI. Progress is

@@ -146,6 +146,22 @@ public sealed class StatusCommandTests : IDisposable
     }
 
     [Theory]
+    [InlineData("not_connected", false)]
+    [InlineData("awaiting_pairing", true)]
+    [InlineData("connected", true)]
+    [InlineData("failed", true)]
+    public void ShowsKindleCloud_HidesTheRowOnlyWhenThereIsNoConnection(string status, bool expected)
+    {
+        Assert.Equal(expected, StatusCommand.ShowsKindleCloud(new KindleCloudStatus { Status = status }));
+    }
+
+    [Fact]
+    public void ShowsKindleCloud_WhenTheServerSentNoBlock_IsFalse()
+    {
+        Assert.False(StatusCommand.ShowsKindleCloud(null));
+    }
+
+    [Theory]
     [InlineData("not_connected", "Not connected")]
     [InlineData("awaiting_pairing", "Waiting for your browser")]
     [InlineData("auth_expired", "Amazon sign-in needed")]

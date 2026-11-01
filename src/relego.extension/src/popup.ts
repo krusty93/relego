@@ -40,6 +40,15 @@ const ATTENTION: Record<string, string> = {
   reminder_due: "It has been a while since your highlights were read.",
 };
 
+/**
+ * How long the popup waits for the status read before it offers the form instead.
+ *
+ * Both views start hidden, so an unresponsive server would otherwise leave the popup blank for as
+ * long as the request is allowed to run. The status call is a local database read, so this is
+ * generous; past it, the user gets the form and a sentence saying what to check.
+ */
+const STATUS_TIMEOUT_MS = 10_000;
+
 /** The elements the popup drives. */
 interface Elements {
   readonly form: HTMLFormElement;
@@ -97,6 +106,10 @@ function say(elements: Elements, text: string, tone: "info" | "warn"): void {
     return;
   }
 
+  // A warning asks the user to act, and a later "it worked" sentence does not answer that ask. Only
+  // another warning, or the Edit gesture, replaces one.
+  if (tone === "info" && elements.notice.dataset["tone"] === "warn") return;
+
   elements.notice.textContent = text;
   elements.notice.dataset["tone"] = tone;
 }
@@ -116,14 +129,14 @@ function clearNotice(elements: Elements): void {
  * Shows one view and hides the other.
  *
  * Cancel is offered only from a configuration that already works, because there is nothing to go
- * back to before the first successful save.
+ * back to before the first successful save. The notice outlives both views, so switching view never
+ * takes a warning away from the user.
  */
 function show(elements: Elements, view: PopupView, paired: boolean): void {
   elements.done.hidden = view !== "done";
   elements.form.hidden = view !== "form";
   elements.cancel.hidden = !paired || view !== "form";
 
-  if (view === "done") clearNotice(elements);
   updateOpenForm(elements);
 }
 
@@ -194,7 +207,7 @@ async function refresh(elements: Elements, state: PopupState): Promise<boolean> 
   elements.serverUrl.value = config.baseUrl;
 
   try {
-    const status = await new RelegoClient(config).getStatus(PROVIDER_ID);
+    const status = await new RelegoClient(config).getStatus(PROVIDER_ID, STATUS_TIMEOUT_MS);
     const region = resolveRegion(status.connection.region?.id ?? null);
     state.currentRegionId = region?.id ?? null;
     state.paired = region !== null;
@@ -210,9 +223,15 @@ async function refresh(elements: Elements, state: PopupState): Promise<boolean> 
     else say(elements, attention, "warn");
 
     return region !== null;
-  } catch {
+  } catch (error) {
     elements.state.textContent = `Relego at ${config.baseUrl} did not answer.`;
-    say(elements, "Check that the server is running and that the address is right.", "warn");
+    say(
+      elements,
+      error instanceof DOMException && error.name === "TimeoutError"
+        ? `Relego did not answer within ${STATUS_TIMEOUT_MS / 1_000} seconds. Check that the server is running, then save again.`
+        : "Check that the server is running and that the address is right.",
+      "warn",
+    );
 
     return false;
   }

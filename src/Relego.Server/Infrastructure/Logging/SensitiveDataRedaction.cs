@@ -27,7 +27,12 @@ internal static partial class SensitiveDataRedaction
     ];
 
     private static readonly (Regex Pattern, string Replacement)[] ValueRules =
-        [(HeaderPattern(), "$1$2" + Redacted), (AmazonCookiePattern(), Redacted), (TokenPattern(), Redacted)];
+    [
+        (HeaderPattern(), "$1$2" + Redacted),
+        (BearerPattern(), "$1$2" + Redacted),
+        (AmazonCookiePattern(), Redacted),
+        (TokenPattern(), Redacted),
+    ];
 
     /// <summary>Whether a log property name marks its value as a secret.</summary>
     /// <param name="name">The property name.</param>
@@ -61,6 +66,11 @@ internal static partial class SensitiveDataRedaction
 
     [GeneratedRegex(@"(?i)\b(cookie|set-cookie|authorization)(\s*[=:]\s*)[^\r\n]*")]
     private static partial Regex HeaderPattern();
+
+    // A credential is still a credential without the header name in front of it: a message that
+    // quotes one, or a property that only holds the scheme and the token, must not reach the file.
+    [GeneratedRegex(@"(?i)\b(bearer)(\s+)[A-Za-z0-9._~+/=-]{8,}")]
+    private static partial Regex BearerPattern();
 
     [GeneratedRegex(@"(?i)\b(session-id|session-token|sess-at-acb|sst-acb|at-acb[a-z0-9-]*|ubid-acb[a-z0-9-]*|x-acb[a-z0-9-]*|lc-acb[a-z0-9-]*)\s*[=:]\s*[^\s;,""']+")]
     private static partial Regex AmazonCookiePattern();
