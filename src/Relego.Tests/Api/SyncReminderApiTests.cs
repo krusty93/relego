@@ -181,14 +181,23 @@ public sealed class SyncReminderApiTests
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
-        var userId = await db.QuerySingleAsync<int>("SELECT user_id FROM sync_connections WHERE id = @Id", new { Id = connectionId });
+        var connection = await db.QuerySingleAsync<(int UserId, string? LastNewContentAt, string? ConnectedAt)>(
+            """
+            SELECT user_id AS UserId, last_new_content_at AS LastNewContentAt, connected_at AS ConnectedAt
+            FROM sync_connections
+            WHERE id = @Id
+            """,
+            new { Id = connectionId });
 
         return await new SyncReminderRepository(db).CreateAsync(
             connectionId,
-            userId,
+            connection.UserId,
             quietSince.ToString("o"),
             new KindleCloudProvider().InactivityReminderDays,
-            DateTimeOffset.UtcNow.ToString("o"));
+            DateTimeOffset.UtcNow.ToString("o"),
+            connection.LastNewContentAt,
+            connection.ConnectedAt)
+            ?? throw new InvalidOperationException("The seeded connection was not active when the reminder was raised.");
     }
 
     private static async Task<long> LiveConnectionIdAsync(RelegoTestApplicationFactory factory)
@@ -204,7 +213,9 @@ public sealed class SyncReminderApiTests
     /// <summary>
     /// Seeds a reminder belonging to a connection the user has already disconnected, creating the
     /// user when this is the first thing the test does. Only one live connection per provider is
-    /// allowed, so a disconnected one has to exist before the test pairs.
+    /// allowed, so a disconnected one has to exist before the test pairs. The row is written directly
+    /// because the repository only raises a reminder for a connection that is still active, and this
+    /// fixture models one raised before the disconnect.
     /// </summary>
     private static async Task<SyncReminder> SeedStaleReminderAsync(RelegoTestApplicationFactory factory)
     {
@@ -222,14 +233,24 @@ public sealed class SyncReminderApiTests
             quietSince.ToString("o"));
 
         await connections.MarkConnectedAsync(connection.Id, quietSince.ToString("o"));
-        await connections.DisconnectAsync(connection.Id);
 
-        return await new SyncReminderRepository(db).CreateAsync(
-            connection.Id,
+        // Re-read so the guard sees the pairing time the update just wrote.
+        var paired = await connections.GetByIdAsync(connection.Id)
+            ?? throw new InvalidOperationException("The seeded connection could not be read back.");
+
+        var reminder = await new SyncReminderRepository(db).CreateAsync(
+            paired.Id,
             userId,
             quietSince.ToString("o"),
             new KindleCloudProvider().InactivityReminderDays,
-            DateTimeOffset.UtcNow.ToString("o"));
+            DateTimeOffset.UtcNow.ToString("o"),
+            paired.LastNewContentAt,
+            paired.ConnectedAt)
+            ?? throw new InvalidOperationException("The stale reminder could not be seeded.");
+
+        await connections.DisconnectAsync(connection.Id);
+
+        return reminder;
     }
 
     private static async Task<string?> DismissedAtAsync(RelegoTestApplicationFactory factory, long reminderId)

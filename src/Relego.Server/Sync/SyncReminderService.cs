@@ -100,7 +100,19 @@ public sealed class SyncReminderService(
             connection.UserId,
             quietSinceText,
             provider.InactivityReminderDays,
-            createdAt);
+            createdAt,
+            connection.LastNewContentAt,
+            connection.ConnectedAt);
+
+        // No row means the connection stopped being the one this sweep read: a sync either ended the
+        // quiet period or disconnected the connection while the sweep was deciding. Nothing is due.
+        if (reminder is null)
+        {
+            logger.LogInformation(
+                "Connection {ConnectionId} changed while the sweep ran; no reminder was raised for it.",
+                connection.Id);
+            return 0;
+        }
 
         logger.LogInformation(
             "Inactivity reminder {ReminderId} raised for connection {ConnectionId} after {Days} quiet days.",
