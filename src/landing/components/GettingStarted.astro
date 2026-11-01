@@ -11,6 +11,11 @@ const steps = [
 		],
 		href: '/docs/import/',
 		link: 'Importing highlights',
+		aside: {
+			text: 'No cable? The browser extension syncs Kindle highlights in the background.',
+			href: '#kindle-sync',
+			link: 'Kindle cloud sync',
+		},
 	},
 	{
 		title: 'Let the server schedule',
@@ -81,6 +86,12 @@ const steps = [
 						hidden={i !== 0}
 					>
 						<p class="start__copy">{step.body}</p>
+						{step.aside && (
+							<p class="start__aside">
+								{step.aside.text}{' '}
+								<a href={step.aside.href}>{step.aside.link}</a>
+							</p>
+						)}
 						<div class="term">
 							<div class="term__bar" aria-hidden="true">
 								<span></span><span></span><span></span>
@@ -266,6 +277,25 @@ const steps = [
 		font-size: 1.125rem;
 		line-height: 1.7;
 		color: var(--color-text);
+	}
+
+	.start__aside {
+		margin: -0.75rem 0 1.75rem;
+		padding-left: 0.9rem;
+		border-left: 2px solid var(--color-accent);
+		font-size: 0.9375rem;
+		line-height: 1.65;
+		color: var(--color-soft);
+	}
+
+	.start__aside a {
+		color: var(--color-link);
+		font-weight: 600;
+		text-underline-offset: 0.2em;
+	}
+
+	.start__aside a:hover {
+		text-decoration: underline;
 	}
 
 	.term {

@@ -7,7 +7,7 @@ test.describe('FAQ Section', () => {
 
 	test('renders 6 FAQ accordion items with visible questions', async ({ page }) => {
 		const items = page.locator('#faq details');
-		await expect(items).toHaveCount(6);
+		await expect(items).toHaveCount(7);
 		// All summaries should be visible
 		for (let i = 0; i < 6; i++) {
 			await expect(items.nth(i).locator('summary')).toBeVisible();
