@@ -174,7 +174,9 @@ function installFetch(state: ServerState): Recorded {
         jsonResponse({
           providerId: PROVIDER_ID,
           status: "connected",
-          region: { id: "us", displayName: "United States", host: us.notebookHost },
+          connection: {
+            region: { id: "us", displayName: "United States", host: us.notebookHost },
+          },
         }),
       );
     }
