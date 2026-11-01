@@ -184,7 +184,10 @@ Computed, not stored: `not_connected` → `awaiting_pairing` → `connected` (id
 terminal/attention states `completed`, `auth_expired`, `failed`, `browser_not_reporting`
 (no heartbeat for the fixed 5-minute staleness window = 5 heartbeats; independent of sync frequency),
 `reminder_due`. Precedence: `auth_expired` > `failed` >
-`browser_not_reporting` > `reminder_due` > `syncing` > `completed` > `connected`.
+`browser_not_reporting` > `syncing` > `reminder_due` > `completed` > `connected`. A running job
+outranks `reminder_due` because progress on a job the user just started is the more immediate truth;
+the open reminder is still returned in the same payload, so the quiet period stays explained rather
+than masking live progress.
 
 ## Derived: Coverage Disclosure
 

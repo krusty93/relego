@@ -418,6 +418,36 @@ test.describe("sync", () => {
     expect(mock.statusCalls).toBeGreaterThan(before);
   });
 
+  test("a running sync keeps its progress and two-second polling while a reminder is open", async ({
+    page,
+  }) => {
+    // The server reports `syncing` for a running job even when a quiet period is still open, and the
+    // reminder rides along in the same payload. The banner explains the quiet period; it must not be
+    // able to mask the progress of the sync the user just started.
+    const mock = await mockSync(
+      page,
+      statusResponse("syncing", { currentJob: job(), reminder: REMINDER }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    const bar = page.getByRole("progressbar", { name: "Sync progress" });
+    await expect(bar).toHaveAttribute("aria-valuenow", "37");
+    await expect(page.getByText("Reading highlights · 37 of 120 books")).toBeVisible();
+
+    // The reminder stays on screen with its own control rather than being suppressed.
+    await expect(page.getByTestId("sync-reminder")).toBeVisible();
+    await expect(page.getByText("Nothing new in 45 days")).toBeVisible();
+
+    // A running job's commands wait for it instead of being offered mid-flight.
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+    await expect(page.getByText("Commands run when this sync finishes.")).toBeVisible();
+
+    const before = mock.statusCalls;
+    await page.waitForTimeout(2_600);
+    expect(mock.statusCalls).toBeGreaterThan(before);
+  });
+
   test("completion names the outcome instead of implying success", async ({ page }) => {
     await mockSync(
       page,

@@ -16,8 +16,10 @@ public static class SyncStatusDerivation
 
     /// <summary>
     /// Derives the status string. Precedence: <c>auth_expired</c> &gt; <c>failed</c> &gt;
-    /// <c>browser_not_reporting</c> &gt; <c>reminder_due</c> &gt; <c>syncing</c> &gt;
-    /// <c>completed</c> &gt; <c>connected</c>.
+    /// <c>browser_not_reporting</c> &gt; <c>syncing</c> &gt; <c>reminder_due</c> &gt;
+    /// <c>completed</c> &gt; <c>connected</c>. A running job outranks <c>reminder_due</c> because a
+    /// job in progress is the more immediate truth: the caller still receives the open reminder
+    /// alongside it, so the quiet period is explained without masking live progress.
     /// </summary>
     /// <param name="connection">The live connection, or <c>null</c> when the user has none.</param>
     /// <param name="currentJob">The running job, or <c>null</c>.</param>
@@ -49,11 +51,11 @@ public static class SyncStatusDerivation
         if (!IsBrowserReporting(connection, now))
             return "browser_not_reporting";
 
-        if (reminderDue)
-            return "reminder_due";
-
         if (currentJob?.Status == "running")
             return "syncing";
+
+        if (reminderDue)
+            return "reminder_due";
 
         if (latest?.Status is "completed_with_changes" or "completed_no_changes")
             return "completed";

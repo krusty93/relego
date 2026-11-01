@@ -44,6 +44,30 @@ public sealed class SyncReminderApiTests
     }
 
     [Fact]
+    public async Task GetStatus_OpenReminderWithARunningJob_ReportsSyncingAndStillReturnsTheReminder()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var reminder = await SeedReminderAsync(factory, quietSince: DateTimeOffset.UtcNow.AddDays(-46));
+        var jobId = await StartJobAsync(client, token);
+
+        var (status, body) = await SendAsync<SyncStatusResponse>(client, HttpMethod.Get, $"/sync/{Provider}");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.NotNull(body);
+
+        // A job the user just started is the more immediate truth than a quiet period that is still
+        // open, so progress is reported rather than masked. The reminder rides along unchanged, which
+        // is what keeps the banner (and its Dismiss action) on screen while the sync runs.
+        Assert.Equal("syncing", body!.Status);
+        Assert.NotNull(body.CurrentJob);
+        Assert.Equal(jobId, body.CurrentJob!.Id);
+        Assert.NotNull(body.Reminder);
+        Assert.Equal(reminder.Id, body.Reminder!.Id);
+    }
+
+    [Fact]
     public async Task GetStatus_NoReminder_ReportsNoneAndNoDerivedStatus()
     {
         using var factory = new RelegoTestApplicationFactory();
@@ -198,6 +222,21 @@ public sealed class SyncReminderApiTests
             connection.LastNewContentAt,
             connection.ConnectedAt)
             ?? throw new InvalidOperationException("The seeded connection was not active when the reminder was raised.");
+    }
+
+    private static async Task<long> StartJobAsync(HttpClient client, string token)
+    {
+        var (status, body) = await SendAsync<SyncJobStartResponse>(
+            client,
+            HttpMethod.Post,
+            $"/sync/{Provider}/jobs",
+            new SyncJobStartRequest { IdempotencyKey = "reminder-running-job", Mode = "routine", Trigger = "manual" },
+            token);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.NotNull(body);
+
+        return body!.JobId;
     }
 
     private static async Task<long> LiveConnectionIdAsync(RelegoTestApplicationFactory factory)

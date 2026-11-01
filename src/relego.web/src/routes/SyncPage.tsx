@@ -107,7 +107,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
     queryKey: ["sync", provider.providerId],
     queryFn: () => syncApi.status(provider.providerId),
     refetchInterval: (query) =>
-      query.state.data?.status === "syncing" ? POLL_RUNNING_MS : POLL_IDLE_MS,
+      query.state.data?.currentJob?.status === "running" ? POLL_RUNNING_MS : POLL_IDLE_MS,
   });
 
   // The allowlist is fixed for a given server and version, so it is read once per session.
