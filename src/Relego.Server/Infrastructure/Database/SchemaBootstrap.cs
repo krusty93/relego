@@ -205,13 +205,18 @@ public sealed class SchemaBootstrap
         command.CommandText = SchemaSql;
         await command.ExecuteNonQueryAsync(cancellationToken);
 
-        await MigrateSingleRunningJobAsync(connection, cancellationToken);
-
         // Migration: add delivery_email column if it doesn't exist (existing databases)
         await MigrateAddDeliveryEmailColumnAsync(connection, cancellationToken);
 
         // Migration: keep the structural diagnostics a failure was reported with (existing databases)
         await EnsureColumnAsync(connection, "sync_jobs", "failure_diagnostics", "TEXT NULL", cancellationToken);
+
+        // Migrations: the columns the running-job migration writes, for a database that predates them
+        await EnsureColumnAsync(connection, "sync_jobs", "failure_code", "TEXT NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "sync_jobs", "ended_at", "TEXT NULL", cancellationToken);
+
+        // Migration: keep at most one running job per connection (existing databases)
+        await MigrateSingleRunningJobAsync(connection, cancellationToken);
     }
 
     /// <summary>Adds a column to an existing table when the database predates it.</summary>
