@@ -90,6 +90,9 @@ Drag and drop your `My Clippings.txt` or `KoboReader.sqlite` file onto the **Imp
 docker compose run --rm relego-cli import "/path/to/My Clippings.txt"
 ```
 
+> [!TIP]
+> The [browser extension](https://relego.app/docs/reference/kindle-extension) syncs your Kindle Notebook in the background, replacing the manual file import.
+
 ### 3. Set up delivery
 
 In the web UI, go to **Settings** and fill in your Kindle email and SMTP server details.
