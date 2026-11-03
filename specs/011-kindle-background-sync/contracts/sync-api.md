@@ -79,7 +79,7 @@ allowlist for the current profile version and the response includes
 | `POST /sync/{providerId}/pair` | Exchange pairing token for activation; body `{ "profileVersion", "regionId" }` → connection `active`, response includes the stored `intervalMinutes` (default 360) for the extension to create its sync alarm. Re-pair with a new token keeps history, interval and (re-sent) region |
 | `PUT /sync/{providerId}/region` | Change region from the extension popup; body `{ "regionId" }`. Same connection/token (no re-pair); running job → `interrupted`; `full_resync` queued; response `{ "region": {…}, "pendingCommand": "full_resync" }` |
 | `POST /sync/{providerId}/heartbeat` | Liveness, fixed cadence **60 s**; body `{ "profileVersion", "appliedIntervalMinutes", "nextSyncDueAt" }`; response `{ "command": "none|sync|full_resync", "region": {…}, "intervalMinutes": 360, "heartbeatSeconds": 60 }` (consumes the single user-requested command). The extension re-creates its `kindle-sync` alarm when `intervalMinutes` differs from `appliedIntervalMinutes`. `heartbeatSeconds` is fixed and **never** derived from the sync frequency; a heartbeat never starts a routine sync |
-| `POST /sync/{providerId}/jobs` | Start job (extension-initiated, incl. routine syncs fired by the sync alarm); body `{ "idempotencyKey", "mode", "trigger" }` with `trigger` ∈ `scheduled|manual|initial|retry|region_change` → `{ "jobId", "knownBooks": [{ "key", "highlightCount" }] }`; replay with same key returns the same job; if a job is already running, that job is returned (**no second concurrent job**, so overlapping/overdue alarm firings coalesce) |
+| `POST /sync/{providerId}/jobs` | Start job (extension-initiated, incl. routine syncs fired by the sync alarm); body `{ "idempotencyKey", "mode", "trigger" }` with `trigger` ∈ `scheduled|manual|initial|retry|region_change` → `{ "jobId", "reused", "status", "knownBooks": [{ "key", "highlightCount" }] }`; keys are stable provider book identifiers scoped to owner/provider/region, never titles. Same-key replay returns the original job, including its terminal status; routine overlap returns the running job (**no second concurrent job**) |
 | `POST /sync/{providerId}/jobs/{jobId}/batches` | Upload batch; idempotent per `batchIndex`; replay returns stored counts |
 | `POST /sync/{providerId}/jobs/{jobId}/progress` | `{ "phase", "booksTotal", "booksDone" }` |
 | `POST /sync/{providerId}/jobs/{jobId}/complete` | Explicit completion `{ "booksTotal", "booksDone", "truncatedBooks" }` |
@@ -103,6 +103,20 @@ allowlist for the current profile version and the response includes
 
 Batch response = existing `SyncResponse` shape (`newHighlights`, `duplicateHighlights`,
 `newBooks`, `newAuthors`) plus `batchIndex` and `replayed: bool`.
+
+The 2 MB limit covers the complete UTF-8 request body, including `batchIndex` and
+`books`. A single highlight that cannot fit fails explicitly rather than producing
+an over-limit upload.
+
+### Restart recovery
+
+The extension only reconstructs and uploads batches for a **new** job (`reused: false`).
+A reused running job coalesces the attempt without uploading. A completed key replay
+is already handled. An abandoned job is interrupted after 15 minutes without progress
+or a committed batch, checked during status/start processing before key replay.
+The next attempt uses a new idempotency key and rebuilds its fingerprint and batches.
+Already committed highlights remain saved; never reuse old batch indexes for a
+newly selected set of books. Browser heartbeats do not count as job progress.
 
 ### Status codes
 

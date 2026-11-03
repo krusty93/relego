@@ -87,6 +87,20 @@ stateDiagram-v2
 A job is never `completed_*` unless the extension sent an explicit completion carrying
 `books_total == books_done`; otherwise it ends `failed`/`interrupted` (no silent success, SC-002).
 
+A partial unique index on `connection_id WHERE status = 'running'` enforces
+single-flight across concurrent database connections. Start-or-reuse and connection
+start side effects share an immediate transaction. On upgrade, surplus legacy
+running rows are interrupted while retaining their batch history and imports.
+
+## `sync_job_activity` -- last observed job progress
+
+Additive sync-owned table: `job_id` (PK/FK), `user_id` (FK), and
+`last_activity_at` (TEXT NOT NULL). Progress updates and successful batch commits
+refresh activity atomically with their job updates. Jobs without an activity row
+fall back to `started_at`. Expiration rechecks the 15-minute inactivity condition
+in its update, so a newer progress report protects a job found by an earlier scan.
+Heartbeats do not refresh this timestamp.
+
 ## `sync_job_batches` — idempotent upload record
 
 | Column | Type | Notes |
@@ -114,6 +128,20 @@ external id within a region is matched before text dedup; identifiers are not as
 across regional catalogs). Legacy highlights have no provenance row and are unaffected.
 The canonical dedup remains `uq_highlights_user_book_text`; this table never replaces or deletes
 highlights.
+
+## `sync_book_highlights` -- provider book fingerprints
+
+Additive mapping with composite primary key
+`(user_id, source_id, region_id, external_key, highlight_id)`; owner and highlight
+are foreign keys, region and external key are required. Each committed highlight
+is associated with the actual provider book key. Fingerprint counts group this
+mapping by key within owner/provider/region; separate provider books may map to
+the same canonical book or highlight without collapsing their identities.
+
+Missing provider keys are not inferred from titles or highlight identifiers.
+Legacy imports without this mapping are reread, not guessed. Repeated and split
+batches cannot multiply a known highlight's count. Canonical book/text dedup stays
+unchanged.
 
 ## `sync_reminders` — Sync Reminder
 

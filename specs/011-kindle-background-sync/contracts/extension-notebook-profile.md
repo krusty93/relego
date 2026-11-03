@@ -22,7 +22,8 @@ sequenceDiagram
     Alarm->>Ext: tick (extension-owned schedule)
     Ext->>Ext: single-flight check (skip if a sync is running)
     Ext->>Srv: start job (idempotencyKey, trigger=scheduled)
-    Srv-->>Ext: jobId + knownBooks (or the already-running job)
+    Srv-->>Ext: jobId + reused + status + knownBooks
+    Note over Ext,Srv: Reused running/completed jobs do not execute again. After stale interruption, start a fresh job/key before rebuilding batches.
     Ext->>Amz: load /notebook (same-origin, user's session)
     alt sign-in page / form detected
         Ext->>Srv: fail(code=auth_expired)
@@ -47,6 +48,13 @@ sign-in is needed the extension opens the notebook tab and waits. It never fills
 3. Each highlight has non-empty text.
 4. Export-limit warning element → `truncated = true` for that book (never an error).
 5. Unrecognized required structure ⇒ `provider_contract_changed` (code + selector id + counts only).
+
+Zero matching annotations are accepted only when the library advertises zero
+highlights; positive or unknown counts without recognized annotation markup are
+a contract failure, not an empty success. Publisher truncation is still permitted.
+Each notebook request has a 60-second abortable deadline, including body reading.
+Routine skipping uses stable provider book keys; a title-derived lookup key is
+never trusted as a fingerprint identity.
 
 ## Failure codes → user recovery (surfaced in the web UI)
 

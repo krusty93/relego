@@ -2,7 +2,7 @@
   "name": "@relego/extension",
   "private": true,
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Relego browser extension: reads Kindle Notebook highlights in the user's own Amazon session and pushes them to the user's Relego server.",
   "scripts": {
     "build": "tsc --noEmit && vite build",

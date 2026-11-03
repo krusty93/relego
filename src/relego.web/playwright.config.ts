@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -7,11 +8,12 @@ import { join, resolve } from "node:path";
 const API_PORT = Number(process.env.RELEGO_E2E_API_PORT ?? 8080);
 export const API_URL = `http://localhost:${API_PORT}`;
 const SERVER_PROJECT = resolve("../Relego.Server/Relego.Server.csproj");
-const PUBLISH_DIRECTORY = join(tmpdir(), "relego-web-e2e-publish");
+const WORKSPACE_ID = createHash("sha256").update(resolve(".")).digest("hex").slice(0, 12);
+const PUBLISH_DIRECTORY = join(tmpdir(), `relego-web-e2e-${WORKSPACE_ID}-publish`);
 const SERVER_DLL = join(PUBLISH_DIRECTORY, "Relego.Server.dll");
 
 // A throwaway database per run, removed here so it is gone before the server boots.
-const DB_PATH = join(tmpdir(), "relego-web-e2e.db");
+const DB_PATH = join(tmpdir(), `relego-web-e2e-${WORKSPACE_ID}.db`);
 for (const suffix of ["", "-wal", "-shm"]) {
   rmSync(DB_PATH + suffix, { force: true });
 }

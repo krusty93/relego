@@ -78,6 +78,15 @@ public sealed class KindleCloudProvider : ICloudSyncProvider
         ]);
 
     /// <inheritdoc />
+    public IReadOnlyList<string> Prerequisites { get; } =
+    [
+        "The Relego server must be reachable from your browser.",
+        "Chrome or Firefox with the Relego extension installed and granted access to your Kindle store domain.",
+        "An active Amazon sign-in in that browser, for the same account that holds your Kindle highlights.",
+        "Your Kindle device or app registered to that same Amazon account.",
+    ];
+
+    /// <inheritdoc />
     public ParseProfile Profile { get; } = new(ProfileVersion, ParseProfile.KindleRegions);
 
     /// <inheritdoc />

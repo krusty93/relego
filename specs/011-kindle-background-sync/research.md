@@ -291,7 +291,7 @@ page (content-script on the Relego origin). Manual paste is the default (fewer p
 
 ## R12. Web management surface vs. CLI
 
-**Decision**: Web UI is primary: new **Sync** route (`/app/sync`) containing connection wizard,
+**Decision**: Web UI is primary: new **Sync** route (`/app/kindle-sync`) containing connection wizard,
 status, progress, resync/retry, disconnect, disclosures, and reminders; a status indicator in
 `AppShell` (equivalent to Readwise's orange dot); the existing `ImportPage` gains a short pointer
 to Kindle cloud sync and keeps the local file upload unchanged. CLI (`relego status`) gets an

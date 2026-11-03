@@ -151,6 +151,12 @@ export interface SyncProviderSummary {
   disclosureVersion: string;
 }
 
+export interface CreateSyncConnectionResponse {
+  providerId: string;
+  /** One-time pairing code. The server returns it exactly once and stores only its hash. */
+  token: string;
+}
+
 export interface SyncRegion {
   id: string;
   displayName: string;

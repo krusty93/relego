@@ -1,5 +1,6 @@
 import type {
   BooksResponse,
+  CreateSyncConnectionResponse,
   ExclusionsResponse,
   HighlightsResponse,
   ImportResponse,
@@ -206,12 +207,21 @@ export const api = {
 };
 
 /**
- * Cloud sync channel calls. `status` reads the provider status payload used by the Sync page; the
- * connect, schedule and command calls are added with the user-story work.
+ * Cloud sync channel calls. `status` reads the provider status payload used by the Sync page;
+ * `createConnection` starts (or re-keys) the pairing and `disconnect` revokes it. The schedule,
+ * command and region calls are added with the user-story work.
  */
 export const syncApi = {
   providers: () => request<SyncProviderSummary[]>("/sync/providers"),
 
   status: (providerId: string) =>
     request<SyncStatusResponse>(`/sync/${encodeURIComponent(providerId)}`),
+
+  createConnection: (providerId: string) =>
+    request<CreateSyncConnectionResponse>(`/sync/${encodeURIComponent(providerId)}/connection`, {
+      method: "POST",
+    }),
+
+  disconnect: (providerId: string) =>
+    request<void>(`/sync/${encodeURIComponent(providerId)}/connection`, { method: "DELETE" }),
 };

@@ -248,7 +248,7 @@ export function HighlightsPage() {
           <button
             className={book ? "btn btn--sm" : "btn"}
             type="button"
-            onClick={() => navigate("/import")}
+            onClick={() => navigate("/app/import")}
           >
             Import highlights
           </button>
