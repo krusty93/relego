@@ -357,7 +357,7 @@ below; Firefox parity of the same behavior is verified by extension tests at imp
 
 **Decision**:
 
-- **Allowed intervals** (minutes): `15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440`; default `360`.
+- **Allowed intervals** (minutes): `15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440`; default `60`.
   One Core constant (`SyncFrequency.AllowedMinutes`) validated server-side, mirrored in the web UI
   and the extension (parity test). All values are ≥ the 30-second browser alarm minimum.
 - **Persistence (server)**: `sync_connections.sync_interval_minutes` (CHECK-constrained). The server

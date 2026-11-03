@@ -31,7 +31,7 @@ erDiagram
 | profile_version | TEXT NULL | parse-profile version last reported by the extension |
 | region_id | TEXT NULL | allowlisted region ID (`us` \| `ca` \| `uk` \| `de` \| `fr` \| `it` \| `es` \| `br`); NULL until the extension pairs; validated server-side against the provider's region profiles, never a client-supplied host. The notebook host is **derived** from the profile, not stored |
 | region_changed_at | TEXT NULL | last region change (drives forced `full_resync` and status text) |
-| sync_interval_minutes | INTEGER NOT NULL DEFAULT 360 | one of `15,30,45,60,120,240,360,720,1080,1440` (CHECK-constrained and validated by the provider); stored and returned only — the **extension** turns it into its `kindle-sync` alarm period; no server schedule is derived from it |
+| sync_interval_minutes | INTEGER NOT NULL DEFAULT 60 | one of `15,30,45,60,120,240,360,720,1080,1440` (CHECK-constrained and validated by the provider); stored and returned only — the **extension** turns it into its `kindle-sync` alarm period; no server schedule is derived from it |
 | schedule_updated_at | TEXT NULL | last frequency change |
 | applied_interval_minutes | INTEGER NULL | frequency the extension last reported as applied to its sync alarm (heartbeat); NULL until reported; display-only |
 | next_sync_due_at | TEXT NULL | next due time of the extension's sync alarm as last reported in a heartbeat; **display-only**, never used to trigger work |

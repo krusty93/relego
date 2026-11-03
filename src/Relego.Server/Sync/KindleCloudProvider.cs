@@ -103,7 +103,7 @@ public sealed class KindleCloudProvider : ICloudSyncProvider
     public SyncFrequencyPolicy Frequency { get; } = new()
     {
         AllowedMinutes = AllowedMinutesList,
-        Default = 360
+        Default = 60
     };
 
     /// <inheritdoc />

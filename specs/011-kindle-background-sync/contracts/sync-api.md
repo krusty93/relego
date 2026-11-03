@@ -1,4 +1,4 @@
-# Contract: Sync REST API
+﻿# Contract: Sync REST API
 
 **Spec**: FR-001–FR-012 | **Conventions**: JSON only; errors are RFC 9457 `application/problem+json`
 with an actionable `detail`; validation errors are HTTP 422 (matches `/highlights/import`).
@@ -32,7 +32,7 @@ Two audiences:
   "status": "syncing",
   "connection": { "state": "active", "connectedAt": "…", "lastHeartbeatAt": "…", "browserReporting": true,
                   "region": { "id": "uk", "displayName": "United Kingdom", "host": "read.amazon.co.uk" } },
-  "schedule": { "intervalMinutes": 360, "allowedIntervalMinutes": [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440],
+  "schedule": { "intervalMinutes": 60, "allowedIntervalMinutes": [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440],
                 "nextRunAt": "…", "pendingCommand": "none" },
   "currentJob": { "id": 41, "mode": "routine", "status": "running", "phase": "reading", "booksTotal": 120, "booksDone": 37, "highlightsNew": 212 },
   "lastCompletedJob": { "id": 40, "status": "completed_no_changes", "endedAt": "…" },
@@ -50,7 +50,9 @@ Two audiences:
 `host` is **derived by the server** from the allowlist and is display-only. `schedule.nextRunAt` is
 the next due time of the **extension's sync alarm** as last reported in a heartbeat (`null` until
 reported or when not `active`; display-only); `schedule.applied` is `true` when the extension has
-reported applying the stored `intervalMinutes`, else the UI shows a pending state;
+reported applying the stored `intervalMinutes`, else the UI shows a pending state. `applied` stays
+true while the Amazon session needs renewing (`auth_expired`) — the alarm still runs the requested
+frequency — while `nextRunAt` stays `null` there because an expired session cannot deliver a run;
 `schedule.pendingCommand` is `none | sync | full_resync` (user-requested only, never created by a
 routine schedule).
 
@@ -77,9 +79,9 @@ public, and a client cannot ask for any other host.
 
 | Method & path | Purpose |
 |---------------|---------|
-| `POST /sync/{providerId}/pair` | Exchange pairing token for activation; body `{ "profileVersion", "regionId" }` → connection `active`, response includes the stored `intervalMinutes` (default 360) for the extension to create its sync alarm. Re-pair with a new token keeps history, interval and (re-sent) region |
+| `POST /sync/{providerId}/pair` | Exchange pairing token for activation; body `{ "profileVersion", "regionId" }` → connection `active`, response includes the stored `intervalMinutes` (default 60) for the extension to create its sync alarm. Re-pair with a new token keeps history, interval and (re-sent) region |
 | `PUT /sync/{providerId}/region` | Change region from the extension popup; body `{ "regionId" }`. Bearer token required (**401** without one). Unknown or host-shaped id → **422** with supported ids; stored region unchanged. Same connection/token (no re-pair); running job → `interrupted`; exactly one `full_resync` queued; frequency, highlights and history unchanged; response `{ "region": {…}, "pendingCommand": "full_resync" }` |
-| `POST /sync/{providerId}/heartbeat` | Liveness, fixed cadence **60 s**; body `{ "profileVersion", "appliedIntervalMinutes", "nextSyncDueAt" }`; response `{ "command": "none|sync|full_resync", "region": {…}, "intervalMinutes": 360, "heartbeatSeconds": 60 }`. Returns the pending command without consuming it; only a newly started matching job acknowledges it (`sync` accepts either mode, `full_resync` requires a full reread). Rejected or coalesced starts leave the command pending. The extension re-creates its `kindle-sync` alarm when `intervalMinutes` differs from `appliedIntervalMinutes`. `heartbeatSeconds` is fixed and **never** derived from the sync frequency; a heartbeat never starts a routine sync |
+| `POST /sync/{providerId}/heartbeat` | Liveness, fixed cadence **60 s**; body `{ "profileVersion", "appliedIntervalMinutes", "nextSyncDueAt" }`; response `{ "command": "none|sync|full_resync", "region": {…}, "intervalMinutes": 60, "heartbeatSeconds": 60 }`. Returns the pending command without consuming it; only a newly started matching job acknowledges it (`sync` accepts either mode, `full_resync` requires a full reread). Rejected or coalesced starts leave the command pending. The extension re-creates its `kindle-sync` alarm when `intervalMinutes` differs from `appliedIntervalMinutes`. `heartbeatSeconds` is fixed and **never** derived from the sync frequency; a heartbeat never starts a routine sync |
 | `POST /sync/{providerId}/jobs` | Start job (extension-initiated, incl. routine syncs fired by the sync alarm); body `{ "idempotencyKey", "mode", "trigger" }` with `trigger` ∈ `scheduled|manual|initial|retry|region_change` → `{ "jobId", "reused", "status", "knownBooks": [{ "key", "highlightCount" }] }`; keys are stable provider book identifiers scoped to owner/provider/region, never titles. Same-key replay returns the original job, including its terminal status; routine overlap returns the running job (**no second concurrent job**) |
 | `POST /sync/{providerId}/jobs/{jobId}/batches` | Upload batch; idempotent per `batchIndex`; replay returns stored counts |
 | `POST /sync/{providerId}/jobs/{jobId}/progress` | `{ "phase", "booksTotal", "booksDone" }` |

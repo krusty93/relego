@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { AsyncSection, EmptyState, ErrorNote, SkeletonRows, Tag } from "../components/ui";
 import { syncApi } from "../lib/api";
-import { formatCount, formatDateTime, plural } from "../lib/format";
+import { describeFrequency, formatCount, formatDateTime, plural } from "../lib/format";
 import { useToasts } from "../lib/toasts";
 import type {
   SyncDisclosure,
@@ -11,12 +11,16 @@ import type {
   SyncJob,
   SyncProviderSummary,
   SyncRegion,
+  SyncScheduleChangeResponse,
   SyncStatusResponse,
 } from "../lib/types";
 
 /** The extension checks in on its own cadence, so the page only polls fast while a job runs. */
 const POLL_RUNNING_MS = 2_000;
 const POLL_IDLE_MS = 30_000;
+
+/** Long enough for a screen reader to register the emptied region before it is filled again. */
+const ANNOUNCE_DELAY_MS = 50;
 
 const PREFERRED_PROVIDER_ID = "kindle-cloud";
 
@@ -173,6 +177,33 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
     disconnect.mutate();
   }
 
+  // The frequency is the extension's to apply, so a stored value is written into the status cache
+  // straight away: the page can then say whether the browser has picked it up yet.
+  const schedule = useMutation({
+    mutationFn: (intervalMinutes: number) =>
+      syncApi.schedule(provider.providerId, intervalMinutes),
+    onSuccess: (response) => {
+      queryClient.setQueryData<SyncStatusResponse>(["sync", provider.providerId], (current) =>
+        current
+          ? {
+              ...current,
+              schedule: {
+                ...current.schedule,
+                intervalMinutes: response.intervalMinutes,
+                applied: response.applied,
+                nextRunAt: response.nextRunAt,
+              },
+            }
+          : current,
+      );
+      refresh();
+    },
+    onError: (error) =>
+      push(error instanceof Error ? error.message : "Could not change the sync frequency.", {
+        tone: "bad",
+      }),
+  });
+
   async function copy(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -231,6 +262,15 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           disconnecting={disconnect.isPending}
           onCommand={(value) => command.mutate(value)}
           pendingCommand={command.isPending ? (command.variables ?? null) : null}
+          onSchedule={async (intervalMinutes) => {
+            try {
+              return await schedule.mutateAsync(intervalMinutes);
+            } catch {
+              // Reported by the mutation's onError; the stored frequency is unchanged.
+              return null;
+            }
+          }}
+          scheduling={schedule.isPending}
         />
       )}
 
@@ -275,6 +315,8 @@ function StatusPanel({
   disconnecting,
   onCommand,
   pendingCommand,
+  onSchedule,
+  scheduling,
 }: {
   data: SyncStatusResponse;
   confirming: boolean;
@@ -284,10 +326,93 @@ function StatusPanel({
   disconnecting: boolean;
   onCommand: (command: "sync" | "full_resync") => void;
   pendingCommand: "sync" | "full_resync" | null;
+  onSchedule: (intervalMinutes: number) => Promise<SyncScheduleChangeResponse | null>;
+  scheduling: boolean;
 }) {
-  const { status, connection, currentJob, lastCompletedJob, failure } = data;
+  const { status, connection, currentJob, lastCompletedJob, failure, schedule } = data;
   const running = currentJob?.status === "running";
   const needsSignIn = status === "auth_expired";
+
+  // The choice is an overlay on the stored frequency: it covers the round trip to the server and
+  // clears once that settles, so an accepted value shows as the stored one and a rejected value
+  // falls back to the frequency the server kept.
+  const [chosen, setChosen] = useState<number | null>(null);
+  const frequency = chosen ?? schedule.intervalMinutes;
+
+  // Saving and the later hand-over to the browser both change what the control means without
+  // moving focus, so each is announced. The region is emptied first and filled on the next tick
+  // because a screen reader ignores text identical to what the region already held, and saving the
+  // same frequency twice must still be confirmed.
+  const [announcement, setAnnouncement] = useState("");
+  const announceTimer = useRef<number | null>(null);
+
+  // Whether the browser has already taken the stored frequency up. A save that comes back applied
+  // is confirmed by its own message, so only a later flip is announced here.
+  const appliedRef = useRef(schedule.applied);
+  const announcedAppliedRef = useRef(schedule.applied);
+
+  useEffect(
+    () => () => {
+      if (announceTimer.current !== null) window.clearTimeout(announceTimer.current);
+    },
+    [],
+  );
+
+  function announce(message: string) {
+    if (announceTimer.current !== null) window.clearTimeout(announceTimer.current);
+
+    setAnnouncement("");
+    announceTimer.current = window.setTimeout(() => setAnnouncement(message), ANNOUNCE_DELAY_MS);
+  }
+
+  async function choose(intervalMinutes: number) {
+    setChosen(intervalMinutes);
+
+    const saved = await onSchedule(intervalMinutes);
+
+    setChosen(null);
+
+    if (!saved) {
+      announce(
+        `Sync frequency not changed. It stays every ${describeFrequency(schedule.intervalMinutes)}.`,
+      );
+      return;
+    }
+
+    announcedAppliedRef.current = saved.applied;
+    appliedRef.current = saved.applied;
+
+    announce(
+      saved.applied
+        ? `Sync frequency saved: every ${describeFrequency(saved.intervalMinutes)}.`
+        : `Sync frequency saved: every ${describeFrequency(saved.intervalMinutes)}. It applies when your browser next reports.`,
+    );
+  }
+
+  useEffect(() => {
+    const wasApplied = appliedRef.current;
+    appliedRef.current = schedule.applied;
+
+    if (!schedule.applied || wasApplied || announcedAppliedRef.current) return;
+
+    announcedAppliedRef.current = true;
+    announce(
+      `Your browser now runs the sync every ${describeFrequency(schedule.intervalMinutes)}.`,
+    );
+  }, [schedule.applied, schedule.intervalMinutes]);
+
+  // A reported due time belongs to the frequency the browser runs, so it is only promised once the
+  // browser has confirmed that frequency. A connection waiting for Amazon sign-in cannot deliver a
+  // run at all, and one whose browser is silent has no timer to promise.
+  const nextRun = !connection.browserReporting
+    ? "Runs when your browser is available."
+    : !schedule.applied
+      ? "Applies when your browser next reports."
+      : needsSignIn
+        ? "Next sync waits until you sign in to Amazon again."
+        : schedule.nextRunAt
+          ? `Next sync ${formatDateTime(schedule.nextRunAt)}, as reported by your browser.`
+          : "Your browser has not reported when the next sync is due.";
 
   return (
     <div className="panel">
@@ -352,6 +477,34 @@ function StatusPanel({
         Your region is set in the Relego extension, which offers only the validated Amazon regions.
         Change it there and the next sync reads the new store.
       </p>
+
+      <div className="field">
+        <label htmlFor="sync-frequency">Sync frequency</label>
+        <select
+          className="control"
+          id="sync-frequency"
+          data-testid="sync-frequency"
+          value={frequency}
+          disabled={scheduling}
+          aria-busy={scheduling || undefined}
+          onChange={(event) => void choose(Number(event.target.value))}
+        >
+          {schedule.allowedIntervalMinutes.map((minutes) => (
+            <option key={minutes} value={minutes}>
+              {describeFrequency(minutes)}
+            </option>
+          ))}
+        </select>
+        <span className="help" data-testid="sync-next-run">
+          {nextRun} Relego's server does not schedule it; your browser holds the timer and runs the
+          sync.
+        </span>
+
+        {/* Mounted before any save so the announcement has a region to arrive in. */}
+        <p className="sr-only" role="status" aria-live="polite" data-testid="sync-frequency-status">
+          {announcement}
+        </p>
+      </div>
 
       <div className="confirm disconnect" role="group" aria-label="Disconnect">
         {confirming ? (
