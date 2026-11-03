@@ -129,18 +129,18 @@ description: "Task list for feature 011 Kindle Background Synchronization"
 
 ### Tests for User Story 4
 
-- [ ] T041 [P] [US4] Region tests in `src/Relego.Tests/Services/KindleRegionTests.cs`: allowlist parity between the server `ParseProfile` and the extension profile; the eight ids resolve to their hosts; `jp`/`cn`/`dk`/`ie`/`pl`, host-shaped strings (`://`, `.`, `/`) and empty are rejected (422) listing the supported ids
-- [ ] T042 [P] [US4] Extension tests in `src/relego.extension/tests/region.test.ts`: the picker lists exactly the eight regions; the optional host permission is requested only for the selected host; the previous region's permission is released on change; a denied permission leaves state unchanged
+- [X] T041 [P] [US4] Region tests in `src/Relego.Tests/Services/KindleRegionTests.cs`: allowlist parity between the server `ParseProfile` and the extension profile; the eight ids resolve to their hosts; `jp`/`cn`/`dk`/`ie`/`pl`, host-shaped strings (`://`, `.`, `/`) and empty are rejected (422) listing the supported ids
+- [X] T042 [P] [US4] Extension tests in `src/relego.extension/tests/region.test.ts`: the picker lists exactly the eight regions; the optional host permission is requested only for the selected host; the previous region's permission is released on change; a denied permission leaves state unchanged
 
 ### Implementation for User Story 4
 
-- [ ] T043 [US4] Implement `GET /sync/{providerId}/regions` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs` (the eight entries with `id`/`displayName`/derived `host` plus the "only these validated hosts are supported" disclosure)
-- [ ] T044 [US4] Implement `PUT /sync/{providerId}/region` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`: same connection and token (no re-pair), cancel a running job as `interrupted`, set `region_id`/`region_changed_at`, queue exactly one `full_resync`, keep interval/highlights/history unchanged
-- [ ] T045 [US4] Include the selected region (id, display name, server-derived host; `null` until paired) in `GET /sync/{providerId}` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`
-- [ ] T046 [US4] Implement the region picker in `src/relego.extension/src/profile.ts` + `src/relego.extension/src/background.ts`: mirror the eight-region allowlist, render the picker in the extension popup with no free-text host input, and call `PUT /region` on change
-- [ ] T047 [US4] Add per-region HTML fixtures in `src/relego.extension/tests/fixtures/<regionId>/` for `ca`, `uk`, `de`, `fr`, `it`, `es`, `br` (library list, book page, truncation warning, sign-in redirect, changed layout, empty), and bump the profile version when fixtures change
-- [ ] T048 [US4] Implement the read-only region display in `src/relego.web/src/routes/SyncPage.tsx` ("Region: Germany (lesen.amazon.de)", change-in-extension hint, "Region: chosen in the extension" before pairing) and the "Supported regions: United States, Canada, United Kingdom, Germany, France, Italy, Spain, Brazil" notice; no region editor or host input
-- [ ] T049 [P] [US4] Add a Playwright spec asserting the region is read-only, no editable host field exists, and the supported-regions notice is shown in `src/relego.web/tests/sync.spec.ts`
+- [X] T043 [US4] Implement `GET /sync/{providerId}/regions` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs` (the eight entries with `id`/`displayName`/derived `host` plus the "only these validated hosts are supported" disclosure)
+- [X] T044 [US4] Implement `PUT /sync/{providerId}/region` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`: same connection and token (no re-pair), cancel a running job as `interrupted`, set `region_id`/`region_changed_at`, queue exactly one `full_resync`, keep interval/highlights/history unchanged
+- [X] T045 [US4] Include the selected region (id, display name, server-derived host; `null` until paired) in `GET /sync/{providerId}` in `src/Relego.Server/Endpoints/CloudSyncEndpoints.cs`
+- [X] T046 [US4] Implement the region picker in `src/relego.extension/src/profile.ts` + `src/relego.extension/src/background.ts`: mirror the eight-region allowlist, render the picker in the extension popup with no free-text host input, and call `PUT /region` on change
+- [X] T047 [US4] Add per-region HTML fixtures in `src/relego.extension/tests/fixtures/<regionId>/` for `ca`, `uk`, `de`, `fr`, `it`, `es`, `br` (library list, book page, truncation warning, sign-in redirect, changed layout, empty), and bump the profile version when fixtures change
+- [X] T048 [US4] Implement the read-only region display in `src/relego.web/src/routes/SyncPage.tsx` ("Region: Germany (lesen.amazon.de)", change-in-extension hint, "Region: chosen in the extension" before pairing) and the "Supported regions: United States, Canada, United Kingdom, Germany, France, Italy, Spain, Brazil" notice; no region editor or host input
+- [X] T049 [P] [US4] Add a Playwright spec asserting the region is read-only, no editable host field exists, and the supported-regions notice is shown in `src/relego.web/tests/sync.spec.ts`
 
 **Checkpoint**: Region selection is enforced end-to-end and independently testable.
 

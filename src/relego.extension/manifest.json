@@ -6,6 +6,10 @@
   "permissions": ["storage", "alarms"],
   "host_permissions": [],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "action": {
+    "default_title": "Relego",
+    "default_popup": "popup.html"
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"

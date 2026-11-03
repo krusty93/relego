@@ -7,7 +7,7 @@
  */
 
 /** Version of the notebook parse profile mirrored by this extension build. */
-export const PROFILE_VERSION = "1";
+export const PROFILE_VERSION = "2";
 
 /**
  * Sync frequencies the server accepts, in minutes. Mirrors
@@ -94,6 +94,13 @@ export const REGIONS: readonly KindleRegion[] = [
     signInHostPatterns: ["www.amazon.com.br"],
   },
 ];
+
+/**
+ * Disclosure shown wherever the supported regions are listed. Mirrors
+ * `KindleCloudProvider.RegionDisclosureText`, the text the server sends with its own region list.
+ */
+export const REGION_DISCLOSURE =
+  "Only these validated hosts are supported; other Amazon regions are unsupported until validated.";
 
 /**
  * Resolves an allowlisted region by id.

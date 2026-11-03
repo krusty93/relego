@@ -20,7 +20,14 @@ public sealed class KindleCloudProvider : ICloudSyncProvider
     public const string DisclosureVersion = "1";
 
     /// <summary>Parse-profile version mirrored by the extension.</summary>
-    public const string ProfileVersion = "1";
+    public const string ProfileVersion = "2";
+
+    /// <summary>
+    /// Disclosure shown with the region allowlist. Japan and China are documented incompatible;
+    /// Denmark, Ireland and Poland have no validated notebook host.
+    /// </summary>
+    public const string RegionDisclosureText =
+        "Only these validated hosts are supported; other Amazon regions are unsupported until validated.";
 
     /// <summary>Maximum highlight text length, in characters.</summary>
     public const int MaxTextLength = 20_000;
@@ -88,6 +95,9 @@ public sealed class KindleCloudProvider : ICloudSyncProvider
 
     /// <inheritdoc />
     public ParseProfile Profile { get; } = new(ProfileVersion, ParseProfile.KindleRegions);
+
+    /// <inheritdoc />
+    public string RegionDisclosure => RegionDisclosureText;
 
     /// <inheritdoc />
     public SyncFrequencyPolicy Frequency { get; } = new()

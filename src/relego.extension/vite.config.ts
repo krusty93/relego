@@ -20,6 +20,7 @@ function copyManifest(): Plugin {
 }
 
 export default defineConfig({
+  base: "./",
   plugins: [copyManifest()],
   build: {
     outDir: "dist",
@@ -30,6 +31,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         background: join(import.meta.dirname, "src", "background.ts"),
+        popup: join(import.meta.dirname, "popup.html"),
       },
       output: {
         entryFileNames: "[name].js",

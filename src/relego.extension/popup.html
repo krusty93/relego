@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Relego</title>
+    <link rel="stylesheet" href="./src/popup.css" />
+  </head>
+  <body>
+    <!--
+      DIRECTION CONTRACT — Relego extension popup (Operate)
+
+      THESIS: A 360-pixel room where one careful decision is made: which Amazon notebook Relego is
+      allowed to read. The popup says what Relego is doing now and lets the user change one thing. It
+      should read like a page out of the Relego book, not like a settings form.
+
+      OWN-WORLD: Relego's world as the app already speaks it. popup.css carries the app's token block
+      (canvas, surface, surface-sunk, ink, ink-muted, ink-subtle, accent-solid, on-accent, border,
+      the t-* and r-* ramps) copied from src/relego.web/src/styles/tokens.css, with the dark theme
+      mapped onto prefers-color-scheme instead of a data-theme attribute. Hairline borders divide;
+      nothing has a shadow. The wordmark is the app's wordmark — lowercase serif with the terracotta
+      dot. Playfair Display cannot load here (extension CSP blocks remote fonts and this build ships
+      no font files), so the stack falls back to Georgia exactly as the token declares.
+
+      STORY: The state sentence is the spine — "Reading United States · read.amazon.com". The form
+      below it is only ever the difference between that sentence and the one the user wants.
+
+      FIRST VIEWPORT: Wordmark, state sentence, the two connection fields, the region picker with the
+      disclosure under it, one terracotta button. All of it above the fold, no scrolling.
+
+      FORM: One column, hairline-separated sections, the app's form vocabulary: `--t-sm` 600 field
+      labels, `--t-xs` help text in ink-subtle, `--control` inputs at `--r-md` with the strong
+      border, one `--btn--primary` in accent-solid, and one `--notice` block for the answer.
+
+      FINISH: Light and dark from prefers-color-scheme; no theme toggle, because the spec does not ask
+      for one and it would add another storage write. Nothing animates, so reduced-motion needs no
+      special case.
+    -->
+    <main class="popup">
+      <header class="head">
+        <h1 class="wordmark"><span class="mark">relego<span class="dot">.</span></span></h1>
+        <p class="state" id="state">Reading your saved settings…</p>
+      </header>
+
+      <form id="settings" novalidate>
+        <h2 class="section">Relego server</h2>
+
+        <div class="field">
+          <label for="serverUrl">Address</label>
+          <input
+            class="control"
+            id="serverUrl"
+            name="serverUrl"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="http://localhost:8080"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="code">One-time code</label>
+          <input
+            class="control"
+            id="code"
+            name="code"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Paste the code Relego shows"
+          />
+        </div>
+
+        <p class="hint">
+          Generate the code in Relego under Sync. It is needed the first time, and whenever the
+          connection has to be made again.
+        </p>
+
+        <h2 class="section">Amazon region</h2>
+
+        <div class="field">
+          <label for="region">Kindle notebook</label>
+          <select class="control" id="region" name="region"></select>
+        </div>
+
+        <p class="hint" id="disclosure"></p>
+
+        <p class="notice" id="notice" role="status" aria-live="polite"></p>
+
+        <button class="btn btn--primary" id="save" type="submit">Save</button>
+      </form>
+    </main>
+
+    <script type="module" src="./src/popup.ts"></script>
+  </body>
+</html>

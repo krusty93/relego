@@ -32,4 +32,18 @@ npm run build   # writes a loadable unpacked extension to dist/
 - No `cookies`, `webRequest`, `tabs`-wide or `<all_urls>` permission. The extension never reads or
   exports Amazon cookies, and page HTML never leaves the browser.
 
+## Choosing a region
+
+The toolbar popup is the only place a region is chosen. It offers the eight validated regions as a
+fixed list — there is no free-text host field anywhere in the extension — and it asks for host access
+only for the region selected, at the moment the user saves. A denied prompt, or a server call that
+fails, leaves the connection reading the region it already read. The popup shows the connection state
+the server reports, which stays the source of truth for the selected region.
+
+Save requests notebook access directly from the user gesture, before any server request. A failed
+pairing keeps the previous server/token and any notebook access that was already granted. A
+replacement one-time code re-pairs even when the server address is unchanged. Successful pairing
+starts an initial sync immediately; changing region queues a full reread, retained until a distinct
+run can start if the browser is still finishing its previous sync.
+
 See `specs/011-kindle-background-sync/` for the feature specification and contracts.
