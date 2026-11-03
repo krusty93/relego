@@ -69,6 +69,10 @@
   box-sizing: border-box;
 }
 
+html {
+  background: var(--canvas);
+}
+
 body {
   width: 360px;
   margin: 0;
@@ -78,6 +82,12 @@ body {
   font-size: var(--t-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Detached in its own window, the document fills the window instead of the toolbar popup's width. */
+body[data-window] {
+  width: auto;
+  min-width: 320px;
 }
 
 .popup {
@@ -93,6 +103,13 @@ body {
   gap: var(--sp-1);
   padding-bottom: var(--sp-3);
   border-bottom: 1px solid var(--border);
+}
+
+.head__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
 }
 
 .wordmark {
@@ -121,9 +138,85 @@ body {
   font-size: var(--t-sm);
 }
 
+.popout {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background: transparent;
+  color: var(--ink-subtle);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.popout:hover {
+  color: var(--ink);
+  background: var(--surface-sunk);
+  border-color: var(--border);
+}
+
+.popout:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.popout svg {
+  display: block;
+}
+
+.popout[hidden] {
+  display: none;
+}
+
 form {
   display: flex;
   flex-direction: column;
+}
+
+/* `hidden` must win over the display rules below, or a view stays on screen. */
+.done[hidden],
+form[hidden],
+.btn[hidden] {
+  display: none;
+}
+
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+.done__title {
+  margin: 0;
+  font-family: var(--font-quote);
+  font-size: var(--t-md);
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.done__note {
+  margin: 0 0 var(--sp-2);
+  color: var(--ink-subtle);
+  font-size: var(--t-xs);
+}
+
+.done__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* The header's rule is the one divider above the form; the first section does not add a second. */
+form > .section:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .section {
@@ -201,6 +294,11 @@ select.control {
   display: block;
 }
 
+/* An empty notice is not a box: never reserve the space for a sentence that is not there. */
+.notice:empty {
+  display: none;
+}
+
 .notice[data-tone="warn"] {
   border-color: var(--border-strong);
   color: var(--ink);
@@ -240,4 +338,30 @@ select.control {
 .btn[disabled] {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-muted);
+}
+
+.btn--ghost:hover:not([disabled]) {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+/* In the form's column the link to Relego is quiet and as wide as its label, so Save stays dominant. */
+.open-relego {
+  align-self: flex-start;
+  margin-bottom: var(--sp-4);
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.actions .btn--primary {
+  flex: 1;
 }

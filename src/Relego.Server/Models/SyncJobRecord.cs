@@ -56,6 +56,9 @@ public sealed class SyncJobRecord
     /// <summary>JSON array of recovery steps, or <c>null</c>.</summary>
     public string? RecoverySteps { get; set; }
 
+    /// <summary>JSON structural diagnostics reported with the failure, or <c>null</c>.</summary>
+    public string? FailureDiagnostics { get; set; }
+
     /// <summary>Job start time, or <c>null</c>.</summary>
     public string? StartedAt { get; set; }
 

@@ -20,7 +20,7 @@ public sealed class KindleCloudProvider : ICloudSyncProvider
     public const string DisclosureVersion = "1";
 
     /// <summary>Parse-profile version mirrored by the extension.</summary>
-    public const string ProfileVersion = "2";
+    public const string ProfileVersion = "4";
 
     /// <summary>
     /// Disclosure shown with the region allowlist. Japan and China are documented incompatible;

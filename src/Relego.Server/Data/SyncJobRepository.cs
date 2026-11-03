@@ -31,6 +31,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
             failure_code         AS FailureCode,
             failure_detail       AS FailureDetail,
             recovery_steps       AS RecoverySteps,
+            failure_diagnostics  AS FailureDiagnostics,
             started_at           AS StartedAt,
             ended_at             AS EndedAt
         FROM sync_jobs
@@ -274,6 +275,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
         string failureCode,
         string? failureDetail,
         string? recoverySteps,
+        string? failureDiagnostics,
         string endedAt) =>
         connection.ExecuteAsync(
             """
@@ -282,6 +284,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
                 failure_code = @FailureCode,
                 failure_detail = @FailureDetail,
                 recovery_steps = @RecoverySteps,
+                failure_diagnostics = @FailureDiagnostics,
                 ended_at = @EndedAt
             WHERE id = @JobId AND status = 'running'
             """,
@@ -292,6 +295,7 @@ public sealed class SyncJobRepository(IDbConnection connection)
                 FailureCode = failureCode,
                 FailureDetail = failureDetail,
                 RecoverySteps = recoverySteps,
+                FailureDiagnostics = failureDiagnostics,
                 EndedAt = endedAt
             });
 

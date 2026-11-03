@@ -1,6 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 import { createHash } from "node:crypto";
-import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -12,11 +11,14 @@ const WORKSPACE_ID = createHash("sha256").update(resolve(".")).digest("hex").sli
 const PUBLISH_DIRECTORY = join(tmpdir(), `relego-web-e2e-${WORKSPACE_ID}-publish`);
 const SERVER_DLL = join(PUBLISH_DIRECTORY, "Relego.Server.dll");
 
-// A throwaway database per run, removed here so it is gone before the server boots.
+// A throwaway database per run. It is deleted by the server command below rather than here: the
+// config module is also imported by the worker and by the global setup, and deleting the file from
+// those processes would pull it out from under the server that already created its schema.
 const DB_PATH = join(tmpdir(), `relego-web-e2e-${WORKSPACE_ID}.db`);
-for (const suffix of ["", "-wal", "-shm"]) {
-  rmSync(DB_PATH + suffix, { force: true });
-}
+
+/** Deletes the throwaway database and its sidecar files without relying on a Unix-only `rm`. */
+const CLEAN_DATABASE =
+  `node -e "const fs=require('node:fs');for(const s of ['','-wal','-shm'])fs.rmSync(process.argv[1]+s,{force:true})" "${DB_PATH}"`;
 export default defineConfig({
   testDir: "./tests",
   globalSetup: "./tests/global-setup.ts",
@@ -43,7 +45,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `dotnet publish "${SERVER_PROJECT}" --configuration Release --output "${PUBLISH_DIRECTORY}" && dotnet "${SERVER_DLL}"`,
+    command: `${CLEAN_DATABASE} && dotnet publish "${SERVER_PROJECT}" --configuration Release --output "${PUBLISH_DIRECTORY}" && dotnet "${SERVER_DLL}"`,
     url: `${API_URL}/healthz/startup`,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,

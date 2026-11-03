@@ -3,7 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { AsyncSection, EmptyState, ErrorNote, SkeletonRows, Tag } from "../components/ui";
 import { syncApi } from "../lib/api";
-import { describeFrequency, formatCount, formatDate, formatDateTime, plural } from "../lib/format";
+import {
+  describeFrequency,
+  formatCount,
+  formatDate,
+  formatDateTime,
+  formatDuration,
+  plural,
+  secondsSince,
+} from "../lib/format";
 import { useToasts } from "../lib/toasts";
 import type {
   SyncDisclosure,
@@ -16,14 +24,59 @@ import type {
   SyncStatusResponse,
 } from "../lib/types";
 
-/** The extension checks in on its own cadence, so the page only polls fast while a job runs. */
-const POLL_RUNNING_MS = 2_000;
+/**
+ * While something is moving the page follows it closely: a running sync, a browser that is pairing,
+ * and a command waiting for the browser's next check-in all change within seconds. Only an idle
+ * connection polls slowly. Polling continues in a background window, because the extension popup
+ * that pairs or the browser running the sync is usually in front of this page.
+ */
+const POLL_ACTIVE_MS = 2_000;
 const POLL_IDLE_MS = 30_000;
 
 /** Long enough for a screen reader to register the emptied region before it is filled again. */
 const ANNOUNCE_DELAY_MS = 50;
 
+/**
+ * How long a check-in gap stops being normal. The extension reports every sixty seconds, so two
+ * minutes of silence means the browser is asleep or closed and the request will wait.
+ */
+const STALE_CHECK_IN_SECONDS = 120;
+
 const PREFERRED_PROVIDER_ID = "kindle-cloud";
+
+/** A command the browser has still to pick up, or `null` when it has none waiting. */
+function queuedCommand(value: string): "sync" | "full_resync" | null {
+  return value === "sync" || value === "full_resync" ? value : null;
+}
+
+/**
+ * Whether the status is changing quickly enough to deserve the active cadence: a running sync, a
+ * browser that is pairing, or a command the browser has still to pick up.
+ */
+function isActive(data: SyncStatusResponse | undefined): boolean {
+  if (data === undefined) return false;
+
+  if (data.status === "syncing" || data.status === "awaiting_pairing" || data.currentJob !== null) {
+    return true;
+  }
+
+  // A queued command is only worth watching while the browser is still checking in; once it stops,
+  // the request can wait for hours and there is nothing new to see.
+  return queuedCommand(data.schedule.pendingCommand) !== null && data.connection.browserReporting;
+}
+
+/** Re-renders on an interval, so elapsed and relative times stay true while something runs. */
+function useNow(intervalMs: number): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), intervalMs);
+
+    return () => window.clearInterval(timer);
+  }, [intervalMs]);
+
+  return now;
+}
 
 const PHASE_LABELS: Record<string, string> = {
   discovering: "Finding your books",
@@ -68,17 +121,16 @@ export function SyncPage() {
 
   return (
     <section className="view" aria-labelledby="sync-h">
-      <div className="view-head">
+      <div className="view-head sync-head">
         <div>
-          <h1 id="sync-h">Sync</h1>
+          <h1 id="sync-h">Kindle Notebook Sync</h1>
           <p>Keep your Kindle Notebook highlights flowing into Relego automatically.</p>
+          <p>
+            <Link to="/app/import">Import a highlights file</Link> instead if you would rather
+            keep it manual.
+          </p>
         </div>
       </div>
-
-      <p className="subtle">
-        Sync is optional. <Link to="/app/import">Import a highlights file</Link> instead if you would
-        rather keep it manual.
-      </p>
 
       <AsyncSection
         isLoading={providers.isLoading}
@@ -106,15 +158,8 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
   const status = useQuery({
     queryKey: ["sync", provider.providerId],
     queryFn: () => syncApi.status(provider.providerId),
-    refetchInterval: (query) =>
-      query.state.data?.currentJob?.status === "running" ? POLL_RUNNING_MS : POLL_IDLE_MS,
-  });
-
-  // The allowlist is fixed for a given server and version, so it is read once per session.
-  const regions = useQuery({
-    queryKey: ["sync", "regions"],
-    queryFn: () => syncApi.regions(provider.providerId),
-    staleTime: Infinity,
+    refetchInterval: (query) => (isActive(query.state.data) ? POLL_ACTIVE_MS : POLL_IDLE_MS),
+    refetchIntervalInBackground: true,
   });
 
   function refresh() {
@@ -167,8 +212,10 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
   // only means "your browser will hear about this", not "the sync already ran".
   const command = useMutation({
     mutationFn: (value: "sync" | "full_resync") => syncApi.command(provider.providerId, value),
-    onSuccess: (_response, value) => {
-      refresh();
+    // Awaiting the refetch keeps the mutation pending until the queued command is on screen, so the
+    // buttons never fall back to "Sync now" in the gap between the click and the new status.
+    onSuccess: async (_response, value) => {
+      await queryClient.invalidateQueries({ queryKey: ["sync", provider.providerId] });
       push(
         value === "full_resync"
           ? "Full resync requested. Your browser re-reads every book on its next check-in."
@@ -253,50 +300,38 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
         {`Sync status: ${STATE_LABELS[data.status] ?? data.status}.`}
       </p>
 
-      {isFirstRun ? null : isPairing ? (
-        <PairingPanel
-          provider={provider}
-          code={code}
-          busy={connect.isPending || disconnect.isPending}
-          onRegenerate={createCode}
-          onCheck={() => void status.refetch()}
-          confirming={confirming === "cancel"}
-          onAsk={() => setConfirming("cancel")}
-          onDismiss={() => setConfirming(null)}
-          onCancel={removeConnection}
-          cancelling={disconnect.isPending}
-          onCopy={copy}
-        />
-      ) : (
-        <StatusPanel
-          data={data}
-          confirming={confirming === "disconnect"}
-          onAsk={() => setConfirming("disconnect")}
-          onDismiss={() => setConfirming(null)}
-          onDisconnect={removeConnection}
-          disconnecting={disconnect.isPending}
-          onCommand={(value) => command.mutate(value)}
-          pendingCommand={command.isPending ? (command.variables ?? null) : null}
-          onDismissReminder={(reminderId) => dismissReminder.mutate(reminderId)}
-          dismissingReminder={dismissReminder.isPending}
-          onSchedule={async (intervalMinutes) => {
-            try {
-              return await schedule.mutateAsync(intervalMinutes);
-            } catch {
-              // Reported by the mutation's onError; the stored frequency is unchanged.
-              return null;
-            }
-          }}
-          scheduling={schedule.isPending}
-        />
-      )}
-
-      <SupportedRegions
-        regions={regions.data?.regions ?? []}
-        disclosure={regions.data?.disclosure}
-      />
-
-      <Disclosures disclosure={data.disclosure} prerequisites={data.prerequisites} />
+      <section className="sync-needs" aria-labelledby="sync-needs-h">
+        <h2 className="section-title" id="sync-needs-h">
+          What this needs
+        </h2>
+        <p>
+          Keep Relego and your browser running, with the extension allowed to access your Kindle
+          Notebook. Sign in to the Amazon account registered on your Kindle device or app.
+        </p>
+        <p>
+          Get the extension from the{" "}
+          <a
+            href="https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Chrome Web Store
+          </a>
+          ,{" "}
+          <a
+            href="https://addons.mozilla.org/en-US/firefox/addon/relego/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Firefox Add-ons
+          </a>
+          , or{" "}
+          <a href="https://github.com/krusty93/relego/releases" target="_blank" rel="noreferrer">
+            GitHub releases
+          </a>
+          .
+        </p>
+      </section>
 
       {isFirstRun ? (
         <div className="section">
@@ -319,32 +354,76 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           </EmptyState>
         </div>
       ) : null}
+
+      {isFirstRun ? null : isPairing ? (
+        <PairingPanel
+          provider={provider}
+          code={code}
+          busy={connect.isPending || disconnect.isPending}
+          onRegenerate={createCode}
+          onCheck={() => void status.refetch()}
+          confirming={confirming === "cancel"}
+          onAsk={() => setConfirming("cancel")}
+          onDismiss={() => setConfirming(null)}
+          onCancel={removeConnection}
+          cancelling={disconnect.isPending}
+          onCopy={copy}
+        />
+      ) : (
+        <StatusPanel
+          data={data}
+          onCopy={copy}
+          confirming={confirming === "disconnect"}
+          onAsk={() => setConfirming("disconnect")}
+          onDismiss={() => setConfirming(null)}
+          onDisconnect={removeConnection}
+          disconnecting={disconnect.isPending}
+          onCommand={(value) => command.mutate(value)}
+          asking={command.isPending ? (command.variables ?? null) : null}
+          onDismissReminder={(reminderId) => dismissReminder.mutate(reminderId)}
+          dismissingReminder={dismissReminder.isPending}
+          onSchedule={async (intervalMinutes) => {
+            try {
+              return await schedule.mutateAsync(intervalMinutes);
+            } catch {
+              // Reported by the mutation's onError; the stored frequency is unchanged.
+              return null;
+            }
+          }}
+          scheduling={schedule.isPending}
+        />
+      )}
+
+      <Disclosures disclosure={data.disclosure} />
     </>
   );
 }
 
 function StatusPanel({
   data,
+  onCopy,
   confirming,
   onAsk,
   onDismiss,
   onDisconnect,
   disconnecting,
   onCommand,
-  pendingCommand,
+  asking,
   onSchedule,
   scheduling,
   onDismissReminder,
   dismissingReminder,
 }: {
   data: SyncStatusResponse;
+  onCopy: (value: string, label: string) => Promise<void>;
   confirming: boolean;
   onAsk: () => void;
   onDismiss: () => void;
   onDisconnect: () => void;
   disconnecting: boolean;
   onCommand: (command: "sync" | "full_resync") => void;
-  pendingCommand: "sync" | "full_resync" | null;
+  /** Command whose request is still in flight; the label reads "Asking your browser…". */
+  asking: "sync" | "full_resync" | null;
   onSchedule: (intervalMinutes: number) => Promise<SyncScheduleChangeResponse | null>;
   scheduling: boolean;
   onDismissReminder: (reminderId: number) => void;
@@ -353,6 +432,13 @@ function StatusPanel({
   const { status, connection, currentJob, lastCompletedJob, failure, schedule, reminder } = data;
   const running = currentJob?.status === "running";
   const needsSignIn = status === "auth_expired";
+  const now = useNow(1_000);
+
+  // A command lives on the server until the browser's next check-in, so it survives a reload; the
+  // mutation's own value covers the moment between the click and the refetch that shows it.
+  const queued = asking ?? queuedCommand(schedule.pendingCommand);
+  const heartbeatAge = secondsSince(connection.lastHeartbeatAt, now);
+  const stale = heartbeatAge !== null && heartbeatAge >= STALE_CHECK_IN_SECONDS;
 
   // The choice is an overlay on the stored frequency: it covers the round trip to the server and
   // clears once that settles, so an accepted value shows as the stored one and a rejected value
@@ -445,7 +531,7 @@ function StatusPanel({
       {needsSignIn ? (
         <AuthExpiredBanner failure={failure} region={connection.region} />
       ) : status === "failed" && failure ? (
-        <FailureNote failure={failure} />
+        <FailureNote failure={failure} onCopy={onCopy} />
       ) : reminder ? (
         <ReminderBanner
           reminder={reminder}
@@ -457,9 +543,18 @@ function StatusPanel({
       <SyncActions
         status={status}
         running={running}
-        pendingCommand={pendingCommand}
+        asking={asking}
+        queued={queued}
         onCommand={onCommand}
       />
+
+      {queued !== null && !running ? (
+        <RequestedNotice
+          command={queued}
+          heartbeatAge={heartbeatAge}
+          stale={stale}
+        />
+      ) : null}
 
       {running && currentJob ? <JobProgress job={currentJob} /> : null}
       {!running && lastCompletedJob ? <Outcome job={lastCompletedJob} /> : null}
@@ -489,11 +584,17 @@ function StatusPanel({
         </dd>
 
         <dt>Last heard from your browser</dt>
-        <dd>
+        <dd data-testid="sync-heartbeat">
           {connection.lastHeartbeatAt ? (
-            <time dateTime={connection.lastHeartbeatAt}>
-              {formatDateTime(connection.lastHeartbeatAt)}
-            </time>
+            <>
+              <time dateTime={connection.lastHeartbeatAt}>
+                {formatDateTime(connection.lastHeartbeatAt)}
+              </time>
+              <span className="subtle">
+                {" "}
+                ({heartbeatAge === null ? "unknown" : `${formatDuration(heartbeatAge)} ago`})
+              </span>
+            </>
           ) : (
             <span className="subtle">Not yet</span>
           )}
@@ -570,17 +671,21 @@ function StatusPanel({
 function SyncActions({
   status,
   running,
-  pendingCommand,
+  asking,
+  queued,
   onCommand,
 }: {
   status: string;
   running: boolean;
-  pendingCommand: "sync" | "full_resync" | null;
+  asking: "sync" | "full_resync" | null;
+  queued: "sync" | "full_resync" | null;
   onCommand: (command: "sync" | "full_resync") => void;
 }) {
-  const busySync = pendingCommand === "sync";
-  const busyFullResync = pendingCommand === "full_resync";
-  const blocked = running || pendingCommand !== null;
+  // Only the round trip to the server is "asking"; once the command is queued the buttons stay
+  // disabled under their own names, because the wait now belongs to the browser.
+  const busySync = asking === "sync";
+  const busyFullResync = asking === "full_resync";
+  const blocked = running || queued !== null;
 
   return (
     <div className="panel-actions">
@@ -614,8 +719,49 @@ function SyncActions({
       <span className="subtle">
         {running
           ? "Commands run when this sync finishes."
-          : "Sync now catches new highlights; full resync re-reads every book."}
+          : queued !== null
+            ? "Waiting for your browser to check in; the buttons come back when it does."
+            : "Sync now catches new highlights; full resync re-reads every book."}
       </span>
+    </div>
+  );
+}
+
+/**
+ * What a queued command is doing while nothing runs yet.
+ *
+ * The extension picks commands up on its fixed check-in, so the honest answer is "waiting" plus the
+ * evidence that the browser is still alive: the age of its last check-in, or a warning when that age
+ * means it has gone away.
+ */
+function RequestedNotice({
+  command,
+  heartbeatAge,
+  stale,
+}: {
+  command: "sync" | "full_resync";
+  heartbeatAge: number | null;
+  stale: boolean;
+}) {
+  const title = command === "full_resync" ? "Full resync requested" : "Sync requested";
+
+  return (
+    <div className="panel-block" data-testid="sync-requested">
+      <p className="outcome">{title}</p>
+      {stale ? (
+        <p className="subtle hint-line">
+          Your browser has not checked in for {formatDuration(heartbeatAge ?? 0)}, so it is not
+          listening. Open the browser where the extension is installed; the request stays queued
+          until it does.
+        </p>
+      ) : (
+        <p className="subtle hint-line">
+          Your browser picks this up on its next check-in, at most a minute away.
+          {heartbeatAge === null
+            ? null
+            : ` Last check-in ${formatDuration(heartbeatAge)} ago.`}
+        </p>
+      )}
     </div>
   );
 }
@@ -726,10 +872,20 @@ function AuthExpiredBanner({
 }
 
 function JobProgress({ job }: { job: SyncJob }) {
+  const now = useNow(1_000);
   const total = job.booksTotal ?? 0;
   const done = job.booksDone ?? 0;
   const determinate = total > 0;
   const ratio = determinate ? Math.min(1, done / total) : 0;
+
+  // The job reports startedAt and a book counter, which is all a remaining time needs: books take
+  // roughly the same time to read, so the rate so far extrapolates. It is withheld until one book is
+  // done, because until then there is no rate to extrapolate.
+  const elapsed = secondsSince(job.startedAt, now);
+  const remaining =
+    elapsed === null || !determinate || done === 0 || done >= total
+      ? null
+      : Math.round(((total - done) * elapsed) / done);
 
   return (
     <div className="panel-block">
@@ -749,6 +905,16 @@ function JobProgress({ job }: { job: SyncJob }) {
           ? `${formatCount(done)} of ${formatCount(total)} books`
           : "counting your books"}{" "}
         · {plural(job.highlightsNew, "new highlight")} so far
+      </p>
+      <p className="subtle hint-line" data-testid="sync-timing">
+        {elapsed === null ? (
+          "Reading now."
+        ) : (
+          <>
+            Running for {formatDuration(elapsed)}
+            {remaining === null ? "." : ` · about ${formatDuration(remaining)} left.`}
+          </>
+        )}
       </p>
     </div>
   );
@@ -790,7 +956,20 @@ const FAILURE_TITLES: Record<string, string> = {
   interrupted: "The sync was interrupted",
 };
 
-function FailureNote({ failure }: { failure: SyncFailure }) {
+function FailureNote({
+  failure,
+  onCopy,
+}: {
+  failure: SyncFailure;
+  onCopy: (value: string, label: string) => Promise<void>;
+}) {
+  const diagnostics = failure.diagnostics;
+  const counts = diagnostics
+    ? Object.entries(diagnostics.counts)
+        .map(([key, value]) => `${key} ${value}`)
+        .join(" · ")
+    : "";
+
   return (
     <div className="callout" data-tone="bad">
       <svg
@@ -816,6 +995,27 @@ function FailureNote({ failure }: { failure: SyncFailure }) {
               <li key={step}>{step}</li>
             ))}
           </ol>
+        ) : null}
+        {diagnostics ? (
+          <div className="diagnostics" data-testid="sync-failure-diagnostics">
+            <span className="label">Diagnostics</span>
+            <div className="secret">
+              <code>{JSON.stringify(diagnostics)}</code>
+              <button
+                className="btn btn--ghost btn--sm"
+                type="button"
+                onClick={() => void onCopy(JSON.stringify(diagnostics), "Diagnostics")}
+              >
+                Copy
+              </button>
+            </div>
+            <p className="subtle">
+              Profile {diagnostics.profileVersion ?? "unknown"} stopped at{" "}
+              <code>{diagnostics.check ?? "an unnamed check"}</code>
+              {counts ? ` with ${counts}` : null}. Copy this into a bug report; it holds no page
+              text.
+            </p>
+          </div>
         ) : null}
       </div>
     </div>
@@ -857,7 +1057,7 @@ function PairingPanel({
         <h2>{STATE_LABELS["awaiting_pairing"]}</h2>
         <p>
           Enter these two values in the Relego extension to connect {provider.displayName}. This page
-          updates by itself as soon as a browser pairs.
+          updates by itself within a couple of seconds of the browser pairing.
         </p>
       </header>
 
@@ -947,83 +1147,24 @@ function PairingPanel({
   );
 }
 
-const COVERAGE_KINDS = ["Coverage", "Sideloaded", "ExportLimit", "Availability"];
+const HOW_IT_WORKS_KINDS = ["Coverage", "Sideloaded", "ExportLimit", "Availability", "Privacy"];
 
-/**
- * The allowlist is the whole story about regions, so the page states it plainly and offers no way
- * to type a host: the server rejects anything outside this list.
- */
-function SupportedRegions({
-  regions,
-  disclosure,
-}: {
-  regions: SyncRegion[];
-  disclosure?: string;
-}) {
-  if (regions.length === 0) {
-    return null;
-  }
-
+function Disclosures({ disclosure }: { disclosure: SyncDisclosure }) {
   return (
-    <p className="notice" data-testid="supported-regions">
-      Supported regions: {regions.map((region) => region.displayName).join(", ")}.{" "}
-      {disclosure ?? "Only these validated hosts are supported."}
-    </p>
-  );
-}
-
-function Disclosures({
-  disclosure,
-  prerequisites,
-}: {
-  disclosure: SyncDisclosure;
-  prerequisites: string[];
-}) {
-  const byKind = (kinds: string[]) => disclosure.items.filter((item) => kinds.includes(item.kind));
-
-  return (
-    <>
-      <section className="section" aria-labelledby="sync-coverage-h">
-        <h2 className="section-title" id="sync-coverage-h">
-          Coverage &amp; limits
-        </h2>
-        <dl className="tips">
-          {byKind(COVERAGE_KINDS).map((item) => (
+    <section className="section" aria-labelledby="sync-coverage-h">
+      <h2 className="section-title" id="sync-coverage-h">
+        How it works
+      </h2>
+      <dl className="tips sync-details">
+        {disclosure.items
+          .filter((item) => HOW_IT_WORKS_KINDS.includes(item.kind))
+          .map((item) => (
             <div className="tip" key={item.kind}>
               <dt>{item.title}</dt>
               <dd>{item.body}</dd>
             </div>
           ))}
-        </dl>
-      </section>
-
-      <section className="section" aria-labelledby="sync-needs-h">
-        <h2 className="section-title" id="sync-needs-h">
-          What this needs
-        </h2>
-        <ul className="plain-list">
-          {prerequisites.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-          {byKind(["Prerequisite"]).map((item) => (
-            <li key={item.kind}>{item.body}</li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="section" aria-labelledby="sync-privacy-h">
-        <h2 className="section-title" id="sync-privacy-h">
-          Privacy
-        </h2>
-        <dl className="tips">
-          {byKind(["Privacy"]).map((item) => (
-            <div className="tip" key={item.kind}>
-              <dt>{item.title}</dt>
-              <dd>{item.body}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-    </>
+      </dl>
+    </section>
   );
 }

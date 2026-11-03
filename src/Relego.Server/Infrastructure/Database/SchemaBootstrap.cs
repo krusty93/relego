@@ -134,6 +134,7 @@ public sealed class SchemaBootstrap
             failure_code         TEXT    NULL,
             failure_detail       TEXT    NULL,
             recovery_steps       TEXT    NULL,
+            failure_diagnostics  TEXT    NULL,
             started_at           TEXT    NULL,
             ended_at             TEXT    NULL
         );
@@ -204,10 +205,43 @@ public sealed class SchemaBootstrap
         command.CommandText = SchemaSql;
         await command.ExecuteNonQueryAsync(cancellationToken);
 
-        await MigrateSingleRunningJobAsync(connection, cancellationToken);
-
         // Migration: add delivery_email column if it doesn't exist (existing databases)
         await MigrateAddDeliveryEmailColumnAsync(connection, cancellationToken);
+
+        // Migration: keep the structural diagnostics a failure was reported with (existing databases)
+        await EnsureColumnAsync(connection, "sync_jobs", "failure_diagnostics", "TEXT NULL", cancellationToken);
+
+        // Migrations: the columns the running-job migration writes, for a database that predates them
+        await EnsureColumnAsync(connection, "sync_jobs", "failure_code", "TEXT NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "sync_jobs", "ended_at", "TEXT NULL", cancellationToken);
+
+        // Migration: keep at most one running job per connection (existing databases)
+        await MigrateSingleRunningJobAsync(connection, cancellationToken);
+    }
+
+    /// <summary>Adds a column to an existing table when the database predates it.</summary>
+    private static async Task EnsureColumnAsync(
+        SqliteConnection connection,
+        string table,
+        string column,
+        string definition,
+        CancellationToken cancellationToken)
+    {
+        await using var pragmaCommand = connection.CreateCommand();
+        pragmaCommand.CommandText = $"PRAGMA table_info({table})";
+        await using var reader = await pragmaCommand.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (string.Equals(reader.GetString(1), column, StringComparison.Ordinal))
+                return;
+        }
+
+        await reader.CloseAsync();
+
+        await using var alterCommand = connection.CreateCommand();
+        alterCommand.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
+        await alterCommand.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task MigrateSingleRunningJobAsync(SqliteConnection connection, CancellationToken cancellationToken)

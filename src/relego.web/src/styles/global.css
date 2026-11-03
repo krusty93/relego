@@ -994,6 +994,32 @@ td {
   color: var(--ink-muted);
 }
 
+.sync-head {
+  margin-bottom: var(--sp-6);
+}
+
+.sync-needs {
+  margin-bottom: var(--sp-6);
+}
+
+.sync-needs p {
+  max-width: none;
+  color: var(--ink-muted);
+}
+
+.sync-needs p + p {
+  margin-top: var(--sp-2);
+}
+
+.sync-details .tip {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-1);
+}
+
+.sync-details dd {
+  max-width: none;
+}
+
 .progress {
   height: 6px;
   border-radius: var(--r-pill);
@@ -1404,6 +1430,26 @@ select.control {
 
 .callout .steps {
   margin: var(--sp-2) 0 0;
+}
+
+.diagnostics {
+  margin-top: var(--sp-3);
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.diagnostics .label {
+  margin: 0;
+}
+
+.diagnostics .subtle {
+  margin: 0;
+  font-size: var(--t-sm);
+  max-width: var(--measure-prose);
+}
+
+.diagnostics code {
+  font-size: var(--t-sm);
 }
 
 .dialog-actions {

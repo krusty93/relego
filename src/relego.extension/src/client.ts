@@ -206,19 +206,34 @@ export class RelegoApiError extends Error {
   }
 }
 
+/**
+ * Strips trailing slashes from a server address, so a path can be appended without doubling them.
+ *
+ * @param baseUrl Server address as the user typed or stored it.
+ * @returns The address without trailing slashes.
+ */
+export function trimBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, "");
+}
+
 /** Typed HTTP client for the Relego cloud-sync channel. */
 export class RelegoClient {
   private readonly baseUrl: string;
   private readonly token: string;
 
   constructor(config: RelegoClientConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/+$/, "");
+    this.baseUrl = trimBaseUrl(config.baseUrl);
     this.token = config.token;
   }
 
-  /** Fetches the provider status. */
-  getStatus(providerId: string): Promise<RelegoStatus> {
-    return this.getJson<RelegoStatus>(`/sync/${encodeURIComponent(providerId)}`);
+  /**
+   * Fetches the provider status.
+   *
+   * The caller may shorten the deadline: the popup is torn down as soon as it loses focus, so it
+   * cannot wait as long as a background job can.
+   */
+  getStatus(providerId: string, timeoutMs?: number): Promise<RelegoStatus> {
+    return this.getJson<RelegoStatus>(`/sync/${encodeURIComponent(providerId)}`, timeoutMs);
   }
 
   /** Lists the validated notebook regions, with the disclosure that travels with them. */
@@ -227,8 +242,8 @@ export class RelegoClient {
   }
 
   /** Sends a GET request with the bearer token. */
-  getJson<T>(path: string): Promise<T> {
-    return this.send<T>(path, "GET");
+  getJson<T>(path: string, timeoutMs?: number): Promise<T> {
+    return this.send<T>(path, "GET", undefined, timeoutMs);
   }
 
   /** Sends a POST request with a JSON body and the bearer token. */
@@ -291,12 +306,12 @@ export class RelegoClient {
     return this.postJson<RelegoHeartbeat>(`/sync/${PROVIDER_ID}/heartbeat`, report);
   }
 
-  private async send<T>(path: string, method: string, body?: unknown): Promise<T> {
+  private async send<T>(path: string, method: string, body?: unknown, timeoutMs = 60_000): Promise<T> {
     const hasBody = body !== undefined;
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       method,
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${this.token}`,

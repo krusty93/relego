@@ -10,6 +10,7 @@ namespace Relego.Server.Sync;
 /// </summary>
 public static class SyncFailureRecovery
 {
+    private const int MaxCodeLength = 64;
     private const int MaxProfileVersionLength = 32;
     private const int MaxCheckLength = 128;
     private const int MaxCountKeyLength = 64;
@@ -85,6 +86,27 @@ public static class SyncFailureRecovery
         }
 
         return StepsFor(code);
+    }
+
+    /// <summary>
+    /// Validates the stable failure code, returning an actionable error when it is empty, too
+    /// long, or is not a plain identifier. The code reaches the log and the stored failure, so a
+    /// newline or a control character must never be accepted.
+    /// </summary>
+    /// <param name="code">The trimmed failure code.</param>
+    /// <returns>An error message, or <c>null</c> when the code is acceptable.</returns>
+    public static string? ValidateCode(string? code)
+    {
+        if (string.IsNullOrEmpty(code))
+            return "code must not be empty.";
+
+        if (code.Length > MaxCodeLength)
+            return $"code must be at most {MaxCodeLength} characters.";
+
+        if (!IsIdentifier(code, MaxCodeLength))
+            return "code must use letters, digits, '_', '-', '.', '#', '[', ']', '>' or ':' only.";
+
+        return null;
     }
 
     /// <summary>

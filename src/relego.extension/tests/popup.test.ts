@@ -9,6 +9,7 @@ function createElement(value = "") {
   return {
     value,
     disabled: false,
+    hidden: false,
     textContent: "",
     dataset: {} as Record<string, string>,
     replaceChildren: vi.fn(),
@@ -16,9 +17,15 @@ function createElement(value = "") {
   };
 }
 
-async function loadPopup(paired = true) {
+async function loadPopup(paired = true, options: { status?: string; statusError?: unknown } = {}) {
   const elements = {
     settings: createElement(),
+    done: createElement(),
+    edit: createElement(),
+    openDone: createElement(),
+    openForm: createElement(),
+    popout: createElement(),
+    cancel: createElement(),
     state: createElement(),
     serverUrl: createElement(),
     code: createElement(),
@@ -36,6 +43,7 @@ async function loadPopup(paired = true) {
     getElementById: (id: string) => elements[id as keyof typeof elements],
     createElement: () => createElement(),
   });
+  vi.stubGlobal("location", { search: "" });
   vi.stubGlobal("chrome", {
     storage: { local: { get, set: writes } },
     permissions: {
@@ -61,16 +69,20 @@ async function loadPopup(paired = true) {
       regionId = body.regionId;
       return Response.json({ pendingCommand: "full_resync" });
     }
+    if (options.statusError !== undefined) throw options.statusError;
     return Response.json({
       providerId: "kindle-cloud",
-      status: "connected",
+      status: options.status ?? "connected",
       connection: { region: { id: regionId, displayName: "United States", host: "read.amazon.com" } },
     });
   });
   vi.stubGlobal("fetch", fetch);
   vi.resetModules();
   await import("../src/popup");
-  await vi.waitFor(() => expect(elements.settings.addEventListener).toHaveBeenCalledWith("submit", expect.any(Function)));
+  await vi.waitFor(() => {
+    expect(elements.settings.addEventListener).toHaveBeenCalledWith("submit", expect.any(Function));
+    expect(elements.save.disabled).toBe(false);
+  });
   const submit = elements.settings.addEventListener.mock.calls[0]?.[1] as (event: { preventDefault(): void }) => void;
 
   return {
@@ -169,5 +181,24 @@ describe("popup configuration", () => {
 
     expect(popup.stored).toEqual({ serverUrl: SERVER, token: "new-code" });
     expect(popup.elements.notice.textContent).toContain("Saved, but the background sync could not be started");
+  });
+
+  it("keeps a warning about the connection readable in the confirmation view", async () => {
+    const popup = await loadPopup(true, { status: "auth_expired" });
+
+    expect(popup.elements.done.hidden).toBe(false);
+    expect(popup.elements.settings.hidden).toBe(true);
+    expect(popup.elements.notice.dataset["tone"]).toBe("warn");
+    expect(popup.elements.notice.textContent).toContain("Amazon sign-in needed");
+  });
+
+  it("offers the form when the status read does not finish in time", async () => {
+    const popup = await loadPopup(true, {
+      statusError: new DOMException("timed out", "TimeoutError"),
+    });
+
+    expect(popup.elements.settings.hidden).toBe(false);
+    expect(popup.elements.done.hidden).toBe(true);
+    expect(popup.elements.notice.textContent).toContain("did not answer within 10 seconds");
   });
 });

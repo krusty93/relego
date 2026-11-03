@@ -151,7 +151,7 @@ public sealed class SyncJobRepositoryTests
             Assert.Equal(1, await repo.InterruptAsync(job.Id, now.ToString("o"), now.AddMinutes(-15).ToString("o")));
             Assert.Equal(0, await repo.UpdatePhaseAsync(job.Id, "reading", 1, 1, now.ToString("o")));
             Assert.Equal(0, await repo.CompleteAsync(job.Id, "completed_no_changes", 1, 1, 0, now.ToString("o")));
-            Assert.Equal(0, await repo.FailAsync(job.Id, "failed", "network", null, null, now.ToString("o")));
+            Assert.Equal(0, await repo.FailAsync(job.Id, "failed", "network", null, null, null, now.ToString("o")));
             Assert.Equal("interrupted", (await repo.GetByIdAsync(job.Id))!.Status);
             Assert.Equal(0, await db.QuerySingleAsync<int>("SELECT COUNT(*) FROM sync_job_activity"));
         }
