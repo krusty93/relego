@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
-import { AsyncSection, EmptyState, ErrorNote, SkeletonRows } from "../components/ui";
+import { AsyncSection, EmptyState, ErrorNote, SkeletonRows, Tag } from "../components/ui";
 import { syncApi } from "../lib/api";
 import { formatCount, formatDateTime, plural } from "../lib/format";
 import { useToasts } from "../lib/toasts";
@@ -10,6 +10,7 @@ import type {
   SyncFailure,
   SyncJob,
   SyncProviderSummary,
+  SyncRegion,
   SyncStatusResponse,
 } from "../lib/types";
 
@@ -136,6 +137,23 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
     onSettled: () => { actionPending.current = false; },
   });
 
+  // Commands are queued server-side and picked up by the extension's next heartbeat, so success
+  // only means "your browser will hear about this", not "the sync already ran".
+  const command = useMutation({
+    mutationFn: (value: "sync" | "full_resync") => syncApi.command(provider.providerId, value),
+    onSuccess: (_response, value) => {
+      refresh();
+      push(
+        value === "full_resync"
+          ? "Full resync requested. Your browser re-reads every book on its next check-in."
+          : "Sync requested. Your browser starts on its next check-in.",
+      );
+    },
+    onError: (error) =>
+      push(error instanceof Error ? error.message : "Could not ask your browser to sync.", {
+        tone: "bad",
+      }),
+  });
   function createCode() {
     if (actionPending.current) return;
     actionPending.current = true;
@@ -204,6 +222,8 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
           onDismiss={() => setConfirming(null)}
           onDisconnect={removeConnection}
           disconnecting={disconnect.isPending}
+          onCommand={(value) => command.mutate(value)}
+          pendingCommand={command.isPending ? (command.variables ?? null) : null}
         />
       )}
 
@@ -241,6 +261,8 @@ function StatusPanel({
   onDismiss,
   onDisconnect,
   disconnecting,
+  onCommand,
+  pendingCommand,
 }: {
   data: SyncStatusResponse;
   confirming: boolean;
@@ -248,9 +270,12 @@ function StatusPanel({
   onDismiss: () => void;
   onDisconnect: () => void;
   disconnecting: boolean;
+  onCommand: (command: "sync" | "full_resync") => void;
+  pendingCommand: "sync" | "full_resync" | null;
 }) {
   const { status, connection, currentJob, lastCompletedJob, failure } = data;
-  const running = status === "syncing" && currentJob !== null;
+  const running = currentJob?.status === "running";
+  const needsSignIn = status === "auth_expired";
 
   return (
     <div className="panel">
@@ -258,6 +283,19 @@ function StatusPanel({
         <h2>{STATE_LABELS[status] ?? "Sync"}</h2>
         <p>{STATE_SUMMARIES[status] ?? "Sync runs from the Relego browser extension."}</p>
       </header>
+
+      {needsSignIn ? (
+        <AuthExpiredBanner failure={failure} region={connection.region} />
+      ) : status === "failed" && failure ? (
+        <FailureNote failure={failure} />
+      ) : null}
+
+      <SyncActions
+        status={status}
+        running={running}
+        pendingCommand={pendingCommand}
+        onCommand={onCommand}
+      />
 
       {running && currentJob ? <JobProgress job={currentJob} /> : null}
       {!running && lastCompletedJob ? <Outcome job={lastCompletedJob} /> : null}
@@ -286,8 +324,6 @@ function StatusPanel({
         </dd>
       </dl>
 
-      {failure ? <FailureNote failure={failure} /> : null}
-
       <div className="confirm disconnect" role="group" aria-label="Disconnect">
         {confirming ? (
           <>
@@ -312,6 +348,119 @@ function StatusPanel({
             Disconnect
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The explicit next step for the state the user is looking at. Commands are queued server-side and
+ * consumed by the extension's next heartbeat, so the row says what will happen rather than
+ * pretending the sync already started.
+ */
+function SyncActions({
+  status,
+  running,
+  pendingCommand,
+  onCommand,
+}: {
+  status: string;
+  running: boolean;
+  pendingCommand: "sync" | "full_resync" | null;
+  onCommand: (command: "sync" | "full_resync") => void;
+}) {
+  const busySync = pendingCommand === "sync";
+  const busyFullResync = pendingCommand === "full_resync";
+  const blocked = running || pendingCommand !== null;
+
+  return (
+    <div className="panel-actions">
+      <button
+        className="btn btn--primary"
+        type="button"
+        disabled={blocked}
+        aria-busy={busySync || undefined}
+        onClick={() => onCommand("sync")}
+      >
+        {busySync ? "Asking your browser…" : status === "auth_expired" ? "Retry sync" : "Sync now"}
+      </button>
+
+      <button
+        className="btn"
+        type="button"
+        disabled={blocked}
+        aria-busy={busyFullResync || undefined}
+        title="Re-reads every book in your Kindle Notebook, not just the ones that changed."
+        onClick={() => onCommand("full_resync")}
+      >
+        {busyFullResync ? "Asking your browser…" : "Full resync"}
+      </button>
+
+      {status === "failed" ? (
+        <Link className="btn btn--ghost" to="/app/import">
+          Import a file instead
+        </Link>
+      ) : null}
+
+      <span className="subtle">
+        {running
+          ? "Commands run when this sync finishes."
+          : "Sync now catches new highlights; full resync re-reads every book."}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Sign-in is the one failure the user fixes outside Relego, so the banner points at the notebook on
+ * their own Amazon region and keeps the explanation short.
+ */
+function AuthExpiredBanner({
+  failure,
+  region,
+}: {
+  failure: SyncFailure | null;
+  region: SyncRegion | null;
+}) {
+  const notebookUrl = region?.host ? `https://${region.host}/notebook` : null;
+
+  return (
+    <div className="callout" data-tone="warn">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d="M12 3.5 2.8 19.5h18.4L12 3.5Z" />
+        <path d="M12 10v4.2M12 17.1v.6" />
+      </svg>
+      <div>
+        <p>
+          <strong>Amazon asked for a sign-in</strong>
+          {failure?.detail ? ` — ${failure.detail}` : " — the notebook could not be read."}
+        </p>
+        {failure && failure.recoverySteps.length > 0 ? (
+          <ol className="steps">
+            {failure.recoverySteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        ) : null}
+        <p className="subtle">
+          {notebookUrl ? (
+            <>
+              <a href={notebookUrl} target="_blank" rel="noreferrer noopener">
+                Open your Kindle Notebook
+                <span className="sr-only"> (opens Amazon in a new tab)</span>
+              </a>{" "}
+              and sign in there.{" "}
+            </>
+          ) : null}
+          Relego never sees your Amazon password.
+        </p>
       </div>
     </div>
   );
@@ -373,6 +522,15 @@ function outcomeText(job: SyncJob): string {
     : "Nothing new — Relego already had every highlight in this sync.";
 }
 
+/** The failure codes are stable, so the page owns the sentence the user actually reads. */
+const FAILURE_TITLES: Record<string, string> = {
+  auth_expired: "Amazon signed your browser out",
+  provider_contract_changed: "Amazon changed the Kindle Notebook page",
+  network: "Relego could not reach Amazon or your server",
+  server_rejected: "Your server refused part of the sync",
+  interrupted: "The sync was interrupted",
+};
+
 function FailureNote({ failure }: { failure: SyncFailure }) {
   return (
     <div className="callout" data-tone="bad">
@@ -389,7 +547,8 @@ function FailureNote({ failure }: { failure: SyncFailure }) {
       </svg>
       <div>
         <p>
-          <strong>{failure.code}</strong>
+          <strong>{FAILURE_TITLES[failure.code] ?? "The last sync did not finish"}</strong>{" "}
+          <Tag tone="bad">{failure.code}</Tag>
           {failure.detail ? ` — ${failure.detail}` : null}
         </p>
         {failure.recoverySteps.length > 0 ? (

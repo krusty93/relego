@@ -154,7 +154,7 @@ export interface RelegoHeartbeatReport {
 
 /** Heartbeat response carrying the stored schedule and any user-requested command. */
 export interface RelegoHeartbeat {
-  /** `none`, `sync` or `full_resync`; consumed on read. */
+  /** `none`, `sync` or `full_resync`; acknowledged when matching work starts. */
   readonly command: string;
   /** Region the server stored for this connection. */
   readonly region: RelegoRegion | null;

@@ -1,14 +1,35 @@
 /**
  * Configuration helpers backed by `chrome.storage.local`.
  *
- * Only the Relego server URL and the pairing token are stored; no Amazon data (cookies, session,
- * page content) is ever written to storage.
+ * The server URL, pairing token and pending auth-retry mode are stored; no Amazon data (cookies,
+ * session, page content) is ever written to storage.
  */
 
 import type { RelegoClientConfig } from "./client";
+import type { SyncMode } from "./sync-runner";
 
 const SERVER_URL_KEY = "serverUrl";
 const TOKEN_KEY = "token";
+const AUTH_RETRY_MODE_KEY = "authRetryMode";
+
+/** Reads the interrupted sync mode, or `null` when no authentication retry is pending. */
+export async function readAuthRetryMode(): Promise<SyncMode | null> {
+  const stored = await chrome.storage.local.get(AUTH_RETRY_MODE_KEY);
+  const mode = stored[AUTH_RETRY_MODE_KEY];
+  if (mode === undefined) return null;
+  if (mode === "routine" || mode === "full_resync") return mode;
+  throw new Error("Stored authentication retry mode is invalid.");
+}
+
+/** Persists the interrupted sync mode before arming the authentication retry. */
+export async function writeAuthRetryMode(mode: SyncMode): Promise<void> {
+  await chrome.storage.local.set({ [AUTH_RETRY_MODE_KEY]: mode });
+}
+
+/** Removes the interrupted mode once authentication recovery is no longer needed. */
+export async function clearAuthRetryMode(): Promise<void> {
+  await chrome.storage.local.remove(AUTH_RETRY_MODE_KEY);
+}
 
 /** Reads the stored server configuration, or `null` when the extension is not paired. */
 export async function readConfig(): Promise<RelegoClientConfig | null> {
@@ -32,5 +53,5 @@ export async function writeConfig(config: RelegoClientConfig): Promise<void> {
 
 /** Clears the stored server configuration. */
 export async function clearConfig(): Promise<void> {
-  await chrome.storage.local.remove([SERVER_URL_KEY, TOKEN_KEY]);
+  await chrome.storage.local.remove([SERVER_URL_KEY, TOKEN_KEY, AUTH_RETRY_MODE_KEY]);
 }
