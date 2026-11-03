@@ -67,6 +67,15 @@ const REGION_DISCLOSURE =
 // The ten choices of FR-025, in the order the page offers them.
 const ALLOWED_INTERVALS = [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440];
 
+/** An open reminder for a quiet period that started 45 days before the stubbed "now". */
+const REMINDER = {
+  id: 7,
+  quietSince: "2024-03-17T09:00:00Z",
+  thresholdDays: 45,
+  createdAt: "2024-05-01T03:00:00Z",
+  dismissed: false,
+};
+
 const FREQUENCY_LABELS = [
   "15 minutes",
   "30 minutes",
@@ -154,6 +163,8 @@ interface SyncMock {
   requests: string[];
   commands: string[];
   statusCalls: number;
+  /** Dismissals the page has sent, in order. */
+  dismissals: string[];
   /** Frequencies the page has sent, in order. */
   scheduleRequests: number[];
   /** The frequency the extension has reported applying; the server only echoes it back. */
@@ -170,6 +181,7 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
     requests: [],
     commands: [],
     statusCalls: 0,
+    dismissals: [],
     scheduleRequests: [],
     appliedInterval: initialSchedule.applied ? initialSchedule.intervalMinutes : null,
     rejectInterval: null,
@@ -213,6 +225,14 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
 
     if (path.endsWith("/regions")) {
       await route.fulfill({ json: { regions: REGIONS, disclosure: REGION_DISCLOSURE } });
+      return;
+    }
+
+    // Dismissing answers the reminder for this quiet period only, so the next status read drops it.
+    if (path.endsWith("/dismiss")) {
+      mock.dismissals.push(`${request.method()} ${path}`);
+      mock.status = { ...mock.status, reminder: null };
+      await route.fulfill({ status: 204 });
       return;
     }
 
@@ -398,6 +418,36 @@ test.describe("sync", () => {
     expect(mock.statusCalls).toBeGreaterThan(before);
   });
 
+  test("a running sync keeps its progress and two-second polling while a reminder is open", async ({
+    page,
+  }) => {
+    // The server reports `syncing` for a running job even when a quiet period is still open, and the
+    // reminder rides along in the same payload. The banner explains the quiet period; it must not be
+    // able to mask the progress of the sync the user just started.
+    const mock = await mockSync(
+      page,
+      statusResponse("syncing", { currentJob: job(), reminder: REMINDER }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    const bar = page.getByRole("progressbar", { name: "Sync progress" });
+    await expect(bar).toHaveAttribute("aria-valuenow", "37");
+    await expect(page.getByText("Reading highlights · 37 of 120 books")).toBeVisible();
+
+    // The reminder stays on screen with its own control rather than being suppressed.
+    await expect(page.getByTestId("sync-reminder")).toBeVisible();
+    await expect(page.getByText("Nothing new in 45 days")).toBeVisible();
+
+    // A running job's commands wait for it instead of being offered mid-flight.
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+    await expect(page.getByText("Commands run when this sync finishes.")).toBeVisible();
+
+    const before = mock.statusCalls;
+    await page.waitForTimeout(2_600);
+    expect(mock.statusCalls).toBeGreaterThan(before);
+  });
+
   test("completion names the outcome instead of implying success", async ({ page }) => {
     await mockSync(
       page,
@@ -499,8 +549,58 @@ test.describe("sync", () => {
     }
   });
 
+  test("a quiet period is named with both ways out and a control that clears it", async ({
+    page,
+  }) => {
+    const mock = await mockSync(page, statusResponse("reminder_due", { reminder: REMINDER }));
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    // The date is asserted through the machine-readable attribute so the spec does not depend on
+    // the browser's locale.
+    const reminder = page.getByTestId("sync-reminder");
+    await expect(page.getByText("Nothing new in 45 days")).toBeVisible();
+    await expect(page.locator("time[datetime='2024-03-17T09:00:00Z']")).toBeVisible();
+    await expect(reminder.getByRole("link", { name: "import a highlights file" })).toHaveAttribute(
+      "href",
+      "/app/import",
+    );
+
+    await reminder.getByRole("button", { name: "Dismiss" }).click();
+
+    await expect
+      .poll(() => mock.dismissals)
+      .toEqual(["POST /sync/kindle-cloud/reminders/7/dismiss"]);
+    // The banner is the reminder, so it has to be gone on the next read rather than re-rendered.
+    await expect(page.getByTestId("sync-reminder")).toHaveCount(0);
+    await expect(
+      page.getByText("Reminder dismissed. It comes back only if nothing new arrives again."),
+    ).toBeVisible();
+  });
+
+  test("a sign-in problem outranks the quiet-period reminder instead of stacking on it", async ({
+    page,
+  }) => {
+    await mockSync(
+      page,
+      statusResponse("auth_expired", {
+        reminder: REMINDER,
+        failure: {
+          code: "auth_expired",
+          detail: "Amazon signed this browser out, so the notebook could not be read.",
+          recoverySteps: ["Open your Kindle Notebook in this browser and sign in to Amazon."],
+          occurredAt: "2024-05-01T10:07:00Z",
+        },
+      }),
+    );
+    await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
+
+    await expect(page.locator(".callout")).toHaveCount(1);
+    await expect(page.getByText("Amazon asked for a sign-in")).toBeVisible();
+    await expect(page.getByTestId("sync-reminder")).toHaveCount(0);
+  });
+
   test("disconnecting asks first and promises the highlights stay", async ({ page }) => {
-    const mock = await mockSync(page, statusResponse("connected"));
+  const mock = await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     await page.getByRole("button", { name: "Disconnect" }).click();

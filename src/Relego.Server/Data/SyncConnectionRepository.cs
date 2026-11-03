@@ -45,6 +45,19 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             """,
             new { UserId = userId, ProviderId = providerId });
 
+    /// <summary>
+    /// Returns every active connection across all users. The inactivity sweep works per connection
+    /// rather than per user, because each connection carries its own quiet period.
+    /// </summary>
+    /// <returns>The active connections, ordered by id.</returns>
+    public async Task<IReadOnlyList<SyncConnection>> ListActiveAsync()
+    {
+        var rows = await connection.QueryAsync<SyncConnection>(
+            $"{SelectColumns} WHERE state = 'active' ORDER BY id");
+
+        return rows.AsList();
+    }
+
     /// <summary>Returns a connection by id, including disconnected rows, or <c>null</c>.</summary>
     public Task<SyncConnection?> GetByIdAsync(long id) =>
         connection.QuerySingleOrDefaultAsync<SyncConnection>(
@@ -201,6 +214,16 @@ public sealed class SyncConnectionRepository(IDbConnection connection)
             WHERE id = @Id
             """,
             new { Id = id, CompletedAt = completedAt, NewContentAt = newContentAt });
+
+    /// <summary>
+    /// Records that new content arrived, without claiming the job completed. A batch that imports
+    /// highlights ends the quiet period even when a later batch or the completion request never
+    /// arrives, so the reminder cannot outlive the content that already reached the library.
+    /// </summary>
+    public Task RecordNewContentAsync(long id, string newContentAt) =>
+        connection.ExecuteAsync(
+            "UPDATE sync_connections SET last_new_content_at = @NewContentAt WHERE id = @Id",
+            new { Id = id, NewContentAt = newContentAt });
 
     /// <summary>Marks the connection as having expired authentication.</summary>
     public Task RecordAuthExpiredAsync(long id, string occurredAt) =>

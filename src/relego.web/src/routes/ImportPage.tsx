@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type DragEvent } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { UploadIcon } from "../components/icons";
 import { ErrorNote } from "../components/ui";
 import { api, ApiError } from "../lib/api";
@@ -136,6 +136,11 @@ export function ImportPage() {
           </dd>
         </div>
       </dl>
+
+      <p className="subtle">
+        No cable handy? <Link to="/app/kindle-sync">Connect your Kindle Notebook</Link> and Relego reads new
+        highlights on its own.
+      </p>
 
       <p className="subtle">
         Relego skips highlights it already has, so importing the same file twice is safe.

@@ -293,6 +293,72 @@ public sealed class SyncConnectionApiTests
     }
 
     [Fact]
+    public async Task PostBatches_NewHighlightsEndTheQuietPeriodBeforeTheJobCompletes()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+        var jobId = await StartJobAsync(client, token, "key-1", "routine", "initial");
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        var connectionId = await db.QuerySingleAsync<long>("SELECT id FROM sync_connections");
+        var userId = await db.QuerySingleAsync<int>("SELECT user_id FROM sync_connections");
+        await SeedReminderAsync(db, connectionId, userId);
+
+        await CommitBatchAsync(client, token, jobId, batchIndex: 0, [("B00EXAMPLE", "Dune", 2)]);
+
+        // The highlights are already in the library, so the reminder must not outlive the job: a
+        // retry would see only duplicates and the completion request may never arrive at all.
+        Assert.NotNull(await db.QuerySingleOrDefaultAsync<string>(
+            "SELECT resolved_at FROM sync_reminders WHERE connection_id = @ConnectionId",
+            new { ConnectionId = connectionId }));
+        Assert.NotNull(await db.QuerySingleOrDefaultAsync<string>(
+            "SELECT last_new_content_at FROM sync_connections WHERE id = @ConnectionId",
+            new { ConnectionId = connectionId }));
+
+        // The job is still running, so it has not completed yet.
+        Assert.Null(await db.QuerySingleOrDefaultAsync<string>(
+            "SELECT last_sync_completed_at FROM sync_connections WHERE id = @ConnectionId",
+            new { ConnectionId = connectionId }));
+    }
+
+    [Fact]
+    public async Task PostBatches_OnlyDuplicatesLeaveTheQuietPeriodOpen()
+    {
+        using var factory = new RelegoTestApplicationFactory();
+        using var client = factory.CreateClient();
+        var token = await PairAsync(client);
+
+        var first = await StartJobAsync(client, token, "key-1", "routine", "initial");
+        await CommitBatchAsync(client, token, first, batchIndex: 0, [("B00EXAMPLE", "Dune", 2)]);
+        await CompleteAsync(client, token, first, booksTotal: 1);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+        var connectionId = await db.QuerySingleAsync<long>("SELECT id FROM sync_connections");
+        var userId = await db.QuerySingleAsync<int>("SELECT user_id FROM sync_connections");
+        await SeedReminderAsync(db, connectionId, userId);
+        var newContentAt = await db.QuerySingleAsync<string>(
+            "SELECT last_new_content_at FROM sync_connections WHERE id = @ConnectionId",
+            new { ConnectionId = connectionId });
+
+        var second = await StartJobAsync(client, token, "key-2", "routine", "scheduled");
+        var replay = await CommitBatchAsync(client, token, second, batchIndex: 0, [("B00EXAMPLE", "Dune", 2)]);
+        Assert.Equal(0, replay.NewHighlights);
+        Assert.Equal(2, replay.DuplicateHighlights);
+
+        // Nothing new reached the library, so the quiet period is still open and the user is still
+        // waiting to be reminded about it.
+        Assert.Null(await db.QuerySingleOrDefaultAsync<string>(
+            "SELECT resolved_at FROM sync_reminders WHERE connection_id = @ConnectionId",
+            new { ConnectionId = connectionId }));
+        Assert.Equal(newContentAt, await db.QuerySingleAsync<string>(
+            "SELECT last_new_content_at FROM sync_connections WHERE id = @ConnectionId",
+            new { ConnectionId = connectionId }));
+    }
+
+    [Fact]
     public async Task PostBatches_ReobservedExternalIdIsDuplicateEvenWhenTextChanged()
     {
         using var factory = new RelegoTestApplicationFactory();
@@ -811,6 +877,14 @@ public sealed class SyncConnectionApiTests
         Assert.NotNull(body);
         return body!.Token;
     }
+
+    private static Task<int> SeedReminderAsync(IDbConnection db, long connectionId, int userId) =>
+        db.ExecuteAsync(
+            """
+            INSERT INTO sync_reminders (connection_id, user_id, quiet_since, threshold_days, created_at, emailed_at)
+            VALUES (@ConnectionId, @UserId, @QuietSince, 7, @QuietSince, @QuietSince)
+            """,
+            new { ConnectionId = connectionId, UserId = userId, QuietSince = "2026-01-01T00:00:00.0000000+00:00" });
 
     private static async Task<string> PairAsync(HttpClient client)
     {
