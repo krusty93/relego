@@ -1,5 +1,5 @@
 ---
-title: Import highlights
+title: Import
 description: Import highlights from your Kindle or Kobo, or sync your Kindle Notebook with the browser extension.
 stage: 1
 sidebar:
@@ -91,18 +91,19 @@ extension, and Relego server must be running for sync to work.
 For a local import, including highlights that are not available in the Kindle
 Notebook, use your Kindle over USB:
 
-Connect your Kindle over USB and wait for it to appear on your computer. Open
-<http://localhost:8080>, go to **Import**, then drop in
+- Connect your Kindle over USB and wait for it to appear on your computer
+- In Relego web, go to **Import**, then drop in
 `documents/My Clippings.txt` or click to browse for it.
 
 ![Relego's web interface open to the Import page, showing the Kindle and Kobo file upload area.](/images/docs/relego-web-import.webp)
 
 ### Kobo
 
-Connect your Kobo over USB and wait for it to appear on your computer. Because
-`.kobo` is hidden, enable hidden files in your file manager or copy the database
-off the device before uploading it. In the web UI, go to **Import**, then drop
-in `.kobo/KoboReader.sqlite` or click to browse for it.
+Importing from Kobo requires USB connection:
+
+- Connect your Kobo over USB and wait for it to appear on your computer.
+- Copy the `.kobo` directory from the device to your computer. If you don't see the directory, you have to enable hidden files in your file manager settings.
+- In the Relego web, go to **Import**, then drop in `.kobo/KoboReader.sqlite` or click to browse for it.
 
 ## Next
 

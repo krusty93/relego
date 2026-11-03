@@ -7,64 +7,36 @@ eyebrow: Reference
 The Relego browser extension reads eligible highlights from your Kindle
 Notebook in your own Amazon session and sends them to your Relego server. It
 can import highlights made in Kindle apps as well as on a Kindle, without a USB
-connection. Sync is optional; [local import](/docs/import/) remains available.
-
-## Before you start
-
-- Start your Relego server and open its web interface in the browser where you
-  will install the extension. The browser must be able to reach that server.
-- Use an Amazon account with Kindle books and highlights in one of the
-  supported regions below.
-- Keep the server, browser, and extension running for automatic sync. Browser
-  alarms can run late and do not wake a sleeping computer.
-
-The server has no authentication. Keep it on your own machine, trusted network,
-or VPN; do not expose it to the public internet.
+connection.
 
 ## Install
 
-Install the extension from the store for your browser. Use a package from
-[GitHub releases](https://github.com/Krusty93/relego/releases) only for an
-unpacked or temporary development build.
+Install the extension from the store for your browser:
 
 - [Relego on the Chrome Web Store](https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp)
   for Chrome, Edge, and other Chromium browsers.
 - [Relego on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/relego/)
   for Firefox 140 or later.
 
-### Chrome, Edge, and other Chromium browsers
+:::note
 
-1. Open the [Chrome Web Store listing](https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp)
-   and choose **Add to Chrome**.
-2. Approve the access the browser asks for.
+For a development build instead, download the
+extension from
+[GitHub releases](https://github.com/krusty93/relego/releases), and:
 
-For a development build instead, download
-`relego-extension-<version>-chrome.zip` from
-[GitHub releases](https://github.com/Krusty93/relego/releases), extract it to a
-folder you intend to keep, open `chrome://extensions` (or your browser's
-extensions page), enable **Developer mode**, choose **Load unpacked**, and
+- **Chrome / Chromium**: extract it, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and
 select the extracted folder.
-
-### Firefox
-
-Firefox 140 or later is required.
-
-1. Open the [Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/relego/)
-   and choose **Add to Firefox**.
-2. Approve the access the browser asks for.
-
-For a temporary development build instead, download
-`relego-extension-<version>-firefox.zip` from
-[GitHub releases](https://github.com/Krusty93/relego/releases), open
-`about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and
+- **Firefox**: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and
 select the ZIP file. Firefox removes temporary add-ons when it restarts;
 install from the store listing for a permanent install.
+
+:::
 
 ## Connect
 
 1. In the Relego web interface, open **Sync** and select **Connect Kindle cloud**.
 2. Open the Relego extension from the browser toolbar. Enter the **Server URL**
-   and **One-time code** shown on the Sync page, then choose your Amazon region
+   and **One-time code** generated on the Sync page, then choose your Amazon region
    and save. You can open the popup in a separate window to keep it visible
    while copying the values.
 3. Approve the browser's requested access to your Relego server and the selected
@@ -73,14 +45,7 @@ install from the store listing for a permanent install.
 4. Return to **Sync** to follow the first import and its result. If the code is
    no longer visible, select **Generate a new code**; the old code stops working.
 
-For a server on another machine, use an address reachable from the browser,
-not `localhost`, which refers to the browser's own machine.
-
 ## Supported regions
-
-Choose the marketplace for your Kindle library in the extension. Relego shows
-the active region on the Sync page; change it using **Edit configuration** in
-the extension. Only these validated Kindle Notebook hosts are available:
 
 | Region | Kindle Notebook host |
 | --- | --- |
@@ -98,7 +63,7 @@ The next sync re-reads the new region, where you may need to sign in again.
 Other regions, including Japan, China, Denmark, Ireland, and Poland, are not
 currently supported.
 
-## Sync and recovery
+## Sync
 
 The extension starts routine syncs while the browser is running. The default is
 once an hour; change **Sync frequency** on the Relego Sync page to 15, 30, or
@@ -106,11 +71,18 @@ once an hour; change **Sync frequency** on the Relego Sync page to 15, 30, or
 frequency at its next check-in, and the page shows when the next run is due.
 The extension checks in every 60 seconds independently of the sync frequency.
 After the browser returns from being closed or asleep, at most one catch-up
-sync runs; missed runs do not accumulate.
+sync runs and missed runs do not accumulate.
 
 Use **Sync now** to check for new highlights or **Full resync** to re-read all
-available books. Requests wait for the browser's next check-in; repeated
+available books. Requests wait for the browser's next check-in. Repeated
 imports and full resyncs do not duplicate previously imported highlights.
+
+**Disconnect** on the Sync page revokes the connection but keeps previously imported highlights.
+
+After 45 days without newly synchronized Kindle cloud content, Relego displays
+a reminder and can email one when mail delivery is configured.
+
+## Troubleshooting
 
 - **Amazon sign-in needed:** Sign in again on the selected region's Amazon
   site in the browser with the extension, then retry sync.
@@ -120,20 +92,16 @@ imports and full resyncs do not duplicate previously imported highlights.
 - **Last sync did not finish:** Follow the error and recovery steps on the Sync
   page, then retry. Amazon can change the Notebook layout, which may require
   an extension update.
-
-After 45 days without newly synchronized Kindle cloud content, Relego displays
-a reminder and can email one when mail delivery is configured. **Disconnect**
-on the Sync page revokes the connection but keeps previously imported highlights.
+- **Still need help?:** Open the [a ticket on GitHub](https://github.com/krusty93/relego/issues/new/choose) for further assistance.
 
 ## Coverage and privacy
 
 Kindle Notebook sync covers eligible Amazon-synced highlights. Personal and
 sideloaded documents may be absent, and publisher export limits can truncate
 highlights. Use [local Kindle import](/docs/import/#kindle) for content that is
-missing or unsupported; cloud sync and local import can be used together.
+missing or unsupported. <u>Cloud sync and local import can be used together.</u>
 
 Sign in only on Amazon's own pages. Relego does not ask for your Amazon
-password, and the extension does not read or export Amazon cookies. Notebook
-page HTML stays in the browser; parsed highlights are sent to your server.
+password, and the extension does not read or export Amazon cookies.
 The extension uses browser storage and alarms and asks for host access at
 runtime only for your server and selected Kindle Notebook site.
