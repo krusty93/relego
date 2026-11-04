@@ -8,9 +8,9 @@
 ## Prerequisites
 
 - Node.js 24 installed (`node --version`)
-- npm 9+ installed (`npm --version`)
+- pnpm installed through Corepack (`corepack enable`, then `pnpm --version`)
 
-The landing page is **completely independent** from the .NET solution. You do not need the .NET SDK to work on it.
+The landing page is **completely independent** from the .NET solution. You do not need the .NET SDK to work on it. It is one package of the repository-wide pnpm workspace, so dependencies are installed once from the repository root.
 
 ## Project Location
 
@@ -49,14 +49,14 @@ src/landing/
 ## Install & Run
 
 ```bash
+# Install workspace dependencies from the repository root (once)
+pnpm install
+
 # Navigate to the landing page project
 cd src/landing
 
-# Install dependencies
-npm install
-
 # Start dev server (http://localhost:4321)
-npm run dev
+pnpm run dev
 ```
 
 ## Build for Production
@@ -65,10 +65,10 @@ npm run dev
 cd src/landing
 
 # Build static site
-npm run build
+pnpm run build
 
 # Preview the production build locally
-npm run preview
+pnpm run preview
 ```
 
 The built site is output to `src/landing/dist/`.
@@ -79,16 +79,16 @@ The built site is output to `src/landing/dist/`.
 cd src/landing
 
 # Install Playwright browsers (first time only)
-npx playwright install --with-deps chromium
+pnpm exec playwright install --with-deps chromium
 
 # Run all tests
-npx playwright test
+pnpm exec playwright test
 
 # Run a specific test file
-npx playwright test tests/faq.spec.ts
+pnpm exec playwright test tests/faq.spec.ts
 
 # Run tests with UI mode
-npx playwright test --ui
+pnpm exec playwright test --ui
 ```
 
 Tests run against the Astro dev server, which Playwright starts automatically via the `webServer` config in `playwright.config.ts`.

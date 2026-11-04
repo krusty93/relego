@@ -16,11 +16,11 @@ across service-worker or browser restarts; a routine alarm cannot downgrade it.
 ## Commands
 
 ```powershell
-npm ci
-npm run typecheck
-npm test          # also packages both browsers, to assert on the real artifacts
-npm run build     # writes a loadable unpacked Chrome extension to dist/
-npm run package   # writes both release packages to release/
+pnpm install      # once, from the repository root (pnpm workspace)
+pnpm run typecheck
+pnpm test          # also packages both browsers, to assert on the real artifacts
+pnpm run build     # writes a loadable unpacked Chrome extension to dist/
+pnpm run package   # writes both release packages to release/
 ```
 
 ## Installing the extension
@@ -35,7 +35,7 @@ live yet, so both browsers are loaded from a package or from a local build.
 3. Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select the
    unzipped folder.
 
-`npm run build` produces the same thing in `dist/`, which can be loaded the same way without
+`pnpm run build` produces the same thing in `dist/`, which can be loaded the same way without
 unzipping anything.
 
 ### Firefox
@@ -50,7 +50,7 @@ addons.mozilla.org, which is a release-process follow-up rather than a code chan
 
 ## Packaging
 
-`npm run package` builds and zips both browsers, stamping the manifest of each with
+`pnpm run package` builds and zips both browsers, stamping the manifest of each with
 `RelegoExtensionVersion` from `src/PackageVersions.props`:
 
 | Package                                  | Background                        | Notes                                                                        |

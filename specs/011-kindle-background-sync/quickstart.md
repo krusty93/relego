@@ -7,7 +7,7 @@ Validation guide only; implementation detail lives in `tasks.md`. Contracts:
 
 ## Prerequisites
 
-- .NET 10 SDK, Node.js/npm, Docker (per `CONTRIBUTING.md`)
+- .NET 10 SDK, Node.js and pnpm (via Corepack), Docker (per `CONTRIBUTING.md`)
 - Chrome or Firefox for manual end-to-end; **an Amazon account with Kindle-store books and
   highlights** (user-supplied; never put credentials in Relego or scripts)
 
@@ -16,8 +16,8 @@ Validation guide only; implementation detail lives in `tasks.md`. Contracts:
 ```powershell
 dotnet build src/Relego.slnx
 dotnet test src/Relego.Tests/Relego.Tests.csproj
-cd src/relego.web; npm ci; npx playwright install --with-deps chromium; npm run typecheck; npm test
-cd ../relego.extension; npm ci; npm run typecheck; npm test   # parser fixtures + alarm (sync vs heartbeat)/auth unit tests
+cd src/relego.web; pnpm exec playwright install --with-deps chromium; pnpm run typecheck; pnpm test
+cd ../relego.extension; pnpm run typecheck; pnpm test   # parser fixtures + alarm (sync vs heartbeat)/auth unit tests
 ```
 
 Expected: all green, including existing Kindle clippings, Kobo, and `/imports` tests (local
