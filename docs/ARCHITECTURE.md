@@ -189,8 +189,8 @@ Single-page application built with Vite and referenced by `Relego.Server` throug
 - **Offline-capable assets**: fonts are bundled (`@fontsource/playfair-display`); nothing is fetched from a CDN at runtime, which matters for a self-hosted tool on an isolated network.
 - **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights · `/recaps` · `/import` · `/settings`
 - **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
-- **Build**: `dotnet publish src/Relego.Server` restores the locked npm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `cd src/relego.web && npm run build` remains available for frontend-only work.
-- **Tests**: `cd src/relego.web && npm test` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
+- **Build**: `dotnet publish src/Relego.Server` installs the locked pnpm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `pnpm run build` in `src/relego.web` remains available for frontend-only work.
+- **Tests**: `pnpm test` in `src/relego.web` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
 - **Integration**: `relego.web.esproj` is included in `Relego.slnx` and referenced by the server to define one publishable server-and-web artifact. The React source, dependencies, and frontend test tooling remain independent from the .NET implementation.
 
 ---
@@ -220,12 +220,13 @@ see [VERSIONING.md](../VERSIONING.md)).
   credential) and `websiteContent` (Kindle Notebook books, highlights and notes), sent to the
   user's configured server. This is not a declaration of "no data collection": self-hosted
   transmission still leaves the browser and requires consent.
-- **Build and package**: `cd src/relego.extension && npm ci && npm run package` produces
+- **Build and package**: `pnpm install` at the repository root, then `pnpm run package` in
+  `src/relego.extension` produces
   `release/relego-extension-<version>-chrome.zip` and `-firefox.zip`, with the version stamped from
   `RelegoExtensionVersion` in `src/PackageVersions.props`. CI uploads both packages as artifacts;
   the release workflow attaches them to the `extension/v<version>` release with cosign signatures
   and SHA256 checksums. The generated archives are never committed.
-- **Tests**: `cd src/relego.extension && npm test` — unit tests plus a packaging suite that builds
+- **Tests**: `pnpm test` in `src/relego.extension` — unit tests plus a packaging suite that builds
   both variants and asserts on the real archives (version stamping, no host granted at install,
   Chrome module service worker, Firefox classic event page and AMO identity).
 
@@ -233,12 +234,12 @@ see [VERSIONING.md](../VERSIONING.md)).
 
 ### Landing Page (`src/landing/`)
 
-Static marketing landing page built with Astro and Tailwind CSS. Completely independent from the .NET solution: separate `package.json`, separate build, separate test suite.
+Static marketing landing page built with Astro and Tailwind CSS. Completely independent from the .NET solution: its own package in the pnpm workspace, separate build, separate test suite.
 
 - **Tech stack**: Astro 6, Tailwind CSS v4 (via PostCSS), Playwright for E2E testing
 - **Deployment target**: GitHub Pages (static HTML output, no server required)
-- **Build**: `cd src/landing && npm run build` → outputs to `src/landing/dist/`
-- **Tests**: `cd src/landing && npx playwright test` — Chromium-only, includes axe-core accessibility audit
+- **Build**: `pnpm run build` in `src/landing` → outputs to `src/landing/dist/`
+- **Tests**: `pnpm exec playwright test` in `src/landing` — Chromium-only, includes axe-core accessibility audit
 - **Separation**: no shared code, no shared dependencies with the .NET projects; the landing page can be deployed and developed independently
 
 ---
@@ -415,6 +416,10 @@ Transport objects in `Relego.Core/Contracts/` follow these suffixes:
 ## Project structure
 
 ```tree
+package.json                # pnpm workspace root: pins the package manager and workspace packages
+pnpm-workspace.yaml         # Workspace package list and approved dependency build scripts
+pnpm-lock.yaml              # Single lockfile for every JavaScript/TypeScript project
+
 src/Relego.Core/
 ├── Branding/           # Shared wordmark and palette constants
 ├── Contracts/          # Shared request/response DTOs for CLI, server and web UI

@@ -27,9 +27,9 @@ Relevant files:
 Decide the bump level yourself (patch / minor / major) — no commit message format is required.
 Bump the version whenever you modify a component, even if the change is not user-facing (e.g. refactor, bug fix, internal API change) — this ensures accurate version tracking and release notes.
 
-The embedded web UI (`src/relego.web/`) ships with Server, so web UI changes require a `RelegoServerVersion` bump. Its private npm metadata remains fixed at version `1.0.0` and is not independently released or tagged.
+The embedded web UI (`src/relego.web/`) ships with Server, so web UI changes require a `RelegoServerVersion` bump. Its private package metadata remains fixed at version `1.0.0` and is not independently released or tagged.
 
-The browser extension (`src/relego.extension/`) is released on its own. `npm run package` stamps
+The browser extension (`src/relego.extension/`) is released on its own. `pnpm run package` stamps
 `RelegoExtensionVersion` into the manifest of both packages it builds, so the tag, the GitHub
 Release, and the manifests uploaded for signing always agree.
 

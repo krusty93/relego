@@ -99,7 +99,7 @@ Do not edit `HighlightSourceResolver`, `ClippingsImportWorkflow`, `ImportCommand
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://docs.docker.com/get-docker/)
 - [GitHub CLI](https://cli.github.com/) with the [`gh-stack`](https://github.com/github/gh-stack) extension for stacked PRs; the dev container installs it automatically
-- [Node.js](https://nodejs.org/) and `npm` only if you touch `src/landing`
+- [Node.js](https://nodejs.org/) 24+ and `pnpm` (`corepack enable`) only if you touch `src/relego.web`, `src/relego.extension`, or `src/landing`
 
 ### Common commands
 
@@ -109,12 +109,13 @@ dotnet build src/Relego.Cli/Relego.Cli.csproj
 dotnet test src/Relego.Tests/Relego.Tests.csproj
 ```
 
-For landing page changes:
+The JavaScript/TypeScript projects are a single pnpm workspace rooted at the repository root, so
+install the dependencies once from the root and then run the per-project scripts:
 
 ```sh
+pnpm install
 cd src/landing
-npm install
-npm run build
+pnpm run build
 ```
 
 Docs-only changes usually only need a careful proofread and link/path check.

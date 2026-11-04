@@ -1,0 +1,7 @@
+packages:
+  - src/relego.web
+  - src/relego.extension
+  - src/landing
+
+allowBuilds:
+  esbuild: true

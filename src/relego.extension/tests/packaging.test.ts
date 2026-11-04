@@ -30,12 +30,12 @@ async function readPackage(browser: "chrome" | "firefox") {
 
 describe("extension release packaging", () => {
   beforeAll(() => {
-    // `npm` is a .cmd shim on Windows, which execFileSync cannot spawn without a shell. The command
+    // `pnpm` is a .cmd shim on Windows, which execFileSync cannot spawn without a shell. The command
     // goes in as one string there so Node does not concatenate arguments into it itself.
     if (process.platform === "win32") {
-      execFileSync("npm.cmd run package", { cwd: extensionDir, stdio: "inherit", shell: true });
+      execFileSync("pnpm.cmd run package", { cwd: extensionDir, stdio: "inherit", shell: true });
     } else {
-      execFileSync("npm", ["run", "package"], { cwd: extensionDir, stdio: "inherit" });
+      execFileSync("pnpm", ["run", "package"], { cwd: extensionDir, stdio: "inherit" });
     }
   }, 600_000);
 

@@ -12,18 +12,18 @@ Self-hosted tool that delivers Kindle highlight recaps to the user's Kindle via 
 
 ## Build and test commands
 
-Prerequisites: .NET 10 SDK and Docker. Node.js/npm only when touching `src/relego.web` or `src/landing`. Full setup details in [CONTRIBUTING.md](./CONTRIBUTING.md).
+Prerequisites: .NET 10 SDK and Docker. Node.js and pnpm (via Corepack) only when touching `src/relego.web`, `src/relego.extension`, or `src/landing`; run `pnpm install` once at the repository root. Full setup details in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 **Build:**
 
 - Whole solution: `dotnet build src/Relego.slnx`; single components: `dotnet build src/Relego.Server/Relego.Server.csproj`, `dotnet build src/Relego.Cli/Relego.Cli.csproj`
-- Landing page: `cd src/landing && npm install && npm run build`
+- Landing page: `pnpm install && cd src/landing && pnpm run build`
 - Docker: `docker compose up --build`; the `ci.yaml` Build step builds the `Dockerfile.ci` image only
 
 **Test:**
 
 - .NET: `dotnet test src/Relego.Tests/Relego.Tests.csproj`
-- Web UI (Playwright): `cd src/relego.web && npm ci && npx playwright install --with-deps chromium && npm test` (typecheck: `npm run typecheck`)
+- Web UI (Playwright): `pnpm install && cd src/relego.web && pnpm exec playwright install --with-deps chromium && pnpm test` (typecheck: `pnpm run typecheck`)
 - CI: the `ci.yaml` Run tests step runs `dotnet test --configuration Release --no-build` inside the CI image; a separate job runs the Playwright web tests
 
 ## Code style guidelines

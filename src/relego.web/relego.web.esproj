@@ -5,16 +5,20 @@
   <PropertyGroup>
     <Version>$(RelegoServerVersion)</Version>
     <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
+    <WorkspaceRoot>$(MSBuildProjectDirectory)/../..</WorkspaceRoot>
     <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
     <ShouldRunNpmAudit>false</ShouldRunNpmAudit>
     <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <BuildCommand>pnpm run build</BuildCommand>
   </PropertyGroup>
 
   <Target
-    Name="RestoreNpmDependencies"
+    Name="RestorePnpmDependencies"
     BeforeTargets="_RunNpmCommandForPublishAssets"
-    Inputs="$(MSBuildProjectDirectory)\package.json;$(MSBuildProjectDirectory)\package-lock.json"
-    Outputs="$(MSBuildProjectDirectory)\node_modules\.package-lock.json">
-    <Exec Command="npm ci" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    Inputs="$(WorkspaceRoot)/package.json;$(WorkspaceRoot)/pnpm-workspace.yaml;$(WorkspaceRoot)/pnpm-lock.yaml"
+    Outputs="$(WorkspaceRoot)/node_modules/.modules.yaml">
+    <Exec
+      Command="pnpm install --frozen-lockfile --filter @relego/web"
+      WorkingDirectory="$(WorkspaceRoot)" />
   </Target>
 </Project>
