@@ -34,6 +34,23 @@ test.describe('Content Sections', () => {
 		await expect(featTitle).toHaveText('Built for readers');
 	});
 
+	test('Kindle cloud sync section links the extension and sits after setup', async ({ page }) => {
+		const section = page.locator('#kindle-sync');
+		await expect(section.locator('h2')).toContainText('Skip the cable');
+
+		const extension = section.getByRole('link', { name: /Get the extension/ });
+		await expect(extension).toHaveAttribute('href', 'https://github.com/Krusty93/relego/releases');
+		await expect(section.getByRole('link', { name: 'Importing highlights' })).toHaveAttribute(
+			'href',
+			'/docs/import/',
+		);
+
+		const ids = await page.locator('section[id]').evaluateAll((els) => els.map((el) => el.id));
+		expect(ids.indexOf('kindle-sync')).toBeGreaterThan(ids.indexOf('getting-started'));
+		expect(ids.indexOf('kindle-sync')).toBeLessThan(ids.indexOf('web-interface'));
+		await expect(page.locator('[data-step-panel="0"] a[href="#kindle-sync"]')).toBeVisible();
+	});
+
 	test('Getting Started renders 3 step tabs with correct titles', async ({ page }) => {
 		const section = page.locator('#getting-started');
 		const tabs = section.locator('[data-step-tab]');

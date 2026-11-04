@@ -5,18 +5,17 @@ interface Props {
 	class?: string;
 	target?: string;
 	rel?: string;
+	arrow?: boolean;
 }
 
-const { href, variant = 'primary', class: className = '', target, rel } = Astro.props;
-
-const base = 'inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2 focus:ring-offset-[var(--color-bg)]';
-
-const variants = {
-	primary: 'bg-[var(--color-accent)] text-white hover:opacity-90',
-	outline: 'border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface)]',
-};
+const { href, variant = 'primary', class: className = '', target, rel, arrow = false } = Astro.props;
 ---
 
-<a href={href} class:list={[base, variants[variant], className]} target={target} rel={rel}>
+<a href={href} class:list={['btn', `btn--${variant}`, className]} target={target} rel={rel}>
 	<slot />
+	{arrow && (
+		<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M3 8h10M9 4l4 4-4 4" />
+		</svg>
+	)}
 </a>

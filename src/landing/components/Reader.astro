@@ -1,0 +1,85 @@
+---
+/**
+ * A drawn e-ink reader. Decorative: whatever sits on its screen is sample content,
+ * and the surrounding copy carries the meaning.
+ */
+interface Props {
+	class?: string;
+	label?: string;
+}
+
+const { class: className = '', label } = Astro.props;
+---
+
+<figure class:list={['reader', className]} aria-hidden="true">
+	<div class="reader__body">
+		<div class="reader__screen">
+			<slot />
+		</div>
+		<span class="reader__chin"></span>
+	</div>
+	{label && <figcaption class="reader__label">{label}</figcaption>}
+</figure>
+
+<style>
+	.reader {
+		--ink: #2b2420;
+		--ink-soft: #6c6158;
+		--eink: #ebe6dc;
+		margin: 0;
+		width: 100%;
+		max-width: 26rem;
+	}
+
+	.reader__body {
+		position: relative;
+		padding: 7% 6.5% 15%;
+		border-radius: 1.6rem;
+		background:
+			linear-gradient(155deg, rgba(255, 255, 255, 0.09), transparent 40%),
+			#211a16;
+		box-shadow:
+			inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+			0 2.5rem 4rem -1.5rem rgba(41, 22, 10, 0.45),
+			0 0.75rem 1.5rem -0.75rem rgba(41, 22, 10, 0.35);
+	}
+
+	:global([data-theme='dark']) .reader__body {
+		background:
+			linear-gradient(155deg, rgba(255, 255, 255, 0.1), transparent 40%),
+			#2a221d;
+		box-shadow:
+			inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+			0 2.5rem 4rem -1.5rem rgba(0, 0, 0, 0.7);
+	}
+
+	.reader__screen {
+		position: relative;
+		aspect-ratio: 3 / 4;
+		overflow: hidden;
+		border-radius: 0.2rem;
+		background: var(--eink);
+		color: var(--ink);
+		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+	}
+
+	.reader__chin {
+		position: absolute;
+		left: 50%;
+		bottom: 5.5%;
+		width: 16%;
+		height: 0.2rem;
+		border-radius: 1rem;
+		background: rgba(255, 255, 255, 0.1);
+		transform: translateX(-50%);
+	}
+
+	.reader__label {
+		margin-top: 1.1rem;
+		text-align: center;
+		font-size: 0.75rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--color-soft);
+	}
+</style>
