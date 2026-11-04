@@ -1,14 +1,22 @@
 FROM node:24-bookworm-slim AS node
+RUN corepack enable
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server-build
 WORKDIR /src
 
 COPY --from=node /usr/local/ /usr/local/
 
+# Corepack resolves the pnpm version from the workspace root's `packageManager` field and downloads
+# it on first use; never wait for a confirmation prompt that a non-interactive build cannot answer.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
+# The pnpm workspace root sits one level above src/ in the repository, which is / in this image.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml /
+
 COPY src/PackageVersions.props ./
 COPY src/Relego.Core/Relego.Core.csproj Relego.Core/
 COPY src/Relego.Server/Relego.Server.csproj Relego.Server/
-COPY src/relego.web/relego.web.esproj src/relego.web/package.json src/relego.web/package-lock.json relego.web/
+COPY src/relego.web/relego.web.esproj src/relego.web/package.json relego.web/
 
 RUN dotnet restore Relego.Server/Relego.Server.csproj
 

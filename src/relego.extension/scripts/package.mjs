@@ -103,8 +103,8 @@ function run(command, args) {
     return;
   }
 
-  // `npm` is a .cmd shim on Windows, which cannot be spawned without a shell. The whole line goes in
-  // as one string so Node does not concatenate arguments into it itself.
+  // `pnpm` is a .cmd shim on Windows, which cannot be spawned without a shell. The whole line goes
+  // in as one string so Node does not concatenate arguments into it itself.
   execFileSync([`${command}.cmd`, ...args].join(" "), {
     cwd: extensionDir,
     stdio: "inherit",
@@ -123,8 +123,8 @@ async function main() {
   const version = readExtensionVersion();
   const base = readBaseManifest();
 
-  run("npm", ["run", "build"]);
-  run("npm", ["run", "build:firefox"]);
+  run("pnpm", ["run", "build"]);
+  run("pnpm", ["run", "build:firefox"]);
 
   rmSync(releaseDir, { recursive: true, force: true });
   mkdirSync(releaseDir, { recursive: true });
