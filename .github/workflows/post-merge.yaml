@@ -35,7 +35,7 @@ jobs:
           COMPONENTS_JSON: ${{ steps.discover.outputs.components_json }}
         run: |
           set -e
-          TAGGED=0
+          TAGS=()
 
           while IFS= read -r component; do
             NAME=$(echo "$component" | jq -r '.name')
@@ -58,14 +58,21 @@ jobs:
 
             echo "🚀 $NAME: creating tag $TAG"
             git tag -a "$TAG" -m "$NAME v$VERSION"
-            TAGGED=1
+            TAGS+=("$TAG")
             echo "  ✅ $TAG created"
 
           done < <(printf '%s' "$COMPONENTS_JSON" | jq -c '.[]')
 
-          if [ $TAGGED -eq 1 ]; then
-            git push origin --tags
-            echo "Tags pushed."
-          else
+          if [ ${#TAGS[@]} -eq 0 ]; then
             echo "No new tags to push."
+            exit 0
           fi
+
+          # One tag per push: GitHub does not emit tag events for a single push
+          # that creates more than three refs, so tag-triggered workflows such as
+          # release.yaml would silently never run.
+          for TAG in "${TAGS[@]}"; do
+            echo "📤 Pushing $TAG"
+            git push origin "refs/tags/$TAG:refs/tags/$TAG"
+          done
+          echo "Tags pushed."
