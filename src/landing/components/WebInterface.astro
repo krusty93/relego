@@ -1,0 +1,295 @@
+---
+const views = [
+	{
+		id: 'library',
+		label: 'Library',
+		caption: 'Every book and highlight in one place. Weight the lines you love, exclude the ones you don’t.',
+		alt: 'Relego library view listing imported books with their highlight counts',
+	},
+	{
+		id: 'import',
+		label: 'Import',
+		caption: 'Drop in My Clippings.txt or KoboReader.sqlite and see what was added and what was skipped.',
+		alt: 'Relego import view with a file drop zone and an import summary',
+	},
+	{
+		id: 'recaps',
+		label: 'Recaps',
+		caption: 'See what went out and when, and send the next recap now if you can’t wait.',
+		alt: 'Relego recaps view showing the history of sent recaps',
+	},
+	{
+		id: 'settings',
+		label: 'Settings',
+		caption: 'Schedule, recap size, SMTP and delivery addresses, all stored on your server.',
+		alt: 'Relego settings view with schedule, recap size and email delivery options',
+	},
+];
+---
+
+<section id="web-interface" class="web" data-progress="enter">
+	<div class="wrap">
+		<div class="web__head">
+			<h2 class="headline" data-reveal>A calm <span>web interface</span></h2>
+			<p class="lede" data-reveal style="--d:1">
+				Prefer clicking to typing? The same server serves a small web app on localhost:8080. Everything the CLI does, without a terminal.
+			</p>
+		</div>
+
+		<div class="web__switch" role="group" aria-label="Web interface screens" data-reveal style="--d:2">
+			{views.map((view, i) => (
+				<button type="button" class="web__seg" aria-pressed={i === 0 ? 'true' : 'false'} data-view={i}>
+					{view.label}
+				</button>
+			))}
+			<span class="web__seg-thumb" aria-hidden="true"></span>
+		</div>
+
+		<div class="web__stage">
+			<div class="web__frame">
+				<div class="web__bar" aria-hidden="true">
+					<span class="web__dots"><span></span><span></span><span></span></span>
+					<span class="web__url">localhost:8080</span>
+				</div>
+				<div class="web__screens">
+					<picture class="web__shot">
+						<source media="(max-width: 40rem)" srcset="/images/docs/relego-web-library-mobile.webp" width="390" height="1004" />
+						<img
+							src="/images/docs/relego-web-library.webp"
+							alt={views[0].alt}
+							decoding="async"
+							width="1440"
+							height="900"
+						/>
+					</picture>
+				</div>
+			</div>
+			<p class="web__caption" aria-live="polite">{views[0].caption}</p>
+		</div>
+	</div>
+</section>
+
+<script define:vars={{ views }}>
+	const section = document.getElementById('web-interface');
+	if (section) {
+		const segs = Array.from(section.querySelectorAll('[data-view]'));
+		const shot = section.querySelector('.web__shot');
+		const img = shot?.querySelector('img');
+		const source = shot?.querySelector('source');
+		const caption = section.querySelector('.web__caption');
+		const mobileHeight = (id) => (id === 'library' ? '1004' : '844');
+		let current = 0;
+		let token = 0;
+
+		// Warm the cache so switching feels instant.
+		const warm = () =>
+			views.forEach((view) => {
+				const pre = new Image();
+				pre.src = `/images/docs/relego-web-${view.id}${matchMedia('(max-width: 40rem)').matches ? '-mobile' : ''}.webp`;
+			});
+		new IntersectionObserver((entries, observer) => {
+			if (entries.some((e) => e.isIntersecting)) {
+				warm();
+				observer.disconnect();
+			}
+		}, { rootMargin: '400px' }).observe(section);
+
+		const swap = (view) => {
+			source?.setAttribute('srcset', `/images/docs/relego-web-${view.id}-mobile.webp`);
+			source?.setAttribute('height', mobileHeight(view.id));
+			if (img) {
+				img.src = `/images/docs/relego-web-${view.id}.webp`;
+				img.alt = view.alt;
+			}
+		};
+
+		const show = async (index) => {
+			if (index === current) return;
+			current = index;
+			const mine = ++token;
+			const view = views[index];
+			segs.forEach((seg, i) => seg.setAttribute('aria-pressed', String(i === index)));
+			section.style.setProperty('--seg', String(index));
+			if (caption) caption.textContent = view.caption;
+
+			const motion = document.documentElement.classList.contains('motion');
+			if (!motion || !shot) {
+				swap(view);
+				return;
+			}
+			shot.classList.add('is-out');
+			await new Promise((resolve) => setTimeout(resolve, 220));
+			if (mine !== token) return;
+			swap(view);
+			try {
+				await img?.decode();
+			} catch {}
+			if (mine === token) shot.classList.remove('is-out');
+		};
+		segs.forEach((seg, i) => seg.addEventListener('click', () => show(i)));
+	}
+</script>
+
+<style>
+	.web {
+		--seg: 0;
+		padding-block: clamp(6rem, 12vw, 10rem);
+		overflow: clip;
+	}
+
+	.web__head {
+		max-width: 44rem;
+		margin-inline: auto;
+		text-align: center;
+	}
+
+	.web__head .lede {
+		margin-inline: auto;
+	}
+
+	.web__switch {
+		position: relative;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		width: min(100%, 28rem);
+		margin: 2.5rem auto 0;
+		padding: 0.25rem;
+		border: 1px solid var(--color-border);
+		border-radius: 999px;
+	}
+
+	.web__seg {
+		position: relative;
+		z-index: 1;
+		padding: 0.55rem 0.5rem;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		font: inherit;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--color-soft);
+		cursor: pointer;
+		transition: color 0.3s var(--ease-out);
+	}
+
+	.web__seg[aria-pressed='true'] {
+		color: var(--color-on-accent);
+	}
+
+	.web__seg:not([aria-pressed='true']):hover {
+		color: var(--color-text);
+	}
+
+	.web__seg-thumb {
+		position: absolute;
+		top: 0.25rem;
+		bottom: 0.25rem;
+		left: 0.25rem;
+		width: calc((100% - 0.5rem) / 4);
+		border-radius: 999px;
+		background: var(--color-accent-fill);
+		transform: translateX(calc(var(--seg) * 100%));
+		transition: transform 0.5s var(--ease-out);
+	}
+
+	.web__stage {
+		margin-top: 3rem;
+		perspective: 1800px;
+	}
+
+	.web__frame {
+		max-width: 64rem;
+		margin-inline: auto;
+		border: 1px solid var(--color-border-strong);
+		border-radius: 0.9rem;
+		background: var(--color-panel);
+		overflow: hidden;
+		box-shadow: 0 2.5rem 5rem -2.5rem color-mix(in srgb, var(--color-text) 30%, transparent);
+		transform-origin: 50% 0%;
+	}
+
+	:global(.motion) .web__frame {
+		transform:
+			rotateX(calc((1 - var(--p, 1)) * 22deg))
+			scale(calc(0.9 + var(--p, 1) * 0.1))
+			translateY(calc((1 - var(--p, 1)) * 2rem));
+	}
+
+	.web__bar {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.7rem 1rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.web__dots {
+		display: flex;
+		gap: 0.4rem;
+	}
+
+	.web__dots span {
+		width: 0.6rem;
+		height: 0.6rem;
+		border-radius: 50%;
+		background: var(--color-border-strong);
+	}
+
+	.web__url {
+		flex: 0 1 18rem;
+		margin-inline: auto;
+		padding: 0.25rem 0.75rem;
+		border-radius: 999px;
+		background: var(--color-bg);
+		text-align: center;
+		font: 0.8125rem/1.4 var(--font-mono);
+		color: var(--color-soft);
+		transform: translateX(-1.5rem);
+	}
+
+	.web__screens {
+		overflow: hidden;
+		background: var(--color-bg);
+	}
+
+	.web__shot {
+		display: block;
+		transition:
+			opacity 0.35s var(--ease-out),
+			transform 0.6s var(--ease-out),
+			filter 0.35s var(--ease-out);
+	}
+
+	.web__shot.is-out {
+		opacity: 0;
+		transform: scale(1.012);
+		filter: blur(4px);
+		transition-duration: 0.2s;
+	}
+
+	.web__shot img {
+		display: block;
+		width: 100%;
+		height: auto;
+	}
+
+	.web__caption {
+		max-width: 34rem;
+		min-height: 3.4em;
+		margin: 1.75rem auto 0;
+		text-align: center;
+		line-height: 1.7;
+		color: var(--color-soft);
+	}
+
+	@media (max-width: 40rem) {
+		.web__frame {
+			max-width: 24rem;
+		}
+
+		.web__url {
+			transform: none;
+		}
+	}
+</style>

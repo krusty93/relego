@@ -1,0 +1,283 @@
+---
+import { siteConfig } from '../config/site';
+import Button from './Button.astro';
+
+const points = [
+	{
+		title: 'Syncs while you read',
+		body: 'The extension runs on its own schedule: every hour by default, from 15 minutes to once a day. Missed runs never pile up, and one catch-up fires when the browser wakes.',
+	},
+	{
+		title: 'Your Amazon session, not your password',
+		body: 'You sign in on Amazon itself. Relego never asks for your password, and Notebook pages are read in the browser; only parsed highlights reach the server.',
+	},
+	{
+		title: 'Eight marketplaces',
+		body: 'United States, Canada, United Kingdom, Germany, France, Italy, Spain and Brazil, including highlights made in the Kindle apps. Local import stays available for everything else.',
+	},
+];
+---
+
+<section id="kindle-sync" class="sync">
+	<div class="wrap sync__grid">
+		<div class="sync__copy">
+			<h2 class="headline" data-reveal>Skip the <span>cable</span></h2>
+			<p class="lede" data-reveal style="--d:1">
+				A small browser extension reads your Kindle Notebook and hands the highlights to your own server. No USB, no tethering, nothing to export by hand.
+			</p>
+
+			<ul class="sync__points">
+				{points.map((point, i) => (
+					<li data-reveal style={`--d:${i + 2}`}>
+						<h3>{point.title}</h3>
+						<p>{point.body}</p>
+					</li>
+				))}
+			</ul>
+
+			<div class="sync__actions" data-reveal style="--d:5">
+				<Button href={siteConfig.extensionUrl} variant="primary" target="_blank" rel="noopener noreferrer" arrow>
+					Get the extension
+				</Button>
+				<Button href={siteConfig.docsImportUrl} variant="outline">Importing highlights</Button>
+			</div>
+			<p class="sync__note" data-reveal style="--d:6">Chrome, Edge and Firefox 140 or later. Sync is optional.</p>
+		</div>
+
+		<div class="sync__device" data-reveal style="--d:2">
+			<div class="ext" aria-hidden="true">
+				<div class="ext__bar">
+					<span class="ext__logo">relego.</span>
+					<span class="ext__state"><span class="ext__dot"></span>Connected</span>
+				</div>
+
+				<dl class="ext__fields">
+					<div class="ext__field">
+						<dt>Server</dt>
+						<dd>relego.local:8080</dd>
+					</div>
+					<div class="ext__field">
+						<dt>One-time code</dt>
+						<dd>7QK9 4TZM</dd>
+					</div>
+					<div class="ext__field">
+						<dt>Region</dt>
+						<dd>United States</dd>
+					</div>
+				</dl>
+
+				<div class="ext__foot">
+					<span>Next sync</span>
+					<span class="ext__when">in 42 min</span>
+				</div>
+				<span class="ext__rail"><span></span></span>
+			</div>
+			<p class="sync__caption">Sample extension popup</p>
+		</div>
+	</div>
+</section>
+
+<style>
+	.sync {
+		padding-block: clamp(6rem, 12vw, 10rem);
+	}
+
+	.sync__grid {
+		display: grid;
+		gap: 3.5rem;
+		align-items: center;
+	}
+
+	.sync__copy {
+		max-width: 36rem;
+	}
+
+	.sync__points {
+		margin: 2.75rem 0 0;
+		padding: 0;
+		list-style: none;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.sync__points li {
+		padding: 1.35rem 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.sync__points h3 {
+		margin: 0 0 0.4rem;
+		font-size: 1.0625rem;
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.sync__points p {
+		margin: 0;
+		max-width: 32rem;
+		line-height: 1.7;
+		color: var(--color-soft);
+	}
+
+	.sync__actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 2.25rem;
+	}
+
+	.sync__note {
+		margin: 1rem 0 0;
+		font-size: 0.875rem;
+		color: var(--color-soft);
+	}
+
+	.sync__device {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	/* Depicted surface, so it may carry a frame: the extension popup itself. */
+	.ext {
+		width: 100%;
+		max-width: 21rem;
+		padding: 1.35rem 1.35rem 1.6rem;
+		box-sizing: border-box;
+		border: 1px solid var(--color-border-strong);
+		border-radius: 0.9rem;
+		background: var(--color-panel);
+		box-shadow: 0 24px 60px -34px rgba(23, 19, 17, 0.5);
+	}
+
+	.ext__bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding-bottom: 0.9rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.ext__logo {
+		font-family: var(--font-display);
+		font-size: 1.35rem;
+		letter-spacing: -0.02em;
+		color: var(--color-text);
+	}
+
+	.ext__state {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-soft);
+	}
+
+	.ext__dot {
+		position: relative;
+		width: 0.4rem;
+		height: 0.4rem;
+		border-radius: 50%;
+		background: var(--color-accent-fill);
+	}
+
+	:global(.motion) .ext__dot::after {
+		content: '';
+		position: absolute;
+		inset: -0.2rem;
+		border-radius: 50%;
+		border: 1px solid var(--color-accent);
+		animation: ext-ping 3s var(--ease-out) infinite;
+	}
+
+	@keyframes ext-ping {
+		from {
+			transform: scale(0.6);
+			opacity: 0.9;
+		}
+		to {
+			transform: scale(1.9);
+			opacity: 0;
+		}
+	}
+
+	.ext__fields {
+		margin: 0.9rem 0 0;
+	}
+
+	.ext__field {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.55rem 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.ext__field dt {
+		font-size: 0.75rem;
+		color: var(--color-soft);
+	}
+
+	.ext__field dd {
+		margin: 0;
+		font: 0.8125rem/1.4 var(--font-mono);
+		color: var(--color-text);
+	}
+
+	.ext__foot {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-top: 1rem;
+		font-size: 0.75rem;
+		color: var(--color-soft);
+	}
+
+	.ext__when {
+		font-family: var(--font-display);
+		font-size: 0.95rem;
+		color: var(--color-text);
+	}
+
+	.ext__rail {
+		display: block;
+		height: 2px;
+		margin-top: 0.7rem;
+		background: var(--color-border);
+		overflow: hidden;
+	}
+
+	.ext__rail span {
+		display: block;
+		height: 100%;
+		background: var(--color-accent);
+		transform-origin: left;
+	}
+
+	:global(.motion) .ext__rail span {
+		transform: scaleX(0);
+		transition: transform 2.4s var(--ease-in-out) 0.4s;
+	}
+
+	:global(.motion) .sync__device.is-in .ext__rail span {
+		transform: scaleX(0.68);
+	}
+
+	.sync__caption {
+		margin: 0;
+		font-size: 0.75rem;
+		color: var(--color-soft);
+	}
+
+	@media (min-width: 60rem) {
+		.sync__grid {
+			grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+			gap: 5rem;
+		}
+	}
+</style>
