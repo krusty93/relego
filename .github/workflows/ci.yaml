@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'src/[Rr]elego.**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'Dockerfile.ci'
       - 'Dockerfile.server'
       - '.github/workflows/ci.yaml'
@@ -71,24 +74,25 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: src/relego.web/package-lock.json
+          cache: pnpm
 
       - name: Install dependencies
-        working-directory: src/relego.web
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browser
         working-directory: src/relego.web
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Test published server and web UI
         working-directory: src/relego.web
-        run: npm test
+        run: pnpm test
 
       - name: Upload web test artifacts
         if: failure()
@@ -108,28 +112,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: src/relego.extension/package-lock.json
+          cache: pnpm
 
       - name: Install dependencies
-        working-directory: src/relego.extension
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
         working-directory: src/relego.extension
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Test
         working-directory: src/relego.extension
-        run: npm test
+        run: pnpm test
 
       - name: Package
         working-directory: src/relego.extension
-        run: npm run package
+        run: pnpm run package
 
       - name: Upload extension packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
