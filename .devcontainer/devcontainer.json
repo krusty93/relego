@@ -22,6 +22,7 @@
     "uv tool install specify-cli --from git+https://github.com/github/spec-kit.git",
     "dotnet tool install -g Rnwood.Smtp4dev",
     "gh extension install github/gh-stack",
+    "npm install -g corepack && corepack enable",
     "git config rerere.enabled true"
   ],
   "postStartCommand": {

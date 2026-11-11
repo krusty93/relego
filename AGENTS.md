@@ -12,7 +12,7 @@ Self-hosted tool that delivers Kindle highlight recaps to the user's Kindle via 
 
 ## Build and test commands
 
-Prerequisites: .NET 10 SDK and Docker. Node.js and pnpm (via Corepack) only when touching `src/relego.web`, `src/relego.extension`, or `src/landing`; run `pnpm install` once at the repository root. Full setup details in [CONTRIBUTING.md](./CONTRIBUTING.md).
+Prerequisites: .NET 10 SDK and Docker. Node.js 26+ and pnpm (via Corepack) only when touching `src/relego.web`, `src/relego.extension`, or `src/landing`; run `pnpm install` once at the repository root. Full setup details in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 **Build:**
 

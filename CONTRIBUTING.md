@@ -99,7 +99,7 @@ Do not edit `HighlightSourceResolver`, `ClippingsImportWorkflow`, `ImportCommand
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://docs.docker.com/get-docker/)
 - [GitHub CLI](https://cli.github.com/) with the [`gh-stack`](https://github.com/github/gh-stack) extension for stacked PRs; the dev container installs it automatically
-- [Node.js](https://nodejs.org/) 24+ and `pnpm` (`corepack enable`) only if you touch `src/relego.web`, `src/relego.extension`, or `src/landing`
+- [Node.js](https://nodejs.org/) 26+ and `pnpm` (install Corepack with `npm install -g corepack`, then `corepack enable`) only if you touch `src/relego.web`, `src/relego.extension`, or `src/landing`
 
 ### Common commands
 
