@@ -1,5 +1,6 @@
-FROM node:24-bookworm-slim AS node
-RUN corepack enable
+FROM node:26-bookworm-slim AS node
+# Node.js 26 no longer bundles Corepack; install it so the pnpm version keeps coming from `packageManager`.
+RUN npm install -g corepack@0.36.0 && corepack enable
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server-build
 WORKDIR /src
