@@ -6,6 +6,12 @@ on:
       - 'cli/v*'
       - 'server/v*'
       - 'extension/v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing component tag to release (e.g. server/v0.20.0)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -21,18 +27,43 @@ jobs:
     steps:
       - id: meta
         name: Get Tags
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
+          set -euo pipefail
+
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+
+          case "$TAG" in
+            cli/v*|server/v*|extension/v*) ;;
+            *)
+              echo "Unsupported tag '$TAG': expected cli/v*, server/v*, or extension/v*" >&2
+              exit 1
+              ;;
+          esac
+
+          if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag '$TAG' does not exist in ${GITHUB_REPOSITORY}" >&2
+            exit 1
+          fi
+
           COMPONENT="${TAG%%/v*}"
           VERSION="${TAG#*/v}"
-          echo "component=$COMPONENT" >> $GITHUB_OUTPUT
-          echo "version=$VERSION"     >> $GITHUB_OUTPUT
-          echo "tag=$TAG"             >> $GITHUB_OUTPUT
+          {
+            echo "component=$COMPONENT"
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+          } >> "$GITHUB_OUTPUT"
 
   build-cli:
     name: Build CLI (${{ matrix.rid }})
     needs: metadata
-    if: startsWith(github.ref, 'refs/tags/cli/')
+    if: startsWith(needs.metadata.outputs.tag, 'cli/')
     runs-on: ubuntu-26.04
     strategy:
       matrix:
@@ -54,6 +85,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Discover Versioned Components
         id: discover
@@ -93,7 +126,7 @@ jobs:
   prepare-cli-release-assets:
     name: Prepare CLI release assets
     needs: [metadata, build-cli]
-    if: startsWith(github.ref, 'refs/tags/cli/')
+    if: startsWith(needs.metadata.outputs.tag, 'cli/')
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -147,7 +180,7 @@ jobs:
   build-extension:
     name: Build extension packages
     needs: metadata
-    if: startsWith(github.ref, 'refs/tags/extension/')
+    if: startsWith(needs.metadata.outputs.tag, 'extension/')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,6 +190,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -229,6 +264,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Discover Versioned Components
         id: discover
@@ -353,7 +389,7 @@ jobs:
   cli-provenance:
     name: Generate CLI SLSA Provenance
     needs: [metadata, prepare-cli-release-assets, create-release]
-    if: startsWith(github.ref, 'refs/tags/cli/') && needs.create-release.outputs.publish == 'true'
+    if: startsWith(needs.metadata.outputs.tag, 'cli/') && needs.create-release.outputs.publish == 'true'
     permissions:
       actions: read
       contents: write
