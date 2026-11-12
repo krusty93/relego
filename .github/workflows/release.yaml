@@ -39,13 +39,15 @@ jobs:
             TAG="${GITHUB_REF#refs/tags/}"
           fi
 
-          case "$TAG" in
-            cli/v*|server/v*|extension/v*) ;;
-            *)
-              echo "Unsupported tag '$TAG': expected cli/v*, server/v*, or extension/v*" >&2
-              exit 1
-              ;;
-          esac
+          # Validate the complete <component>/v<semver> grammar, not just the
+          # prefix: this tag is user-controlled on workflow_dispatch and is
+          # consumed by later jobs, so reject anything carrying characters that
+          # could be interpreted as shell syntax.
+          semver_tag='^(cli|server|extension)/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
+          if ! [[ "$TAG" =~ $semver_tag ]]; then
+            echo "Unsupported tag '$TAG': expected cli/v<semver>, server/v<semver>, or extension/v<semver> (e.g. server/v0.20.0)" >&2
+            exit 1
+          fi
 
           if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag '$TAG' does not exist in ${GITHUB_REPOSITORY}" >&2
@@ -86,7 +88,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.metadata.outputs.tag || github.ref }}
 
       - name: Discover Versioned Components
         id: discover
@@ -107,15 +109,16 @@ jobs:
             --output publish/${{ matrix.rid }}
 
       - name: Rename Binary
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+          RID: ${{ matrix.rid }}
+          EXT: ${{ matrix.ext }}
         run: |
-          V="${{ needs.metadata.outputs.version }}"
-          RID="${{ matrix.rid }}"
-          EXT="${{ matrix.ext }}"
-           mv "publish/${RID}/Relego.Cli${EXT}" \
-             "publish/relego-${V}-${RID}${EXT}" 2>/dev/null || \
-           mv "publish/${RID}/relego${EXT}" \
-             "publish/relego-${V}-${RID}${EXT}" 2>/dev/null || \
-           find "publish/${RID}" -maxdepth 1 -type f -not -name "*.pdb" -exec mv {} "publish/relego-${V}-${RID}${EXT}" \;
+          mv "publish/${RID}/Relego.Cli${EXT}" \
+            "publish/relego-${VERSION}-${RID}${EXT}" 2>/dev/null || \
+          mv "publish/${RID}/relego${EXT}" \
+            "publish/relego-${VERSION}-${RID}${EXT}" 2>/dev/null || \
+          find "publish/${RID}" -maxdepth 1 -type f -not -name "*.pdb" -exec mv {} "publish/relego-${VERSION}-${RID}${EXT}" \;
 
       - name: Upload CLI Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -191,7 +194,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.metadata.outputs.tag || github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -261,7 +264,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.metadata.outputs.tag || github.ref }}
 
       - name: Discover Versioned Components
         id: discover
@@ -286,6 +289,9 @@ jobs:
         env:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           COMPONENTS_JSON: ${{ steps.discover.outputs.components_json }}
+          COMPONENT: ${{ needs.metadata.outputs.component }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+          TAG: ${{ needs.metadata.outputs.tag }}
         run: |
           set -euo pipefail
 
@@ -305,10 +311,6 @@ jobs:
 
             printf -- '- %s (%s)' "$subject" "$ref"
           }
-
-          COMPONENT="${{ needs.metadata.outputs.component }}"
-          VERSION="${{ needs.metadata.outputs.version }}"
-          TAG="${{ needs.metadata.outputs.tag }}"
 
           mapfile -t CHANGE_PATHS < <(printf '%s' "$COMPONENTS_JSON" | jq -r --arg name "$COMPONENT" '.[] | select(.name == $name) | .changedPaths[]')
 
