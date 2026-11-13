@@ -4,6 +4,11 @@ const steps = [
 		title: 'Import your highlights',
 		summary: 'From a Kindle or a Kobo, over USB.',
 		body: 'Connect your reader and upload My Clippings.txt or KoboReader.sqlite in the web interface, or import from the CLI. Import again whenever you like: duplicates are skipped.',
+		aside: {
+			text: 'No cable? The optional browser extension keeps Kindle cloud highlights coming in on its own.',
+			href: '#kindle-sync',
+			link: 'Kindle cloud sync',
+		},
 		lines: [
 			{ prompt: true, text: 'docker compose --profile app up -d' },
 			{ prompt: true, text: 'relego import /media/Kindle/documents/My\\ Clippings.txt' },
@@ -81,6 +86,11 @@ const steps = [
 						hidden={i !== 0}
 					>
 						<p class="start__copy">{step.body}</p>
+						{step.aside && (
+							<p class="start__aside">
+								{step.aside.text} <a href={step.aside.href}>{step.aside.link}</a>
+							</p>
+						)}
 						<div class="term">
 							<div class="term__bar" aria-hidden="true">
 								<span></span><span></span><span></span>
@@ -266,6 +276,25 @@ const steps = [
 		font-size: 1.125rem;
 		line-height: 1.7;
 		color: var(--color-text);
+	}
+
+	.start__aside {
+		margin: -0.9rem 0 1.75rem;
+		padding-left: 0.9rem;
+		border-left: 2px solid var(--color-accent);
+		font-size: 0.9375rem;
+		line-height: 1.65;
+		color: var(--color-soft);
+	}
+
+	.start__aside a {
+		color: var(--color-link);
+		font-weight: 600;
+		text-underline-offset: 0.2em;
+	}
+
+	.start__aside a:hover {
+		text-decoration: underline;
 	}
 
 	.term {

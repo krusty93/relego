@@ -33,6 +33,7 @@ test.describe('Accessibility', () => {
 			'#hero a:has-text("Get started")',                   // hero CTA
 			'#hero [data-copy]',                                 // quick-start command
 			'#hero [data-page-direction="1"]',                   // in-reader page navigation
+			'#kindle-sync a[href*="chromewebstore"]',            // extension download
 			'#faq details summary',                              // first accordion
 			'#explore a:has-text("View on GitHub")',             // explore primary CTA
 			'#explore a:has-text("Documentation")',              // explore outline CTA

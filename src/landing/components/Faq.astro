@@ -24,6 +24,9 @@ import Accordion from './Accordion.astro';
 			<Accordion question="Which readers are supported?">
 				Relego imports Kindle My Clippings.txt files and Kobo KoboReader.sqlite databases. Kindle readers receive recaps as EPUB through Send-to-Kindle; Kobo readers receive them as an HTML email in their regular inbox.
 			</Accordion>
+			<Accordion question="Do I need the browser extension?">
+				No. Highlights stored on a Kindle can be imported over USB as usual. The optional extension adds background cloud sync, so highlights made in the Kindle apps, or on a device you never plug in, reach Relego without a cable.
+			</Accordion>
 			<Accordion question="Where is my data stored?">
 				On your server, in a single SQLite database inside the Docker volume. Kobo databases are copied and read without ever modifying the file on your device.
 			</Accordion>

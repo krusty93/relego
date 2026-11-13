@@ -425,7 +425,9 @@ Persuade surface built on the same paper world, but it is allowed to perform. On
 public-domain sentence from *Walden* travels the whole page: it is underlined on a
 reader in the hero, written into `My Clippings.txt`, filed in the library, picked by
 the scheduler, and delivered back as a recap. Every animated object on the page is
-that same highlight at a different stop on the circuit.
+that same highlight at a different stop on the circuit. The one optional leg, Kindle
+cloud sync, gets its own stop (`#kindle-sync`) after setup, so the cable-free path
+reads as a variation on the trip rather than a second product.
 
 ### Landing-only devices
 
@@ -444,7 +446,8 @@ that same highlight at a different stop on the circuit.
   place where a soft drop shadow and a `1.6rem` device radius are allowed. The
   interactive hero preview and staged journey omit visible sample captions.
 - **Framed objects.** The terminal (night fill, `0.75rem`), the browser frame
-  (`0.9rem`, flattening from a slight tilt as it scrolls in) and the segmented control
+  (`0.9rem`, flattening from a slight tilt as it scrolls in), the extension popup
+  (`0.9rem`, a `2px` accent rail that fills once on entry) and the segmented control
   (`999px` capsule with a sliding thumb) depict real Relego surfaces. Content itself
   still sits on the ground with hairline rules, never in cards.
 
