@@ -8,6 +8,40 @@ test.describe('Navigation', () => {
 	test('navbar renders with "relego." logotype text', async ({ page }) => {
 		const logotype = page.locator('nav a').first();
 		await expect(logotype).toHaveText('relego.');
+		await expect(logotype).toBeHidden();
+	});
+
+	test('navbar logo appears only after the hero and hides again at the top', async ({ page }) => {
+		const logotype = page.locator('.nav__logo');
+		await expect(logotype).toBeHidden();
+		await page.evaluate(() => window.scrollTo({ top: 80, behavior: 'instant' }));
+		await expect(logotype).toBeHidden();
+		const boundary = await page.locator('#hero').evaluate((hero) =>
+			hero.getBoundingClientRect().bottom + scrollY -
+			(document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 0),
+		);
+		await page.evaluate((top) => window.scrollTo({ top, behavior: 'instant' }), boundary - 1);
+		await expect(logotype).toBeHidden();
+		await page.evaluate((top) => window.scrollTo({ top, behavior: 'instant' }), boundary + 1);
+		await expect(logotype).toBeVisible();
+		await logotype.focus();
+		await expect(logotype).toBeFocused();
+		await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+		await expect(logotype).toBeHidden();
+	});
+
+	test('navbar branding follows scroll even with reduced motion', async ({ page }) => {
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.reload();
+		const logotype = page.locator('.nav__logo');
+		await expect(logotype).toBeHidden();
+		await page.locator('#getting-started').scrollIntoViewIfNeeded();
+		await expect(logotype).toBeVisible();
+	});
+
+	test('a deep link initializes the navbar logo below the hero', async ({ page }) => {
+		await page.goto('/#getting-started');
+		await expect(page.locator('.nav__logo')).toBeVisible();
 	});
 
 	test('GitHub icon link points to configured GitHub URL', async ({ page }) => {
@@ -25,7 +59,10 @@ test.describe('Navigation', () => {
 
 	test('clicking logotype navigates to top of page', async ({ page }) => {
 		const logotype = page.locator('nav a').first();
-		await expect(logotype).toHaveAttribute('href', '#');
+		await page.locator('#getting-started').scrollIntoViewIfNeeded();
+		await logotype.click();
+		await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+		await expect(logotype).toBeHidden();
 	});
 
 	test('footer renders with "Relego · MIT License"', async ({ page }) => {

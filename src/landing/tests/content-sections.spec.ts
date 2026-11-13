@@ -8,17 +8,19 @@ test.describe('Content Sections', () => {
 	test('sections appear in correct order', async ({ page }) => {
 		const sections = page.locator('section[id]');
 		const ids = await sections.evaluateAll((els) => els.map((el) => el.id));
-		const expected = ['hero', 'getting-started', 'web-interface', 'why-relego', 'features', 'faq', 'explore'];
+		const expected = ['hero', 'getting-started', 'kindle-sync', 'web-interface', 'why-relego', 'features', 'faq', 'explore'];
 		expect(ids).toEqual(expect.arrayContaining(expected));
 		const heroIdx = ids.indexOf('hero');
 		const gsIdx = ids.indexOf('getting-started');
+		const syncIdx = ids.indexOf('kindle-sync');
 		const webInterfaceIdx = ids.indexOf('web-interface');
 		const wrIdx = ids.indexOf('why-relego');
 		const featIdx = ids.indexOf('features');
 		const faqIdx = ids.indexOf('faq');
 		const exploreIdx = ids.indexOf('explore');
 		expect(heroIdx).toBeLessThan(gsIdx);
-		expect(gsIdx).toBeLessThan(webInterfaceIdx);
+		expect(gsIdx).toBeLessThan(syncIdx);
+		expect(syncIdx).toBeLessThan(webInterfaceIdx);
 		expect(webInterfaceIdx).toBeLessThan(wrIdx);
 		expect(wrIdx).toBeLessThan(featIdx);
 		expect(featIdx).toBeLessThan(faqIdx);
@@ -32,6 +34,33 @@ test.describe('Content Sections', () => {
 		await expect(wrTitle).toContainText('Why Relego');
 		const featTitle = page.locator('#features h2');
 		await expect(featTitle).toHaveText('Built for readers');
+	});
+
+	test('the highlight journey has no orbit ornament or sample-data caption', async ({ page }) => {
+		await expect(page.locator('#journey .journey__ring')).toHaveCount(0);
+		await expect(page.locator('#journey .journey__caption')).toHaveCount(0);
+		await expect(page.getByText('Sample data', { exact: true })).toHaveCount(0);
+	});
+
+	test('Kindle cloud sync follows setup and links the extension', async ({ page }) => {
+		const section = page.locator('#kindle-sync');
+		await expect(section.locator('h2')).toContainText('Skip the cable');
+
+		await expect(section.getByRole('link', { name: 'Get the extension' })).toHaveAttribute(
+			'href',
+			'https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp',
+		);
+		await expect(section.getByRole('link', { name: 'Firefox Add-ons' })).toHaveAttribute(
+			'href',
+			'https://addons.mozilla.org/en-US/firefox/addon/relego/',
+		);
+		await expect(section.getByRole('link', { name: 'setup guide' })).toHaveAttribute(
+			'href',
+			'/docs/reference/kindle-extension/',
+		);
+
+		await expect(page.locator('nav a[href="#kindle-sync"]')).toBeVisible();
+		await expect(page.locator('[data-step-panel="0"] a[href="#kindle-sync"]')).toBeVisible();
 	});
 
 	test('Getting Started renders 3 step tabs with correct titles', async ({ page }) => {

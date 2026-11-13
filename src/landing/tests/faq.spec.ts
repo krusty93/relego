@@ -5,11 +5,11 @@ test.describe('FAQ Section', () => {
 		await page.goto('/');
 	});
 
-	test('renders 6 FAQ accordion items with visible questions', async ({ page }) => {
+	test('renders 7 FAQ accordion items with visible questions', async ({ page }) => {
 		const items = page.locator('#faq details');
-		await expect(items).toHaveCount(6);
+		await expect(items).toHaveCount(7);
 		// All summaries should be visible
-		for (let i = 0; i < 6; i++) {
+		for (let i = 0; i < 7; i++) {
 			await expect(items.nth(i).locator('summary')).toBeVisible();
 		}
 	});
@@ -46,5 +46,6 @@ test.describe('FAQ Section', () => {
 		expect(text).toMatch(/Kobo/i);
 		expect(text).toMatch(/data|stored/i);
 		expect(text).toMatch(/exclude/i);
+		expect(text).toMatch(/extension/i);
 	});
 });
