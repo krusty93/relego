@@ -17,8 +17,7 @@ const SERVER_DLL = join(PUBLISH_DIRECTORY, "Relego.Server.dll");
 const DB_PATH = join(tmpdir(), `relego-web-e2e-${WORKSPACE_ID}.db`);
 
 /** Deletes the throwaway database and its sidecar files without relying on a Unix-only `rm`. */
-const CLEAN_DATABASE =
-  `node -e "const fs=require('node:fs');for(const s of ['','-wal','-shm'])fs.rmSync(process.argv[1]+s,{force:true})" "${DB_PATH}"`;
+const CLEAN_DATABASE = `node -e "const fs=require('node:fs');for(const s of ['','-wal','-shm'])fs.rmSync(process.argv[1]+s,{force:true})" "${DB_PATH}"`;
 export default defineConfig({
   testDir: "./tests",
   globalSetup: "./tests/global-setup.ts",

@@ -91,9 +91,9 @@ export async function ensureAlarms(): Promise<void> {
     if ((await readNextSyncDueAt()) === null) await recordSyncDueAt();
   }
 
-  const heartbeat = await chrome.alarms.get(HEARTBEAT_ALARM);
+  const current = await chrome.alarms.get(HEARTBEAT_ALARM);
 
-  if (heartbeat === undefined || heartbeat.periodInMinutes !== HEARTBEAT_MINUTES) {
+  if (current === undefined || current.periodInMinutes !== HEARTBEAT_MINUTES) {
     await chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: HEARTBEAT_MINUTES });
   }
 }
@@ -105,7 +105,9 @@ export async function ensureAlarms(): Promise<void> {
  * @returns A task that completes once the alarm and the recorded due time agree.
  */
 async function armSyncAlarm(periodInMinutes: number): Promise<void> {
-  await chrome.alarms.create(SYNC_ALARM, { periodInMinutes: clampIntervalMinutes(periodInMinutes) });
+  await chrome.alarms.create(SYNC_ALARM, {
+    periodInMinutes: clampIntervalMinutes(periodInMinutes),
+  });
   await recordSyncDueAt();
 }
 
@@ -198,8 +200,15 @@ export async function syncNow(
  * @param mode Mode to retain if the run needs an authentication retry.
  * @returns A task that completes once the reaction has been applied.
  */
-async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome, mode: SyncMode): Promise<void> {
-  if (outcome.kind === "completed" || (outcome.kind === "skipped" && outcome.reason === "already_completed")) {
+async function reactToOutcome(
+  client: RelegoClient,
+  outcome: SyncRunOutcome,
+  mode: SyncMode,
+): Promise<void> {
+  if (
+    outcome.kind === "completed" ||
+    (outcome.kind === "skipped" && outcome.reason === "already_completed")
+  ) {
     await clearAuthRetry();
     return;
   }
@@ -315,7 +324,8 @@ export async function start(): Promise<void> {
   });
 
   chrome.runtime.onMessage.addListener((message: unknown) => {
-    if (isConfiguredMessage(message)) void applyConfiguration(message.intervalMinutes ?? null, message.reason);
+    if (isConfiguredMessage(message))
+      void applyConfiguration(message.intervalMinutes ?? null, message.reason);
   });
 
   // Before the alarms are reconciled: creating a missing alarm would push its due time a full
@@ -362,10 +372,17 @@ export async function fetchNotebookPage(url: string, signal?: AbortSignal): Prom
   const abort = (): void => controller.abort(signal?.reason);
   if (signal?.aborted === true) abort();
   else signal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(() => controller.abort(new DOMException("Notebook request timed out.", "TimeoutError")), 60_000);
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException("Notebook request timed out.", "TimeoutError")),
+    60_000,
+  );
 
   try {
-    const response = await fetch(url, { credentials: "include", redirect: "follow", signal: controller.signal });
+    const response = await fetch(url, {
+      credentials: "include",
+      redirect: "follow",
+      signal: controller.signal,
+    });
     if (!response.ok) {
       throw new Error(`Notebook page responded with ${response.status}.`);
     }

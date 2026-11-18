@@ -7,10 +7,7 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 
   const tag = element.tagName;
   return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    element.isContentEditable === true
+    tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || element.isContentEditable === true
   );
 }
 
@@ -31,7 +28,10 @@ export interface HotkeyHandlers {
  */
 export function useHotkeys(handlers: HotkeyHandlers): void {
   const ref = useRef(handlers);
-  ref.current = handlers;
+
+  useEffect(() => {
+    ref.current = handlers;
+  });
 
   useEffect(() => {
     let chordArmed = false;

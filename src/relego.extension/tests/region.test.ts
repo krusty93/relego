@@ -168,7 +168,10 @@ describe("origin patterns", () => {
   });
 
   it("releases only allowlisted notebook hosts, never another grant", () => {
-    const stale = staleNotebookOrigins([US_NOTEBOOK, SERVER_ORIGIN, "https://unrelated.test/*"], region("de"));
+    const stale = staleNotebookOrigins(
+      [US_NOTEBOOK, SERVER_ORIGIN, "https://unrelated.test/*"],
+      region("de"),
+    );
 
     expect(stale).toEqual([US_NOTEBOOK]);
   });
@@ -236,7 +239,11 @@ describe("choosing a region", () => {
       server.ports,
     );
 
-    expect(outcome).toEqual({ kind: "access_denied", region: region("de"), origins: [DE_NOTEBOOK] });
+    expect(outcome).toEqual({
+      kind: "access_denied",
+      region: region("de"),
+      origins: [DE_NOTEBOOK],
+    });
     expect(server.switched).toEqual([]);
     expect(server.paired).toEqual([]);
     expect(permissions.removals).toEqual([]);
@@ -400,7 +407,11 @@ describe("re-selecting the region already in use", () => {
       server.ports,
     );
 
-    expect(outcome).toEqual({ kind: "access_denied", region: region("de"), origins: [DE_NOTEBOOK] });
+    expect(outcome).toEqual({
+      kind: "access_denied",
+      region: region("de"),
+      origins: [DE_NOTEBOOK],
+    });
     expect(server.switched).toEqual([]);
   });
 });

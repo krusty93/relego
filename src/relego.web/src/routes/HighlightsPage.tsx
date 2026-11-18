@@ -110,8 +110,7 @@ export function HighlightsPage() {
         {
           action: {
             label: "Undo",
-            run: () =>
-              toggleHighlight.mutate({ id: variables.id, excluded: !variables.excluded }),
+            run: () => toggleHighlight.mutate({ id: variables.id, excluded: !variables.excluded }),
           },
         },
       );
@@ -213,7 +212,11 @@ export function HighlightsPage() {
             {book ? (
               <>
                 {book.authorName} · {plural(items.length, "highlight")} ·{" "}
-                {book.excluded ? <Tag tone="excluded">Excluded</Tag> : <Tag tone="ok">In recaps</Tag>}
+                {book.excluded ? (
+                  <Tag tone="excluded">Excluded</Tag>
+                ) : (
+                  <Tag tone="ok">In recaps</Tag>
+                )}
               </>
             ) : debounced ? (
               `${plural(items.length, "highlight")} matching “${debounced}”.`

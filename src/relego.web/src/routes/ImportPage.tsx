@@ -138,8 +138,8 @@ export function ImportPage() {
       </dl>
 
       <p className="subtle">
-        No cable handy? <Link to="/app/kindle-sync">Connect your Kindle Notebook</Link> and Relego reads new
-        highlights on its own.
+        No cable handy? <Link to="/app/kindle-sync">Connect your Kindle Notebook</Link> and Relego
+        reads new highlights on its own.
       </p>
 
       <p className="subtle">
@@ -180,8 +180,7 @@ export function ImportPage() {
           <header>
             <h2>Imported {result.fileName}</h2>
             <p>
-              Read as {result.sourceName}. {formatCount(result.entriesProcessed)} entries
-              processed.
+              Read as {result.sourceName}. {formatCount(result.entriesProcessed)} entries processed.
             </p>
           </header>
           <dl className="dl">

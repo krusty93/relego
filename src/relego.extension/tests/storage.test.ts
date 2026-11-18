@@ -26,7 +26,9 @@ function stubChrome(initial: Record<string, unknown> = {}): Map<string, unknown>
       local: {
         get: (keys: string[]) =>
           Promise.resolve(
-            Object.fromEntries(keys.filter((key) => state.has(key)).map((key) => [key, state.get(key)])),
+            Object.fromEntries(
+              keys.filter((key) => state.has(key)).map((key) => [key, state.get(key)]),
+            ),
           ),
         set: (values: Record<string, unknown>) => {
           for (const [key, value] of Object.entries(values)) state.set(key, value);

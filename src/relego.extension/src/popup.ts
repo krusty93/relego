@@ -279,7 +279,8 @@ function popOut(elements: Elements): void {
     },
     () => {
       if (chrome.runtime.lastError === undefined) window.close();
-      else say(elements, "The browser did not open a window. Check that popups are allowed.", "warn");
+      else
+        say(elements, "The browser did not open a window. Check that popups are allowed.", "warn");
     },
   );
 }
@@ -301,7 +302,8 @@ async function save(elements: Elements, state: PopupState): Promise<void> {
     const result = await applySave(elements, state);
     if (result === null) return;
 
-    const applied = result.outcome.kind === "region_selected" || result.outcome.kind === "already_selected";
+    const applied =
+      result.outcome.kind === "region_selected" || result.outcome.kind === "already_selected";
     if (applied) elements.code.value = "";
 
     // Only a connection that changed has new server state to read back; the rest would ask the server
@@ -388,7 +390,11 @@ function announceOutcome(elements: Elements, outcome: RegionChoice, notified: bo
   switch (outcome.kind) {
     case "region_selected": {
       if (!notified) {
-        say(elements, "Saved, but the background sync could not be started. Reload the extension, then sync from Relego.", "warn");
+        say(
+          elements,
+          "Saved, but the background sync could not be started. Reload the extension, then sync from Relego.",
+          "warn",
+        );
         break;
       }
       say(

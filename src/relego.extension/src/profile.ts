@@ -18,7 +18,9 @@ export const PROFILE_VERSION = "4";
  * Sync frequencies the server accepts, in minutes. Mirrors
  * `KindleCloudProvider.AllowedMinutesList`; anything else is rejected with 422.
  */
-export const ALLOWED_INTERVAL_MINUTES: readonly number[] = [15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440];
+export const ALLOWED_INTERVAL_MINUTES: readonly number[] = [
+  15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440,
+];
 
 /** Sync frequency applied until the user chooses another one. */
 export const DEFAULT_INTERVAL_MINUTES = 60;

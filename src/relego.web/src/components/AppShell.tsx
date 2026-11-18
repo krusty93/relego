@@ -72,8 +72,8 @@ export function AppShell() {
     retry: false,
   });
   const syncProviderId =
-    syncProviders.data?.find((item) => item.providerId === PREFERRED_SYNC_PROVIDER_ID)?.providerId ??
-    syncProviders.data?.[0]?.providerId;
+    syncProviders.data?.find((item) => item.providerId === PREFERRED_SYNC_PROVIDER_ID)
+      ?.providerId ?? syncProviders.data?.[0]?.providerId;
   const syncStatus = useQuery({
     queryKey: ["sync", syncProviderId ?? "none"],
     queryFn: async () => (syncProviderId ? syncApi.status(syncProviderId) : null),
@@ -185,7 +185,12 @@ export function AppShell() {
               relego<span className="dot">.</span>
             </span>
             {status.data?.serverVersion ? <small>v{status.data.serverVersion}</small> : null}
-            <span className="beta-badge" title="The web UI is in beta. You may encounter rough edges.">beta</span>
+            <span
+              className="beta-badge"
+              title="The web UI is in beta. You may encounter rough edges."
+            >
+              beta
+            </span>
           </div>
 
           <nav className="nav" aria-label="Primary">

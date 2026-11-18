@@ -17,7 +17,10 @@ export interface Toast {
 
 interface ToastContextValue {
   toasts: Toast[];
-  push: (message: string, options?: { tone?: Toast["tone"]; action?: Toast["action"]; ms?: number }) => void;
+  push: (
+    message: string,
+    options?: { tone?: Toast["tone"]; action?: Toast["action"]; ms?: number },
+  ) => void;
   dismiss: (id: number) => void;
 }
 

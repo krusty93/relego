@@ -66,9 +66,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Leaving `system` jumps to the opposite of what's on screen, so the shortcut
     // always changes something visible instead of silently no-opping.
     const next: ThemePreference =
-      preference === "system" ? (resolved === "dark" ? "light" : "dark")
-      : preference === "light" ? "dark"
-      : "system";
+      preference === "system"
+        ? resolved === "dark"
+          ? "light"
+          : "dark"
+        : preference === "light"
+          ? "dark"
+          : "system";
 
     setPreference(next);
     return next;

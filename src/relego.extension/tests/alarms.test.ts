@@ -152,7 +152,13 @@ function jsonResponse(body: unknown, status = 200): FakeResponse {
 }
 
 function pageResponse(html: string, url: string): FakeResponse {
-  return { ok: true, status: 200, url, json: () => Promise.resolve(null), text: () => Promise.resolve(html) };
+  return {
+    ok: true,
+    status: 200,
+    url,
+    json: () => Promise.resolve(null),
+    text: () => Promise.resolve(html),
+  };
 }
 
 /** Frequency the fake server reports as stored, and every job start the worker requested. */
@@ -217,7 +223,14 @@ function installFetch(state: ServerState): Recorded {
 
     if (path.endsWith("/batches")) {
       return Promise.resolve(
-        jsonResponse({ batchIndex: body.batchIndex, replayed: false, newHighlights: 3, duplicateHighlights: 0, newBooks: 1, newAuthors: 1 }),
+        jsonResponse({
+          batchIndex: body.batchIndex,
+          replayed: false,
+          newHighlights: 3,
+          duplicateHighlights: 0,
+          newBooks: 1,
+          newAuthors: 1,
+        }),
       );
     }
 
@@ -229,7 +242,8 @@ function installFetch(state: ServerState): Recorded {
 
 /** Lets the worker's own module-level start-up and any run it kicked off settle. */
 async function settle(times = 6): Promise<void> {
-  for (let index = 0; index < times; index++) await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let index = 0; index < times; index++)
+    await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 /** Loads a fresh worker bound to a fresh fake browser, with the given alarms already present. */
@@ -298,7 +312,9 @@ describe("extension alarms", () => {
   });
 
   it("keeps the alarm period an earlier session stored instead of resetting it to the default", async () => {
-    const { chrome } = await loadWorker({}, [{ periodInMinutes: 45, scheduledTime: Date.now() + 45 * 60_000 }]);
+    const { chrome } = await loadWorker({}, [
+      { periodInMinutes: 45, scheduledTime: Date.now() + 45 * 60_000 },
+    ]);
 
     expect(syncPeriod(chrome)).toBe(45);
   });
@@ -335,7 +351,9 @@ describe("extension alarms", () => {
   });
 
   it("reports the applied frequency and the alarm's due time on every heartbeat", async () => {
-    const { worker, chrome, server } = await loadWorker({ intervalMinutes: DEFAULT_INTERVAL_MINUTES });
+    const { worker, chrome, server } = await loadWorker({
+      intervalMinutes: DEFAULT_INTERVAL_MINUTES,
+    });
 
     await worker.heartbeat();
     const dueAt = chrome.alarms.get(SYNC_ALARM)?.scheduledTime;
@@ -409,7 +427,9 @@ describe("extension alarms", () => {
   });
 
   it("starts no run when the dropped alarm's recorded due time is still ahead", async () => {
-    const { server, chrome } = await loadWorker({}, [], { nextSyncDueAt: Date.now() + 30 * 60_000 });
+    const { server, chrome } = await loadWorker({}, [], {
+      nextSyncDueAt: Date.now() + 30 * 60_000,
+    });
 
     expect(server.starts).toEqual([]);
     expect(syncPeriod(chrome)).toBe(DEFAULT_INTERVAL_MINUTES);
@@ -433,7 +453,8 @@ describe("extension alarms", () => {
   it("moves the recorded due time to the period the alarm carries after a scheduled run", async () => {
     const { chrome } = await loadWorker();
     const listener = chrome.alarmListeners[0];
-    if (listener === undefined) throw new Error("The alarm listener must be registered on start-up.");
+    if (listener === undefined)
+      throw new Error("The alarm listener must be registered on start-up.");
 
     const alarm = chrome.alarms.get(SYNC_ALARM);
     if (alarm === undefined) throw new Error("The routine alarm must exist after start-up.");
@@ -451,7 +472,8 @@ describe("extension alarms", () => {
   it("coalesces overlapping firings of the routine alarm into one run", async () => {
     const { chrome, server } = await loadWorker();
     const listener = chrome.alarmListeners[0];
-    if (listener === undefined) throw new Error("The alarm listener must be registered on start-up.");
+    if (listener === undefined)
+      throw new Error("The alarm listener must be registered on start-up.");
 
     listener({ name: SYNC_ALARM });
     listener({ name: SYNC_ALARM });
@@ -464,7 +486,8 @@ describe("extension alarms", () => {
   it("does not start a routine sync when the heartbeat alarm fires", async () => {
     const { chrome, server } = await loadWorker();
     const listener = chrome.alarmListeners[0];
-    if (listener === undefined) throw new Error("The alarm listener must be registered on start-up.");
+    if (listener === undefined)
+      throw new Error("The alarm listener must be registered on start-up.");
 
     listener({ name: HEARTBEAT_ALARM });
     await settle();

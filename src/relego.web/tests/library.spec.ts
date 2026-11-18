@@ -85,7 +85,10 @@ test.describe("library", () => {
     await page.locator("dialog button[type=submit]").click();
     await expect(page.locator("tbody")).toContainText(`${original} (renamed)`);
 
-    await page.locator("tbody tr", { hasText: `${original} (renamed)` }).first().focus();
+    await page
+      .locator("tbody tr", { hasText: `${original} (renamed)` })
+      .first()
+      .focus();
     await page.keyboard.press("n");
     await page.locator("#rename-title").fill(original);
     await page.locator("dialog button[type=submit]").click();

@@ -16,7 +16,13 @@
  *   fingerprint; full resyncs re-read every book.
  */
 
-import type { RelegoBatch, RelegoBatchBook, RelegoBatchHighlight, RelegoClient, RelegoKnownBook } from "./client";
+import type {
+  RelegoBatch,
+  RelegoBatchBook,
+  RelegoBatchHighlight,
+  RelegoClient,
+  RelegoKnownBook,
+} from "./client";
 import { PROVIDER_ID, RelegoApiError } from "./client";
 import { isSignInUrl, notebookBookUrl, notebookUrl, resolveRegion } from "./profile";
 import type { KindleRegion } from "./profile";
@@ -130,10 +136,15 @@ async function execute(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<S
   let start = await deps.client.startJob(options);
   if (start.reused) {
     if (start.status === "running") return { kind: "skipped", reason: "already_running" };
-    if (start.status.startsWith("completed_")) return { kind: "skipped", reason: "already_completed" };
+    if (start.status.startsWith("completed_"))
+      return { kind: "skipped", reason: "already_completed" };
 
-    start = await deps.client.startJob({ ...options, idempotencyKey: `${options.idempotencyKey}-${crypto.randomUUID()}` });
-    if (start.reused || start.status !== "running") return { kind: "skipped", reason: "already_running" };
+    start = await deps.client.startJob({
+      ...options,
+      idempotencyKey: `${options.idempotencyKey}-${crypto.randomUUID()}`,
+    });
+    if (start.reused || start.status !== "running")
+      return { kind: "skipped", reason: "already_running" };
   }
   const jobId = start.jobId;
 
@@ -159,7 +170,14 @@ async function execute(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<S
         return { kind: "failed", jobId, code: "interrupted" };
       }
 
-      const page = await readBook(deps, region, book.externalKey, book.highlightCount, book.title, book.author);
+      const page = await readBook(
+        deps,
+        region,
+        book.externalKey,
+        book.highlightCount,
+        book.title,
+        book.author,
+      );
 
       if (page.kind === "failed") {
         await reportFailure(deps, jobId, page.code, page.diagnostics);
@@ -176,7 +194,11 @@ async function execute(deps: SyncRunnerDeps, options: SyncRunOptions): Promise<S
       });
     }
 
-    await deps.client.reportProgress(jobId, { phase: "uploading", booksTotal: total, booksDone: total });
+    await deps.client.reportProgress(jobId, {
+      phase: "uploading",
+      booksTotal: total,
+      booksDone: total,
+    });
 
     let newHighlights = 0;
 
@@ -212,7 +234,11 @@ interface LibraryRead {
 
 type LibraryOutcome =
   | LibraryRead
-  | { readonly kind: "failed"; readonly code: SyncFailureCode; readonly diagnostics: ContractDiagnostics | null };
+  | {
+      readonly kind: "failed";
+      readonly code: SyncFailureCode;
+      readonly diagnostics: ContractDiagnostics | null;
+    };
 
 interface BookRead {
   readonly kind: "ok";
@@ -221,7 +247,11 @@ interface BookRead {
 
 type BookOutcome =
   | BookRead
-  | { readonly kind: "failed"; readonly code: SyncFailureCode; readonly diagnostics: ContractDiagnostics | null };
+  | {
+      readonly kind: "failed";
+      readonly code: SyncFailureCode;
+      readonly diagnostics: ContractDiagnostics | null;
+    };
 
 type ContractDiagnostics = {
   readonly profileVersion: string;
@@ -232,7 +262,8 @@ type ContractDiagnostics = {
 async function readLibrary(deps: SyncRunnerDeps, region: KindleRegion): Promise<LibraryOutcome> {
   const page = await fetchOrNetworkFailure(deps, notebookUrl(region));
   if (page === null) return { kind: "failed", code: "network", diagnostics: null };
-  if (isSignInUrl(region, page.url)) return { kind: "failed", code: "auth_expired", diagnostics: null };
+  if (isSignInUrl(region, page.url))
+    return { kind: "failed", code: "auth_expired", diagnostics: null };
 
   const outcome = parseLibrary(page.html, region);
 
@@ -242,7 +273,11 @@ async function readLibrary(deps: SyncRunnerDeps, region: KindleRegion): Promise<
     case "sign_in":
       return { kind: "failed", code: "auth_expired", diagnostics: null };
     default:
-      return { kind: "failed", code: "provider_contract_changed", diagnostics: outcome.diagnostics };
+      return {
+        kind: "failed",
+        code: "provider_contract_changed",
+        diagnostics: outcome.diagnostics,
+      };
   }
 }
 
@@ -256,14 +291,16 @@ async function readBook(
 ): Promise<BookOutcome> {
   const page = await fetchOrNetworkFailure(deps, notebookBookUrl(region, externalKey));
   if (page === null) return { kind: "failed", code: "network", diagnostics: null };
-  if (isSignInUrl(region, page.url)) return { kind: "failed", code: "auth_expired", diagnostics: null };
+  if (isSignInUrl(region, page.url))
+    return { kind: "failed", code: "auth_expired", diagnostics: null };
 
   const outcome = parseBookPage(page.html, region, externalKey, advertisedCount);
 
   switch (outcome.kind) {
     case "ok": {
       const book = outcome.result.books[0];
-      if (book === undefined) return { kind: "failed", code: "provider_contract_changed", diagnostics: null };
+      if (book === undefined)
+        return { kind: "failed", code: "provider_contract_changed", diagnostics: null };
 
       // The library row selected this book, so its title and author name the book Relego files the
       // highlights under; the page contributes the highlights and the export-limit flag only.
@@ -281,11 +318,18 @@ async function readBook(
     case "sign_in":
       return { kind: "failed", code: "auth_expired", diagnostics: null };
     default:
-      return { kind: "failed", code: "provider_contract_changed", diagnostics: outcome.diagnostics };
+      return {
+        kind: "failed",
+        code: "provider_contract_changed",
+        diagnostics: outcome.diagnostics,
+      };
   }
 }
 
-async function fetchOrNetworkFailure(deps: SyncRunnerDeps, url: string): Promise<PageResponse | null> {
+async function fetchOrNetworkFailure(
+  deps: SyncRunnerDeps,
+  url: string,
+): Promise<PageResponse | null> {
   try {
     return await deps.fetchPage(url, deps.signal);
   } catch {
@@ -314,7 +358,9 @@ function selectBooks(
   return books.filter((book) => {
     if (book.highlightCount === null) return true;
 
-    return book.fingerprintKey === null || fingerprint.get(book.fingerprintKey) !== book.highlightCount;
+    return (
+      book.fingerprintKey === null || fingerprint.get(book.fingerprintKey) !== book.highlightCount
+    );
   });
 }
 
@@ -392,7 +438,10 @@ export function chunkBooks(
 type MutableBook = Omit<RelegoBatchBook, "highlights"> & { highlights: RelegoBatchHighlight[] };
 
 function exceedsByteBudget(books: readonly RelegoBatchBook[]): boolean {
-  return new TextEncoder().encode(JSON.stringify({ batchIndex: 2_147_483_647, books })).length > MAX_BATCH_BYTES;
+  return (
+    new TextEncoder().encode(JSON.stringify({ batchIndex: 2_147_483_647, books })).length >
+    MAX_BATCH_BYTES
+  );
 }
 function classify(error: unknown): SyncFailureCode {
   if (typeof error === "object" && error !== null && "status" in error) {

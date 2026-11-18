@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import AxeBuilder from "@axe-core/playwright";
+import { AxeBuilder } from "@axe-core/playwright";
 
 test.describe("settings", () => {
   test.beforeEach(async ({ page, request }) => {
@@ -9,8 +9,11 @@ test.describe("settings", () => {
     expect(delivery.ok()).toBe(true);
     const smtp = await request.put("/settings/smtp", {
       data: {
-        host: "smtp.example.com", port: 587, fromAddress: "sender@example.com",
-        username: "", password: "",
+        host: "smtp.example.com",
+        port: 587,
+        fromAddress: "sender@example.com",
+        username: "",
+        password: "",
       },
     });
     expect(smtp.ok()).toBe(true);
@@ -30,11 +33,7 @@ test.describe("settings", () => {
     const sectionIds = await page
       .locator(".settings > div > section.panel")
       .evaluateAll((sections) => sections.map((section) => section.id));
-    expect(sectionIds).toEqual([
-      "s-conn",
-      "s-appearance",
-      "s-recaps",
-    ]);
+    expect(sectionIds).toEqual(["s-conn", "s-appearance", "s-recaps"]);
     await expect(page.locator("#s-recaps > header > h2")).toHaveText("Recaps");
     await expect(page.locator("#s-recaps > .settings-section > header > h3")).toHaveText([
       "When recaps go out",
@@ -47,7 +46,9 @@ test.describe("settings", () => {
   test("section subtitles use the available width on desktop and mobile", async ({ page }) => {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 950 });
-      const subtitles = page.locator(".settings .panel > header > p, .settings-section > header > p");
+      const subtitles = page.locator(
+        ".settings .panel > header > p, .settings-section > header > p",
+      );
       expect(await subtitles.count()).toBeGreaterThan(0);
 
       for (const subtitle of await subtitles.all()) {
@@ -122,7 +123,9 @@ test.describe("settings", () => {
     await expect(page.locator("#day")).toBeHidden();
   });
 
-  test("each changed destination must pass its own test before explicit saving", async ({ page }) => {
+  test("each changed destination must pass its own test before explicit saving", async ({
+    page,
+  }) => {
     const saved = await (await page.request.get("/settings")).json();
     const panel = page.locator("#s-delivery");
     const save = panel.getByRole("button", { name: "Save changes" });
@@ -143,8 +146,8 @@ test.describe("settings", () => {
     await expect(save).toBeEnabled();
     expect(await (await page.request.get("/settings")).json()).toEqual(saved);
 
-    const savedResponse = page.waitForResponse((response) =>
-      response.url().endsWith("/settings") && response.request().method() === "PATCH",
+    const savedResponse = page.waitForResponse(
+      (response) => response.url().endsWith("/settings") && response.request().method() === "PATCH",
     );
     await save.click();
     expect((await savedResponse).ok()).toBe(true);
@@ -154,7 +157,9 @@ test.describe("settings", () => {
     await expect(page.locator("#inbox")).toHaveValue("draft-reader@example.com");
   });
 
-  test("failed delivery tests show an icon and can be retried; editing invalidates success", async ({ page }) => {
+  test("failed delivery tests show an icon and can be retried; editing invalidates success", async ({
+    page,
+  }) => {
     const panel = page.locator("#s-delivery");
     const saved = await (await page.request.get("/settings")).json();
     let fails = true;
@@ -166,7 +171,9 @@ test.describe("settings", () => {
     );
     await page.locator("#kindle").fill("retry@kindle.com");
     await panel.getByRole("button", { name: "Send test" }).first().click();
-    await expect(panel.getByRole("status").first()).toContainText("Test failed: SMTP authentication failed");
+    await expect(panel.getByRole("status").first()).toContainText(
+      "Test failed: SMTP authentication failed",
+    );
     await expect(panel.getByRole("status").first().locator("svg")).toBeVisible();
     await expect(panel.getByRole("button", { name: "Save changes" })).toBeDisabled();
 
@@ -182,7 +189,9 @@ test.describe("settings", () => {
 
   test("a response for an earlier draft cannot unlock saving", async ({ page }) => {
     let finish!: () => void;
-    const pending = new Promise<void>((resolve) => { finish = resolve; });
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
     await page.route("**/settings/test-kindle-email", async (route) => {
       await pending;
       await route.fulfill({ json: {} });
@@ -195,18 +204,23 @@ test.describe("settings", () => {
     const response = page.waitForResponse("**/settings/test-kindle-email");
     finish();
     await response;
-    await expect(page.locator("#s-delivery").getByRole("button", { name: "Send test" }).first()).toBeEnabled();
+    await expect(
+      page.locator("#s-delivery").getByRole("button", { name: "Send test" }).first(),
+    ).toBeEnabled();
     await expect(page.locator("#s-delivery .test-result").first()).toBeEmpty();
     await expect(page.locator("#s-delivery button[type=submit]")).toBeDisabled();
   });
 
   for (const field of ["kindle", "inbox"] as const) {
-    test(`clearing ${field} needs no test and leaves the other destination intact`, async ({ page }) => {
+    test(`clearing ${field} needs no test and leaves the other destination intact`, async ({
+      page,
+    }) => {
       const saved = await (await page.request.get("/settings")).json();
       await page.locator(`#${field}`).fill("");
       await expect(page.locator("#s-delivery button[type=submit]")).toBeEnabled();
-      const savedResponse = page.waitForResponse((response) =>
-        response.url().endsWith("/settings") && response.request().method() === "PATCH",
+      const savedResponse = page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/settings") && response.request().method() === "PATCH",
       );
       await page.locator("#s-delivery button[type=submit]").click();
       expect((await savedResponse).ok()).toBe(true);
@@ -225,18 +239,22 @@ test.describe("settings", () => {
     await page.locator("#s-delivery").getByRole("button", { name: "Send test" }).first().click();
     await expect(page.locator("#s-delivery button[type=submit]")).toBeEnabled();
 
-    const savedResponse = page.waitForResponse((response) =>
-      response.url().endsWith("/settings") && response.request().method() === "PATCH",
+    const savedResponse = page.waitForResponse(
+      (response) => response.url().endsWith("/settings") && response.request().method() === "PATCH",
     );
     await page.locator("#s-schedule button[type=submit]").click();
     expect((await savedResponse).ok()).toBe(true);
 
     await expect(page.locator("#kindle")).toHaveValue("unsaved@kindle.com");
     await expect(page.locator("#s-delivery button[type=submit]")).toBeEnabled();
-    expect((await (await page.request.get("/settings")).json()).kindleEmail).toBe("reader@kindle.com");
+    expect((await (await page.request.get("/settings")).json()).kindleEmail).toBe(
+      "reader@kindle.com",
+    );
   });
 
-  test("SMTP test uses unsaved form values and only Save changes persists them", async ({ page }) => {
+  test("SMTP test uses unsaved form values and only Save changes persists them", async ({
+    page,
+  }) => {
     const saved = await (await page.request.get("/settings/smtp")).json();
     const panel = page.locator("#s-smtp");
     const save = panel.getByRole("button", { name: "Save changes" });
@@ -254,8 +272,11 @@ test.describe("settings", () => {
     await panel.getByRole("button", { name: "Test connection" }).click();
     expect((await request).postDataJSON()).toEqual({
       settings: {
-        host: "draft.example.com", port: 2525, username: "draft-user",
-        password: "draft-secret", fromAddress: "draft@example.com",
+        host: "draft.example.com",
+        port: 2525,
+        username: "draft-user",
+        password: "draft-secret",
+        fromAddress: "draft@example.com",
       },
       toAddress: null,
     });
@@ -264,8 +285,9 @@ test.describe("settings", () => {
     await expect(save).toBeEnabled();
     expect(await (await page.request.get("/settings/smtp")).json()).toEqual(saved);
 
-    const savedResponse = page.waitForResponse((response) =>
-      response.url().endsWith("/settings/smtp") && response.request().method() === "PUT",
+    const savedResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/settings/smtp") && response.request().method() === "PUT",
     );
     await save.click();
     expect((await savedResponse).ok()).toBe(true);
@@ -281,7 +303,9 @@ test.describe("settings", () => {
     const saved = await (await page.request.get("/settings/smtp")).json();
     let succeeds = false;
     await page.route("**/settings/smtp/test", (route) =>
-      route.fulfill({ json: { success: succeeds, message: succeeds ? "Connected." : "Check the SMTP host." } }),
+      route.fulfill({
+        json: { success: succeeds, message: succeeds ? "Connected." : "Check the SMTP host." },
+      }),
     );
     await page.locator("#host").fill("retry.example.com");
     await panel.getByRole("button", { name: "Test connection" }).click();
@@ -301,9 +325,14 @@ test.describe("settings", () => {
     expect(await (await page.request.get("/settings/smtp")).json()).toEqual(saved);
   });
 
-  test("test results remain accessible on desktop and mobile in both themes", async ({ page }, testInfo) => {
+  test("test results remain accessible on desktop and mobile in both themes", async ({
+    page,
+  }, testInfo) => {
     await page.route("**/settings/test-recap-email", (route) =>
-      route.fulfill({ status: 502, json: { detail: "Check your SMTP credentials and try again." } }),
+      route.fulfill({
+        status: 502,
+        json: { detail: "Check your SMTP credentials and try again." },
+      }),
     );
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 950 });
@@ -312,13 +341,23 @@ test.describe("settings", () => {
         await page.reload({ waitUntil: "networkidle" });
         await page.locator("#kindle").fill("accessible@kindle.com");
         await page.locator("#inbox").fill("accessible@example.com");
-        await page.locator("#s-delivery").getByRole("button", { name: "Send test" }).first().click();
+        await page
+          .locator("#s-delivery")
+          .getByRole("button", { name: "Send test" })
+          .first()
+          .click();
         await page.locator("#s-delivery").getByRole("button", { name: "Send test" }).last().click();
-        await expect(page.locator("#s-delivery").getByRole("status").first()).toContainText("Test succeeded");
-        await expect(page.locator("#s-delivery").getByRole("status").last()).toContainText("Test failed");
+        await expect(page.locator("#s-delivery").getByRole("status").first()).toContainText(
+          "Test succeeded",
+        );
+        await expect(page.locator("#s-delivery").getByRole("status").last()).toContainText(
+          "Test failed",
+        );
         const { violations } = await new AxeBuilder({ page }).include("#s-recaps").analyze();
         expect(violations).toEqual([]);
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        ).toBe(true);
         await page.locator("#s-recaps").screenshot({
           path: testInfo.outputPath(`recaps-${width}-${theme}.png`),
         });

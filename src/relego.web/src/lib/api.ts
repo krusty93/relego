@@ -36,9 +36,7 @@ export class ApiError extends Error {
 
   /** The first message for a field, if the server reported one. */
   field(name: string): string | undefined {
-    const key = Object.keys(this.fieldErrors).find(
-      (k) => k.toLowerCase() === name.toLowerCase(),
-    );
+    const key = Object.keys(this.fieldErrors).find((k) => k.toLowerCase() === name.toLowerCase());
     return key ? this.fieldErrors[key]?.[0] : undefined;
   }
 }
@@ -104,9 +102,7 @@ export const api = {
   status: () => request<StatusResponse>("/status"),
 
   books: (query?: string) =>
-    request<BooksResponse>(
-      `/books?pageSize=500${query ? `&q=${encodeURIComponent(query)}` : ""}`,
-    ),
+    request<BooksResponse>(`/books?pageSize=500${query ? `&q=${encodeURIComponent(query)}` : ""}`),
 
   renameBook: (id: number, title: string) =>
     request<void>(`/books/${id}/title`, { method: "PUT", body: JSON.stringify({ title }) }),
@@ -234,10 +230,9 @@ export const syncApi = {
 
   /** Dismisses the inactivity reminder so the banner stops coming back. */
   dismissReminder: (providerId: string, reminderId: number) =>
-    request<void>(
-      `/sync/${encodeURIComponent(providerId)}/reminders/${reminderId}/dismiss`,
-      { method: "POST" },
-    ),
+    request<void>(`/sync/${encodeURIComponent(providerId)}/reminders/${reminderId}/dismiss`, {
+      method: "POST",
+    }),
 
   createConnection: (providerId: string) =>
     request<CreateSyncConnectionResponse>(`/sync/${encodeURIComponent(providerId)}/connection`, {

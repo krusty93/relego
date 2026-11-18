@@ -16,9 +16,11 @@ test.describe("navigation and global keys", () => {
     await expect(feedback).toHaveAttribute("rel", "noopener noreferrer");
     await expect(feedback.locator("xpath=following-sibling::*[1]")).toHaveText("Shortcuts ?");
 
-    await page.context().route("https://github.com/**", (route) =>
-      route.fulfill({ contentType: "text/html", body: "<title>GitHub issue chooser</title>" }),
-    );
+    await page
+      .context()
+      .route("https://github.com/**", (route) =>
+        route.fulfill({ contentType: "text/html", body: "<title>GitHub issue chooser</title>" }),
+      );
     await feedback.focus();
     const popupPromise = page.waitForEvent("popup");
     await page.keyboard.press("Enter");

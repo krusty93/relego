@@ -28,7 +28,10 @@ export interface ListKeyOptions {
  */
 export function useListKeys(options: ListKeyOptions): void {
   const ref = useRef(options);
-  ref.current = options;
+
+  useEffect(() => {
+    ref.current = options;
+  });
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -44,9 +47,12 @@ export function useListKeys(options: ListKeyOptions): void {
       const active = document.activeElement;
       const inList = active instanceof Node && containerRef.current?.contains(active) === true;
 
-      const step = event.key === "j" || event.key === "ArrowDown" ? 1
-        : event.key === "k" || event.key === "ArrowUp" ? -1
-        : 0;
+      const step =
+        event.key === "j" || event.key === "ArrowDown"
+          ? 1
+          : event.key === "k" || event.key === "ArrowUp"
+            ? -1
+            : 0;
 
       if (step !== 0) {
         event.preventDefault();

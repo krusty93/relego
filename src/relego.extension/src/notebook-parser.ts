@@ -48,7 +48,10 @@ const TITLE_CANDIDATES: readonly Selector[] = [
   { className: "kp-notebook-book-title" },
 ];
 
-const AUTHOR_CANDIDATES: readonly Selector[] = [SELECTORS.bookAuthor, { className: "kp-notebook-book-author" }];
+const AUTHOR_CANDIDATES: readonly Selector[] = [
+  SELECTORS.bookAuthor,
+  { className: "kp-notebook-book-author" },
+];
 
 /**
  * A library row is a small card, so its author may be an unmarked paragraph. The book page is not:
@@ -56,7 +59,10 @@ const AUTHOR_CANDIDATES: readonly Selector[] = [SELECTORS.bookAuthor, { classNam
  */
 const ROW_AUTHOR_CANDIDATES: readonly Selector[] = [...AUTHOR_CANDIDATES, { tag: "p" }];
 
-const EMPTY_CANDIDATES: readonly Selector[] = [SELECTORS.libraryEmpty, { className: "kp-notebook-empty" }];
+const EMPTY_CANDIDATES: readonly Selector[] = [
+  SELECTORS.libraryEmpty,
+  { className: "kp-notebook-empty" },
+];
 
 const HIGHLIGHT_CANDIDATES: readonly Selector[] = [
   SELECTORS.highlightText,
@@ -156,7 +162,10 @@ export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome
   if (isSignInPage(html, region)) return { kind: "sign_in" };
 
   const list = elementContent(html, SELECTORS.libraryList);
-  if (list === null) return contractBreak("libraryList", { lists: findElements(html, SELECTORS.libraryList).length });
+  if (list === null)
+    return contractBreak("libraryList", {
+      lists: findElements(html, SELECTORS.libraryList).length,
+    });
 
   const rows = findElements(list, SELECTORS.bookRow);
   if (rows.length === 0) {
@@ -198,11 +207,19 @@ export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome
   }
 
   if (missingTitles > 0) {
-    return contractBreak("bookTitle", { bookRows: rows.length, missingTitles, titleAnchors: countText(list, TITLE_CANDIDATES) });
+    return contractBreak("bookTitle", {
+      bookRows: rows.length,
+      missingTitles,
+      titleAnchors: countText(list, TITLE_CANDIDATES),
+    });
   }
 
   if (missingKeys > 0) {
-    return contractBreak("bookKey", { bookRows: rows.length, keyedRows: books.length, missingKeys });
+    return contractBreak("bookKey", {
+      bookRows: rows.length,
+      keyedRows: books.length,
+      missingKeys,
+    });
   }
 
   return { kind: "ok", books };
@@ -221,7 +238,10 @@ export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome
  * @returns The parsed book, a sign-in signal, or a contract break.
  */
 export function parseBookPage(
-  html: string, region: KindleRegion, fallbackKey: string, advertisedCount: number | null = null,
+  html: string,
+  region: KindleRegion,
+  fallbackKey: string,
+  advertisedCount: number | null = null,
 ): ParseOutcome {
   if (isSignInPage(html, region)) return { kind: "sign_in" };
 
@@ -285,7 +305,10 @@ export function isSignInPage(html: string, region: KindleRegion): boolean {
   return canonical !== null && region.signInHostPatterns.includes(canonical);
 }
 
-function contractBreak(check: string, counts: Record<string, number>): {
+function contractBreak(
+  check: string,
+  counts: Record<string, number>,
+): {
   readonly kind: "contract_changed";
   readonly diagnostics: ContractDiagnostics;
 } {
@@ -346,7 +369,8 @@ function matches(openTag: string, selector: Selector): boolean {
   const id = attributes.get("id") ?? null;
 
   if (selector.id !== undefined && id !== selector.id) return false;
-  if (selector.idPrefix !== undefined && (id === null || !id.startsWith(selector.idPrefix))) return false;
+  if (selector.idPrefix !== undefined && (id === null || !id.startsWith(selector.idPrefix)))
+    return false;
 
   if (selector.className !== undefined) {
     const tokens = (attributes.get("class") ?? "").split(/\s+/).filter((token) => token.length > 0);
@@ -368,7 +392,8 @@ function tagOf(openTag: string): string | null {
  */
 function findElements(html: string, selector: Selector): Element[] {
   const results: Element[] = [];
-  const openPattern = selector.tag === undefined ? /<[a-zA-Z][^>]*>/g : new RegExp(`<${selector.tag}\\b[^>]*>`, "gi");
+  const openPattern =
+    selector.tag === undefined ? /<[a-zA-Z][^>]*>/g : new RegExp(`<${selector.tag}\\b[^>]*>`, "gi");
   let match: RegExpExecArray | null;
 
   while ((match = openPattern.exec(html)) !== null) {
@@ -393,7 +418,21 @@ function findElements(html: string, selector: Selector): Element[] {
   return results;
 }
 
-const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
+const VOID_TAGS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "source",
+  "track",
+  "wbr",
+]);
 
 /** Every element matched by any candidate, deduplicated, in document order. */
 function selectAll(html: string, candidates: readonly Selector[]): Element[] {

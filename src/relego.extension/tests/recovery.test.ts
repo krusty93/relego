@@ -126,7 +126,13 @@ function jsonResponse(body: unknown, status = 200): FakeResponse {
 }
 
 function pageResponse(html: string, url: string): FakeResponse {
-  return { ok: true, status: 200, url, json: () => Promise.resolve(null), text: () => Promise.resolve(html) };
+  return {
+    ok: true,
+    status: 200,
+    url,
+    json: () => Promise.resolve(null),
+    text: () => Promise.resolve(html),
+  };
 }
 
 /** Mutable state the fake server reads, so a test can sign the user in mid-flight. */
@@ -151,21 +157,41 @@ interface Recorded {
 }
 
 function installFetch(state: ServerState): Recorded {
-  const server: Recorded = { notebookHosts: [], starts: [], failures: [], completions: [], heartbeats: [], batches: 0, statusCalls: 0 };
+  const server: Recorded = {
+    notebookHosts: [],
+    starts: [],
+    failures: [],
+    completions: [],
+    heartbeats: [],
+    batches: 0,
+    statusCalls: 0,
+  };
 
   vi.stubGlobal("fetch", (input: string | URL, init?: RequestInit): Promise<FakeResponse> => {
     const url = new URL(typeof input === "string" ? input : input.toString());
     const selected = region(state.regionId);
-    const reportedRegion = { id: selected.id, displayName: selected.displayName, host: selected.notebookHost };
+    const reportedRegion = {
+      id: selected.id,
+      displayName: selected.displayName,
+      host: selected.notebookHost,
+    };
     const notebook = REGIONS.find((item) => item.notebookHost === url.hostname);
 
     if (notebook !== undefined) {
       server.notebookHosts.push(url.hostname);
-      if (!state.signedIn) return Promise.resolve(pageResponse(fixture("sign-in.html"), "https://www.amazon.com/ap/signin"));
+      if (!state.signedIn)
+        return Promise.resolve(
+          pageResponse(fixture("sign-in.html"), "https://www.amazon.com/ap/signin"),
+        );
 
       const key = url.searchParams.get("asin");
       if (key !== null) {
-        return Promise.resolve(pageResponse(fixture("book.html", notebook.id).replace("B00EXAMPLE01", key), url.toString()));
+        return Promise.resolve(
+          pageResponse(
+            fixture("book.html", notebook.id).replace("B00EXAMPLE01", key),
+            url.toString(),
+          ),
+        );
       }
 
       return Promise.resolve(pageResponse(fixture(state.library, notebook.id), url.toString()));
@@ -188,23 +214,38 @@ function installFetch(state: ServerState): Recorded {
 
     if (path === `/sync/${PROVIDER_ID}`) {
       server.statusCalls++;
-      return Promise.resolve(jsonResponse({ providerId: PROVIDER_ID, status: "connected", connection: { region: reportedRegion } }));
+      return Promise.resolve(
+        jsonResponse({
+          providerId: PROVIDER_ID,
+          status: "connected",
+          connection: { region: reportedRegion },
+        }),
+      );
     }
 
     if (path === `/sync/${PROVIDER_ID}/jobs`) {
       server.starts.push(body);
-      return Promise.resolve(jsonResponse({
-        jobId: 42,
-        reused: state.reusedCompleted,
-        status: state.reusedCompleted ? "completed_no_changes" : "running",
-        knownBooks: state.knownBooks,
-      }));
+      return Promise.resolve(
+        jsonResponse({
+          jobId: 42,
+          reused: state.reusedCompleted,
+          status: state.reusedCompleted ? "completed_no_changes" : "running",
+          knownBooks: state.knownBooks,
+        }),
+      );
     }
 
     if (path.endsWith("/batches")) {
       server.batches++;
       return Promise.resolve(
-        jsonResponse({ batchIndex: body.batchIndex, replayed: false, newHighlights: 3, duplicateHighlights: 0, newBooks: 1, newAuthors: 1 }),
+        jsonResponse({
+          batchIndex: body.batchIndex,
+          replayed: false,
+          newHighlights: 3,
+          duplicateHighlights: 0,
+          newBooks: 1,
+          newAuthors: 1,
+        }),
       );
     }
 
@@ -326,7 +367,10 @@ describe("service worker recovery", () => {
   });
 
   it("resumes the sync and clears the retry once the user has signed in", async () => {
-    const { worker, server, state, chrome } = await loadWorker({ command: "sync", signedIn: false });
+    const { worker, server, state, chrome } = await loadWorker({
+      command: "sync",
+      signedIn: false,
+    });
 
     await worker.heartbeat();
     expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(true);
@@ -368,12 +412,19 @@ describe("service worker recovery", () => {
     expect(server.starts.at(-1)?.mode).toBe("full_resync");
     expect(server.starts.at(-1)?.trigger).toBe("retry");
     expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
-    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token", nextSyncDueAt: expect.any(Number) });
+    expect(chrome.stored).toEqual({
+      serverUrl: SERVER,
+      token: "pairing-token",
+      nextSyncDueAt: expect.any(Number),
+    });
     expect(chrome.tabs).toHaveLength(1);
   });
 
   it("does not downgrade a pending full-resync retry when the routine alarm fires", async () => {
-    const { worker, server, state, chrome } = await loadWorker({ command: "full_resync", signedIn: false });
+    const { worker, server, state, chrome } = await loadWorker({
+      command: "full_resync",
+      signedIn: false,
+    });
     await worker.heartbeat();
     state.signedIn = true;
 
@@ -391,13 +442,19 @@ describe("service worker recovery", () => {
 
     chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
     await vi.waitFor(() => expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false));
-    expect(chrome.stored).toEqual({ serverUrl: SERVER, token: "pairing-token", nextSyncDueAt: expect.any(Number) });
+    expect(chrome.stored).toEqual({
+      serverUrl: SERVER,
+      token: "pairing-token",
+      nextSyncDueAt: expect.any(Number),
+    });
   });
 
   it("leaves a full-resync command for the next heartbeat while a routine run is in flight", async () => {
     const { worker, server, state } = await loadWorker();
     let release = () => {};
-    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
       if (new URL(input.toString()).hostname === us.notebookHost) await gate;
@@ -422,7 +479,9 @@ describe("service worker recovery", () => {
   it("reads the new region in a distinct full resync after the old browser run finishes", async () => {
     const { worker, server, state } = await loadWorker();
     let release = () => {};
-    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
       if (new URL(input.toString()).hostname === us.notebookHost) await gate;
@@ -450,7 +509,10 @@ describe("service worker recovery", () => {
   });
 
   it("does not open a sign-in tab for a failure the user cannot fix by signing in", async () => {
-    const { worker, server, chrome } = await loadWorker({ command: "sync", library: "changed-layout.html" });
+    const { worker, server, chrome } = await loadWorker({
+      command: "sync",
+      library: "changed-layout.html",
+    });
 
     await worker.heartbeat();
 
@@ -465,11 +527,16 @@ describe("service worker recovery", () => {
     await worker.heartbeat();
 
     expect(chrome.alarms.get(worker.SYNC_ALARM)?.periodInMinutes).toBe(DEFAULT_INTERVAL_MINUTES);
-    expect(chrome.alarms.get(worker.HEARTBEAT_ALARM)?.periodInMinutes).toBe(worker.HEARTBEAT_MINUTES);
+    expect(chrome.alarms.get(worker.HEARTBEAT_ALARM)?.periodInMinutes).toBe(
+      worker.HEARTBEAT_MINUTES,
+    );
   });
 
   it("applies a configuration change from the popup and runs the queued command at once", async () => {
-    const { worker, server, chrome } = await loadWorker({ command: "full_resync", intervalMinutes: 30 });
+    const { worker, server, chrome } = await loadWorker({
+      command: "full_resync",
+      intervalMinutes: 30,
+    });
 
     chrome.messageListeners.forEach((listener) =>
       listener({ type: CONFIGURED_MESSAGE, reason: "region_changed", intervalMinutes: 30 }),

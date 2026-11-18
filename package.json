@@ -4,5 +4,15 @@
   "packageManager": "pnpm@12.16.1",
   "engines": {
     "node": ">=26"
+  },
+  "scripts": {
+    "lint": "oxlint src/relego.web src/relego.extension src/landing",
+    "lint:fix": "oxlint --fix src/relego.web src/relego.extension src/landing",
+    "format": "oxfmt --write \"src/{relego.web,relego.extension,landing}/**/*.{ts,tsx,js,jsx,mjs,cjs}\"",
+    "format:check": "oxfmt --check \"src/{relego.web,relego.extension,landing}/**/*.{ts,tsx,js,jsx,mjs,cjs}\""
+  },
+  "devDependencies": {
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0"
   }
 }

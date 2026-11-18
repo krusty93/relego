@@ -159,13 +159,14 @@ test.describe("highlights", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.locator(".hl-summary").first().click();
 
-    const text = await page.locator(".hl-quote").first().evaluate((node) => node.textContent);
+    const text = await page
+      .locator(".hl-quote")
+      .first()
+      .evaluate((node) => node.textContent);
     await page.getByRole("button", { name: "Copy highlight text" }).first().click();
 
     await expect(page.locator(".toast")).toContainText("Highlight copied.");
-    await expect
-      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-      .toBe(text);
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(text);
   });
 
   test("deleting takes a second confirmation and Keep backs out", async ({ page }) => {

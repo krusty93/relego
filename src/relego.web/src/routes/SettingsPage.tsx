@@ -75,7 +75,9 @@ function TestStatus({ result }: { result: TestResult | null }) {
       {result ? (
         <>
           {result.success ? <CheckIcon /> : <CrossIcon />}
-          <span>{result.success ? "Test succeeded" : "Test failed"}: {result.message}</span>
+          <span>
+            {result.success ? "Test succeeded" : "Test failed"}: {result.message}
+          </span>
         </>
       ) : null}
     </div>
@@ -190,21 +192,25 @@ function DeliveryPanel() {
   const [deliveryEmail, setDeliveryEmail] = useState("");
   const [touched, setTouched] = useState(false);
 
+  const savedKindleEmail = query.data?.kindleEmail;
+  const savedDeliveryEmail = query.data?.deliveryEmail;
+
   useEffect(() => {
-    if (!query.data) return;
-    setKindleEmail(query.data.kindleEmail ?? "");
-    setDeliveryEmail(query.data.deliveryEmail ?? "");
-  }, [query.data?.kindleEmail, query.data?.deliveryEmail]);
+    if (savedKindleEmail === undefined && savedDeliveryEmail === undefined) return;
+    setKindleEmail(savedKindleEmail ?? "");
+    setDeliveryEmail(savedDeliveryEmail ?? "");
+  }, [savedKindleEmail, savedDeliveryEmail]);
 
   const kindleValid = looksLikeEmail(kindleEmail) && isKindleAddress(kindleEmail);
 
-  const kindleError = !touched || !kindleEmail.trim()
-    ? null
-    : !looksLikeEmail(kindleEmail)
-      ? "That doesn't look like an email address. It needs a domain, like you@kindle.com."
-      : !isKindleAddress(kindleEmail)
-        ? "Send-to-Kindle addresses end in @kindle.com. Check the Preferences page in your Amazon account for yours."
-        : null;
+  const kindleError =
+    !touched || !kindleEmail.trim()
+      ? null
+      : !looksLikeEmail(kindleEmail)
+        ? "That doesn't look like an email address. It needs a domain, like you@kindle.com."
+        : !isKindleAddress(kindleEmail)
+          ? "Send-to-Kindle addresses end in @kindle.com. Check the Preferences page in your Amazon account for yours."
+          : null;
 
   const inboxError =
     touched && deliveryEmail.trim() && !looksLikeEmail(deliveryEmail)
@@ -221,22 +227,29 @@ function DeliveryPanel() {
   });
   const kindleChanged = kindleEmail.trim() !== (query.data?.kindleEmail ?? "");
   const inboxChanged = deliveryEmail.trim() !== (query.data?.deliveryEmail ?? "");
-  const canSave = query.isSuccess && (kindleChanged || inboxChanged) &&
+  const canSave =
+    query.isSuccess &&
+    (kindleChanged || inboxChanged) &&
     (!kindleEmail.trim() || kindleValid) &&
     (!deliveryEmail.trim() || looksLikeEmail(deliveryEmail)) &&
     (!kindleChanged || !kindleEmail.trim() || kindleTest.result?.success === true) &&
     (!inboxChanged || !deliveryEmail.trim() || inboxTest.result?.success === true) &&
-    !kindleTest.test.isPending && !inboxTest.test.isPending && !save.isPending;
+    !kindleTest.test.isPending &&
+    !inboxTest.test.isPending &&
+    !save.isPending;
 
   return (
     <section className="settings-section" id="s-delivery">
       <header>
         <h3>Where recaps go</h3>
         <p>
-          Set at least one destination. Your reader gets an EPUB via Send-to-Kindle; your inbox
-          gets an HTML email.
+          Set at least one destination. Your reader gets an EPUB via Send-to-Kindle; your inbox gets
+          an HTML email.
         </p>
-        <p>Test each changed address before saving. Tests use your saved email server settings and do not save changes.</p>
+        <p>
+          Test each changed address before saving. Tests use your saved email server settings and do
+          not save changes.
+        </p>
       </header>
 
       <form
@@ -267,7 +280,9 @@ function DeliveryPanel() {
             <button
               className="btn"
               type="button"
-              disabled={!query.isSuccess || !kindleValid || kindleTest.test.isPending || save.isPending}
+              disabled={
+                !query.isSuccess || !kindleValid || kindleTest.test.isPending || save.isPending
+              }
               onClick={() => kindleTest.test.mutate(kindleEmail.trim())}
             >
               {kindleTest.test.isPending ? "Sending…" : "Send test"}
@@ -280,8 +295,8 @@ function DeliveryPanel() {
             </span>
           ) : (
             <span className="help" id="kindle-help">
-              Ends in @kindle.com. Add your Relego sender address to your Amazon
-              approved-sender list first.
+              Ends in @kindle.com. Add your Relego sender address to your Amazon approved-sender
+              list first.
             </span>
           )}
         </div>
@@ -306,7 +321,12 @@ function DeliveryPanel() {
             <button
               className="btn"
               type="button"
-              disabled={!query.isSuccess || !looksLikeEmail(deliveryEmail) || inboxTest.test.isPending || save.isPending}
+              disabled={
+                !query.isSuccess ||
+                !looksLikeEmail(deliveryEmail) ||
+                inboxTest.test.isPending ||
+                save.isPending
+              }
               onClick={() => inboxTest.test.mutate(deliveryEmail.trim())}
             >
               {inboxTest.test.isPending ? "Sending…" : "Send test"}
@@ -514,7 +534,9 @@ function SmtpPanel() {
   const fieldError = (name: string) =>
     verification.result?.success === false && verification.test.error instanceof ApiError
       ? verification.test.error.field(name)
-      : save.error instanceof ApiError ? save.error.field(name) : undefined;
+      : save.error instanceof ApiError
+        ? save.error.field(name)
+        : undefined;
 
   if (query.isError) {
     return (
@@ -542,19 +564,33 @@ function SmtpPanel() {
   }
 
   const fromEnvironment = query.data?.source === "environment";
-  const valid = !!form.host.trim() && Number.isInteger(form.port) &&
-    form.port >= 1 && form.port <= 65535 && looksLikeEmail(form.fromAddress);
-  const changed = form.host !== query.data?.host || form.port !== query.data?.port ||
-    form.fromAddress !== query.data?.fromAddress || form.username !== query.data?.username ||
+  const valid =
+    !!form.host.trim() &&
+    Number.isInteger(form.port) &&
+    form.port >= 1 &&
+    form.port <= 65535 &&
+    looksLikeEmail(form.fromAddress);
+  const changed =
+    form.host !== query.data?.host ||
+    form.port !== query.data?.port ||
+    form.fromAddress !== query.data?.fromAddress ||
+    form.username !== query.data?.username ||
     password !== "";
-  const canSave = valid && (changed || fromEnvironment) && verification.result?.success === true &&
-    !verification.test.isPending && !save.isPending;
+  const canSave =
+    valid &&
+    (changed || fromEnvironment) &&
+    verification.result?.success === true &&
+    !verification.test.isPending &&
+    !save.isPending;
 
   return (
     <section className="settings-section" id="s-smtp">
       <header>
         <h3>Email server</h3>
-        <p>Test your changes before saving. The connection test sends a message without saving these settings.</p>
+        <p>
+          Test your changes before saving. The connection test sends a message without saving these
+          settings.
+        </p>
       </header>
 
       {fromEnvironment ? (
@@ -577,8 +613,7 @@ function SmtpPanel() {
         <div className="row">
           <div className="field">
             <label htmlFor="host">
-              Host{" "}
-              {fromEnvironment ? <span className="env-badge">from env</span> : null}
+              Host {fromEnvironment ? <span className="env-badge">from env</span> : null}
             </label>
             <input
               className="control"
@@ -669,10 +704,12 @@ function SmtpPanel() {
           <button
             className="btn"
             type="button"
-            onClick={() => verification.test.mutate({
-              ...form,
-              ...(password ? { password } : {}),
-            })}
+            onClick={() =>
+              verification.test.mutate({
+                ...form,
+                ...(password ? { password } : {}),
+              })
+            }
             disabled={!valid || verification.test.isPending || save.isPending}
           >
             {verification.test.isPending ? "Testing…" : "Test connection"}
@@ -692,8 +729,8 @@ function ConnectionPanel() {
       <header>
         <h2>Connection</h2>
         <p>
-          Relego has no login. Anyone who can reach this page can change these settings, so keep
-          it on a network you trust.
+          Relego has no login. Anyone who can reach this page can change these settings, so keep it
+          on a network you trust.
         </p>
       </header>
 

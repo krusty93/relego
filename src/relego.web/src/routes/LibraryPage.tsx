@@ -129,14 +129,18 @@ export function LibraryPage() {
         empty={
           debounced ? (
             <EmptyState title="No books match that search">
-              Nothing in your library matches “{debounced}”. Try a shorter word, or clear the
-              search box.
+              Nothing in your library matches “{debounced}”. Try a shorter word, or clear the search
+              box.
             </EmptyState>
           ) : (
             <EmptyState
               title="No books yet"
               action={
-                <button className="btn btn--primary" type="button" onClick={() => navigate("/app/import")}>
+                <button
+                  className="btn btn--primary"
+                  type="button"
+                  onClick={() => navigate("/app/import")}
+                >
                   Import highlights
                 </button>
               }

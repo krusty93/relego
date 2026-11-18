@@ -103,7 +103,8 @@ const STATE_SUMMARIES: Record<string, string> = {
   syncing: "Your browser is reading your Kindle Notebook and sending what it finds.",
   auth_expired:
     "Amazon ended the session Relego was reading. Sign in again in your browser, then sync.",
-  failed: "The last sync stopped before it finished. Highlights already saved are still in your library.",
+  failed:
+    "The last sync stopped before it finished. Highlights already saved are still in your library.",
   browser_not_reporting:
     "Relego has not heard from the extension recently, so syncs are not running. Open the browser where the extension is installed.",
   reminder_due: "It has been a while since your highlights were read.",
@@ -126,8 +127,8 @@ export function SyncPage() {
           <h1 id="sync-h">Kindle Notebook Sync</h1>
           <p>Keep your Kindle Notebook highlights flowing into Relego automatically.</p>
           <p>
-            <Link to="/app/import">Import a highlights file</Link> instead if you would rather
-            keep it manual.
+            <Link to="/app/import">Import a highlights file</Link> instead if you would rather keep
+            it manual.
           </p>
         </div>
       </div>
@@ -178,7 +179,9 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
       push(error instanceof Error ? error.message : "Could not start the connection.", {
         tone: "bad",
       }),
-    onSettled: () => { actionPending.current = false; },
+    onSettled: () => {
+      actionPending.current = false;
+    },
   });
 
   const disconnect = useMutation({
@@ -191,13 +194,14 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
     },
     onError: (error) =>
       push(error instanceof Error ? error.message : "Could not disconnect.", { tone: "bad" }),
-    onSettled: () => { actionPending.current = false; },
+    onSettled: () => {
+      actionPending.current = false;
+    },
   });
 
   // Dismissing hides the banner for this quiet period only; new content starts a new one.
   const dismissReminder = useMutation({
-    mutationFn: (reminderId: number) =>
-      syncApi.dismissReminder(provider.providerId, reminderId),
+    mutationFn: (reminderId: number) => syncApi.dismissReminder(provider.providerId, reminderId),
     onSuccess: () => {
       refresh();
       push("Reminder dismissed. It comes back only if nothing new arrives again.");
@@ -242,8 +246,7 @@ function SyncPanel({ provider }: { provider: SyncProviderSummary }) {
   // The frequency is the extension's to apply, so a stored value is written into the status cache
   // straight away: the page can then say whether the browser has picked it up yet.
   const schedule = useMutation({
-    mutationFn: (intervalMinutes: number) =>
-      syncApi.schedule(provider.providerId, intervalMinutes),
+    mutationFn: (intervalMinutes: number) => syncApi.schedule(provider.providerId, intervalMinutes),
     onSuccess: (response) => {
       queryClient.setQueryData<SyncStatusResponse>(["sync", provider.providerId], (current) =>
         current
@@ -549,11 +552,7 @@ function StatusPanel({
       />
 
       {queued !== null && !running ? (
-        <RequestedNotice
-          command={queued}
-          heartbeatAge={heartbeatAge}
-          stale={stale}
-        />
+        <RequestedNotice command={queued} heartbeatAge={heartbeatAge} stale={stale} />
       ) : null}
 
       {running && currentJob ? <JobProgress job={currentJob} /> : null}
@@ -757,9 +756,7 @@ function RequestedNotice({
       ) : (
         <p className="subtle hint-line">
           Your browser picks this up on its next check-in, at most a minute away.
-          {heartbeatAge === null
-            ? null
-            : ` Last check-in ${formatDuration(heartbeatAge)} ago.`}
+          {heartbeatAge === null ? null : ` Last check-in ${formatDuration(heartbeatAge)} ago.`}
         </p>
       )}
     </div>
@@ -798,9 +795,9 @@ function ReminderBanner({
         </p>
         <p className="hint-line">
           Relego has read no new highlights since{" "}
-          <time dateTime={reminder.quietSince}>{formatDate(reminder.quietSince)}</time>. Your browser
-          only reads the notebook while it is open — <strong>Sync now</strong> asks it to check, or{" "}
-          <Link to="/app/import">import a highlights file</Link> to do it by hand.
+          <time dateTime={reminder.quietSince}>{formatDate(reminder.quietSince)}</time>. Your
+          browser only reads the notebook while it is open — <strong>Sync now</strong> asks it to
+          check, or <Link to="/app/import">import a highlights file</Link> to do it by hand.
         </p>
         <button
           className="btn btn--ghost btn--sm"
@@ -1056,8 +1053,8 @@ function PairingPanel({
       <header>
         <h2>{STATE_LABELS["awaiting_pairing"]}</h2>
         <p>
-          Enter these two values in the Relego extension to connect {provider.displayName}. This page
-          updates by itself within a couple of seconds of the browser pairing.
+          Enter these two values in the Relego extension to connect {provider.displayName}. This
+          page updates by itself within a couple of seconds of the browser pairing.
         </p>
       </header>
 
@@ -1115,7 +1112,13 @@ function PairingPanel({
       </ol>
 
       <div className="inline">
-        <button className="btn" type="button" onClick={onRegenerate} disabled={busy} aria-busy={busy || undefined}>
+        <button
+          className="btn"
+          type="button"
+          onClick={onRegenerate}
+          disabled={busy}
+          aria-busy={busy || undefined}
+        >
           {busy ? "Generating…" : "Generate a new code"}
         </button>
         <button className="btn btn--ghost" type="button" onClick={onCheck}>

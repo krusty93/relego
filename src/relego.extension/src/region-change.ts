@@ -73,7 +73,11 @@ export type RegionChoice =
       readonly released: readonly string[];
     }
   | { readonly kind: "already_selected"; readonly region: KindleRegion }
-  | { readonly kind: "access_denied"; readonly region: KindleRegion; readonly origins: readonly string[] }
+  | {
+      readonly kind: "access_denied";
+      readonly region: KindleRegion;
+      readonly origins: readonly string[];
+    }
   | { readonly kind: "unsupported_region"; readonly regionId: string }
   | { readonly kind: "invalid_server_url"; readonly serverBaseUrl: string }
   | { readonly kind: "failed"; readonly region: KindleRegion; readonly status: number | null };
@@ -98,7 +102,8 @@ export async function chooseRegion(
     return { kind: "invalid_server_url", serverBaseUrl: request.serverBaseUrl };
   }
 
-  const origins = serverPattern === null ? [notebookOrigin(region)] : [serverPattern, notebookOrigin(region)];
+  const origins =
+    serverPattern === null ? [notebookOrigin(region)] : [serverPattern, notebookOrigin(region)];
   // Start the request before any await so it retains the submit gesture's user activation.
   const [alreadyGranted, granted] = await Promise.all([
     ports.permissions.contains([notebookOrigin(region)]),

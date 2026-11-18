@@ -7,6 +7,8 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - '.oxlintrc.json'
+      - '.oxfmtrc.json'
       - '.github/workflows/landing-page.yaml'
 
 permissions:
@@ -43,6 +45,14 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+      - name: Lint
+        working-directory: .
+        run: pnpm run lint
+
+      - name: Format check
+        working-directory: .
+        run: pnpm run format:check
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium

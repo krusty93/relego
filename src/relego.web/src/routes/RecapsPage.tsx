@@ -36,7 +36,8 @@ export function RecapsPage() {
   const hasDestination = Boolean(
     settings.data?.kindleEmail?.trim() || settings.data?.deliveryEmail?.trim(),
   );
-  const blockedReason = settings.isSuccess && !hasDestination ? "Add a reader address first." : null;
+  const blockedReason =
+    settings.isSuccess && !hasDestination ? "Add a reader address first." : null;
 
   const nextRecap = formatDateTimeInZone(status.data?.nextRecap, settings.data?.timezone);
 
@@ -165,9 +166,7 @@ export function RecapsPage() {
                     <td className="muted">{formatDateTime(item.deliveredAt)}</td>
                     <td className="num">{item.attemptCount}</td>
                     <td>
-                      <Tag tone={resultTone(item.status)}>
-                        {item.errorMessage ?? item.status}
-                      </Tag>
+                      <Tag tone={resultTone(item.status)}>{item.errorMessage ?? item.status}</Tag>
                     </td>
                   </tr>
                 ))}

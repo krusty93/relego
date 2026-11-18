@@ -280,10 +280,7 @@ export class RelegoClient {
 
   /** Uploads one batch; replays with the same `batchIndex` are idempotent. */
   postBatch(jobId: number, batch: RelegoBatch): Promise<RelegoBatchResult> {
-    return this.postJson<RelegoBatchResult>(
-      `/sync/${PROVIDER_ID}/jobs/${jobId}/batches`,
-      batch,
-    );
+    return this.postJson<RelegoBatchResult>(`/sync/${PROVIDER_ID}/jobs/${jobId}/batches`, batch);
   }
 
   /** Reports job progress so the server can mark stalled runs as interrupted. */
@@ -306,7 +303,12 @@ export class RelegoClient {
     return this.postJson<RelegoHeartbeat>(`/sync/${PROVIDER_ID}/heartbeat`, report);
   }
 
-  private async send<T>(path: string, method: string, body?: unknown, timeoutMs = 60_000): Promise<T> {
+  private async send<T>(
+    path: string,
+    method: string,
+    body?: unknown,
+    timeoutMs = 60_000,
+  ): Promise<T> {
     const hasBody = body !== undefined;
 
     const response = await fetch(`${this.baseUrl}${path}`, {

@@ -23,7 +23,9 @@ describe("kindleSyncUrl", () => {
 
   it("appends the route to the server address", () => {
     expect(kindleSyncUrl(SERVER)).toBe(SYNC_URL);
-    expect(kindleSyncUrl("https://relego.example:8443")).toBe("https://relego.example:8443/app/kindle-sync");
+    expect(kindleSyncUrl("https://relego.example:8443")).toBe(
+      "https://relego.example:8443/app/kindle-sync",
+    );
   });
 
   it("never doubles the slash when the address ends with one", () => {
@@ -36,7 +38,9 @@ describe("kindleSyncUrl", () => {
   });
 
   it("keeps a path prefix, like the client does for its own calls", () => {
-    expect(kindleSyncUrl("https://relego.example/relego/")).toBe("https://relego.example/relego/app/kindle-sync");
+    expect(kindleSyncUrl("https://relego.example/relego/")).toBe(
+      "https://relego.example/relego/app/kindle-sync",
+    );
   });
 
   it("refuses an address that is not an absolute http(s) URL", () => {
@@ -72,7 +76,8 @@ class FakeElement {
   fire(type: string): void {
     if (this.disabled && type === "click") return;
 
-    for (const listener of this.listeners.get(type) ?? []) listener({ preventDefault: () => undefined });
+    for (const listener of this.listeners.get(type) ?? [])
+      listener({ preventDefault: () => undefined });
   }
 
   /** Types into the field, the way the user does. */
@@ -124,7 +129,11 @@ async function openPopup(setup: PopupSetup = {}): Promise<FakePopup> {
     storage: {
       local: {
         get: (keys: string[]) =>
-          Promise.resolve(Object.fromEntries(keys.filter((key) => storage.has(key)).map((key) => [key, storage.get(key)]))),
+          Promise.resolve(
+            Object.fromEntries(
+              keys.filter((key) => storage.has(key)).map((key) => [key, storage.get(key)]),
+            ),
+          ),
         set: (values: Record<string, unknown>) => {
           for (const [key, value] of Object.entries(values)) storage.set(key, value);
 
@@ -149,7 +158,10 @@ async function openPopup(setup: PopupSetup = {}): Promise<FakePopup> {
     const body = {
       providerId: PROVIDER_ID,
       status: "connected",
-      connection: { state: "active", region: { id: "us", displayName: "United States", host: "read.amazon.com" } },
+      connection: {
+        state: "active",
+        region: { id: "us", displayName: "United States", host: "read.amazon.com" },
+      },
     };
 
     return Promise.resolve({
@@ -282,7 +294,9 @@ describe("Open Relego in the configuration complete view", () => {
   });
 
   it("uses the paired server, not an address left in the form", async () => {
-    const popup = await openPopup({ stored: { ...paired(SERVER), draftServerUrl: "http://draft.test" } });
+    const popup = await openPopup({
+      stored: { ...paired(SERVER), draftServerUrl: "http://draft.test" },
+    });
     const get = await popup.opened();
 
     get("openDone").fire("click");
