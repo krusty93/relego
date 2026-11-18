@@ -13,12 +13,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PROVIDER_ID } from "../src/client";
 import { CONFIGURED_MESSAGE } from "../src/messages";
-import { DEFAULT_INTERVAL_MINUTES, REGIONS, notebookUrl, resolveRegion } from "../src/profile";
+import {
+  DEFAULT_INTERVAL_MINUTES,
+  REGIONS,
+  notebookUrl,
+  resolveRegion,
+} from "../src/profile";
 import type { KindleRegion } from "../src/profile";
 
 function region(id: string): KindleRegion {
   const resolved = resolveRegion(id);
-  if (resolved === null) throw new Error(`The ${id} region must be part of the bundled profile.`);
+  if (resolved === null)
+    throw new Error(`The ${id} region must be part of the bundled profile.`);
 
   return resolved;
 }
@@ -28,7 +34,10 @@ const us = region("us");
 const SERVER = "http://relego.test";
 
 function fixture(name: string, regionId = "us"): string {
-  return readFileSync(new URL(`./fixtures/${regionId}/${name}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`./fixtures/${regionId}/${name}`, import.meta.url),
+    "utf8",
+  );
 }
 
 interface FakeAlarm {
@@ -51,13 +60,19 @@ function createChrome(): FakeChrome {
   const alarms = new Map<string, FakeAlarm>();
   const tabs: { url: string; active: boolean }[] = [];
   const alarmListeners: ((alarm: { name: string }) => void)[] = [];
-  const stored: Record<string, unknown> = { serverUrl: SERVER, token: "pairing-token" };
+  const stored: Record<string, unknown> = {
+    serverUrl: SERVER,
+    token: "pairing-token",
+  };
   const messageListeners: ((message: unknown) => void)[] = [];
 
   const api = {
     alarms: {
       get: (name: string) => Promise.resolve(alarms.get(name)),
-      create: (name: string, info: { delayInMinutes?: number; periodInMinutes?: number }) => {
+      create: (
+        name: string,
+        info: { delayInMinutes?: number; periodInMinutes?: number },
+      ) => {
         const period = info.periodInMinutes ?? info.delayInMinutes ?? 0;
         alarms.set(name, {
           name,
@@ -88,7 +103,8 @@ function createChrome(): FakeChrome {
           return Promise.resolve();
         },
         remove: (keys: string | string[]) => {
-          for (const key of typeof keys === "string" ? [keys] : keys) delete stored[key];
+          for (const key of typeof keys === "string" ? [keys] : keys)
+            delete stored[key];
           return Promise.resolve();
         },
       },
@@ -150,8 +166,15 @@ interface Recorded {
   readonly notebookHosts: string[];
   readonly starts: { idempotencyKey: string; mode: string; trigger: string }[];
   readonly failures: { code: string; diagnostics: unknown }[];
-  readonly completions: { booksTotal: number; booksDone: number; truncatedBooks: number }[];
-  readonly heartbeats: { profileVersion: string; appliedIntervalMinutes: number }[];
+  readonly completions: {
+    booksTotal: number;
+    booksDone: number;
+    truncatedBooks: number;
+  }[];
+  readonly heartbeats: {
+    profileVersion: string;
+    appliedIntervalMinutes: number;
+  }[];
   batches: number;
   statusCalls: number;
 }
@@ -167,100 +190,111 @@ function installFetch(state: ServerState): Recorded {
     statusCalls: 0,
   };
 
-  vi.stubGlobal("fetch", (input: string | URL, init?: RequestInit): Promise<FakeResponse> => {
-    const url = new URL(typeof input === "string" ? input : input.toString());
-    const selected = region(state.regionId);
-    const reportedRegion = {
-      id: selected.id,
-      displayName: selected.displayName,
-      host: selected.notebookHost,
-    };
-    const notebook = REGIONS.find((item) => item.notebookHost === url.hostname);
+  vi.stubGlobal(
+    "fetch",
+    (input: string | URL, init?: RequestInit): Promise<FakeResponse> => {
+      const url = new URL(typeof input === "string" ? input : input.toString());
+      const selected = region(state.regionId);
+      const reportedRegion = {
+        id: selected.id,
+        displayName: selected.displayName,
+        host: selected.notebookHost,
+      };
+      const notebook = REGIONS.find(
+        (item) => item.notebookHost === url.hostname,
+      );
 
-    if (notebook !== undefined) {
-      server.notebookHosts.push(url.hostname);
-      if (!state.signedIn)
-        return Promise.resolve(
-          pageResponse(fixture("sign-in.html"), "https://www.amazon.com/ap/signin"),
-        );
+      if (notebook !== undefined) {
+        server.notebookHosts.push(url.hostname);
+        if (!state.signedIn)
+          return Promise.resolve(
+            pageResponse(
+              fixture("sign-in.html"),
+              "https://www.amazon.com/ap/signin",
+            ),
+          );
 
-      const key = url.searchParams.get("asin");
-      if (key !== null) {
+        const key = url.searchParams.get("asin");
+        if (key !== null) {
+          return Promise.resolve(
+            pageResponse(
+              fixture("book.html", notebook.id).replace("B00EXAMPLE01", key),
+              url.toString(),
+            ),
+          );
+        }
+
         return Promise.resolve(
-          pageResponse(
-            fixture("book.html", notebook.id).replace("B00EXAMPLE01", key),
-            url.toString(),
-          ),
+          pageResponse(fixture(state.library, notebook.id), url.toString()),
         );
       }
 
-      return Promise.resolve(pageResponse(fixture(state.library, notebook.id), url.toString()));
-    }
+      const body =
+        init?.body === undefined ? {} : JSON.parse(String(init.body));
+      const path = url.pathname;
 
-    const body = init?.body === undefined ? {} : JSON.parse(String(init.body));
-    const path = url.pathname;
+      if (path === `/sync/${PROVIDER_ID}/heartbeat`) {
+        server.heartbeats.push(body);
+        return Promise.resolve(
+          jsonResponse({
+            command: state.command,
+            region: reportedRegion,
+            intervalMinutes: state.intervalMinutes,
+            heartbeatSeconds: 60,
+          }),
+        );
+      }
 
-    if (path === `/sync/${PROVIDER_ID}/heartbeat`) {
-      server.heartbeats.push(body);
-      return Promise.resolve(
-        jsonResponse({
-          command: state.command,
-          region: reportedRegion,
-          intervalMinutes: state.intervalMinutes,
-          heartbeatSeconds: 60,
-        }),
-      );
-    }
+      if (path === `/sync/${PROVIDER_ID}`) {
+        server.statusCalls++;
+        return Promise.resolve(
+          jsonResponse({
+            providerId: PROVIDER_ID,
+            status: "connected",
+            connection: { region: reportedRegion },
+          }),
+        );
+      }
 
-    if (path === `/sync/${PROVIDER_ID}`) {
-      server.statusCalls++;
-      return Promise.resolve(
-        jsonResponse({
-          providerId: PROVIDER_ID,
-          status: "connected",
-          connection: { region: reportedRegion },
-        }),
-      );
-    }
+      if (path === `/sync/${PROVIDER_ID}/jobs`) {
+        server.starts.push(body);
+        return Promise.resolve(
+          jsonResponse({
+            jobId: 42,
+            reused: state.reusedCompleted,
+            status: state.reusedCompleted ? "completed_no_changes" : "running",
+            knownBooks: state.knownBooks,
+          }),
+        );
+      }
 
-    if (path === `/sync/${PROVIDER_ID}/jobs`) {
-      server.starts.push(body);
-      return Promise.resolve(
-        jsonResponse({
-          jobId: 42,
-          reused: state.reusedCompleted,
-          status: state.reusedCompleted ? "completed_no_changes" : "running",
-          knownBooks: state.knownBooks,
-        }),
-      );
-    }
+      if (path.endsWith("/batches")) {
+        server.batches++;
+        return Promise.resolve(
+          jsonResponse({
+            batchIndex: body.batchIndex,
+            replayed: false,
+            newHighlights: 3,
+            duplicateHighlights: 0,
+            newBooks: 1,
+            newAuthors: 1,
+          }),
+        );
+      }
 
-    if (path.endsWith("/batches")) {
-      server.batches++;
-      return Promise.resolve(
-        jsonResponse({
-          batchIndex: body.batchIndex,
-          replayed: false,
-          newHighlights: 3,
-          duplicateHighlights: 0,
-          newBooks: 1,
-          newAuthors: 1,
-        }),
-      );
-    }
+      if (path.endsWith("/complete")) {
+        server.completions.push(body);
+        return Promise.resolve(jsonResponse(null, 204));
+      }
 
-    if (path.endsWith("/complete")) {
-      server.completions.push(body);
+      if (path.endsWith("/fail")) {
+        server.failures.push(body);
+        return Promise.resolve(jsonResponse(null, 204));
+      }
+
       return Promise.resolve(jsonResponse(null, 204));
-    }
-
-    if (path.endsWith("/fail")) {
-      server.failures.push(body);
-      return Promise.resolve(jsonResponse(null, 204));
-    }
-
-    return Promise.resolve(jsonResponse(null, 204));
-  });
+    },
+  );
 
   return server;
 }
@@ -301,7 +335,9 @@ describe("service worker recovery", () => {
     expect(server.starts).toHaveLength(1);
     expect(server.starts[0]?.mode).toBe("routine");
     expect(server.starts[0]?.trigger).toBe("manual");
-    expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
+    expect(server.completions).toEqual([
+      { booksTotal: 3, booksDone: 3, truncatedBooks: 0 },
+    ]);
     expect(server.failures).toEqual([]);
   });
 
@@ -312,7 +348,9 @@ describe("service worker recovery", () => {
 
     expect(server.starts[0]?.mode).toBe("full_resync");
     expect(server.starts[0]?.trigger).toBe("manual");
-    expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
+    expect(server.completions).toEqual([
+      { booksTotal: 3, booksDone: 3, truncatedBooks: 0 },
+    ]);
     expect(server.batches).toBeGreaterThan(0);
   });
 
@@ -327,11 +365,16 @@ describe("service worker recovery", () => {
   });
 
   it("opens the notebook tab and arms the retry when Amazon asks for sign-in", async () => {
-    const { worker, server, chrome } = await loadWorker({ command: "sync", signedIn: false });
+    const { worker, server, chrome } = await loadWorker({
+      command: "sync",
+      signedIn: false,
+    });
 
     await worker.heartbeat();
 
-    expect(server.failures).toEqual([{ code: "auth_expired", diagnostics: null }]);
+    expect(server.failures).toEqual([
+      { code: "auth_expired", diagnostics: null },
+    ]);
     expect(chrome.tabs).toEqual([{ url: notebookUrl(us), active: true }]);
 
     const retry = chrome.alarms.get(worker.AUTH_RETRY_ALARM);
@@ -341,7 +384,10 @@ describe("service worker recovery", () => {
   });
 
   it("keeps retrying without opening a second tab while sign-in is still pending", async () => {
-    const { worker, server, chrome } = await loadWorker({ command: "sync", signedIn: false });
+    const { worker, server, chrome } = await loadWorker({
+      command: "sync",
+      signedIn: false,
+    });
 
     await worker.heartbeat();
     await worker.heartbeat();
@@ -352,18 +398,27 @@ describe("service worker recovery", () => {
   });
 
   it("keys a sign-in retry on the retry window so a replayed firing reuses the job", async () => {
-    const { worker, server, chrome } = await loadWorker({ command: "sync", signedIn: false });
+    const { worker, server, chrome } = await loadWorker({
+      command: "sync",
+      signedIn: false,
+    });
 
     await worker.heartbeat();
-    chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
+    chrome.alarmListeners.forEach((listener) =>
+      listener({ name: worker.AUTH_RETRY_ALARM }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
-    chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
+    chrome.alarmListeners.forEach((listener) =>
+      listener({ name: worker.AUTH_RETRY_ALARM }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const retries = server.starts.filter((start) => start.trigger === "retry");
     expect(retries).toHaveLength(2);
     expect(retries[0]?.idempotencyKey).toBe(retries[1]?.idempotencyKey);
-    expect(retries[0]?.idempotencyKey).toMatch(new RegExp(`^${PROVIDER_ID}-retry-\\d+$`));
+    expect(retries[0]?.idempotencyKey).toMatch(
+      new RegExp(`^${PROVIDER_ID}-retry-\\d+$`),
+    );
   });
 
   it("resumes the sync and clears the retry once the user has signed in", async () => {
@@ -376,10 +431,14 @@ describe("service worker recovery", () => {
     expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(true);
 
     state.signedIn = true;
-    chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
+    chrome.alarmListeners.forEach((listener) =>
+      listener({ name: worker.AUTH_RETRY_ALARM }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
+    expect(server.completions).toEqual([
+      { booksTotal: 3, booksDone: 3, truncatedBooks: 0 },
+    ]);
     expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false);
   });
 
@@ -395,23 +454,36 @@ describe("service worker recovery", () => {
     });
 
     await worker.heartbeat();
-    chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
+    chrome.alarmListeners.forEach((listener) =>
+      listener({ name: worker.AUTH_RETRY_ALARM }),
+    );
     await vi.waitFor(() => expect(server.failures).toHaveLength(2));
-    expect(server.starts.map((start) => start.mode)).toEqual(["full_resync", "full_resync"]);
+    expect(server.starts.map((start) => start.mode)).toEqual([
+      "full_resync",
+      "full_resync",
+    ]);
 
     chrome.alarmListeners.length = 0;
     chrome.alarms.delete(worker.AUTH_RETRY_ALARM);
     vi.resetModules();
     const restarted = await import("../src/background");
-    await vi.waitFor(() => expect(chrome.alarms.has(restarted.AUTH_RETRY_ALARM)).toBe(true));
+    await vi.waitFor(() =>
+      expect(chrome.alarms.has(restarted.AUTH_RETRY_ALARM)).toBe(true),
+    );
 
     state.signedIn = true;
-    chrome.alarmListeners.forEach((listener) => listener({ name: restarted.AUTH_RETRY_ALARM }));
-    await vi.waitFor(() => expect(chrome.alarms.has(restarted.AUTH_RETRY_ALARM)).toBe(false));
+    chrome.alarmListeners.forEach((listener) =>
+      listener({ name: restarted.AUTH_RETRY_ALARM }),
+    );
+    await vi.waitFor(() =>
+      expect(chrome.alarms.has(restarted.AUTH_RETRY_ALARM)).toBe(false),
+    );
 
     expect(server.starts.at(-1)?.mode).toBe("full_resync");
     expect(server.starts.at(-1)?.trigger).toBe("retry");
-    expect(server.completions).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
+    expect(server.completions).toEqual([
+      { booksTotal: 3, booksDone: 3, truncatedBooks: 0 },
+    ]);
     expect(chrome.stored).toEqual({
       serverUrl: SERVER,
       token: "pairing-token",
@@ -428,20 +500,31 @@ describe("service worker recovery", () => {
     await worker.heartbeat();
     state.signedIn = true;
 
-    chrome.alarmListeners.forEach((listener) => listener({ name: worker.SYNC_ALARM }));
-    await vi.waitFor(() => expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false));
+    chrome.alarmListeners.forEach((listener) =>
+      listener({ name: worker.SYNC_ALARM }),
+    );
+    await vi.waitFor(() =>
+      expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false),
+    );
 
     expect(server.starts.at(-1)?.mode).toBe("full_resync");
     expect(server.completions).toHaveLength(1);
   });
 
   it("clears persisted retry state when a replay finds the job already completed", async () => {
-    const { worker, state, chrome } = await loadWorker({ command: "full_resync", signedIn: false });
+    const { worker, state, chrome } = await loadWorker({
+      command: "full_resync",
+      signedIn: false,
+    });
     await worker.heartbeat();
     state.reusedCompleted = true;
 
-    chrome.alarmListeners.forEach((listener) => listener({ name: worker.AUTH_RETRY_ALARM }));
-    await vi.waitFor(() => expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false));
+    chrome.alarmListeners.forEach((listener) =>
+      listener({ name: worker.AUTH_RETRY_ALARM }),
+    );
+    await vi.waitFor(() =>
+      expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false),
+    );
     expect(chrome.stored).toEqual({
       serverUrl: SERVER,
       token: "pairing-token",
@@ -473,7 +556,10 @@ describe("service worker recovery", () => {
     }
 
     await worker.heartbeat();
-    expect(server.starts.map((start) => start.mode)).toEqual(["routine", "full_resync"]);
+    expect(server.starts.map((start) => start.mode)).toEqual([
+      "routine",
+      "full_resync",
+    ]);
   });
 
   it("reads the new region in a distinct full resync after the old browser run finishes", async () => {
@@ -503,9 +589,14 @@ describe("service worker recovery", () => {
 
     server.notebookHosts.length = 0;
     await worker.heartbeat();
-    expect(server.starts.map((start) => start.mode)).toEqual(["routine", "full_resync"]);
+    expect(server.starts.map((start) => start.mode)).toEqual([
+      "routine",
+      "full_resync",
+    ]);
     expect(server.notebookHosts.length).toBeGreaterThan(1);
-    expect(new Set(server.notebookHosts)).toEqual(new Set([region("de").notebookHost]));
+    expect(new Set(server.notebookHosts)).toEqual(
+      new Set([region("de").notebookHost]),
+    );
   });
 
   it("does not open a sign-in tab for a failure the user cannot fix by signing in", async () => {
@@ -516,17 +607,24 @@ describe("service worker recovery", () => {
 
     await worker.heartbeat();
 
-    expect(server.failures.map((failure) => failure.code)).toEqual(["provider_contract_changed"]);
+    expect(server.failures.map((failure) => failure.code)).toEqual([
+      "provider_contract_changed",
+    ]);
     expect(chrome.tabs).toEqual([]);
     expect(chrome.alarms.has(worker.AUTH_RETRY_ALARM)).toBe(false);
   });
 
   it("keeps the routine alarm period while a sign-in retry is armed", async () => {
-    const { worker, chrome } = await loadWorker({ command: "sync", signedIn: false });
+    const { worker, chrome } = await loadWorker({
+      command: "sync",
+      signedIn: false,
+    });
 
     await worker.heartbeat();
 
-    expect(chrome.alarms.get(worker.SYNC_ALARM)?.periodInMinutes).toBe(DEFAULT_INTERVAL_MINUTES);
+    expect(chrome.alarms.get(worker.SYNC_ALARM)?.periodInMinutes).toBe(
+      DEFAULT_INTERVAL_MINUTES,
+    );
     expect(chrome.alarms.get(worker.HEARTBEAT_ALARM)?.periodInMinutes).toBe(
       worker.HEARTBEAT_MINUTES,
     );
@@ -539,20 +637,33 @@ describe("service worker recovery", () => {
     });
 
     chrome.messageListeners.forEach((listener) =>
-      listener({ type: CONFIGURED_MESSAGE, reason: "region_changed", intervalMinutes: 30 }),
+      listener({
+        type: CONFIGURED_MESSAGE,
+        reason: "region_changed",
+        intervalMinutes: 30,
+      }),
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(chrome.alarms.get(worker.SYNC_ALARM)?.periodInMinutes).toBe(30);
-    expect(server.heartbeats.map((beat) => beat.appliedIntervalMinutes)).toEqual([30]);
+    expect(
+      server.heartbeats.map((beat) => beat.appliedIntervalMinutes),
+    ).toEqual([30]);
     expect(server.starts.map((start) => start.mode)).toEqual(["full_resync"]);
   });
 
   it("lets the server's frequency win over the one the popup reported", async () => {
-    const { worker, server, chrome } = await loadWorker({ command: "none", intervalMinutes: 15 });
+    const { worker, server, chrome } = await loadWorker({
+      command: "none",
+      intervalMinutes: 15,
+    });
 
     chrome.messageListeners.forEach((listener) =>
-      listener({ type: CONFIGURED_MESSAGE, reason: "region_changed", intervalMinutes: 30 }),
+      listener({
+        type: CONFIGURED_MESSAGE,
+        reason: "region_changed",
+        intervalMinutes: 30,
+      }),
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -563,7 +674,9 @@ describe("service worker recovery", () => {
   it("ignores a message that is not a configuration change", async () => {
     const { server, chrome } = await loadWorker({ command: "none" });
 
-    chrome.messageListeners.forEach((listener) => listener({ type: "relego:unknown" }));
+    chrome.messageListeners.forEach((listener) =>
+      listener({ type: "relego:unknown" }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(server.heartbeats).toEqual([]);
@@ -572,7 +685,11 @@ describe("service worker recovery", () => {
   it("starts exactly one initial sync after pairing even when no command is queued", async () => {
     const { server, chrome } = await loadWorker();
     chrome.messageListeners.forEach((listener) =>
-      listener({ type: CONFIGURED_MESSAGE, reason: "paired", intervalMinutes: 360 }),
+      listener({
+        type: CONFIGURED_MESSAGE,
+        reason: "paired",
+        intervalMinutes: 360,
+      }),
     );
 
     await vi.waitFor(() => expect(server.completions).toHaveLength(1));
@@ -583,10 +700,16 @@ describe("service worker recovery", () => {
   it("opens sign-in recovery on the initial sync without waiting for the routine alarm", async () => {
     const { server, chrome } = await loadWorker({ signedIn: false });
     chrome.messageListeners.forEach((listener) =>
-      listener({ type: CONFIGURED_MESSAGE, reason: "paired", intervalMinutes: 360 }),
+      listener({
+        type: CONFIGURED_MESSAGE,
+        reason: "paired",
+        intervalMinutes: 360,
+      }),
     );
 
-    await vi.waitFor(() => expect(chrome.tabs).toEqual([{ url: notebookUrl(us), active: true }]));
+    await vi.waitFor(() =>
+      expect(chrome.tabs).toEqual([{ url: notebookUrl(us), active: true }]),
+    );
     expect(server.starts.map((start) => start.trigger)).toEqual(["initial"]);
     expect(chrome.alarms.has("kindle-auth-retry")).toBe(true);
   });

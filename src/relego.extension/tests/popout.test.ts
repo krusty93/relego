@@ -8,7 +8,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { isWindowed, windowedUrl, WINDOW_HEIGHT, WINDOW_PARAM, WINDOW_WIDTH } from "../src/popout";
+import {
+  isWindowed,
+  windowedUrl,
+  WINDOW_HEIGHT,
+  WINDOW_PARAM,
+  WINDOW_WIDTH,
+} from "../src/popout";
 
 const POPUP_URL = "chrome-extension://abcdefghijklmnop/popup.html";
 

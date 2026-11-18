@@ -100,7 +100,9 @@ function statusResponse(status: string, overrides: Payload = {}): Payload {
     connection: {
       state: connected ? "active" : "pending_pairing",
       connectedAt: connected ? "2024-05-01T09:00:00Z" : null,
-      lastHeartbeatAt: connected ? new Date(Date.now() - 20_000).toISOString() : null,
+      lastHeartbeatAt: connected
+        ? new Date(Date.now() - 20_000).toISOString()
+        : null,
       browserReporting: connected,
       region: connected
         ? { id: "uk", displayName: "United Kingdom", host: "read.amazon.co.uk" }
@@ -175,7 +177,10 @@ interface SyncMock {
 
 /** Serves the sync surface from a stub so every state is reachable without the extension. */
 async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
-  const initialSchedule = initial.schedule as { intervalMinutes: number; applied: boolean };
+  const initialSchedule = initial.schedule as {
+    intervalMinutes: number;
+    applied: boolean;
+  };
   const mock: SyncMock = {
     status: initial,
     requests: [],
@@ -183,7 +188,9 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
     statusCalls: 0,
     dismissals: [],
     scheduleRequests: [],
-    appliedInterval: initialSchedule.applied ? initialSchedule.intervalMinutes : null,
+    appliedInterval: initialSchedule.applied
+      ? initialSchedule.intervalMinutes
+      : null,
     rejectInterval: null,
   };
 
@@ -220,17 +227,25 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
       // follows the request reports it.
       mock.status = {
         ...mock.status,
-        schedule: { ...(mock.status.schedule as Payload), pendingCommand: body.command ?? "none" },
+        schedule: {
+          ...(mock.status.schedule as Payload),
+          pendingCommand: body.command ?? "none",
+        },
       };
       await route.fulfill({
         status: 202,
-        json: { providerId: "kindle-cloud", pendingCommand: body.command ?? "none" },
+        json: {
+          providerId: "kindle-cloud",
+          pendingCommand: body.command ?? "none",
+        },
       });
       return;
     }
 
     if (path.endsWith("/regions")) {
-      await route.fulfill({ json: { regions: REGIONS, disclosure: REGION_DISCLOSURE } });
+      await route.fulfill({
+        json: { regions: REGIONS, disclosure: REGION_DISCLOSURE },
+      });
       return;
     }
 
@@ -249,14 +264,19 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
       const requested = body.intervalMinutes ?? 0;
       mock.scheduleRequests.push(requested);
 
-      if (!ALLOWED_INTERVALS.includes(requested) || requested === mock.rejectInterval) {
+      if (
+        !ALLOWED_INTERVALS.includes(requested) ||
+        requested === mock.rejectInterval
+      ) {
         await route.fulfill({
           status: 422,
           json: {
             title: "One or more validation errors occurred.",
             status: 422,
             errors: {
-              intervalMinutes: [`intervalMinutes must be one of: ${ALLOWED_INTERVALS.join(", ")}.`],
+              intervalMinutes: [
+                `intervalMinutes must be one of: ${ALLOWED_INTERVALS.join(", ")}.`,
+              ],
             },
           },
         });
@@ -276,7 +296,9 @@ async function mockSync(page: Page, initial: Payload): Promise<SyncMock> {
         },
       };
 
-      await route.fulfill({ json: { intervalMinutes: requested, applied, nextRunAt } });
+      await route.fulfill({
+        json: { intervalMinutes: requested, applied, nextRunAt },
+      });
       return;
     }
 
@@ -298,7 +320,9 @@ function oneTimeCode(page: Page) {
 test.describe("sync", () => {
   for (const width of [1440, 390]) {
     for (const initial of ["not_connected", "awaiting_pairing"]) {
-      test(`serializes token creation from ${initial} at ${width}px`, async ({ page }) => {
+      test(`serializes token creation from ${initial} at ${width}px`, async ({
+        page,
+      }) => {
         await page.setViewportSize({ width, height: 950 });
         const mock = await mockSync(page, statusResponse(initial));
         let release!: () => void;
@@ -317,7 +341,10 @@ test.describe("sync", () => {
         });
         await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
         const button = page.getByRole("button", {
-          name: initial === "not_connected" ? "Connect Kindle cloud" : "Generate a new code",
+          name:
+            initial === "not_connected"
+              ? "Connect Kindle cloud"
+              : "Generate a new code",
         });
         await button.evaluate((element: HTMLButtonElement) => {
           element.click();
@@ -331,11 +358,15 @@ test.describe("sync", () => {
           }),
         ).toBeDisabled();
         if (initial === "awaiting_pairing") {
-          await expect(page.getByRole("button", { name: "Cancel setup" })).toBeDisabled();
+          await expect(
+            page.getByRole("button", { name: "Cancel setup" }),
+          ).toBeDisabled();
         }
         release();
         await expect(oneTimeCode(page)).toHaveText("LATEST-CODE");
-        await expect(page.getByRole("button", { name: "Generate a new code" })).toBeEnabled();
+        await expect(
+          page.getByRole("button", { name: "Generate a new code" }),
+        ).toBeEnabled();
         expect(posts).toBe(1);
       });
     }
@@ -372,59 +403,95 @@ test.describe("sync", () => {
     expect(posts).toBe(2);
   });
 
-  test("the connect flow leads the page and the limits follow it", async ({ page }) => {
+  test("the connect flow leads the page and the limits follow it", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("not_connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "How it works" }),
+    ).toBeVisible();
     await expect(page.getByText("Cloud only")).toBeVisible();
     await expect(page.getByText("Publisher limits")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "What this needs" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Chrome Web Store" })).toHaveAttribute(
+    await expect(
+      page.getByRole("heading", { name: "What this needs" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Chrome Web Store" }),
+    ).toHaveAttribute(
       "href",
       "https://chromewebstore.google.com/detail/relego/nlpcdgfkcoiiighmhemlpkjkcnoojdhp",
     );
-    await expect(page.getByRole("link", { name: "Firefox Add-ons" })).toHaveAttribute(
+    await expect(
+      page.getByRole("link", { name: "Firefox Add-ons" }),
+    ).toHaveAttribute(
       "href",
       "https://addons.mozilla.org/en-US/firefox/addon/relego/",
     );
-    await expect(page.getByRole("link", { name: "GitHub releases" })).toHaveAttribute(
-      "href",
-      "https://github.com/krusty93/relego/releases",
-    );
-    await expect(page.getByRole("heading", { name: "Privacy", exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "GitHub releases" }),
+    ).toHaveAttribute("href", "https://github.com/krusty93/relego/releases");
+    await expect(
+      page.getByRole("heading", { name: "Privacy", exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByText("Your data path")).toBeVisible();
 
-    const needs = await page.getByRole("heading", { name: "What this needs" }).boundingBox();
-    const coverage = await page.getByRole("heading", { name: "How it works" }).boundingBox();
-    const button = await page.getByRole("button", { name: "Connect Kindle cloud" }).boundingBox();
+    const needs = await page
+      .getByRole("heading", { name: "What this needs" })
+      .boundingBox();
+    const coverage = await page
+      .getByRole("heading", { name: "How it works" })
+      .boundingBox();
+    const button = await page
+      .getByRole("button", { name: "Connect Kindle cloud" })
+      .boundingBox();
     expect(button!.y).toBeLessThan(coverage!.y);
     expect(needs!.y).toBeLessThan(button!.y);
 
     await page.getByRole("button", { name: "Connect Kindle cloud" }).click();
 
     await expect(oneTimeCode(page)).toHaveText("K7QP-2M4X-9TDH");
-    await expect(page.getByText("Choose your Amazon region in the extension")).toBeVisible();
+    await expect(
+      page.getByText("Choose your Amazon region in the extension"),
+    ).toBeVisible();
     expect(mock.requests).toContain("POST /sync/kindle-cloud/connection");
   });
 
   for (const width of [1440, 393]) {
-    test(`the sync information is stacked and spaced at ${width}px`, async ({ page }, testInfo) => {
+    test(`the sync information is stacked and spaced at ${width}px`, async ({
+      page,
+    }, testInfo) => {
       await page.setViewportSize({ width, height: 950 });
       await mockSync(page, statusResponse("completed"));
       await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-      await expect(page.getByText("Sync is optional.", { exact: false })).toHaveCount(0);
-      const manual = page.getByRole("link", { name: "Import a highlights file", exact: true });
+      await expect(
+        page.getByText("Sync is optional.", { exact: false }),
+      ).toHaveCount(0);
+      const manual = page.getByRole("link", {
+        name: "Import a highlights file",
+        exact: true,
+      });
       const needs = page.getByRole("region", { name: "What this needs" });
-      const outcome = page.getByRole("heading", { name: "Last sync finished", exact: true });
+      const outcome = page.getByRole("heading", {
+        name: "Last sync finished",
+        exact: true,
+      });
       const manualBox = (await manual.boundingBox())!;
       const needsBox = (await needs.boundingBox())!;
-      expect(needsBox.y - (manualBox.y + manualBox.height)).toBeGreaterThanOrEqual(24);
-      expect(needsBox.y + needsBox.height).toBeLessThan((await outcome.boundingBox())!.y);
+      expect(
+        needsBox.y - (manualBox.y + manualBox.height),
+      ).toBeGreaterThanOrEqual(24);
+      expect(needsBox.y + needsBox.height).toBeLessThan(
+        (await outcome.boundingBox())!.y,
+      );
 
       const details = page.getByRole("region", { name: "How it works" });
-      const panelBox = (await outcome.locator("..").locator("..").boundingBox())!;
+      const panelBox = (await outcome
+        .locator("..")
+        .locator("..")
+        .boundingBox())!;
       for (const text of [
         ...(await needs.locator("p").all()),
         ...(await details.locator("dd").all()),
@@ -434,21 +501,28 @@ test.describe("sync", () => {
         expect(box.width).toBeCloseTo(panelBox.width, 0);
       }
       await expect(details.locator("dt")).toHaveCount(5);
-      await expect(details.getByText("Your data path", { exact: true })).toBeVisible();
+      await expect(
+        details.getByText("Your data path", { exact: true }),
+      ).toBeVisible();
       for (const item of await details.locator(".tip").all()) {
         const title = (await item.locator("dt").boundingBox())!;
         const subtitle = (await item.locator("dd").boundingBox())!;
         expect(subtitle.y).toBeGreaterThanOrEqual(title.y + title.height);
         expect(subtitle.x).toBe(title.x);
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-        width,
-      );
-      await page.screenshot({ path: testInfo.outputPath(`sync-${width}.png`), fullPage: true });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      await page.screenshot({
+        path: testInfo.outputPath(`sync-${width}.png`),
+        fullPage: true,
+      });
     });
   }
 
-  test("the pairing step hands over the server address and one-time code", async ({ page }) => {
+  test("the pairing step hands over the server address and one-time code", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("awaiting_pairing"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
@@ -461,25 +535,37 @@ test.describe("sync", () => {
     await expect(oneTimeCode(page)).toHaveText("K7QP-2M4X-9TDH");
 
     await page.getByRole("button", { name: "Cancel setup" }).click();
-    await expect(page.getByText("Cancel setup? Nothing has been imported yet.")).toBeVisible();
+    await expect(
+      page.getByText("Cancel setup? Nothing has been imported yet."),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Yes, cancel" }).click();
 
     await expect
-      .poll(() => mock.requests.includes("DELETE /sync/kindle-cloud/connection"))
+      .poll(() =>
+        mock.requests.includes("DELETE /sync/kindle-cloud/connection"),
+      )
       .toBe(true);
   });
 
-  test("picks up a browser that pairs, without anyone refreshing the page", async ({ page }) => {
+  test("picks up a browser that pairs, without anyone refreshing the page", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("awaiting_pairing"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByRole("heading", { name: "Waiting for your browser" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Waiting for your browser" }),
+    ).toBeVisible();
 
     // The extension pairs from its own popup; nothing on this page is clicked.
     mock.status = statusResponse("connected");
 
-    await expect(page.getByRole("heading", { name: "Connected" })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: "Check again" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Connected" })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByRole("button", { name: "Check again" })).toHaveCount(
+      0,
+    );
     expect(mock.statusCalls).toBeGreaterThan(1);
   });
 
@@ -488,7 +574,10 @@ test.describe("sync", () => {
   }) => {
     const mock = await mockSync(
       page,
-      statusResponse("syncing", { currentJob: job(), lastCompletedJob: job({ id: 40 }) }),
+      statusResponse("syncing", {
+        currentJob: job(),
+        lastCompletedJob: job({ id: 40 }),
+      }),
     );
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
@@ -497,7 +586,9 @@ test.describe("sync", () => {
     await expect(bar).toHaveAttribute("aria-valuemax", "120");
     await expect(bar).toHaveAttribute("aria-valuemin", "0");
 
-    await expect(page.getByText("Reading highlights · 37 of 120 books")).toBeVisible();
+    await expect(
+      page.getByText("Reading highlights · 37 of 120 books"),
+    ).toBeVisible();
     await expect(page.getByText(/212 new highlights so far/)).toBeVisible();
 
     // The extension reports progress as it goes; a stale page would look stalled.
@@ -520,7 +611,9 @@ test.describe("sync", () => {
 
     const bar = page.getByRole("progressbar", { name: "Sync progress" });
     await expect(bar).toHaveAttribute("aria-valuenow", "37");
-    await expect(page.getByText("Reading highlights · 37 of 120 books")).toBeVisible();
+    await expect(
+      page.getByText("Reading highlights · 37 of 120 books"),
+    ).toBeVisible();
 
     // The reminder stays on screen with its own control rather than being suppressed.
     await expect(page.getByTestId("sync-reminder")).toBeVisible();
@@ -528,15 +621,21 @@ test.describe("sync", () => {
 
     // A running job's commands wait for it instead of being offered mid-flight.
     await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
-    await expect(page.getByText("Commands run when this sync finishes.")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Full resync" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByText("Commands run when this sync finishes."),
+    ).toBeVisible();
 
     const before = mock.statusCalls;
     await page.waitForTimeout(2_600);
     expect(mock.statusCalls).toBeGreaterThan(before);
   });
 
-  test("completion names the outcome instead of implying success", async ({ page }) => {
+  test("completion names the outcome instead of implying success", async ({
+    page,
+  }) => {
     await mockSync(
       page,
       statusResponse("completed", {
@@ -553,7 +652,9 @@ test.describe("sync", () => {
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     await expect(page.getByText("Imported 12 new highlights")).toBeVisible();
-    await expect(page.getByText("400 highlights read · 388 duplicates skipped")).toBeVisible();
+    await expect(
+      page.getByText("400 highlights read · 388 duplicates skipped"),
+    ).toBeVisible();
   });
 
   test("a sync with nothing new says so", async ({ page }) => {
@@ -575,7 +676,9 @@ test.describe("sync", () => {
     await expect(page.getByText("Nothing new", { exact: false })).toBeVisible();
   });
 
-  test("publisher truncation is disclosed rather than hidden", async ({ page }) => {
+  test("publisher truncation is disclosed rather than hidden", async ({
+    page,
+  }) => {
     await mockSync(
       page,
       statusResponse("completed", {
@@ -591,7 +694,9 @@ test.describe("sync", () => {
     );
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByText("3 books capped by the publisher")).toBeVisible();
+    await expect(
+      page.getByText("3 books capped by the publisher"),
+    ).toBeVisible();
   });
 
   test("a failed sync reports the code, the plain-language detail and the repair", async ({
@@ -602,7 +707,8 @@ test.describe("sync", () => {
       statusResponse("failed", {
         failure: {
           code: "provider_contract_changed",
-          detail: "The Kindle Notebook page no longer matches what the extension reads.",
+          detail:
+            "The Kindle Notebook page no longer matches what the extension reads.",
           recoverySteps: [
             "Update the Relego extension to the latest version.",
             "Run a sync again from the extension.",
@@ -610,7 +716,12 @@ test.describe("sync", () => {
           diagnostics: {
             profileVersion: "3",
             check: "bookRow",
-            counts: { bookRows: 0, listElements: 4, keyedRows: 0, titleAnchors: 0 },
+            counts: {
+              bookRows: 0,
+              listElements: 4,
+              keyedRows: 0,
+              titleAnchors: 0,
+            },
           },
           occurredAt: "2024-05-01T10:07:00Z",
         },
@@ -618,17 +729,29 @@ test.describe("sync", () => {
     );
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByRole("heading", { name: "Last sync did not finish" })).toBeVisible();
     await expect(
-      page.getByText("Highlights already saved are still in your library.", { exact: false }),
+      page.getByRole("heading", { name: "Last sync did not finish" }),
     ).toBeVisible();
-    await expect(page.getByText("Nothing partial was imported.", { exact: false })).toHaveCount(0);
+    await expect(
+      page.getByText("Highlights already saved are still in your library.", {
+        exact: false,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Nothing partial was imported.", { exact: false }),
+    ).toHaveCount(0);
     await expect(page.getByText("provider_contract_changed")).toBeVisible();
-    await expect(page.getByText("no longer matches what the extension reads")).toBeVisible();
     await expect(
-      page.getByRole("listitem").filter({ hasText: "Update the Relego extension" }),
+      page.getByText("no longer matches what the extension reads"),
     ).toBeVisible();
-    await expect(page.getByRole("listitem").filter({ hasText: "Run a sync again" })).toBeVisible();
+    await expect(
+      page
+        .getByRole("listitem")
+        .filter({ hasText: "Update the Relego extension" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("listitem").filter({ hasText: "Run a sync again" }),
+    ).toBeVisible();
 
     // The recovery step tells the user to report the diagnostics, so the page has to show them.
     const diagnostics = page.getByTestId("sync-failure-diagnostics");
@@ -655,18 +778,22 @@ test.describe("sync", () => {
   test("a quiet period is named with both ways out and a control that clears it", async ({
     page,
   }) => {
-    const mock = await mockSync(page, statusResponse("reminder_due", { reminder: REMINDER }));
+    const mock = await mockSync(
+      page,
+      statusResponse("reminder_due", { reminder: REMINDER }),
+    );
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     // The date is asserted through the machine-readable attribute so the spec does not depend on
     // the browser's locale.
     const reminder = page.getByTestId("sync-reminder");
     await expect(page.getByText("Nothing new in 45 days")).toBeVisible();
-    await expect(page.locator("time[datetime='2024-03-17T09:00:00Z']")).toBeVisible();
-    await expect(reminder.getByRole("link", { name: "import a highlights file" })).toHaveAttribute(
-      "href",
-      "/app/import",
-    );
+    await expect(
+      page.locator("time[datetime='2024-03-17T09:00:00Z']"),
+    ).toBeVisible();
+    await expect(
+      reminder.getByRole("link", { name: "import a highlights file" }),
+    ).toHaveAttribute("href", "/app/import");
 
     await reminder.getByRole("button", { name: "Dismiss" }).click();
 
@@ -676,7 +803,9 @@ test.describe("sync", () => {
     // The banner is the reminder, so it has to be gone on the next read rather than re-rendered.
     await expect(page.getByTestId("sync-reminder")).toHaveCount(0);
     await expect(
-      page.getByText("Reminder dismissed. It comes back only if nothing new arrives again."),
+      page.getByText(
+        "Reminder dismissed. It comes back only if nothing new arrives again.",
+      ),
     ).toBeVisible();
   });
 
@@ -689,8 +818,11 @@ test.describe("sync", () => {
         reminder: REMINDER,
         failure: {
           code: "auth_expired",
-          detail: "Amazon signed this browser out, so the notebook could not be read.",
-          recoverySteps: ["Open your Kindle Notebook in this browser and sign in to Amazon."],
+          detail:
+            "Amazon signed this browser out, so the notebook could not be read.",
+          recoverySteps: [
+            "Open your Kindle Notebook in this browser and sign in to Amazon.",
+          ],
           occurredAt: "2024-05-01T10:07:00Z",
         },
       }),
@@ -702,17 +834,25 @@ test.describe("sync", () => {
     await expect(page.getByTestId("sync-reminder")).toHaveCount(0);
   });
 
-  test("disconnecting asks first and promises the highlights stay", async ({ page }) => {
+  test("disconnecting asks first and promises the highlights stay", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     await page.getByRole("button", { name: "Disconnect" }).click();
-    await expect(page.getByText("Highlights already imported stay in your library.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Keep connected" })).toBeVisible();
+    await expect(
+      page.getByText("Highlights already imported stay in your library."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Keep connected" }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Yes, disconnect" }).click();
     await expect
-      .poll(() => mock.requests.includes("DELETE /sync/kindle-cloud/connection"))
+      .poll(() =>
+        mock.requests.includes("DELETE /sync/kindle-cloud/connection"),
+      )
       .toBe(true);
   });
 
@@ -724,7 +864,8 @@ test.describe("sync", () => {
       statusResponse("auth_expired", {
         failure: {
           code: "auth_expired",
-          detail: "Amazon signed this browser out, so the notebook could not be read.",
+          detail:
+            "Amazon signed this browser out, so the notebook could not be read.",
           recoverySteps: [
             "Open your Kindle Notebook in this browser and sign in to Amazon.",
             "Relego retries on its next check-in; nothing already imported is affected.",
@@ -738,30 +879,38 @@ test.describe("sync", () => {
     // The sign-in banner replaces the generic failure report instead of stacking on top of it.
     await expect(page.locator(".callout")).toHaveCount(1);
     await expect(page.getByText("Amazon asked for a sign-in")).toBeVisible();
-    await expect(page.getByRole("listitem").filter({ hasText: "sign in to Amazon" })).toBeVisible();
+    await expect(
+      page.getByRole("listitem").filter({ hasText: "sign in to Amazon" }),
+    ).toBeVisible();
 
     // The way out is Amazon, on the region this connection was paired with.
-    await expect(page.getByRole("link", { name: /Open your Kindle Notebook/ })).toHaveAttribute(
-      "href",
-      "https://read.amazon.co.uk/notebook",
-    );
-    await expect(page.getByText("Relego never sees your Amazon password.")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Open your Kindle Notebook/ }),
+    ).toHaveAttribute("href", "https://read.amazon.co.uk/notebook");
+    await expect(
+      page.getByText("Relego never sees your Amazon password."),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Retry sync" }).click();
 
     await expect.poll(() => mock.commands).toEqual(["sync"]);
     await expect(
-      page.getByText("Sync requested. Your browser starts on its next check-in."),
+      page.getByText(
+        "Sync requested. Your browser starts on its next check-in.",
+      ),
     ).toBeVisible();
   });
 
-  test("a failed sync offers both repairs and the local fallback", async ({ page }) => {
+  test("a failed sync offers both repairs and the local fallback", async ({
+    page,
+  }) => {
     const mock = await mockSync(
       page,
       statusResponse("failed", {
         failure: {
           code: "provider_contract_changed",
-          detail: "The Kindle Notebook page no longer matches what the extension reads.",
+          detail:
+            "The Kindle Notebook page no longer matches what the extension reads.",
           recoverySteps: ["Update the Relego extension to the latest version."],
           occurredAt: "2024-05-01T10:07:00Z",
         },
@@ -770,11 +919,12 @@ test.describe("sync", () => {
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     await expect(page.getByRole("button", { name: "Sync now" })).toBeEnabled();
-    await expect(page.getByRole("button", { name: "Full resync" })).toBeEnabled();
-    await expect(page.getByRole("link", { name: "Import a file instead" })).toHaveAttribute(
-      "href",
-      "/app/import",
-    );
+    await expect(
+      page.getByRole("button", { name: "Full resync" }),
+    ).toBeEnabled();
+    await expect(
+      page.getByRole("link", { name: "Import a file instead" }),
+    ).toHaveAttribute("href", "/app/import");
 
     await page.getByRole("button", { name: "Full resync" }).click();
 
@@ -787,14 +937,27 @@ test.describe("sync", () => {
   });
 
   for (const status of ["syncing", "browser_not_reporting"]) {
-    test(`commands wait for a running job while ${status}`, async ({ page }) => {
-      const mock = await mockSync(page, statusResponse(status, { currentJob: job() }));
+    test(`commands wait for a running job while ${status}`, async ({
+      page,
+    }) => {
+      const mock = await mockSync(
+        page,
+        statusResponse(status, { currentJob: job() }),
+      );
       await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-      await expect(page.getByText("Commands run when this sync finishes.")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
-      await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
-      await expect(page.getByRole("progressbar", { name: "Sync progress" })).toBeVisible();
+      await expect(
+        page.getByText("Commands run when this sync finishes."),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Sync now" }),
+      ).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: "Full resync" }),
+      ).toBeDisabled();
+      await expect(
+        page.getByRole("progressbar", { name: "Sync progress" }),
+      ).toBeVisible();
       expect(mock.commands).toEqual([]);
     });
   }
@@ -806,8 +969,12 @@ test.describe("sync", () => {
     await mockSync(page, statusResponse("auth_expired"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByRole("link", { name: /Open your Kindle Notebook/ })).toBeVisible();
-    await expect(page.getByText("Relego never sees your Amazon password.")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Open your Kindle Notebook/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Relego never sees your Amazon password."),
+    ).toBeVisible();
   });
 
   test("mobile navigation exposes sign-in attention to screen readers away from Sync", async ({
@@ -817,9 +984,11 @@ test.describe("sync", () => {
     await mockSync(page, statusResponse("auth_expired"));
     await page.goto("/app", { waitUntil: "networkidle" });
 
-    const syncLink = page.getByRole("navigation", { name: "Primary" }).getByRole("link", {
-      name: /Sync.*Amazon sign-in needed/,
-    });
+    const syncLink = page
+      .getByRole("navigation", { name: "Primary" })
+      .getByRole("link", {
+        name: /Sync.*Amazon sign-in needed/,
+      });
     await expect(syncLink).toBeVisible();
     await expect(syncLink.locator(".attention")).toBeVisible();
   });
@@ -840,33 +1009,53 @@ test.describe("sync", () => {
     await expect(requested).toContainText("at most a minute away");
     await expect(requested).toContainText("Last check-in");
     await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Full resync" }),
+    ).toBeDisabled();
 
     // The request lives on the server, so reloading the page does not lose sight of it.
     await page.reload({ waitUntil: "networkidle" });
     await expect(page.getByTestId("sync-requested")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Full resync" }),
+    ).toBeDisabled();
 
     // The browser takes the command and the job starts: the request gives way to real progress.
     mock.status = statusResponse("syncing", { currentJob: job() });
-    await expect(page.getByTestId("sync-requested")).toHaveCount(0, { timeout: 10_000 });
-    await expect(page.getByRole("progressbar", { name: "Sync progress" })).toBeVisible();
+    await expect(page.getByTestId("sync-requested")).toHaveCount(0, {
+      timeout: 10_000,
+    });
+    await expect(
+      page.getByRole("progressbar", { name: "Sync progress" }),
+    ).toBeVisible();
     await expect(page.getByTestId("sync-timing")).toContainText("Running for");
     await expect(page.getByTestId("sync-timing")).toContainText("left");
 
     // Nothing else can be asked for while it runs.
     await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Full resync" })).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Full resync" }),
+    ).toBeDisabled();
 
     // And once it finishes, both buttons come back.
     mock.status = statusResponse("completed", {
-      lastCompletedJob: job({ status: "completed_with_changes", phase: "done", booksDone: 120 }),
+      lastCompletedJob: job({
+        status: "completed_with_changes",
+        phase: "done",
+        booksDone: 120,
+      }),
     });
-    await expect(page.getByRole("button", { name: "Sync now" })).toBeEnabled({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: "Full resync" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Sync now" })).toBeEnabled({
+      timeout: 10_000,
+    });
+    await expect(
+      page.getByRole("button", { name: "Full resync" }),
+    ).toBeEnabled();
   });
 
-  test("a queued request says when the browser has stopped checking in", async ({ page }) => {
+  test("a queued request says when the browser has stopped checking in", async ({
+    page,
+  }) => {
     const connected = statusResponse("connected");
     await mockSync(
       page,
@@ -875,7 +1064,10 @@ test.describe("sync", () => {
           ...(connected.connection as Payload),
           lastHeartbeatAt: new Date(Date.now() - 5 * 60_000).toISOString(),
         },
-        schedule: { ...(connected.schedule as Payload), pendingCommand: "sync" },
+        schedule: {
+          ...(connected.schedule as Payload),
+          pendingCommand: "sync",
+        },
       }),
     );
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
@@ -886,14 +1078,18 @@ test.describe("sync", () => {
     await expect(page.getByRole("button", { name: "Sync now" })).toBeDisabled();
   });
 
-  test("the browser's last check-in is shown as an age next to the timestamp", async ({ page }) => {
+  test("the browser's last check-in is shown as an age next to the timestamp", async ({
+    page,
+  }) => {
     await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     await expect(page.getByTestId("sync-heartbeat")).toContainText("ago");
   });
 
-  test("the navigation marks Sync when Amazon sign-in is needed", async ({ page }) => {
+  test("the navigation marks Sync when Amazon sign-in is needed", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("connected"));
     await page.goto("/app", { waitUntil: "networkidle" });
 
@@ -904,7 +1100,8 @@ test.describe("sync", () => {
     mock.status = statusResponse("auth_expired", {
       failure: {
         code: "auth_expired",
-        detail: "Amazon signed this browser out, so the notebook could not be read.",
+        detail:
+          "Amazon signed this browser out, so the notebook could not be read.",
         recoverySteps: ["Sign in to Amazon again."],
         occurredAt: "2024-05-01T10:07:00Z",
       },
@@ -920,17 +1117,29 @@ test.describe("sync", () => {
     const mock = await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByTestId("sync-region")).toHaveText("United Kingdom (read.amazon.co.uk)");
+    await expect(page.getByTestId("sync-region")).toHaveText(
+      "United Kingdom (read.amazon.co.uk)",
+    );
 
     // Changing the region is the extension's job, and the page says where to do it.
-    await expect(page.getByText("Your region is set in the Relego extension")).toBeVisible();
+    await expect(
+      page.getByText("Your region is set in the Relego extension"),
+    ).toBeVisible();
 
     // A region is never something the user types: the region row holds no control, and nothing on
     // the surface takes a host. The frequency selector is the only control here.
-    await expect(page.getByTestId("sync-region").locator("input, select, textarea")).toHaveCount(0);
-    await expect(page.locator('section[aria-labelledby="sync-h"] input')).toHaveCount(0);
-    await expect(page.locator('section[aria-labelledby="sync-h"] textarea')).toHaveCount(0);
-    await expect(page.locator('section[aria-labelledby="sync-h"] select')).toHaveCount(1);
+    await expect(
+      page.getByTestId("sync-region").locator("input, select, textarea"),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('section[aria-labelledby="sync-h"] input'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('section[aria-labelledby="sync-h"] textarea'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('section[aria-labelledby="sync-h"] select'),
+    ).toHaveCount(1);
     expect(mock.requests).not.toContain("PUT /sync/kindle-cloud/region");
     expect(mock.requests).not.toContain("POST /sync/kindle-cloud/region");
   });
@@ -941,7 +1150,9 @@ test.describe("sync", () => {
     const mock = await mockSync(page, statusResponse("awaiting_pairing"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
-    await expect(page.getByTestId("pairing-region")).toContainText("Chosen in the extension");
+    await expect(page.getByTestId("pairing-region")).toContainText(
+      "Chosen in the extension",
+    );
     await expect(page.getByTestId("pairing-region")).toContainText(
       "you pick one from a list rather than typing a host",
     );
@@ -961,7 +1172,9 @@ test.describe("sync frequency", () => {
     await expect(select.locator("option")).toHaveText(FREQUENCY_LABELS);
   });
 
-  test("says the server does not schedule, and names the browser's next run", async ({ page }) => {
+  test("says the server does not schedule, and names the browser's next run", async ({
+    page,
+  }) => {
     await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
@@ -971,7 +1184,9 @@ test.describe("sync frequency", () => {
     await expect(note).toContainText("as reported by your browser");
   });
 
-  test("holds a new frequency as pending until the browser reports it", async ({ page }) => {
+  test("holds a new frequency as pending until the browser reports it", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
@@ -995,10 +1210,14 @@ test.describe("sync frequency", () => {
     await page.reload({ waitUntil: "networkidle" });
 
     await expect(page.getByTestId("sync-frequency")).toHaveValue("120");
-    await expect(page.getByTestId("sync-next-run")).toContainText("as reported by your browser");
+    await expect(page.getByTestId("sync-next-run")).toContainText(
+      "as reported by your browser",
+    );
   });
 
-  test("keeps the stored frequency when the server refuses the change", async ({ page }) => {
+  test("keeps the stored frequency when the server refuses the change", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("connected"));
     mock.rejectInterval = 120;
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
@@ -1009,12 +1228,16 @@ test.describe("sync frequency", () => {
     expect(mock.scheduleRequests).toEqual([120]);
 
     // The refusal is named where the choice was made, and the choice falls back to what is stored.
-    await expect(page.locator(".toast")).toContainText("intervalMinutes must be one of");
+    await expect(page.locator(".toast")).toContainText(
+      "intervalMinutes must be one of",
+    );
     await expect(select).toHaveValue("360");
     await expect(page.getByTestId("sync-next-run")).toContainText("Next sync");
   });
 
-  test("does not promise a next run while the browser has gone quiet", async ({ page }) => {
+  test("does not promise a next run while the browser has gone quiet", async ({
+    page,
+  }) => {
     await mockSync(
       page,
       statusResponse("browser_not_reporting", {
@@ -1023,7 +1246,11 @@ test.describe("sync frequency", () => {
           connectedAt: "2024-05-01T09:00:00Z",
           lastHeartbeatAt: "2024-04-20T10:05:00Z",
           browserReporting: false,
-          region: { id: "uk", displayName: "United Kingdom", host: "read.amazon.co.uk" },
+          region: {
+            id: "uk",
+            displayName: "United Kingdom",
+            host: "read.amazon.co.uk",
+          },
         },
         // The last reported due time is long past. Repeating it would claim a run that never came.
         schedule: {
@@ -1054,7 +1281,11 @@ test.describe("sync frequency", () => {
           connectedAt: "2024-05-01T09:00:00Z",
           lastHeartbeatAt: "2024-05-01T10:05:00Z",
           browserReporting: true,
-          region: { id: "uk", displayName: "United Kingdom", host: "read.amazon.co.uk" },
+          region: {
+            id: "uk",
+            displayName: "United Kingdom",
+            host: "read.amazon.co.uk",
+          },
         },
         // The browser still runs the frequency and reports it, but no run can deliver.
         schedule: {
@@ -1110,21 +1341,27 @@ test.describe("sync frequency", () => {
     await expect(status).toHaveText(/Sync frequency saved: every 2 hours/);
   });
 
-  test("announces the hand-over once the browser applies the saved frequency", async ({ page }) => {
+  test("announces the hand-over once the browser applies the saved frequency", async ({
+    page,
+  }) => {
     const mock = await mockSync(page, statusResponse("connected"));
     await page.goto("/app/kindle-sync", { waitUntil: "networkidle" });
 
     const status = page.getByTestId("sync-frequency-status");
 
     await page.getByTestId("sync-frequency").selectOption("120");
-    await expect(status).toHaveText(/It applies when your browser next reports/);
+    await expect(status).toHaveText(
+      /It applies when your browser next reports/,
+    );
 
     // The extension reports the new period on its next heartbeat. Any action that rereads the
     // status shows the hand-over, so the change is announced instead of silently redrawn.
     reportApplied(mock, 120);
     await page.getByRole("button", { name: "Sync now" }).click();
 
-    await expect(status).toHaveText("Your browser now runs the sync every 2 hours.");
+    await expect(status).toHaveText(
+      "Your browser now runs the sync every 2 hours.",
+    );
   });
 
   test("announces that the stored frequency was kept when the server refuses the change", async ({

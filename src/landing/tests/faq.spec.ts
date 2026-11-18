@@ -5,7 +5,9 @@ test.describe("FAQ Section", () => {
     await page.goto("/");
   });
 
-  test("renders 6 FAQ accordion items with visible questions", async ({ page }) => {
+  test("renders 6 FAQ accordion items with visible questions", async ({
+    page,
+  }) => {
     const items = page.locator("#faq details");
     await expect(items).toHaveCount(6);
     // All summaries should be visible
@@ -26,7 +28,9 @@ test.describe("FAQ Section", () => {
     await expect(answer).toBeVisible();
   });
 
-  test("clicking an expanded FAQ item collapses the answer", async ({ page }) => {
+  test("clicking an expanded FAQ item collapses the answer", async ({
+    page,
+  }) => {
     const first = page.locator("#faq details").first();
     // Open it
     await first.locator("summary").click();

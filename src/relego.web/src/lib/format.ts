@@ -4,7 +4,11 @@ export function formatCount(value: number): string {
   return numberFormat.format(value);
 }
 
-export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
+export function plural(
+  count: number,
+  singular: string,
+  pluralForm = `${singular}s`,
+): string {
   return `${formatCount(count)} ${count === 1 ? singular : pluralForm}`;
 }
 
@@ -22,7 +26,9 @@ export function describeSchedule(
 
 /** "15 minutes" … "24 hours" for the ten routine-sync frequencies. */
 export function describeFrequency(minutes: number): string {
-  return minutes < 60 ? plural(minutes, "minute") : plural(minutes / 60, "hour");
+  return minutes < 60
+    ? plural(minutes, "minute")
+    : plural(minutes / 60, "hour");
 }
 
 /**
@@ -52,7 +58,10 @@ export function formatDuration(totalSeconds: number): string {
  * Whole seconds between a past timestamp and `nowMs`, or `null` when the timestamp is missing or
  * unreadable. A timestamp in the future reads as zero rather than as a negative age.
  */
-export function secondsSince(iso: string | null | undefined, nowMs: number): number | null {
+export function secondsSince(
+  iso: string | null | undefined,
+  nowMs: number,
+): number | null {
   if (!iso) return null;
 
   const then = Date.parse(iso);
@@ -95,7 +104,8 @@ export function formatDateTimeInZone(
   if (!iso) return { text: "—", zone: timeZone ?? localZone };
 
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return { text: "—", zone: timeZone ?? localZone };
+  if (Number.isNaN(date.getTime()))
+    return { text: "—", zone: timeZone ?? localZone };
 
   const options: Intl.DateTimeFormatOptions = {
     weekday: "short",
@@ -107,7 +117,10 @@ export function formatDateTimeInZone(
 
   if (timeZone) {
     try {
-      return { text: date.toLocaleString(undefined, { ...options, timeZone }), zone: timeZone };
+      return {
+        text: date.toLocaleString(undefined, { ...options, timeZone }),
+        zone: timeZone,
+      };
     } catch {
       // Unknown zone identifier — fall through to the browser's own zone.
     }
@@ -122,7 +135,11 @@ export function formatDate(iso: string | null | undefined): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
 
-  return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function formatBytes(bytes: number): string {

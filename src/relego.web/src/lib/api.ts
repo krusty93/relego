@@ -27,7 +27,11 @@ export class ApiError extends Error {
   readonly status: number;
   readonly fieldErrors: Record<string, string[]>;
 
-  constructor(message: string, status: number, fieldErrors: Record<string, string[]> = {}) {
+  constructor(
+    message: string,
+    status: number,
+    fieldErrors: Record<string, string[]> = {},
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -36,7 +40,9 @@ export class ApiError extends Error {
 
   /** The first message for a field, if the server reported one. */
   field(name: string): string | undefined {
-    const key = Object.keys(this.fieldErrors).find((k) => k.toLowerCase() === name.toLowerCase());
+    const key = Object.keys(this.fieldErrors).find(
+      (k) => k.toLowerCase() === name.toLowerCase(),
+    );
     return key ? this.fieldErrors[key]?.[0] : undefined;
   }
 }
@@ -76,7 +82,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       headers: {
         Accept: "application/json",
-        ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+        ...(init?.body instanceof FormData
+          ? {}
+          : { "Content-Type": "application/json" }),
         ...init?.headers,
       },
     });
@@ -102,22 +110,31 @@ export const api = {
   status: () => request<StatusResponse>("/status"),
 
   books: (query?: string) =>
-    request<BooksResponse>(`/books?pageSize=500${query ? `&q=${encodeURIComponent(query)}` : ""}`),
+    request<BooksResponse>(
+      `/books?pageSize=500${query ? `&q=${encodeURIComponent(query)}` : ""}`,
+    ),
 
   renameBook: (id: number, title: string) =>
-    request<void>(`/books/${id}/title`, { method: "PUT", body: JSON.stringify({ title }) }),
+    request<void>(`/books/${id}/title`, {
+      method: "PUT",
+      body: JSON.stringify({ title }),
+    }),
 
   highlights: (query?: string, page = 1, pageSize = 200) =>
     request<HighlightsResponse>(
       `/highlights?page=${page}&pageSize=${pageSize}${query ? `&q=${encodeURIComponent(query)}` : ""}`,
     ),
 
-  deleteHighlight: (id: number) => request<void>(`/highlights/${id}`, { method: "DELETE" }),
+  deleteHighlight: (id: number) =>
+    request<void>(`/highlights/${id}`, { method: "DELETE" }),
 
   weights: () => request<WeightedHighlight[]>("/highlights/weights"),
 
   setWeight: (id: number, weight: number) =>
-    request<void>(`/highlights/${id}/weight`, { method: "PUT", body: JSON.stringify({ weight }) }),
+    request<void>(`/highlights/${id}/weight`, {
+      method: "PUT",
+      body: JSON.stringify({ weight }),
+    }),
 
   exclusions: () => request<ExclusionsResponse>("/exclusions"),
 
@@ -130,24 +147,34 @@ export const api = {
   settings: () => request<SettingsResponse>("/settings"),
 
   updateSettings: (body: UpdateSettingsRequest) =>
-    request<SettingsResponse>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
+    request<SettingsResponse>("/settings", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 
   testKindleEmail: (toAddress?: string) =>
     request<unknown>("/settings/test-kindle-email", {
       method: "POST",
-      ...(toAddress !== undefined ? { body: JSON.stringify({ toAddress }) } : {}),
+      ...(toAddress !== undefined
+        ? { body: JSON.stringify({ toAddress }) }
+        : {}),
     }),
 
   testRecapEmail: (toAddress?: string) =>
     request<unknown>("/settings/test-recap-email", {
       method: "POST",
-      ...(toAddress !== undefined ? { body: JSON.stringify({ toAddress }) } : {}),
+      ...(toAddress !== undefined
+        ? { body: JSON.stringify({ toAddress }) }
+        : {}),
     }),
 
   smtp: () => request<SmtpSettingsResponse>("/settings/smtp"),
 
   updateSmtp: (body: UpdateSmtpSettingsRequest) =>
-    request<SmtpSettingsResponse>("/settings/smtp", { method: "PUT", body: JSON.stringify(body) }),
+    request<SmtpSettingsResponse>("/settings/smtp", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 
   testSmtp: (settings: UpdateSmtpSettingsRequest, toAddress?: string) =>
     request<SmtpTestResponse>("/settings/smtp/test", {
@@ -199,7 +226,9 @@ export const api = {
         reject(new ApiError("Could not reach the Relego server.", 0)),
       );
 
-      xhr.addEventListener("abort", () => reject(new ApiError("Upload cancelled.", 0)));
+      xhr.addEventListener("abort", () =>
+        reject(new ApiError("Upload cancelled.", 0)),
+      );
 
       xhr.send(form);
     }),
@@ -219,33 +248,49 @@ export const syncApi = {
 
   /** The validated regions the connection may read; fixed per server, so it is fetched once. */
   regions: (providerId: string) =>
-    request<SyncRegionsResponse>(`/sync/${encodeURIComponent(providerId)}/regions`),
+    request<SyncRegionsResponse>(
+      `/sync/${encodeURIComponent(providerId)}/regions`,
+    ),
 
   /** Stores a routine-sync frequency; the extension applies it on its next heartbeat. */
   schedule: (providerId: string, intervalMinutes: number) =>
-    request<SyncScheduleChangeResponse>(`/sync/${encodeURIComponent(providerId)}/schedule`, {
-      method: "PUT",
-      body: JSON.stringify({ intervalMinutes }),
-    }),
+    request<SyncScheduleChangeResponse>(
+      `/sync/${encodeURIComponent(providerId)}/schedule`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ intervalMinutes }),
+      },
+    ),
 
   /** Dismisses the inactivity reminder so the banner stops coming back. */
   dismissReminder: (providerId: string, reminderId: number) =>
-    request<void>(`/sync/${encodeURIComponent(providerId)}/reminders/${reminderId}/dismiss`, {
-      method: "POST",
-    }),
+    request<void>(
+      `/sync/${encodeURIComponent(providerId)}/reminders/${reminderId}/dismiss`,
+      {
+        method: "POST",
+      },
+    ),
 
   createConnection: (providerId: string) =>
-    request<CreateSyncConnectionResponse>(`/sync/${encodeURIComponent(providerId)}/connection`, {
-      method: "POST",
-    }),
+    request<CreateSyncConnectionResponse>(
+      `/sync/${encodeURIComponent(providerId)}/connection`,
+      {
+        method: "POST",
+      },
+    ),
 
   /** Queues a command the extension picks up on its next heartbeat. */
   command: (providerId: string, command: "sync" | "full_resync") =>
-    request<SyncCommandResponse>(`/sync/${encodeURIComponent(providerId)}/commands`, {
-      method: "POST",
-      body: JSON.stringify({ command }),
-    }),
+    request<SyncCommandResponse>(
+      `/sync/${encodeURIComponent(providerId)}/commands`,
+      {
+        method: "POST",
+        body: JSON.stringify({ command }),
+      },
+    ),
 
   disconnect: (providerId: string) =>
-    request<void>(`/sync/${encodeURIComponent(providerId)}/connection`, { method: "DELETE" }),
+    request<void>(`/sync/${encodeURIComponent(providerId)}/connection`, {
+      method: "DELETE",
+    }),
 };

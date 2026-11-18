@@ -62,7 +62,12 @@ export interface ExcludedHighlight {
 
 export interface ExclusionsResponse {
   highlights: ExcludedHighlight[];
-  books: { id: number; title: string; authorName: string; highlightCount: number }[];
+  books: {
+    id: number;
+    title: string;
+    authorName: string;
+    highlightCount: number;
+  }[];
   authors: { id: number; name: string; bookCount: number }[];
 }
 

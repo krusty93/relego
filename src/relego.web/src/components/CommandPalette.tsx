@@ -31,7 +31,9 @@ export function CommandPalette({
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return commands;
-    return commands.filter((command) => command.label.toLowerCase().includes(needle));
+    return commands.filter((command) =>
+      command.label.toLowerCase().includes(needle),
+    );
   }, [commands, query]);
 
   useEffect(() => {
@@ -66,7 +68,9 @@ export function CommandPalette({
       event.preventDefault();
       if (matches.length === 0) return;
       const delta = event.key === "ArrowDown" ? 1 : -1;
-      setActiveIndex((current) => (current + delta + matches.length) % matches.length);
+      setActiveIndex(
+        (current) => (current + delta + matches.length) % matches.length,
+      );
       return;
     }
 
@@ -108,7 +112,12 @@ export function CommandPalette({
         <kbd aria-hidden="true">Esc</kbd>
       </div>
 
-      <ul className="palette-list" id="palette-list" role="listbox" aria-label="Commands">
+      <ul
+        className="palette-list"
+        id="palette-list"
+        role="listbox"
+        aria-label="Commands"
+      >
         {rows.flatMap(({ command, index, startsGroup }) => {
           const option = (
             <li
@@ -124,7 +133,9 @@ export function CommandPalette({
               }}
             >
               <span>{command.label}</span>
-              {command.hint ? <kbd aria-hidden="true">{command.hint}</kbd> : null}
+              {command.hint ? (
+                <kbd aria-hidden="true">{command.hint}</kbd>
+              ) : null}
             </li>
           );
 

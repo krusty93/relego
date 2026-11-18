@@ -6,7 +6,9 @@ test.describe("Accessibility", () => {
     await page.goto("/");
   });
 
-  test("full page has no critical or serious axe violations", async ({ page }) => {
+  test("full page has no critical or serious axe violations", async ({
+    page,
+  }) => {
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
@@ -26,7 +28,9 @@ test.describe("Accessibility", () => {
     }
   });
 
-  test("keyboard navigation reaches all interactive elements", async ({ page }) => {
+  test("keyboard navigation reaches all interactive elements", async ({
+    page,
+  }) => {
     const interactiveSelectors = [
       'nav a[href="#"]', // logotype
       'nav a[href*="github.com"]', // GitHub icon link

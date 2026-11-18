@@ -17,5 +17,6 @@ export const siteConfig = {
   docsUrl: "/docs/",
   license: "MIT",
   licenseUrl: "https://github.com/Krusty93/relego/blob/main/LICENSE",
-  contributingUrl: "https://github.com/Krusty93/relego/blob/main/CONTRIBUTING.md",
+  contributingUrl:
+    "https://github.com/Krusty93/relego/blob/main/CONTRIBUTING.md",
 } as const satisfies SiteConfig;

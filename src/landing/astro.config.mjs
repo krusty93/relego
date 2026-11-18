@@ -13,12 +13,14 @@ export default defineConfig({
     "/docs/store/": "/docs/import/",
     "/docs/capture/": "/docs/import/",
     "/docs/select/": "/docs/deliver/",
-    "/docs/reference/settings/": "/docs/reference/cli/#configuration-and-delivery",
+    "/docs/reference/settings/":
+      "/docs/reference/cli/#configuration-and-delivery",
   },
   integrations: [
     starlight({
       title: "Relego docs",
-      description: "Set up Relego and follow one highlight from your reader back to your reader.",
+      description:
+        "Set up Relego and follow one highlight from your reader back to your reader.",
       // Docs live in `content/docs/docs/**`, which routes every page under `/docs`.
       customCss: ["./styles/docs.css"],
       head: [
@@ -62,7 +64,8 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: "https://github.com/Krusty93/relego/edit/main/src/landing/content/docs/",
+        baseUrl:
+          "https://github.com/Krusty93/relego/edit/main/src/landing/content/docs/",
       },
       lastUpdated: true,
       // The landing site owns the site-wide 404 (pages/404.astro).
@@ -82,10 +85,22 @@ export default defineConfig({
           label: "Reference",
           items: [
             { label: "CLI", link: "/docs/reference/cli/" },
-            { label: "Kindle browser extension", link: "/docs/reference/kindle-extension/" },
-            { label: "Environment variables", link: "/docs/reference/environment/" },
-            { label: "Troubleshooting", link: "/docs/reference/troubleshooting/" },
-            { label: "Verifying releases", link: "/docs/reference/verifying-releases/" },
+            {
+              label: "Kindle browser extension",
+              link: "/docs/reference/kindle-extension/",
+            },
+            {
+              label: "Environment variables",
+              link: "/docs/reference/environment/",
+            },
+            {
+              label: "Troubleshooting",
+              link: "/docs/reference/troubleshooting/",
+            },
+            {
+              label: "Verifying releases",
+              link: "/docs/reference/verifying-releases/",
+            },
           ],
         },
       ],

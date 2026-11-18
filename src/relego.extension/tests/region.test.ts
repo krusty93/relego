@@ -9,7 +9,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { notebookOrigin, serverOriginPattern, staleNotebookOrigins } from "../src/permissions";
+import {
+  notebookOrigin,
+  serverOriginPattern,
+  staleNotebookOrigins,
+} from "../src/permissions";
 import type { HostPermissions } from "../src/permissions";
 import { REGIONS, resolveRegion } from "../src/profile";
 import type { KindleRegion } from "../src/profile";
@@ -26,7 +30,8 @@ const DE_NOTEBOOK = "https://lesen.amazon.de/*";
 
 function region(id: string): KindleRegion {
   const resolved = resolveRegion(id);
-  if (resolved === null) throw new Error(`The ${id} region must be part of the bundled profile.`);
+  if (resolved === null)
+    throw new Error(`The ${id} region must be part of the bundled profile.`);
 
   return resolved;
 }
@@ -47,7 +52,8 @@ function createPermissions(initial: readonly string[] = []): FakePermissions {
   let allow = true;
 
   const port: HostPermissions = {
-    contains: (origins) => Promise.resolve(origins.every((origin) => granted.has(origin))),
+    contains: (origins) =>
+      Promise.resolve(origins.every((origin) => granted.has(origin))),
     request: (origins) => {
       requests.push([...origins]);
       if (!allow) return Promise.resolve(false);
@@ -91,14 +97,21 @@ interface FakeServer {
 }
 
 /** A server that accepts the choice unless the test makes it fail. */
-function createServer(permissions: HostPermissions, behaviour: ServerBehaviour = {}): FakeServer {
+function createServer(
+  permissions: HostPermissions,
+  behaviour: ServerBehaviour = {},
+): FakeServer {
   const paired: string[] = [];
   const switched: string[] = [];
 
   const reject = (): Promise<never> =>
     behaviour.failWith === null
       ? Promise.reject(new Error("network down"))
-      : Promise.reject(Object.assign(new Error("server refused"), { status: behaviour.failWith }));
+      : Promise.reject(
+          Object.assign(new Error("server refused"), {
+            status: behaviour.failWith,
+          }),
+        );
 
   return {
     paired,
@@ -128,7 +141,9 @@ describe("region options", () => {
     const options = regionOptions();
 
     expect(options).toHaveLength(8);
-    expect(options.map((option) => option.value)).toEqual(REGIONS.map((option) => option.id));
+    expect(options.map((option) => option.value)).toEqual(
+      REGIONS.map((option) => option.id),
+    );
   });
 
   it("labels every option with the region and the host it reads", () => {
@@ -150,7 +165,9 @@ describe("region options", () => {
     const values = regionOptions().map((option) => option.value);
 
     expect(values).toEqual(["us", "ca", "uk", "de", "fr", "it", "es", "br"]);
-    expect(values.some((value) => value.includes(".") || value.includes("/"))).toBe(false);
+    expect(
+      values.some((value) => value.includes(".") || value.includes("/")),
+    ).toBe(false);
   });
 });
 
@@ -161,7 +178,9 @@ describe("origin patterns", () => {
 
   it("accepts only an absolute http(s) server address", () => {
     expect(serverOriginPattern(SERVER)).toBe(SERVER_ORIGIN);
-    expect(serverOriginPattern("https://relego.example/relego/")).toBe("https://relego.example/*");
+    expect(serverOriginPattern("https://relego.example/relego/")).toBe(
+      "https://relego.example/*",
+    );
     expect(serverOriginPattern("relego.example")).toBeNull();
     expect(serverOriginPattern("ftp://relego.example")).toBeNull();
     expect(serverOriginPattern("")).toBeNull();
@@ -177,7 +196,9 @@ describe("origin patterns", () => {
   });
 
   it("releases nothing when the selected region is the only notebook host granted", () => {
-    expect(staleNotebookOrigins([DE_NOTEBOOK, SERVER_ORIGIN], region("de"))).toEqual([]);
+    expect(
+      staleNotebookOrigins([DE_NOTEBOOK, SERVER_ORIGIN], region("de")),
+    ).toEqual([]);
   });
 });
 
@@ -206,7 +227,9 @@ describe("choosing a region", () => {
 
   it("releases the host of the region the connection is leaving", async () => {
     const permissions = createPermissions([US_NOTEBOOK, SERVER_ORIGIN]);
-    const server = createServer(permissions.port, { pendingCommand: "full_resync" });
+    const server = createServer(permissions.port, {
+      pendingCommand: "full_resync",
+    });
 
     const outcome = await chooseRegion(
       { regionId: "de", currentRegionId: "us", serverBaseUrl: null },
@@ -273,7 +296,14 @@ describe("choosing a region", () => {
     const permissions = createPermissions();
     const server = createServer(permissions.port);
 
-    for (const regionId of ["read.amazon.de", "https://lesen.amazon.de", "jp", "US", "", "//"]) {
+    for (const regionId of [
+      "read.amazon.de",
+      "https://lesen.amazon.de",
+      "jp",
+      "US",
+      "",
+      "//",
+    ]) {
       const outcome = await chooseRegion(
         { regionId, currentRegionId: "us", serverBaseUrl: null },
         server.ports,
@@ -290,7 +320,9 @@ describe("choosing a region", () => {
 
   it("resolves padded input to the allowlisted host rather than to what was typed", () => {
     expect(resolveRegion(" de ")?.notebookHost).toBe("lesen.amazon.de");
-    expect(regionOptions().map((option) => option.host)).toContain("lesen.amazon.de");
+    expect(regionOptions().map((option) => option.host)).toContain(
+      "lesen.amazon.de",
+    );
   });
 
   it("rejects a server address that is not an absolute http(s) URL before asking for access", async () => {
@@ -298,11 +330,18 @@ describe("choosing a region", () => {
     const server = createServer(permissions.port);
 
     const outcome = await chooseRegion(
-      { regionId: "us", currentRegionId: null, serverBaseUrl: "localhost:8080" },
+      {
+        regionId: "us",
+        currentRegionId: null,
+        serverBaseUrl: "localhost:8080",
+      },
       server.ports,
     );
 
-    expect(outcome).toEqual({ kind: "invalid_server_url", serverBaseUrl: "localhost:8080" });
+    expect(outcome).toEqual({
+      kind: "invalid_server_url",
+      serverBaseUrl: "localhost:8080",
+    });
     expect(permissions.requests).toEqual([]);
     expect(server.paired).toEqual([]);
   });
@@ -316,7 +355,11 @@ describe("choosing a region", () => {
       server.ports,
     );
 
-    expect(outcome).toEqual({ kind: "failed", region: region("de"), status: 401 });
+    expect(outcome).toEqual({
+      kind: "failed",
+      region: region("de"),
+      status: 401,
+    });
     expect(server.switched).toEqual(["de"]);
     expect(permissions.removals).toEqual([[DE_NOTEBOOK]]);
     expect(permissions.granted.has(US_NOTEBOOK)).toBe(true);
@@ -332,7 +375,11 @@ describe("choosing a region", () => {
       server.ports,
     );
 
-    expect(outcome).toEqual({ kind: "failed", region: region("fr"), status: null });
+    expect(outcome).toEqual({
+      kind: "failed",
+      region: region("fr"),
+      status: null,
+    });
   });
 
   it("never moves the region when the pairing call fails", async () => {
@@ -344,7 +391,11 @@ describe("choosing a region", () => {
       server.ports,
     );
 
-    expect(outcome).toEqual({ kind: "failed", region: region("es"), status: 500 });
+    expect(outcome).toEqual({
+      kind: "failed",
+      region: region("es"),
+      status: 500,
+    });
     expect(server.paired).toEqual(["es"]);
     expect(server.switched).toEqual([]);
     expect(permissions.removals).toEqual([["https://leer.amazon.es/*"]]);
@@ -355,11 +406,19 @@ describe("choosing a region", () => {
     const server = createServer(permissions.port, { failWith: 401 });
 
     const outcome = await chooseRegion(
-      { regionId: "us", currentRegionId: null, serverBaseUrl: "http://new-relego.test" },
+      {
+        regionId: "us",
+        currentRegionId: null,
+        serverBaseUrl: "http://new-relego.test",
+      },
       server.ports,
     );
 
-    expect(outcome).toEqual({ kind: "failed", region: region("us"), status: 401 });
+    expect(outcome).toEqual({
+      kind: "failed",
+      region: region("us"),
+      status: 401,
+    });
     expect(permissions.removals).toEqual([]);
     expect(permissions.granted.has(US_NOTEBOOK)).toBe(true);
   });

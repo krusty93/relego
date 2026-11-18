@@ -7,8 +7,14 @@ import { join, resolve } from "node:path";
 const API_PORT = Number(process.env.RELEGO_E2E_API_PORT ?? 8080);
 export const API_URL = `http://localhost:${API_PORT}`;
 const SERVER_PROJECT = resolve("../Relego.Server/Relego.Server.csproj");
-const WORKSPACE_ID = createHash("sha256").update(resolve(".")).digest("hex").slice(0, 12);
-const PUBLISH_DIRECTORY = join(tmpdir(), `relego-web-e2e-${WORKSPACE_ID}-publish`);
+const WORKSPACE_ID = createHash("sha256")
+  .update(resolve("."))
+  .digest("hex")
+  .slice(0, 12);
+const PUBLISH_DIRECTORY = join(
+  tmpdir(),
+  `relego-web-e2e-${WORKSPACE_ID}-publish`,
+);
 const SERVER_DLL = join(PUBLISH_DIRECTORY, "Relego.Server.dll");
 
 // A throwaway database per run. It is deleted by the server command below rather than here: the
@@ -35,7 +41,10 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 950 } },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 950 },
+      },
     },
     {
       name: "mobile",

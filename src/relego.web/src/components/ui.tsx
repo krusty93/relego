@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 
-export function Tag({ tone, children }: { tone: "ok" | "excluded" | "bad"; children: ReactNode }) {
+export function Tag({
+  tone,
+  children,
+}: {
+  tone: "ok" | "excluded" | "bad";
+  children: ReactNode;
+}) {
   return (
     <span className="tag" data-tone={tone}>
       {children}
@@ -11,7 +17,11 @@ export function Tag({ tone, children }: { tone: "ok" | "excluded" | "bad"; child
 /** Five pips showing recap weight. Decorative on its own; the label carries the meaning. */
 export function WeightPips({ value }: { value: number }) {
   return (
-    <span className="weight" role="img" aria-label={`Recap weight ${value} of 5`}>
+    <span
+      className="weight"
+      role="img"
+      aria-label={`Recap weight ${value} of 5`}
+    >
       {[1, 2, 3, 4, 5].map((step) => (
         <i key={step} data-on={step <= value ? "true" : undefined} />
       ))}
@@ -19,8 +29,19 @@ export function WeightPips({ value }: { value: number }) {
   );
 }
 
-export function Skeleton({ width, height }: { width: string; height?: number }) {
-  return <div className="skel" style={{ width, ...(height ? { height: `${height}px` } : {}) }} />;
+export function Skeleton({
+  width,
+  height,
+}: {
+  width: string;
+  height?: number;
+}) {
+  return (
+    <div
+      className="skel"
+      style={{ width, ...(height ? { height: `${height}px` } : {}) }}
+    />
+  );
 }
 
 export function SkeletonRows({ rows = 4 }: { rows?: number }) {
@@ -56,7 +77,13 @@ export function EmptyState({
   );
 }
 
-export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function ErrorNote({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
   return (
     <div className="callout" data-tone="bad" role="alert">
       <svg
@@ -108,7 +135,9 @@ export function AsyncSection({
   if (error) {
     return (
       <ErrorNote
-        message={error instanceof Error ? error.message : "Something went wrong."}
+        message={
+          error instanceof Error ? error.message : "Something went wrong."
+        }
         {...(onRetry ? { onRetry } : {})}
       />
     );

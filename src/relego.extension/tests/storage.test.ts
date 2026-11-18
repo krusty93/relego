@@ -18,7 +18,9 @@ import {
 } from "../src/storage";
 
 /** Installs a `chrome.storage.local` stand-in backed by a plain object. */
-function stubChrome(initial: Record<string, unknown> = {}): Map<string, unknown> {
+function stubChrome(
+  initial: Record<string, unknown> = {},
+): Map<string, unknown> {
   const state = new Map<string, unknown>(Object.entries(initial));
 
   vi.stubGlobal("chrome", {
@@ -27,11 +29,14 @@ function stubChrome(initial: Record<string, unknown> = {}): Map<string, unknown>
         get: (keys: string[]) =>
           Promise.resolve(
             Object.fromEntries(
-              keys.filter((key) => state.has(key)).map((key) => [key, state.get(key)]),
+              keys
+                .filter((key) => state.has(key))
+                .map((key) => [key, state.get(key)]),
             ),
           ),
         set: (values: Record<string, unknown>) => {
-          for (const [key, value] of Object.entries(values)) state.set(key, value);
+          for (const [key, value] of Object.entries(values))
+            state.set(key, value);
 
           return Promise.resolve();
         },
@@ -77,7 +82,10 @@ describe("draft server address", () => {
     await writeConfig({ baseUrl: "http://relego.test", token: "token" });
     await writeDraftServerUrl("http://localhost:8080");
 
-    expect(await readConfig()).toEqual({ baseUrl: "http://relego.test", token: "token" });
+    expect(await readConfig()).toEqual({
+      baseUrl: "http://relego.test",
+      token: "token",
+    });
   });
 });
 

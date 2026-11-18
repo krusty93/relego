@@ -34,9 +34,11 @@ import {
 /** Wording for the statuses that ask the user to do something, mirrored from the web app. */
 const ATTENTION: Record<string, string> = {
   awaiting_pairing: "Waiting for Relego to confirm the connection.",
-  auth_expired: "Amazon sign-in needed. Sign in to Kindle in this browser, then save again.",
+  auth_expired:
+    "Amazon sign-in needed. Sign in to Kindle in this browser, then save again.",
   failed: "The last sync did not finish.",
-  browser_not_reporting: "Relego has not heard from this browser recently, so syncs are paused.",
+  browser_not_reporting:
+    "Relego has not heard from this browser recently, so syncs are paused.",
   reminder_due: "It has been a while since your highlights were read.",
 };
 
@@ -159,7 +161,10 @@ function updateOpenForm(elements: Elements): void {
  * @param elements The popup's elements, used to report a tab the browser refused to open.
  * @param serverUrl Server address to open; nothing happens when it is not an http(s) URL.
  */
-async function openRelego(elements: Elements, serverUrl: string): Promise<void> {
+async function openRelego(
+  elements: Elements,
+  serverUrl: string,
+): Promise<void> {
   const url = kindleSyncUrl(serverUrl);
   if (url === null) return;
 
@@ -191,14 +196,21 @@ function renderPicker(elements: Elements): void {
  * @param state Cached configuration and region used during the next Save gesture.
  * @returns Whether the server reported a region, which is what makes the configuration usable.
  */
-async function refresh(elements: Elements, state: PopupState): Promise<boolean> {
+async function refresh(
+  elements: Elements,
+  state: PopupState,
+): Promise<boolean> {
   const config = await readConfig();
   state.config = config;
   state.currentRegionId = null;
   state.paired = false;
   if (config === null) {
     elements.state.textContent = "Not connected yet.";
-    say(elements, "Paste the one-time code Relego shows to connect this browser.", "warn");
+    say(
+      elements,
+      "Paste the one-time code Relego shows to connect this browser.",
+      "warn",
+    );
     await restoreDraft(elements);
 
     return false;
@@ -207,7 +219,10 @@ async function refresh(elements: Elements, state: PopupState): Promise<boolean> 
   elements.serverUrl.value = config.baseUrl;
 
   try {
-    const status = await new RelegoClient(config).getStatus(PROVIDER_ID, STATUS_TIMEOUT_MS);
+    const status = await new RelegoClient(config).getStatus(
+      PROVIDER_ID,
+      STATUS_TIMEOUT_MS,
+    );
     const region = resolveRegion(status.connection.region?.id ?? null);
     state.currentRegionId = region?.id ?? null;
     state.paired = region !== null;
@@ -247,10 +262,14 @@ async function refresh(elements: Elements, state: PopupState): Promise<boolean> 
  * @param elements The popup's elements.
  */
 async function restoreDraft(elements: Elements): Promise<void> {
-  const [serverUrl, regionId] = await Promise.all([readDraftServerUrl(), readDraftRegion()]);
+  const [serverUrl, regionId] = await Promise.all([
+    readDraftServerUrl(),
+    readDraftRegion(),
+  ]);
 
   if (serverUrl.length > 0) elements.serverUrl.value = serverUrl;
-  if (regionId !== null && resolveRegion(regionId) !== null) elements.region.value = regionId;
+  if (regionId !== null && resolveRegion(regionId) !== null)
+    elements.region.value = regionId;
 }
 
 /** Keeps what the user types, so a popup that closes and reopens comes back filled in. */
@@ -280,7 +299,11 @@ function popOut(elements: Elements): void {
     () => {
       if (chrome.runtime.lastError === undefined) window.close();
       else
-        say(elements, "The browser did not open a window. Check that popups are allowed.", "warn");
+        say(
+          elements,
+          "The browser did not open a window. Check that popups are allowed.",
+          "warn",
+        );
     },
   );
 }
@@ -303,18 +326,25 @@ async function save(elements: Elements, state: PopupState): Promise<void> {
     if (result === null) return;
 
     const applied =
-      result.outcome.kind === "region_selected" || result.outcome.kind === "already_selected";
+      result.outcome.kind === "region_selected" ||
+      result.outcome.kind === "already_selected";
     if (applied) elements.code.value = "";
 
     // Only a connection that changed has new server state to read back; the rest would ask the server
     // the question the popup already knows the answer to.
     const paired =
-      result.outcome.kind === "region_selected" ? await refresh(elements, state) : state.paired;
+      result.outcome.kind === "region_selected"
+        ? await refresh(elements, state)
+        : state.paired;
 
     // A working configuration moves to the confirmation, which says everything that is left to say;
     // anything else keeps the form on screen with the reason next to it. The answer is written after
     // the view so it is still there when Edit brings the form back.
-    show(elements, applied && paired && result.notified ? "done" : "form", paired);
+    show(
+      elements,
+      applied && paired && result.notified ? "done" : "form",
+      paired,
+    );
     announceOutcome(elements, result.outcome, result.notified);
   } catch (error) {
     say(elements, describeFailure(statusOf(error)), "warn");
@@ -331,20 +361,31 @@ async function save(elements: Elements, state: PopupState): Promise<void> {
  * @returns What the region decision made of the choice and whether the worker picked it up, or
  * `null` when the form itself was incomplete and the server was never called.
  */
-async function applySave(elements: Elements, state: PopupState): Promise<SaveResult | null> {
+async function applySave(
+  elements: Elements,
+  state: PopupState,
+): Promise<SaveResult | null> {
   const config = state.config;
   const serverUrl = elements.serverUrl.value.trim();
   const code = elements.code.value.trim();
   const needsCode =
-    config === null || config.baseUrl !== serverUrl || (code.length > 0 && code !== config.token);
+    config === null ||
+    config.baseUrl !== serverUrl ||
+    (code.length > 0 && code !== config.token);
 
   if (needsCode && code.length === 0) {
-    say(elements, "Paste the one-time code from Relego to connect to this server.", "warn");
+    say(
+      elements,
+      "Paste the one-time code from Relego to connect to this server.",
+      "warn",
+    );
 
     return null;
   }
 
-  const target: RelegoClientConfig = needsCode ? { baseUrl: serverUrl, token: code } : config;
+  const target: RelegoClientConfig = needsCode
+    ? { baseUrl: serverUrl, token: code }
+    : config;
   const client = new RelegoClient(target);
   const currentRegionId = needsCode ? null : state.currentRegionId;
 
@@ -362,7 +403,8 @@ async function applySave(elements: Elements, state: PopupState): Promise<SaveRes
 
         return pairing.intervalMinutes;
       },
-      setRegion: async (regionId) => (await client.setRegion(regionId)).pendingCommand,
+      setRegion: async (regionId) =>
+        (await client.setRegion(regionId)).pendingCommand,
     },
   );
 
@@ -381,12 +423,21 @@ async function applySave(elements: Elements, state: PopupState): Promise<SaveRes
  * @param paired Whether this save paired the connection, which changes the reason the worker is told.
  * @returns Whether the worker picked the message up.
  */
-async function applyOutcome(outcome: RegionChoice, paired: boolean): Promise<boolean> {
-  return outcome.kind === "region_selected" ? notifyWorker(outcome.intervalMinutes, paired) : true;
+async function applyOutcome(
+  outcome: RegionChoice,
+  paired: boolean,
+): Promise<boolean> {
+  return outcome.kind === "region_selected"
+    ? notifyWorker(outcome.intervalMinutes, paired)
+    : true;
 }
 
 /** Shows what happened to the user's choice. */
-function announceOutcome(elements: Elements, outcome: RegionChoice, notified: boolean): void {
+function announceOutcome(
+  elements: Elements,
+  outcome: RegionChoice,
+  notified: boolean,
+): void {
   switch (outcome.kind) {
     case "region_selected": {
       if (!notified) {
@@ -407,7 +458,11 @@ function announceOutcome(elements: Elements, outcome: RegionChoice, notified: bo
       break;
     }
     case "already_selected":
-      say(elements, `Already reading ${outcome.region.displayName}. Nothing changed.`, "info");
+      say(
+        elements,
+        `Already reading ${outcome.region.displayName}. Nothing changed.`,
+        "info",
+      );
       break;
     case "access_denied":
       say(
@@ -417,10 +472,18 @@ function announceOutcome(elements: Elements, outcome: RegionChoice, notified: bo
       );
       break;
     case "unsupported_region":
-      say(elements, "Only the regions listed here can be read. Nothing changed.", "warn");
+      say(
+        elements,
+        "Only the regions listed here can be read. Nothing changed.",
+        "warn",
+      );
       break;
     case "invalid_server_url":
-      say(elements, "Enter the full address, for example http://localhost:8080.", "warn");
+      say(
+        elements,
+        "Enter the full address, for example http://localhost:8080.",
+        "warn",
+      );
       break;
     case "failed":
       say(elements, describeFailure(outcome.status), "warn");
@@ -434,7 +497,10 @@ function announceOutcome(elements: Elements, outcome: RegionChoice, notified: bo
  * @param intervalMinutes Frequency the server reported, or `null` when none was learned.
  * @param paired Whether a new pairing needs its first sync.
  */
-async function notifyWorker(intervalMinutes: number | null, paired: boolean): Promise<boolean> {
+async function notifyWorker(
+  intervalMinutes: number | null,
+  paired: boolean,
+): Promise<boolean> {
   try {
     await chrome.runtime.sendMessage({
       type: CONFIGURED_MESSAGE,
@@ -457,7 +523,8 @@ function describeFailure(status: number | null): string {
     return "Relego does not accept that region. Update the extension, then try again.";
   }
 
-  if (status === null) return "Relego could not be reached. Check that the server is running.";
+  if (status === null)
+    return "Relego could not be reached. Check that the server is running.";
 
   return `Relego answered with ${status}. Nothing changed.`;
 }
@@ -481,7 +548,11 @@ async function main(): Promise<void> {
     cancel: required<HTMLButtonElement>("cancel"),
   };
 
-  const state: PopupState = { config: null, currentRegionId: null, paired: false };
+  const state: PopupState = {
+    config: null,
+    currentRegionId: null,
+    paired: false,
+  };
   elements.save.disabled = true;
   renderPicker(elements);
   keepDraft(elements);
@@ -528,7 +599,10 @@ async function openStoredRelego(elements: Elements): Promise<void> {
  * @param state Cached configuration and region used during the next Save gesture.
  * @returns A task that completes once the view is on screen.
  */
-async function openConfigured(elements: Elements, state: PopupState): Promise<void> {
+async function openConfigured(
+  elements: Elements,
+  state: PopupState,
+): Promise<void> {
   const paired = await refresh(elements, state);
   show(elements, paired ? "done" : "form", paired);
 }

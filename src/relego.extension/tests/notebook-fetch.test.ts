@@ -11,31 +11,37 @@ afterEach(() => {
 function waitForAbort(signal: AbortSignal): Promise<never> {
   return new Promise((_resolve, reject) => {
     if (signal.aborted) reject(signal.reason);
-    else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    else
+      signal.addEventListener("abort", () => reject(signal.reason), {
+        once: true,
+      });
   });
 }
 
 describe("notebook fetch deadline", () => {
-  it.each(["headers", "body"])("bounds stalled %s and cleans up the timeout", async (stage) => {
-    vi.useFakeTimers();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (_url: string, init: RequestInit) => {
-        const signal = init.signal!;
-        if (stage === "headers") return waitForAbort(signal);
-        return {
-          ok: true,
-          url: "https://read.amazon.com/notebook",
-          text: () => waitForAbort(signal),
-        };
-      }),
-    );
-    const request = fetchNotebookPage("https://read.amazon.com/notebook");
-    const advancing = vi.advanceTimersByTimeAsync(60_000);
-    await expect(request).rejects.toMatchObject({ name: "TimeoutError" });
-    await advancing;
-    expect(vi.getTimerCount()).toBe(0);
-  });
+  it.each(["headers", "body"])(
+    "bounds stalled %s and cleans up the timeout",
+    async (stage) => {
+      vi.useFakeTimers();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_url: string, init: RequestInit) => {
+          const signal = init.signal!;
+          if (stage === "headers") return waitForAbort(signal);
+          return {
+            ok: true,
+            url: "https://read.amazon.com/notebook",
+            text: () => waitForAbort(signal),
+          };
+        }),
+      );
+      const request = fetchNotebookPage("https://read.amazon.com/notebook");
+      const advancing = vi.advanceTimersByTimeAsync(60_000);
+      await expect(request).rejects.toMatchObject({ name: "TimeoutError" });
+      await advancing;
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
 
   it("propagates cancellation and removes the deadline", async () => {
     vi.useFakeTimers();
@@ -44,7 +50,10 @@ describe("notebook fetch deadline", () => {
       vi.fn((_url: string, init: RequestInit) => waitForAbort(init.signal!)),
     );
     const controller = new AbortController();
-    const request = fetchNotebookPage("https://read.amazon.com/notebook", controller.signal);
+    const request = fetchNotebookPage(
+      "https://read.amazon.com/notebook",
+      controller.signal,
+    );
     controller.abort();
     await expect(request).rejects.toMatchObject({ name: "AbortError" });
     expect(vi.getTimerCount()).toBe(0);
@@ -56,7 +65,9 @@ describe("notebook fetch deadline", () => {
       "fetch",
       vi.fn(async () => new Response("notebook")),
     );
-    expect((await fetchNotebookPage("https://read.amazon.com/notebook")).html).toBe("notebook");
+    expect(
+      (await fetchNotebookPage("https://read.amazon.com/notebook")).html,
+    ).toBe("notebook");
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -66,13 +77,18 @@ describe("notebook fetch deadline", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init: RequestInit) => {
-        if (url.startsWith("https://read.amazon.com/")) return waitForAbort(init.signal!);
+        if (url.startsWith("https://read.amazon.com/"))
+          return waitForAbort(init.signal!);
         if (init.method === "GET")
           return Response.json({
             providerId: "kindle-cloud",
             status: "connected",
             connection: {
-              region: { id: "us", displayName: "United States", host: "read.amazon.com" },
+              region: {
+                id: "us",
+                displayName: "United States",
+                host: "read.amazon.com",
+              },
             },
           });
         if (url.endsWith("/jobs"))
@@ -82,12 +98,20 @@ describe("notebook fetch deadline", () => {
             reused: false,
             status: "running",
           });
-        if (url.endsWith("/fail")) failures.push(JSON.parse(String(init.body)).code);
+        if (url.endsWith("/fail"))
+          failures.push(JSON.parse(String(init.body)).code);
         return new Response(null, { status: 204 });
       }),
     );
-    const client = new RelegoClient({ baseUrl: "https://relego.test", token: "pairing-test" });
-    const options = { mode: "routine", trigger: "scheduled", idempotencyKey: "test" } as const;
+    const client = new RelegoClient({
+      baseUrl: "https://relego.test",
+      token: "pairing-test",
+    });
+    const options = {
+      mode: "routine",
+      trigger: "scheduled",
+      idempotencyKey: "test",
+    } as const;
     const run = runSync({ client, fetchPage: fetchNotebookPage }, options);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(await run).toEqual({ kind: "failed", jobId: 42, code: "network" });

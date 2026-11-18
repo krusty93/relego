@@ -33,7 +33,9 @@ test.describe("Content Sections", () => {
     expect(faqIdx).toBeLessThan(exploreIdx);
   });
 
-  test("section titles use dual-color pattern with accent text", async ({ page }) => {
+  test("section titles use dual-color pattern with accent text", async ({
+    page,
+  }) => {
     const gsAccent = page.locator("#getting-started h2 span");
     await expect(gsAccent).toContainText("in just 3 steps");
     const wrTitle = page.locator("#why-relego h2");
@@ -42,12 +44,18 @@ test.describe("Content Sections", () => {
     await expect(featTitle).toHaveText("Built for readers");
   });
 
-  test("Getting Started renders 3 step tabs with correct titles", async ({ page }) => {
+  test("Getting Started renders 3 step tabs with correct titles", async ({
+    page,
+  }) => {
     const section = page.locator("#getting-started");
     const tabs = section.locator("[data-step-tab]");
     await expect(tabs).toHaveCount(3);
-    await expect(tabs.nth(0).locator("h3")).toHaveText("Import your highlights");
-    await expect(tabs.nth(1).locator("h3")).toHaveText("Let the server schedule");
+    await expect(tabs.nth(0).locator("h3")).toHaveText(
+      "Import your highlights",
+    );
+    await expect(tabs.nth(1).locator("h3")).toHaveText(
+      "Let the server schedule",
+    );
     await expect(tabs.nth(2).locator("h3")).toHaveText("Read your recap");
   });
 
@@ -62,7 +70,9 @@ test.describe("Content Sections", () => {
     await expect(section.locator('[data-step-panel="0"]')).toBeHidden();
   });
 
-  test("Features renders 4 feature cards with correct titles", async ({ page }) => {
+  test("Features renders 4 feature cards with correct titles", async ({
+    page,
+  }) => {
     const section = page.locator("#features");
     const titles = section.locator("h3");
     await expect(titles).toHaveCount(4);

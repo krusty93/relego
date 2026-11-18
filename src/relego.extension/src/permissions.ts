@@ -57,7 +57,9 @@ export function staleNotebookOrigins(
   const keep = notebookOrigin(region);
   const grantedSet = new Set(granted);
 
-  return allowlistedNotebookOrigins().filter((origin) => origin !== keep && grantedSet.has(origin));
+  return allowlistedNotebookOrigins().filter(
+    (origin) => origin !== keep && grantedSet.has(origin),
+  );
 }
 
 /** The host-permission surface the picker needs, as a port so tests run without a browser. */

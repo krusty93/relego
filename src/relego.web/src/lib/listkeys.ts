@@ -45,7 +45,9 @@ export function useListKeys(options: ListKeyOptions): void {
       if (document.querySelector("dialog[open]")) return;
 
       const active = document.activeElement;
-      const inList = active instanceof Node && containerRef.current?.contains(active) === true;
+      const inList =
+        active instanceof Node &&
+        containerRef.current?.contains(active) === true;
 
       const step =
         event.key === "j" || event.key === "ArrowDown"

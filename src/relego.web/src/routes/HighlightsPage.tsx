@@ -38,9 +38,21 @@ export function HighlightsPage() {
     retry: false,
   });
 
-  const books = useQuery({ queryKey: ["books", ""], queryFn: () => api.books(), retry: false });
-  const weights = useQuery({ queryKey: ["weights"], queryFn: api.weights, retry: false });
-  const exclusions = useQuery({ queryKey: ["exclusions"], queryFn: api.exclusions, retry: false });
+  const books = useQuery({
+    queryKey: ["books", ""],
+    queryFn: () => api.books(),
+    retry: false,
+  });
+  const weights = useQuery({
+    queryKey: ["weights"],
+    queryFn: api.weights,
+    retry: false,
+  });
+  const exclusions = useQuery({
+    queryKey: ["exclusions"],
+    queryFn: api.exclusions,
+    retry: false,
+  });
 
   const book: BookItem | undefined = bookId
     ? books.data?.items.find((candidate) => candidate.id === bookId)
@@ -82,7 +94,9 @@ export function HighlightsPage() {
   }
 
   function reportError(error: unknown) {
-    push(error instanceof Error ? error.message : "That didn't work.", { tone: "bad" });
+    push(error instanceof Error ? error.message : "That didn't work.", {
+      tone: "bad",
+    });
   }
 
   async function copyHighlight(text: string) {
@@ -93,7 +107,8 @@ export function HighlightsPage() {
   }
 
   const setWeight = useMutation({
-    mutationFn: ({ id, weight }: { id: number; weight: number }) => api.setWeight(id, weight),
+    mutationFn: ({ id, weight }: { id: number; weight: number }) =>
+      api.setWeight(id, weight),
     onSuccess: refreshAll,
     onError: reportError,
   });
@@ -110,7 +125,11 @@ export function HighlightsPage() {
         {
           action: {
             label: "Undo",
-            run: () => toggleHighlight.mutate({ id: variables.id, excluded: !variables.excluded }),
+            run: () =>
+              toggleHighlight.mutate({
+                id: variables.id,
+                excluded: !variables.excluded,
+              }),
           },
         },
       );
@@ -133,7 +152,11 @@ export function HighlightsPage() {
       excluded ? api.include("books", id) : api.exclude("books", id),
     onSuccess: (_result, variables) => {
       refreshAll();
-      push(variables.excluded ? "Book is back in your recaps." : "Book excluded from recaps.");
+      push(
+        variables.excluded
+          ? "Book is back in your recaps."
+          : "Book excluded from recaps.",
+      );
     },
     onError: reportError,
   });
@@ -143,7 +166,11 @@ export function HighlightsPage() {
       excluded ? api.include("authors", id) : api.exclude("authors", id),
     onSuccess: (_result, variables) => {
       refreshAll();
-      push(variables.excluded ? "Author is back in your recaps." : "Author excluded from recaps.");
+      push(
+        variables.excluded
+          ? "Author is back in your recaps."
+          : "Author excluded from recaps.",
+      );
     },
     onError: reportError,
   });
@@ -151,7 +178,8 @@ export function HighlightsPage() {
   function focusCard(index: number) {
     const clamped = Math.max(0, Math.min(index, items.length - 1));
     setCursor(clamped);
-    listRef.current?.querySelectorAll<HTMLElement>(".hl-summary")[clamped]?.focus();
+    const cards = listRef.current?.querySelectorAll<HTMLElement>(".hl-summary");
+    cards?.[clamped]?.focus();
   }
 
   useListKeys({
@@ -162,7 +190,11 @@ export function HighlightsPage() {
     actions: {
       e: (index) => {
         const item = items[index];
-        if (item) toggleHighlight.mutate({ id: item.id, excluded: excludedIds.has(item.id) });
+        if (item)
+          toggleHighlight.mutate({
+            id: item.id,
+            excluded: excludedIds.has(item.id),
+          });
       },
       ...Object.fromEntries(
         [1, 2, 3, 4, 5].map((weight) => [
@@ -191,13 +223,18 @@ export function HighlightsPage() {
   }
 
   const heading = book ? book.title : "Highlights";
-  const isLoading = highlights.isPending || weights.isPending || exclusions.isPending;
+  const isLoading =
+    highlights.isPending || weights.isPending || exclusions.isPending;
 
   return (
     <section className="view" aria-labelledby="hl-h">
       {book ? (
         <nav className="breadcrumb" aria-label="Breadcrumb">
-          <button className="btn btn--ghost btn--sm" type="button" onClick={() => navigate("/app")}>
+          <button
+            className="btn btn--ghost btn--sm"
+            type="button"
+            onClick={() => navigate("/app")}
+          >
             Library
           </button>
           <span aria-hidden="true">/</span>
@@ -232,7 +269,9 @@ export function HighlightsPage() {
               <button
                 className="btn btn--sm"
                 type="button"
-                onClick={() => toggleBook.mutate({ id: book.id, excluded: book.excluded })}
+                onClick={() =>
+                  toggleBook.mutate({ id: book.id, excluded: book.excluded })
+                }
               >
                 {book.excluded ? "Include book" : "Exclude book"}
               </button>
@@ -240,7 +279,10 @@ export function HighlightsPage() {
                 className="btn btn--sm"
                 type="button"
                 onClick={() =>
-                  toggleAuthor.mutate({ id: book.authorId, excluded: book.authorExcluded })
+                  toggleAuthor.mutate({
+                    id: book.authorId,
+                    excluded: book.authorExcluded,
+                  })
                 }
               >
                 {book.authorExcluded ? "Include author" : "Exclude author"}
@@ -266,7 +308,8 @@ export function HighlightsPage() {
         empty={
           debounced ? (
             <EmptyState title="No highlights match that search">
-              Nothing matches “{debounced}”. Try a shorter word, or clear the search box.
+              Nothing matches “{debounced}”. Try a shorter word, or clear the
+              search box.
             </EmptyState>
           ) : (
             <EmptyState
@@ -281,15 +324,15 @@ export function HighlightsPage() {
                 </button>
               }
             >
-              Connect your Kindle or Kobo by USB and drop its highlight file in. Relego takes it
-              from there.
+              Connect your Kindle or Kobo by USB and drop its highlight file in.
+              Relego takes it from there.
             </EmptyState>
           )
         }
       >
         <p className="subtle hint-line">
-          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> expand · <kbd>e</kbd> exclude ·{" "}
-          <kbd>1</kbd>–<kbd>5</kbd> weight
+          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> expand ·{" "}
+          <kbd>e</kbd> exclude · <kbd>1</kbd>–<kbd>5</kbd> weight
         </p>
 
         <div className="hl-list" ref={listRef}>
@@ -343,13 +386,19 @@ export function HighlightsPage() {
                     <span className="seg-label" id={`w-${item.id}`}>
                       Weight
                     </span>
-                    <div className="seg" role="group" aria-labelledby={`w-${item.id}`}>
+                    <div
+                      className="seg"
+                      role="group"
+                      aria-labelledby={`w-${item.id}`}
+                    >
                       {[1, 2, 3, 4, 5].map((step) => (
                         <button
                           key={step}
                           type="button"
                           aria-pressed={weight === step}
-                          onClick={() => setWeight.mutate({ id: item.id, weight: step })}
+                          onClick={() =>
+                            setWeight.mutate({ id: item.id, weight: step })
+                          }
                         >
                           {step}
                         </button>
@@ -358,7 +407,9 @@ export function HighlightsPage() {
                     <button
                       className="btn btn--sm"
                       type="button"
-                      onClick={() => toggleHighlight.mutate({ id: item.id, excluded })}
+                      onClick={() =>
+                        toggleHighlight.mutate({ id: item.id, excluded })
+                      }
                     >
                       {excluded ? "Include again" : "Exclude highlight"}
                     </button>
@@ -373,7 +424,11 @@ export function HighlightsPage() {
                     {/* Deleting is not reversible on the server, so it takes two
                         deliberate steps rather than one stray click. */}
                     {confirmingId === item.id ? (
-                      <span className="confirm" role="group" aria-label="Confirm delete">
+                      <span
+                        className="confirm"
+                        role="group"
+                        aria-label="Confirm delete"
+                      >
                         <span className="confirm-q">Delete permanently?</span>
                         <button
                           className="btn btn--sm btn--danger"
@@ -381,7 +436,9 @@ export function HighlightsPage() {
                           disabled={removeHighlight.isPending}
                           onClick={() => removeHighlight.mutate(item.id)}
                         >
-                          {removeHighlight.isPending ? "Deleting…" : "Yes, delete"}
+                          {removeHighlight.isPending
+                            ? "Deleting…"
+                            : "Yes, delete"}
                         </button>
                         <button
                           className="btn btn--sm btn--ghost"

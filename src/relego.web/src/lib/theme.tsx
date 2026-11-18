@@ -25,7 +25,8 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 function readStored(): ThemePreference {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark" || stored === "system") return stored;
+    if (stored === "light" || stored === "dark" || stored === "system")
+      return stored;
   } catch {
     // Private mode or blocked storage: fall back to the system default.
   }
@@ -34,14 +35,16 @@ function readStored(): ThemePreference {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>(readStored);
+  const [preference, setPreferenceState] =
+    useState<ThemePreference>(readStored);
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
+    const onChange = (event: MediaQueryListEvent) =>
+      setSystemDark(event.matches);
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, []);
@@ -83,7 +86,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [preference, resolved, setPreference, cycle],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextValue {

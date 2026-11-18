@@ -10,20 +10,31 @@ const repoRoot = join(extensionDir, "..", "..");
 const releaseDir = join(extensionDir, "release");
 
 function expectedVersion(): string {
-  const props = readFileSync(join(repoRoot, "src", "PackageVersions.props"), "utf8");
-  const match = /<RelegoExtensionVersion>([^<]+)<\/RelegoExtensionVersion>/.exec(props);
+  const props = readFileSync(
+    join(repoRoot, "src", "PackageVersions.props"),
+    "utf8",
+  );
+  const match =
+    /<RelegoExtensionVersion>([^<]+)<\/RelegoExtensionVersion>/.exec(props);
 
   if (match?.[1] === undefined) {
-    throw new Error("RelegoExtensionVersion is missing from src/PackageVersions.props");
+    throw new Error(
+      "RelegoExtensionVersion is missing from src/PackageVersions.props",
+    );
   }
 
   return match[1].trim();
 }
 
 async function readPackage(browser: "chrome" | "firefox") {
-  const path = join(releaseDir, `relego-extension-${expectedVersion()}-${browser}.zip`);
+  const path = join(
+    releaseDir,
+    `relego-extension-${expectedVersion()}-${browser}.zip`,
+  );
   const zip = await JSZip.loadAsync(readFileSync(path));
-  const manifest = JSON.parse((await zip.file("manifest.json")!.async("string")) as string);
+  const manifest = JSON.parse(
+    (await zip.file("manifest.json")!.async("string")) as string,
+  );
 
   return { zip, manifest };
 }
@@ -33,9 +44,16 @@ describe("extension release packaging", () => {
     // `pnpm` is a .cmd shim on Windows, which execFileSync cannot spawn without a shell. The command
     // goes in as one string there so Node does not concatenate arguments into it itself.
     if (process.platform === "win32") {
-      execFileSync("pnpm.cmd run package", { cwd: extensionDir, stdio: "inherit", shell: true });
+      execFileSync("pnpm.cmd run package", {
+        cwd: extensionDir,
+        stdio: "inherit",
+        shell: true,
+      });
     } else {
-      execFileSync("pnpm", ["run", "package"], { cwd: extensionDir, stdio: "inherit" });
+      execFileSync("pnpm", ["run", "package"], {
+        cwd: extensionDir,
+        stdio: "inherit",
+      });
     }
   }, 600_000);
 
@@ -52,7 +70,10 @@ describe("extension release packaging", () => {
       const { manifest } = await readPackage(browser);
 
       expect(manifest.host_permissions).toEqual([]);
-      expect(manifest.optional_host_permissions).toEqual(["http://*/*", "https://*/*"]);
+      expect(manifest.optional_host_permissions).toEqual([
+        "http://*/*",
+        "https://*/*",
+      ]);
       expect(manifest.permissions).toEqual(["storage", "alarms"]);
     }
   });
@@ -60,7 +81,10 @@ describe("extension release packaging", () => {
   it("keeps the Chrome package on a module service worker", async () => {
     const { zip, manifest } = await readPackage("chrome");
 
-    expect(manifest.background).toEqual({ service_worker: "background.js", type: "module" });
+    expect(manifest.background).toEqual({
+      service_worker: "background.js",
+      type: "module",
+    });
     expect(manifest.browser_specific_settings).toBeUndefined();
     expect(zip.file("background.js")).not.toBeNull();
     expect(zip.file("popup.html")).not.toBeNull();
@@ -82,7 +106,9 @@ describe("extension release packaging", () => {
       },
     });
 
-    const background = (await zip.file("background.js")!.async("string")) as string;
+    const background = (await zip
+      .file("background.js")!
+      .async("string")) as string;
 
     expect(background).not.toMatch(/^(?:import|export)\b/m);
     expect(zip.file("popup.html")).not.toBeNull();
@@ -96,7 +122,9 @@ describe("extension release packaging", () => {
 
       // A manifest path that is not in the package is invisible until the browser refuses to load it.
       expect(Object.keys(manifest.icons).sort()).toEqual([...sizes].sort());
-      expect(Object.keys(manifest.action.default_icon).sort()).toEqual([...sizes].sort());
+      expect(Object.keys(manifest.action.default_icon).sort()).toEqual(
+        [...sizes].sort(),
+      );
 
       for (const size of sizes) {
         expect(manifest.icons[size]).toBe(`icons/icon${size}.png`);

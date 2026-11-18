@@ -35,7 +35,9 @@ export const HEARTBEAT_SECONDS = 60;
  * @returns The requested value when allowed, otherwise the default.
  */
 export function clampIntervalMinutes(minutes: number): number {
-  return ALLOWED_INTERVAL_MINUTES.includes(minutes) ? minutes : DEFAULT_INTERVAL_MINUTES;
+  return ALLOWED_INTERVAL_MINUTES.includes(minutes)
+    ? minutes
+    : DEFAULT_INTERVAL_MINUTES;
 }
 
 /** A validated Amazon Kindle notebook region. */
@@ -118,12 +120,15 @@ export const REGION_DISCLOSURE =
  * @param regionId Region id reported by the server or chosen in the popup.
  * @returns The matching region, or `null` when the id is unknown or host-shaped.
  */
-export function resolveRegion(regionId: string | null | undefined): KindleRegion | null {
+export function resolveRegion(
+  regionId: string | null | undefined,
+): KindleRegion | null {
   if (typeof regionId !== "string") return null;
 
   const trimmed = regionId.trim();
   if (trimmed.length === 0) return null;
-  if (trimmed.includes("://") || trimmed.includes(".") || trimmed.includes("/")) return null;
+  if (trimmed.includes("://") || trimmed.includes(".") || trimmed.includes("/"))
+    return null;
 
   return REGIONS.find((region) => region.id === trimmed) ?? null;
 }
@@ -145,7 +150,10 @@ export function notebookUrl(region: KindleRegion): string {
  * @param externalKey Book key taken from the library list.
  * @returns The book page URL.
  */
-export function notebookBookUrl(region: KindleRegion, externalKey: string): string {
+export function notebookBookUrl(
+  region: KindleRegion,
+  externalKey: string,
+): string {
   return `${notebookUrl(region)}?asin=${encodeURIComponent(externalKey)}`;
 }
 

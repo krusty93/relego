@@ -30,20 +30,35 @@ import {
   resolveRegion,
 } from "../src/profile";
 import type { KindleRegion } from "../src/profile";
-import { isSignInPage, parseBookPage, parseLibrary } from "../src/notebook-parser";
+import {
+  isSignInPage,
+  parseBookPage,
+  parseLibrary,
+} from "../src/notebook-parser";
 import { chunkBooks, isSyncRunning, runSync } from "../src/sync-runner";
-import type { PageResponse, SyncRunOptions, SyncRunnerDeps } from "../src/sync-runner";
+import type {
+  PageResponse,
+  SyncRunOptions,
+  SyncRunnerDeps,
+} from "../src/sync-runner";
 
 const us = resolveRegion("us");
-if (us === null) throw new Error("The US region must be part of the bundled profile.");
+if (us === null)
+  throw new Error("The US region must be part of the bundled profile.");
 
 afterEach(() => vi.unstubAllGlobals());
 
 function fixture(name: string, regionId = "us"): string {
-  return readFileSync(new URL(`./fixtures/${regionId}/${name}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`./fixtures/${regionId}/${name}`, import.meta.url),
+    "utf8",
+  );
 }
 
-function page(html: string, url: string = notebookUrl(us as KindleRegion)): PageResponse {
+function page(
+  html: string,
+  url: string = notebookUrl(us as KindleRegion),
+): PageResponse {
   return { url, html };
 }
 
@@ -96,14 +111,20 @@ describe("parse profile", () => {
   });
 
   it("normalizes title-derived fallback lookup keys", () => {
-    expect(normalizeBookKey("  The   Pragmatic\tProgrammer \n")).toBe("the pragmatic programmer");
-    expect(normalizeBookKey("Thinking,   Fast and Slow")).toBe("thinking, fast and slow");
+    expect(normalizeBookKey("  The   Pragmatic\tProgrammer \n")).toBe(
+      "the pragmatic programmer",
+    );
+    expect(normalizeBookKey("Thinking,   Fast and Slow")).toBe(
+      "thinking, fast and slow",
+    );
     expect(normalizeBookKey(null)).toBe("");
     expect(normalizeBookKey(undefined)).toBe("");
   });
 
   it("clamps frequencies to the ten the server accepts", () => {
-    expect(ALLOWED_INTERVAL_MINUTES).toEqual([15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440]);
+    expect(ALLOWED_INTERVAL_MINUTES).toEqual([
+      15, 30, 45, 60, 120, 240, 360, 720, 1080, 1440,
+    ]);
     for (const minutes of ALLOWED_INTERVAL_MINUTES)
       expect(clampIntervalMinutes(minutes)).toBe(minutes);
 
@@ -114,7 +135,9 @@ describe("parse profile", () => {
 describe("parse profile - every allowlisted region", () => {
   it("derives both notebook URLs and the sign-in URL from the region host", () => {
     for (const region of REGIONS) {
-      expect(notebookUrl(region)).toBe(`https://${region.notebookHost}/notebook`);
+      expect(notebookUrl(region)).toBe(
+        `https://${region.notebookHost}/notebook`,
+      );
       expect(notebookBookUrl(region, "B00EXAMPLE01")).toBe(
         `https://${region.notebookHost}/notebook?asin=B00EXAMPLE01`,
       );
@@ -138,14 +161,20 @@ describe("parse profile - every allowlisted region", () => {
       expect(library.books.every((book) => book.title.length > 0)).toBe(true);
       expect(library.books[2]?.truncated).toBe(true);
 
-      const book = parseBookPage(fixture("book.html", region.id), region, "fallback");
+      const book = parseBookPage(
+        fixture("book.html", region.id),
+        region,
+        "fallback",
+      );
       expect(book.kind).toBe("ok");
       if (book.kind !== "ok") continue;
 
       expect(book.result.books[0]?.highlights).toHaveLength(3);
-      expect(book.result.books[0]?.highlights.every((highlight) => highlight.text.length > 0)).toBe(
-        true,
-      );
+      expect(
+        book.result.books[0]?.highlights.every(
+          (highlight) => highlight.text.length > 0,
+        ),
+      ).toBe(true);
 
       const truncated = parseBookPage(
         fixture("truncation-warning.html", region.id),
@@ -162,7 +191,10 @@ describe("parse profile - every allowlisted region", () => {
         books: [],
       });
 
-      const changed = parseLibrary(fixture("changed-layout.html", region.id), region);
+      const changed = parseLibrary(
+        fixture("changed-layout.html", region.id),
+        region,
+      );
       expect(changed.kind).toBe("contract_changed");
       if (changed.kind !== "contract_changed") continue;
 
@@ -213,7 +245,8 @@ describe("notebook parser - library page", () => {
 
   it("decodes entities and keeps the raw title for the shared key", () => {
     const outcome = parseLibrary(fixture("library.html"), us);
-    if (outcome.kind !== "ok") throw new Error("Expected the library fixture to parse.");
+    if (outcome.kind !== "ok")
+      throw new Error("Expected the library fixture to parse.");
 
     const third = outcome.books[2];
     expect(third?.author).toBe("Daniel Kahneman");
@@ -240,7 +273,8 @@ describe("notebook parser - library page", () => {
 
   it("flags the export limit as truncated instead of failing (invariant 4)", () => {
     const outcome = parseLibrary(fixture("library.html"), us);
-    if (outcome.kind !== "ok") throw new Error("Expected the library fixture to parse.");
+    if (outcome.kind !== "ok")
+      throw new Error("Expected the library fixture to parse.");
 
     expect(outcome.books[2]?.truncated).toBe(true);
     expect(outcome.books[0]?.truncated).toBe(false);
@@ -253,7 +287,10 @@ describe("notebook parser - library page", () => {
   });
 
   it("reports a contract break when the library list anchor is gone (invariant 1)", () => {
-    const outcome = parseLibrary('<html><body><div id="kp-notebook-main"></div></body></html>', us);
+    const outcome = parseLibrary(
+      '<html><body><div id="kp-notebook-main"></div></body></html>',
+      us,
+    );
 
     expect(outcome.kind).toBe("contract_changed");
     if (outcome.kind !== "contract_changed") return;
@@ -279,13 +316,18 @@ describe("notebook parser - library page", () => {
 
   it("never leaks page text into the diagnostics (invariant 5)", () => {
     const outcome = parseLibrary(fixture("changed-layout.html"), us);
-    if (outcome.kind !== "contract_changed") throw new Error("Expected a contract break.");
+    if (outcome.kind !== "contract_changed")
+      throw new Error("Expected a contract break.");
 
     const serialized = JSON.stringify(outcome.diagnostics);
     expect(serialized).not.toContain("The Pragmatic Programmer");
     expect(serialized).not.toContain("kp-notebook-book-row");
 
-    expect(Object.keys(outcome.diagnostics).sort()).toEqual(["check", "counts", "profileVersion"]);
+    expect(Object.keys(outcome.diagnostics).sort()).toEqual([
+      "check",
+      "counts",
+      "profileVersion",
+    ]);
     for (const value of Object.values(outcome.diagnostics.counts)) {
       expect(typeof value).toBe("number");
     }
@@ -300,21 +342,24 @@ describe("notebook parser - library page", () => {
 });
 
 describe("notebook parser - book page", () => {
-  it.each([null, 3])("rejects unrecognized annotation markup with advertised count %s", (count) => {
-    const html = fixture("book.html").replaceAll(
-      'class="kp-notebook-annotation"',
-      'class="new-annotation"',
-    );
-    const outcome = parseBookPage(html, us, "B00EXAMPLE01", count);
-    expect(outcome).toMatchObject({
-      kind: "contract_changed",
-      diagnostics: {
-        check: "annotation",
-        counts: { annotations: 0, advertisedCount: count ?? -1 },
-      },
-    });
-    expect(JSON.stringify(outcome)).not.toContain("Care about");
-  });
+  it.each([null, 3])(
+    "rejects unrecognized annotation markup with advertised count %s",
+    (count) => {
+      const html = fixture("book.html").replaceAll(
+        'class="kp-notebook-annotation"',
+        'class="new-annotation"',
+      );
+      const outcome = parseBookPage(html, us, "B00EXAMPLE01", count);
+      expect(outcome).toMatchObject({
+        kind: "contract_changed",
+        diagnostics: {
+          check: "annotation",
+          counts: { annotations: 0, advertisedCount: count ?? -1 },
+        },
+      });
+      expect(JSON.stringify(outcome)).not.toContain("Care about");
+    },
+  );
 
   it("accepts an empty annotations container only with an advertised zero count", () => {
     const html =
@@ -337,7 +382,9 @@ describe("notebook parser - book page", () => {
     expect(book?.externalKey).toBe("B00EXAMPLE01");
     expect(book?.truncated).toBe(false);
     expect(book?.highlights).toHaveLength(3);
-    expect(book?.highlights.every((highlight) => highlight.text.length > 0)).toBe(true);
+    expect(
+      book?.highlights.every((highlight) => highlight.text.length > 0),
+    ).toBe(true);
     expect(book?.highlights[1]).toEqual({
       externalId: "H-0002",
       text: "Provide options, don't make lame excuses.",
@@ -361,11 +408,17 @@ describe("notebook parser - book page", () => {
 
     // Highlight text only ever reaches the server and is rendered as text, so an escaped bracket
     // stays a bracket while the markup around it goes away.
-    expect(outcome.result.books[0]?.highlights[0]?.text).toBe("Care about <your> craft.");
+    expect(outcome.result.books[0]?.highlights[0]?.text).toBe(
+      "Care about <your> craft.",
+    );
   });
 
   it("marks a book truncated when the export limit is shown (invariant 4)", () => {
-    const outcome = parseBookPage(fixture("truncation-warning.html"), us, "fallback");
+    const outcome = parseBookPage(
+      fixture("truncation-warning.html"),
+      us,
+      "fallback",
+    );
 
     expect(outcome.kind).toBe("ok");
     if (outcome.kind !== "ok") return;
@@ -386,7 +439,10 @@ describe("notebook parser - book page", () => {
     if (outcome.kind !== "contract_changed") return;
 
     expect(outcome.diagnostics.check).toBe("highlightText");
-    expect(outcome.diagnostics.counts).toEqual({ annotations: 3, missingText: 1 });
+    expect(outcome.diagnostics.counts).toEqual({
+      annotations: 3,
+      missingText: 1,
+    });
   });
 
   it("reports a contract break when the annotations container is gone", () => {
@@ -403,7 +459,10 @@ describe("notebook parser - book page", () => {
   });
 
   it("falls back to the library key when the page does not carry one", () => {
-    const html = fixture("book.html").replace('data-book-key="B00EXAMPLE01"', "");
+    const html = fixture("book.html").replace(
+      'data-book-key="B00EXAMPLE01"',
+      "",
+    );
     const outcome = parseBookPage(html, us, "B00EXAMPLE01");
 
     expect(outcome.kind).toBe("ok");
@@ -432,7 +491,10 @@ describe("notebook parser - book page", () => {
 
     const book = outcome.result.books[0];
     expect(book?.title).toBe("");
-    expect(book?.highlights.map((highlight) => highlight.text)).toEqual(["First.", "Second."]);
+    expect(book?.highlights.map((highlight) => highlight.text)).toEqual([
+      "First.",
+      "Second.",
+    ]);
   });
 
   it("decodes every character reference the notebook serves, including Unicode text", () => {
@@ -459,7 +521,9 @@ describe("notebook parser - book page", () => {
     expect(outcome.kind).toBe("ok");
     if (outcome.kind !== "ok") return;
 
-    expect(outcome.result.books[0]?.highlights.map((highlight) => highlight.text)).toEqual([
+    expect(
+      outcome.result.books[0]?.highlights.map((highlight) => highlight.text),
+    ).toEqual([
       "Così, si tratti di otto ore come di otto secondi, il cane metterà in atto un rituale. E il primo passo è ignorare il cane.",
       "L’arte di “leggere” è un’abitudine: «prova».",
       "日本語のテキスト。中国語。😀",
@@ -468,7 +532,9 @@ describe("notebook parser - book page", () => {
   });
 
   it("detects the sign-in redirect on a book page", () => {
-    expect(parseBookPage(fixture("sign-in.html"), us, "fallback")).toEqual({ kind: "sign_in" });
+    expect(parseBookPage(fixture("sign-in.html"), us, "fallback")).toEqual({
+      kind: "sign_in",
+    });
   });
 });
 
@@ -534,7 +600,11 @@ describe("notebook parser - structural tolerance", () => {
     if (outcome.kind !== "contract_changed") return;
 
     expect(outcome.diagnostics.check).toBe("bookKey");
-    expect(outcome.diagnostics.counts).toEqual({ bookRows: 2, keyedRows: 0, missingKeys: 2 });
+    expect(outcome.diagnostics.counts).toEqual({
+      bookRows: 2,
+      keyedRows: 0,
+      missingKeys: 2,
+    });
   });
 
   it("accepts an empty library marked by class instead of id", () => {
@@ -590,7 +660,10 @@ describe("notebook parser - structural tolerance", () => {
 });
 
 describe("chunked upload", () => {
-  const book = (title: string, highlights: number): Parameters<typeof chunkBooks>[0][number] => ({
+  const book = (
+    title: string,
+    highlights: number,
+  ): Parameters<typeof chunkBooks>[0][number] => ({
     externalKey: title,
     title,
     author: null,
@@ -608,9 +681,11 @@ describe("chunked upload", () => {
     const batches = chunkBooks([book("A", 150), book("B", 150)]);
 
     expect(batches.map((batch) => batch.batchIndex)).toEqual([0, 1]);
-    expect(batches.map((batch) => batch.books.flatMap((entry) => entry.highlights).length)).toEqual(
-      [200, 100],
-    );
+    expect(
+      batches.map(
+        (batch) => batch.books.flatMap((entry) => entry.highlights).length,
+      ),
+    ).toEqual([200, 100]);
     expect(batches[1]?.books[0]?.title).toBe("B");
   });
 
@@ -618,7 +693,9 @@ describe("chunked upload", () => {
     const batches = chunkBooks([book("A", 450)]);
 
     expect(batches).toHaveLength(3);
-    expect(batches.map((batch) => batch.books[0]?.highlights.length)).toEqual([200, 200, 50]);
+    expect(batches.map((batch) => batch.books[0]?.highlights.length)).toEqual([
+      200, 200, 50,
+    ]);
     expect(batches.every((batch) => batch.books[0]?.title === "A")).toBe(true);
   });
 
@@ -627,7 +704,10 @@ describe("chunked upload", () => {
 
     expect(batches).toHaveLength(3);
     expect(
-      batches.every((batch) => batch.books.flatMap((entry) => entry.highlights).length <= 1_000),
+      batches.every(
+        (batch) =>
+          batch.books.flatMap((entry) => entry.highlights).length <= 1_000,
+      ),
     ).toBe(true);
   });
 
@@ -646,9 +726,9 @@ describe("chunked upload", () => {
     const batches = chunkBooks([huge]);
     expect(batches.length).toBeGreaterThan(1);
     for (const batch of batches) {
-      expect(new TextEncoder().encode(JSON.stringify(batch)).length).toBeLessThanOrEqual(
-        2 * 1024 * 1024,
-      );
+      expect(
+        new TextEncoder().encode(JSON.stringify(batch)).length,
+      ).toBeLessThanOrEqual(2 * 1024 * 1024);
     }
   });
 
@@ -666,10 +746,14 @@ describe("chunked upload", () => {
     const exact = { ...base, highlights: [{ ...base.highlights[0]!, text }] };
     const batches = chunkBooks([exact]);
     expect(
-      new TextEncoder().encode(JSON.stringify({ ...batches[0], batchIndex: 2_147_483_647 })).length,
+      new TextEncoder().encode(
+        JSON.stringify({ ...batches[0], batchIndex: 2_147_483_647 }),
+      ).length,
     ).toBe(2 * 1024 * 1024);
     expect(() =>
-      chunkBooks([{ ...base, highlights: [{ ...base.highlights[0]!, text: text + "x" }] }]),
+      chunkBooks([
+        { ...base, highlights: [{ ...base.highlights[0]!, text: text + "x" }] },
+      ]),
     ).toThrow(RelegoApiError);
   });
 
@@ -681,13 +765,15 @@ describe("chunked upload", () => {
     }));
     const batches = chunkBooks([{ ...base, highlights }]);
     expect(batches.length).toBeGreaterThan(1);
-    expect(batches.flatMap((batch) => batch.books.flatMap((entry) => entry.highlights))).toEqual(
-      highlights,
-    );
+    expect(
+      batches.flatMap((batch) =>
+        batch.books.flatMap((entry) => entry.highlights),
+      ),
+    ).toEqual(highlights);
     for (const batch of batches) {
-      expect(new TextEncoder().encode(JSON.stringify(batch)).length).toBeLessThanOrEqual(
-        2 * 1024 * 1024,
-      );
+      expect(
+        new TextEncoder().encode(JSON.stringify(batch)).length,
+      ).toBeLessThanOrEqual(2 * 1024 * 1024);
     }
   });
 
@@ -699,8 +785,16 @@ describe("chunked upload", () => {
 interface FakeCalls {
   readonly started: SyncRunOptions[];
   readonly batches: RelegoBatch[];
-  readonly progress: { phase: string; booksTotal: number | null; booksDone: number | null }[];
-  readonly completed: { booksTotal: number; booksDone: number; truncatedBooks: number }[];
+  readonly progress: {
+    phase: string;
+    booksTotal: number | null;
+    booksDone: number | null;
+  }[];
+  readonly completed: {
+    booksTotal: number;
+    booksDone: number;
+    truncatedBooks: number;
+  }[];
   readonly failed: { code: string; diagnostics?: unknown }[];
   readonly statusCalls: number;
 }
@@ -732,7 +826,9 @@ function fakeClient(
         status: "connected",
         connection: {
           region:
-            region === null ? null : { id: region, displayName: region, host: "read.amazon.com" },
+            region === null
+              ? null
+              : { id: region, displayName: region, host: "read.amazon.com" },
         },
       });
     },
@@ -765,11 +861,17 @@ function fakeClient(
 
       return Promise.resolve(result);
     },
-    reportProgress: (_jobId: number, progress: FakeCalls["progress"][number]) => {
+    reportProgress: (
+      _jobId: number,
+      progress: FakeCalls["progress"][number],
+    ) => {
       calls.progress.push(progress);
       return Promise.resolve();
     },
-    completeJob: (_jobId: number, completion: FakeCalls["completed"][number]) => {
+    completeJob: (
+      _jobId: number,
+      completion: FakeCalls["completed"][number],
+    ) => {
       calls.completed.push(completion);
       return Promise.resolve();
     },
@@ -782,20 +884,28 @@ function fakeClient(
   return { client: client as unknown as RelegoClient, calls };
 }
 
-function pages(overrides: Record<string, string> = {}): (url: string) => Promise<PageResponse> {
+function pages(
+  overrides: Record<string, string> = {},
+): (url: string) => Promise<PageResponse> {
   return (url) => {
     const override = overrides[url];
     if (override !== undefined) return Promise.resolve(page(override, url));
 
     const key = new URL(url).searchParams.get("asin");
     if (key !== null)
-      return Promise.resolve(page(fixture("book.html").replace("B00EXAMPLE01", key), url));
+      return Promise.resolve(
+        page(fixture("book.html").replace("B00EXAMPLE01", key), url),
+      );
 
     return Promise.resolve(page(fixture("library.html"), url));
   };
 }
 
-const routine: SyncRunOptions = { mode: "routine", trigger: "scheduled", idempotencyKey: "key-1" };
+const routine: SyncRunOptions = {
+  mode: "routine",
+  trigger: "scheduled",
+  idempotencyKey: "key-1",
+};
 
 describe("sync runner", () => {
   it("runs through the real HTTP client using the server's nested connection.region response", async () => {
@@ -811,7 +921,11 @@ describe("sync runner", () => {
             status: "connected",
             connection: {
               state: "active",
-              region: { id: "us", displayName: "United States", host: "read.amazon.com" },
+              region: {
+                id: "us",
+                displayName: "United States",
+                host: "read.amazon.com",
+              },
             },
           });
         if (path.endsWith("/jobs"))
@@ -821,12 +935,18 @@ describe("sync runner", () => {
             reused: false,
             status: "running",
           });
-        if (path.endsWith("/batches")) return Response.json({ newHighlights: 9 });
+        if (path.endsWith("/batches"))
+          return Response.json({ newHighlights: 9 });
         return new Response(null, { status: 204 });
       }),
     );
-    const client = new RelegoClient({ baseUrl: "https://relego.test", token: "test-pairing" });
-    expect(await runSync({ client, fetchPage: pages() }, routine)).toMatchObject({
+    const client = new RelegoClient({
+      baseUrl: "https://relego.test",
+      token: "test-pairing",
+    });
+    expect(
+      await runSync({ client, fetchPage: pages() }, routine),
+    ).toMatchObject({
       kind: "completed",
       newHighlights: 9,
     });
@@ -863,14 +983,22 @@ describe("sync runner", () => {
       ],
     });
     const outcome = await runSync({ client, fetchPage: pages() }, routine);
-    expect(outcome).toMatchObject({ kind: "completed", jobId: 42, booksTotal: 2 });
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      jobId: 42,
+      booksTotal: 2,
+    });
     expect(calls.started[1]?.idempotencyKey).not.toBe(routine.idempotencyKey);
     expect(calls.batches[0]?.batchIndex).toBe(0);
-    expect(calls.batches[0]?.books.map((book) => book.externalKey)).not.toContain("B00EXAMPLE01");
+    expect(
+      calls.batches[0]?.books.map((book) => book.externalKey),
+    ).not.toContain("B00EXAMPLE01");
   });
 
   it("does not skip different provider identities with the same title or missing stable keys", async () => {
-    const { client, calls } = fakeClient({ knownBooks: [{ key: "B00OTHER", highlightCount: 3 }] });
+    const { client, calls } = fakeClient({
+      knownBooks: [{ key: "B00OTHER", highlightCount: 3 }],
+    });
     // The row keeps a key the book page can be addressed with, but loses the provider fingerprint
     // the skip decision reads, so the book must be read rather than assumed unchanged.
     const fetchPage = pages({
@@ -879,7 +1007,9 @@ describe("sync runner", () => {
         'data-asin="B00EXAMPLE01"',
       ),
     });
-    expect((await runSync({ client, fetchPage }, routine)).kind).toBe("completed");
+    expect((await runSync({ client, fetchPage }, routine)).kind).toBe(
+      "completed",
+    );
     expect(calls.completed[0]?.booksTotal).toBe(3);
   });
 
@@ -895,8 +1025,12 @@ describe("sync runner", () => {
       routine,
     );
     expect(outcome).toMatchObject({ kind: "completed", booksTotal: 2 });
-    expect(calls.batches[0]?.books.map((book) => book.externalKey)).toContain("B00EXAMPLE02");
-    expect(calls.batches[0]?.books.map((book) => book.externalKey)).not.toContain("B00EXAMPLE01");
+    expect(calls.batches[0]?.books.map((book) => book.externalKey)).toContain(
+      "B00EXAMPLE02",
+    );
+    expect(
+      calls.batches[0]?.books.map((book) => book.externalKey),
+    ).not.toContain("B00EXAMPLE01");
   });
 
   it("reads the library, uploads in batches and completes with matching counts", async () => {
@@ -914,9 +1048,15 @@ describe("sync runner", () => {
     });
     expect(calls.batches).toHaveLength(1);
     expect(calls.batches[0]?.books).toHaveLength(3);
-    expect(calls.completed).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
+    expect(calls.completed).toEqual([
+      { booksTotal: 3, booksDone: 3, truncatedBooks: 0 },
+    ]);
     expect(calls.failed).toEqual([]);
-    expect(calls.progress.at(-1)).toEqual({ phase: "uploading", booksTotal: 3, booksDone: 3 });
+    expect(calls.progress.at(-1)).toEqual({
+      phase: "uploading",
+      booksTotal: 3,
+      booksDone: 3,
+    });
   });
 
   it("files each book's highlights under the title and author of its library row", async () => {
@@ -947,7 +1087,9 @@ describe("sync runner", () => {
       fetchPage: (url) => {
         const asin = new URL(url).searchParams.get("asin");
 
-        return Promise.resolve(page(asin === null ? library : bookPage(asin), url));
+        return Promise.resolve(
+          page(asin === null ? library : bookPage(asin), url),
+        );
       },
     };
 
@@ -956,11 +1098,15 @@ describe("sync runner", () => {
     expect(outcome.kind).toBe("completed");
     const books = calls.batches.flatMap((batch) => batch.books);
     expect(books.map((book) => book.title)).toEqual(["Dune", "Emma"]);
-    expect(books.map((book) => book.author)).toEqual(["Frank Herbert", "Jane Austen"]);
-    expect(books.flatMap((book) => book.highlights.map((highlight) => highlight.text))).toEqual([
-      "highlight of B00LIBRARY",
-      "highlight of B00EDITION",
+    expect(books.map((book) => book.author)).toEqual([
+      "Frank Herbert",
+      "Jane Austen",
     ]);
+    expect(
+      books.flatMap((book) =>
+        book.highlights.map((highlight) => highlight.text),
+      ),
+    ).toEqual(["highlight of B00LIBRARY", "highlight of B00EDITION"]);
   });
 
   it("counts the books that hit the publisher export limit", async () => {
@@ -968,7 +1114,9 @@ describe("sync runner", () => {
     const deps: SyncRunnerDeps = {
       client,
       fetchPage: pages({
-        [notebookBookUrl(us, "B00EXAMPLE03")]: fixture("truncation-warning.html"),
+        [notebookBookUrl(us, "B00EXAMPLE03")]: fixture(
+          "truncation-warning.html",
+        ),
       }),
     };
 
@@ -981,7 +1129,9 @@ describe("sync runner", () => {
       booksTotal: 3,
       truncatedBooks: 1,
     });
-    expect(calls.completed).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 1 }]);
+    expect(calls.completed).toEqual([
+      { booksTotal: 3, booksDone: 3, truncatedBooks: 1 },
+    ]);
   });
 
   it("skips books whose advertised count matches the fingerprint on a routine run", async () => {
@@ -1001,7 +1151,9 @@ describe("sync runner", () => {
       booksTotal: 2,
       truncatedBooks: 0,
     });
-    expect(calls.completed).toEqual([{ booksTotal: 2, booksDone: 2, truncatedBooks: 0 }]);
+    expect(calls.completed).toEqual([
+      { booksTotal: 2, booksDone: 2, truncatedBooks: 0 },
+    ]);
   });
 
   it("re-reads every book on a full resync even when the server sends a fingerprint", async () => {
@@ -1015,7 +1167,9 @@ describe("sync runner", () => {
     );
 
     expect(outcome.kind).toBe("completed");
-    expect(calls.completed).toEqual([{ booksTotal: 3, booksDone: 3, truncatedBooks: 0 }]);
+    expect(calls.completed).toEqual([
+      { booksTotal: 3, booksDone: 3, truncatedBooks: 0 },
+    ]);
   });
 
   it("runs at most one sync at a time and coalesces overlapping firings", async () => {
@@ -1045,12 +1199,18 @@ describe("sync runner", () => {
     const failing: SyncRunnerDeps = {
       client,
       fetchPage: () =>
-        Promise.resolve(page(fixture("sign-in.html"), "https://www.amazon.com/ap/signin")),
+        Promise.resolve(
+          page(fixture("sign-in.html"), "https://www.amazon.com/ap/signin"),
+        ),
     };
 
     const outcome = await runSync(failing, routine);
 
-    expect(outcome).toEqual({ kind: "failed", jobId: 42, code: "auth_expired" });
+    expect(outcome).toEqual({
+      kind: "failed",
+      jobId: 42,
+      code: "auth_expired",
+    });
     expect(calls.failed).toEqual([{ code: "auth_expired", diagnostics: null }]);
     expect(isSyncRunning()).toBe(false);
   });
@@ -1064,7 +1224,11 @@ describe("sync runner", () => {
 
     const outcome = await runSync(deps, routine);
 
-    expect(outcome).toEqual({ kind: "failed", jobId: 42, code: "provider_contract_changed" });
+    expect(outcome).toEqual({
+      kind: "failed",
+      jobId: 42,
+      code: "provider_contract_changed",
+    });
     expect(calls.failed[0]?.diagnostics).toEqual({
       profileVersion: PROFILE_VERSION,
       check: "bookRow",
@@ -1075,7 +1239,10 @@ describe("sync runner", () => {
 
   it("reports network when the notebook cannot be fetched", async () => {
     const { client, calls } = fakeClient();
-    const deps: SyncRunnerDeps = { client, fetchPage: () => Promise.reject(new Error("offline")) };
+    const deps: SyncRunnerDeps = {
+      client,
+      fetchPage: () => Promise.reject(new Error("offline")),
+    };
 
     const outcome = await runSync(deps, routine);
 
@@ -1088,12 +1255,18 @@ describe("sync runner", () => {
     const deps: SyncRunnerDeps = {
       client,
       fetchPage: () =>
-        Promise.resolve(page(fixture("library.html"), "https://www.amazon.com/ap/signin")),
+        Promise.resolve(
+          page(fixture("library.html"), "https://www.amazon.com/ap/signin"),
+        ),
     };
 
     const outcome = await runSync(deps, routine);
 
-    expect(outcome).toEqual({ kind: "failed", jobId: 42, code: "auth_expired" });
+    expect(outcome).toEqual({
+      kind: "failed",
+      jobId: 42,
+      code: "auth_expired",
+    });
     expect(calls.failed).toEqual([{ code: "auth_expired", diagnostics: null }]);
   });
 
@@ -1102,8 +1275,14 @@ describe("sync runner", () => {
 
     const outcome = await runSync({ client, fetchPage: pages() }, routine);
 
-    expect(outcome).toEqual({ kind: "failed", jobId: 42, code: "server_rejected" });
-    expect(calls.failed).toEqual([{ code: "server_rejected", diagnostics: null }]);
+    expect(outcome).toEqual({
+      kind: "failed",
+      jobId: 42,
+      code: "server_rejected",
+    });
+    expect(calls.failed).toEqual([
+      { code: "server_rejected", diagnostics: null },
+    ]);
     expect(calls.completed).toEqual([]);
   });
 
@@ -1115,7 +1294,10 @@ describe("sync runner", () => {
       return pages()(url);
     });
 
-    const outcome = await runSync({ client, fetchPage, signal: controller.signal }, routine);
+    const outcome = await runSync(
+      { client, fetchPage, signal: controller.signal },
+      routine,
+    );
 
     expect(outcome).toEqual({ kind: "failed", jobId: 42, code: "interrupted" });
     expect(calls.failed).toEqual([{ code: "interrupted", diagnostics: null }]);
@@ -1136,7 +1318,11 @@ describe("sync runner", () => {
 
     const outcome = await runSync({ client, fetchPage: pages() }, routine);
 
-    expect(outcome).toEqual({ kind: "failed", jobId: null, code: "provider_contract_changed" });
+    expect(outcome).toEqual({
+      kind: "failed",
+      jobId: null,
+      code: "provider_contract_changed",
+    });
     expect(calls.started).toEqual([]);
   });
 
@@ -1148,7 +1334,10 @@ describe("sync runner", () => {
     } as unknown as RelegoClient;
 
     const outcome = await runSync(
-      { client: failing, fetchPage: () => Promise.reject(new Error("offline")) },
+      {
+        client: failing,
+        fetchPage: () => Promise.reject(new Error("offline")),
+      },
       routine,
     );
 

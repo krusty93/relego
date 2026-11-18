@@ -9,7 +9,13 @@ function Row({ keys, children }: { keys: ReactNode; children: ReactNode }) {
   );
 }
 
-export function ShortcutsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ShortcutsSheet({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {

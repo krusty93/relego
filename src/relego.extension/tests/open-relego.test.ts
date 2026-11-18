@@ -112,7 +112,8 @@ async function openPopup(setup: PopupSetup = {}): Promise<FakePopup> {
     if (existing !== undefined) return existing;
 
     const created = new FakeElement();
-    if (id === "settings" || id === "done" || id === "cancel") created.hidden = true;
+    if (id === "settings" || id === "done" || id === "cancel")
+      created.hidden = true;
     elements.set(id, created);
 
     return created;
@@ -131,11 +132,14 @@ async function openPopup(setup: PopupSetup = {}): Promise<FakePopup> {
         get: (keys: string[]) =>
           Promise.resolve(
             Object.fromEntries(
-              keys.filter((key) => storage.has(key)).map((key) => [key, storage.get(key)]),
+              keys
+                .filter((key) => storage.has(key))
+                .map((key) => [key, storage.get(key)]),
             ),
           ),
         set: (values: Record<string, unknown>) => {
-          for (const [key, value] of Object.entries(values)) storage.set(key, value);
+          for (const [key, value] of Object.entries(values))
+            storage.set(key, value);
 
           return Promise.resolve();
         },
@@ -143,7 +147,8 @@ async function openPopup(setup: PopupSetup = {}): Promise<FakePopup> {
     },
     tabs: {
       create: (info: { url: string }) => {
-        if (setup.tabsRefuse === true) return Promise.reject(new Error("No tab."));
+        if (setup.tabsRefuse === true)
+          return Promise.reject(new Error("No tab."));
 
         tabs.push({ url: info.url });
 
@@ -160,7 +165,11 @@ async function openPopup(setup: PopupSetup = {}): Promise<FakePopup> {
       status: "connected",
       connection: {
         state: "active",
-        region: { id: "us", displayName: "United States", host: "read.amazon.com" },
+        region: {
+          id: "us",
+          displayName: "United States",
+          host: "read.amazon.com",
+        },
       },
     };
 
@@ -180,7 +189,9 @@ async function openPopup(setup: PopupSetup = {}): Promise<FakePopup> {
     tabs,
     opened: async () => {
       await vi.waitFor(() => {
-        expect(element("settings").hidden && element("done").hidden).toBe(false);
+        expect(element("settings").hidden && element("done").hidden).toBe(
+          false,
+        );
       });
 
       return element;
@@ -247,7 +258,9 @@ describe("Open Relego in the form view", () => {
     get("openForm").fire("click");
 
     await vi.waitFor(() => {
-      expect(popup.tabs).toEqual([{ url: "https://two.test:9000/app/kindle-sync" }]);
+      expect(popup.tabs).toEqual([
+        { url: "https://two.test:9000/app/kindle-sync" },
+      ]);
     });
   });
 
@@ -272,7 +285,9 @@ describe("Open Relego in the form view", () => {
     get("openForm").fire("click");
 
     await vi.waitFor(() => {
-      expect(get("notice").textContent).toBe("The browser did not open a new tab.");
+      expect(get("notice").textContent).toBe(
+        "The browser did not open a new tab.",
+      );
     });
     expect(get("notice").dataset["tone"]).toBe("warn");
   });

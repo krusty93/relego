@@ -13,7 +13,10 @@ test.describe("Navigation", () => {
   test("GitHub icon link points to configured GitHub URL", async ({ page }) => {
     const githubLink = page.locator('nav a[href*="github.com"]').first();
     await expect(githubLink).toBeVisible();
-    await expect(githubLink).toHaveAttribute("href", "https://github.com/Krusty93/relego");
+    await expect(githubLink).toHaveAttribute(
+      "href",
+      "https://github.com/Krusty93/relego",
+    );
     await expect(githubLink).toHaveAttribute("aria-label", "View on GitHub");
   });
 
@@ -41,22 +44,31 @@ test.describe("Navigation", () => {
     await expect(hero.locator('a:has-text("Get started")')).toBeVisible();
   });
 
-  test('clicking "Get started" CTA scrolls to Getting Started section', async ({ page }) => {
+  test('clicking "Get started" CTA scrolls to Getting Started section', async ({
+    page,
+  }) => {
     const cta = page.locator('#hero a:has-text("Get started")');
     await cta.click();
     const section = page.locator("#getting-started");
     await expect(section).toBeInViewport({ timeout: 3000 });
   });
 
-  test('Explore section renders "View on GitHub" and "Documentation" buttons', async ({ page }) => {
+  test('Explore section renders "View on GitHub" and "Documentation" buttons', async ({
+    page,
+  }) => {
     const explore = page.locator("#explore");
     await expect(explore.locator('a:has-text("View on GitHub")')).toBeVisible();
     await expect(explore.locator('a:has-text("Documentation")')).toBeVisible();
   });
 
-  test('Explore "View on GitHub" links to the configured GitHub URL', async ({ page }) => {
+  test('Explore "View on GitHub" links to the configured GitHub URL', async ({
+    page,
+  }) => {
     const link = page.locator('#explore a:has-text("View on GitHub")');
-    await expect(link).toHaveAttribute("href", "https://github.com/Krusty93/relego");
+    await expect(link).toHaveAttribute(
+      "href",
+      "https://github.com/Krusty93/relego",
+    );
     await expect(link).toHaveAttribute("target", "_blank");
   });
 

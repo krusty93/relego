@@ -7,7 +7,10 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 
   const tag = element.tagName;
   return (
-    tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || element.isContentEditable === true
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    element.isContentEditable === true
   );
 }
 

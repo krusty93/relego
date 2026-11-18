@@ -23,7 +23,9 @@ export interface ConfiguredMessage {
  *
  * @param message Anything received on the runtime channel.
  */
-export function isConfiguredMessage(message: unknown): message is ConfiguredMessage {
+export function isConfiguredMessage(
+  message: unknown,
+): message is ConfiguredMessage {
   if (typeof message !== "object" || message === null) return false;
   return (
     "type" in message &&

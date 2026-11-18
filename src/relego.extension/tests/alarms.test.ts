@@ -21,14 +21,19 @@ import {
   catchUpIfDue,
   start,
 } from "../src/background";
-import { ALLOWED_INTERVAL_MINUTES, DEFAULT_INTERVAL_MINUTES, resolveRegion } from "../src/profile";
+import {
+  ALLOWED_INTERVAL_MINUTES,
+  DEFAULT_INTERVAL_MINUTES,
+  resolveRegion,
+} from "../src/profile";
 import type { KindleRegion } from "../src/profile";
 
 const SERVER = "http://relego.test";
 
 function region(id: string): KindleRegion {
   const resolved = resolveRegion(id);
-  if (resolved === null) throw new Error(`The ${id} region must be part of the bundled profile.`);
+  if (resolved === null)
+    throw new Error(`The ${id} region must be part of the bundled profile.`);
 
   return resolved;
 }
@@ -36,7 +41,10 @@ function region(id: string): KindleRegion {
 const us = region("us");
 
 function fixture(name: string): string {
-  return readFileSync(new URL(`./fixtures/us/${name}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`./fixtures/us/${name}`, import.meta.url),
+    "utf8",
+  );
 }
 
 interface FakeAlarm {
@@ -83,7 +91,10 @@ function createChrome(
   const api = {
     alarms: {
       get: (name: string) => Promise.resolve(alarms.get(name)),
-      create: (name: string, info: { delayInMinutes?: number; periodInMinutes?: number }) => {
+      create: (
+        name: string,
+        info: { delayInMinutes?: number; periodInMinutes?: number },
+      ) => {
         const period = info.periodInMinutes ?? info.delayInMinutes ?? 0;
         alarms.set(name, {
           name,
@@ -107,17 +118,20 @@ function createChrome(
           const wanted = typeof keys === "string" ? [keys] : keys;
           const found: Record<string, unknown> = {};
 
-          for (const key of wanted) if (store.has(key)) found[key] = store.get(key);
+          for (const key of wanted)
+            if (store.has(key)) found[key] = store.get(key);
 
           return Promise.resolve(found);
         },
         set: (items: Record<string, unknown>) => {
-          for (const [key, value] of Object.entries(items)) store.set(key, value);
+          for (const [key, value] of Object.entries(items))
+            store.set(key, value);
 
           return Promise.resolve();
         },
         remove: (keys: string | readonly string[]) => {
-          for (const key of typeof keys === "string" ? [keys] : keys) store.delete(key);
+          for (const key of typeof keys === "string" ? [keys] : keys)
+            store.delete(key);
 
           return Promise.resolve();
         },
@@ -168,74 +182,95 @@ interface ServerState {
 
 interface Recorded {
   readonly starts: { idempotencyKey: string; mode: string; trigger: string }[];
-  readonly heartbeats: { appliedIntervalMinutes: number; nextSyncDueAt: string | null }[];
+  readonly heartbeats: {
+    appliedIntervalMinutes: number;
+    nextSyncDueAt: string | null;
+  }[];
 }
 
 function installFetch(state: ServerState): Recorded {
   const server: Recorded = { starts: [], heartbeats: [] };
-  const amazonHosts = new Set<string>([us.notebookHost, ...us.signInHostPatterns]);
+  const amazonHosts = new Set<string>([
+    us.notebookHost,
+    ...us.signInHostPatterns,
+  ]);
 
-  vi.stubGlobal("fetch", (input: string | URL, init?: RequestInit): Promise<FakeResponse> => {
-    const url = new URL(typeof input === "string" ? input : input.toString());
+  vi.stubGlobal(
+    "fetch",
+    (input: string | URL, init?: RequestInit): Promise<FakeResponse> => {
+      const url = new URL(typeof input === "string" ? input : input.toString());
 
-    if (amazonHosts.has(url.hostname)) {
-      const key = url.searchParams.get("asin");
+      if (amazonHosts.has(url.hostname)) {
+        const key = url.searchParams.get("asin");
 
-      return Promise.resolve(
-        key === null
-          ? pageResponse(fixture("library.html"), url.toString())
-          : pageResponse(fixture("book.html").replace("B00EXAMPLE01", key), url.toString()),
-      );
-    }
+        return Promise.resolve(
+          key === null
+            ? pageResponse(fixture("library.html"), url.toString())
+            : pageResponse(
+                fixture("book.html").replace("B00EXAMPLE01", key),
+                url.toString(),
+              ),
+        );
+      }
 
-    const body = init?.body === undefined ? {} : JSON.parse(String(init.body));
-    const path = url.pathname;
+      const body =
+        init?.body === undefined ? {} : JSON.parse(String(init.body));
+      const path = url.pathname;
 
-    if (path === `/sync/${PROVIDER_ID}/heartbeat`) {
-      server.heartbeats.push(body);
+      if (path === `/sync/${PROVIDER_ID}/heartbeat`) {
+        server.heartbeats.push(body);
 
-      return Promise.resolve(
-        jsonResponse({
-          command: "none",
-          region: { id: "us", displayName: "United States", host: us.notebookHost },
-          intervalMinutes: state.intervalMinutes,
-          heartbeatSeconds: 60,
-        }),
-      );
-    }
+        return Promise.resolve(
+          jsonResponse({
+            command: "none",
+            region: {
+              id: "us",
+              displayName: "United States",
+              host: us.notebookHost,
+            },
+            intervalMinutes: state.intervalMinutes,
+            heartbeatSeconds: 60,
+          }),
+        );
+      }
 
-    if (path === `/sync/${PROVIDER_ID}`) {
-      return Promise.resolve(
-        jsonResponse({
-          providerId: PROVIDER_ID,
-          status: "connected",
-          connection: {
-            region: { id: "us", displayName: "United States", host: us.notebookHost },
-          },
-        }),
-      );
-    }
+      if (path === `/sync/${PROVIDER_ID}`) {
+        return Promise.resolve(
+          jsonResponse({
+            providerId: PROVIDER_ID,
+            status: "connected",
+            connection: {
+              region: {
+                id: "us",
+                displayName: "United States",
+                host: us.notebookHost,
+              },
+            },
+          }),
+        );
+      }
 
-    if (path === `/sync/${PROVIDER_ID}/jobs`) {
-      server.starts.push(body);
-      return Promise.resolve(jsonResponse({ jobId: 42, knownBooks: [] }));
-    }
+      if (path === `/sync/${PROVIDER_ID}/jobs`) {
+        server.starts.push(body);
+        return Promise.resolve(jsonResponse({ jobId: 42, knownBooks: [] }));
+      }
 
-    if (path.endsWith("/batches")) {
-      return Promise.resolve(
-        jsonResponse({
-          batchIndex: body.batchIndex,
-          replayed: false,
-          newHighlights: 3,
-          duplicateHighlights: 0,
-          newBooks: 1,
-          newAuthors: 1,
-        }),
-      );
-    }
+      if (path.endsWith("/batches")) {
+        return Promise.resolve(
+          jsonResponse({
+            batchIndex: body.batchIndex,
+            replayed: false,
+            newHighlights: 3,
+            duplicateHighlights: 0,
+            newBooks: 1,
+            newAuthors: 1,
+          }),
+        );
+      }
 
-    return Promise.resolve(jsonResponse(null, 204));
-  });
+      return Promise.resolve(jsonResponse(null, 204));
+    },
+  );
 
   return server;
 }
@@ -252,7 +287,10 @@ async function loadWorker(
   seed: readonly Partial<FakeAlarm>[] = [],
   stored: Readonly<Record<string, unknown>> = {},
 ) {
-  const state: ServerState = { intervalMinutes: DEFAULT_INTERVAL_MINUTES, ...overrides };
+  const state: ServerState = {
+    intervalMinutes: DEFAULT_INTERVAL_MINUTES,
+    ...overrides,
+  };
   const chrome = createChrome(seed, stored);
   vi.stubGlobal("chrome", chrome.api);
   const server = installFetch(state);
@@ -278,7 +316,9 @@ describe("extension alarms", () => {
     const { chrome } = await loadWorker();
 
     expect(syncPeriod(chrome)).toBe(DEFAULT_INTERVAL_MINUTES);
-    expect(chrome.alarms.get(HEARTBEAT_ALARM)?.periodInMinutes).toBe(HEARTBEAT_MINUTES);
+    expect(chrome.alarms.get(HEARTBEAT_ALARM)?.periodInMinutes).toBe(
+      HEARTBEAT_MINUTES,
+    );
     expect(HEARTBEAT_MINUTES).toBe(1);
   });
 
@@ -298,7 +338,9 @@ describe("extension alarms", () => {
     for (const minutes of ALLOWED_INTERVAL_MINUTES) {
       await worker.applyInterval(minutes);
 
-      expect(chrome.alarms.get(HEARTBEAT_ALARM)?.periodInMinutes).toBe(HEARTBEAT_MINUTES);
+      expect(chrome.alarms.get(HEARTBEAT_ALARM)?.periodInMinutes).toBe(
+        HEARTBEAT_MINUTES,
+      );
     }
   });
 
@@ -308,7 +350,9 @@ describe("extension alarms", () => {
     await worker.heartbeat();
 
     expect(syncPeriod(chrome)).toBe(1440);
-    expect(chrome.alarms.get(HEARTBEAT_ALARM)?.periodInMinutes).toBe(HEARTBEAT_MINUTES);
+    expect(chrome.alarms.get(HEARTBEAT_ALARM)?.periodInMinutes).toBe(
+      HEARTBEAT_MINUTES,
+    );
   });
 
   it("keeps the alarm period an earlier session stored instead of resetting it to the default", async () => {
@@ -358,8 +402,12 @@ describe("extension alarms", () => {
     await worker.heartbeat();
     const dueAt = chrome.alarms.get(SYNC_ALARM)?.scheduledTime;
 
-    expect(server.heartbeats[0]?.appliedIntervalMinutes).toBe(DEFAULT_INTERVAL_MINUTES);
-    expect(server.heartbeats[0]?.nextSyncDueAt).toBe(new Date(dueAt ?? 0).toISOString());
+    expect(server.heartbeats[0]?.appliedIntervalMinutes).toBe(
+      DEFAULT_INTERVAL_MINUTES,
+    );
+    expect(server.heartbeats[0]?.nextSyncDueAt).toBe(
+      new Date(dueAt ?? 0).toISOString(),
+    );
   });
 
   it("starts no catch-up run while the alarm is still in the future", async () => {
@@ -372,7 +420,8 @@ describe("extension alarms", () => {
   it("costs one catch-up run no matter how many periods the browser missed", async () => {
     const { server, chrome } = await loadWorker();
     const alarm = chrome.alarms.get(SYNC_ALARM);
-    if (alarm === undefined) throw new Error("The routine alarm must exist after start-up.");
+    if (alarm === undefined)
+      throw new Error("The routine alarm must exist after start-up.");
 
     alarm.scheduledTime = Date.now() - 10 * DEFAULT_INTERVAL_MINUTES * 60_000;
 
@@ -387,7 +436,8 @@ describe("extension alarms", () => {
   it("re-arms the routine alarm a full period ahead after a catch-up run", async () => {
     const { server, chrome } = await loadWorker();
     const alarm = chrome.alarms.get(SYNC_ALARM);
-    if (alarm === undefined) throw new Error("The routine alarm must exist after start-up.");
+    if (alarm === undefined)
+      throw new Error("The routine alarm must exist after start-up.");
 
     alarm.scheduledTime = Date.now() - 5 * DEFAULT_INTERVAL_MINUTES * 60_000;
 
@@ -395,7 +445,9 @@ describe("extension alarms", () => {
 
     const rearmed = chrome.alarms.get(SYNC_ALARM)?.scheduledTime ?? 0;
 
-    expect(rearmed).toBeGreaterThan(Date.now() + (DEFAULT_INTERVAL_MINUTES - 1) * 60_000);
+    expect(rearmed).toBeGreaterThan(
+      Date.now() + (DEFAULT_INTERVAL_MINUTES - 1) * 60_000,
+    );
     expect(syncPeriod(chrome)).toBe(DEFAULT_INTERVAL_MINUTES);
     expect(server.starts).toHaveLength(1);
   });
@@ -403,7 +455,8 @@ describe("extension alarms", () => {
   it("does not repeat a catch-up run when the worker starts again", async () => {
     const { server, chrome } = await loadWorker();
     const alarm = chrome.alarms.get(SYNC_ALARM);
-    if (alarm === undefined) throw new Error("The routine alarm must exist after start-up.");
+    if (alarm === undefined)
+      throw new Error("The routine alarm must exist after start-up.");
 
     alarm.scheduledTime = Date.now() - 3 * DEFAULT_INTERVAL_MINUTES * 60_000;
 
@@ -418,7 +471,9 @@ describe("extension alarms", () => {
   it("catches up one run when Chrome dropped the alarm and the recorded due time has passed", async () => {
     // Ten periods elapsed while the browser was away and the alarm itself is gone.
     const dueAt = Date.now() - 10 * DEFAULT_INTERVAL_MINUTES * 60_000;
-    const { server, chrome } = await loadWorker({}, [], { nextSyncDueAt: dueAt });
+    const { server, chrome } = await loadWorker({}, [], {
+      nextSyncDueAt: dueAt,
+    });
 
     expect(chrome.alarms.has(SYNC_ALARM)).toBe(true);
     expect(server.starts).toHaveLength(1);
@@ -447,7 +502,9 @@ describe("extension alarms", () => {
 
     await worker.applyInterval(15);
 
-    expect(chrome.store.get("nextSyncDueAt")).toBe(chrome.alarms.get(SYNC_ALARM)?.scheduledTime);
+    expect(chrome.store.get("nextSyncDueAt")).toBe(
+      chrome.alarms.get(SYNC_ALARM)?.scheduledTime,
+    );
   });
 
   it("moves the recorded due time to the period the alarm carries after a scheduled run", async () => {
@@ -457,7 +514,8 @@ describe("extension alarms", () => {
       throw new Error("The alarm listener must be registered on start-up.");
 
     const alarm = chrome.alarms.get(SYNC_ALARM);
-    if (alarm === undefined) throw new Error("The routine alarm must exist after start-up.");
+    if (alarm === undefined)
+      throw new Error("The routine alarm must exist after start-up.");
 
     // Chrome advances a periodic alarm's due time when it fires; the recorded one is still behind.
     alarm.scheduledTime = Date.now() + DEFAULT_INTERVAL_MINUTES * 60_000;
