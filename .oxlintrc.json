@@ -1,0 +1,64 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react", "import", "promise", "jsx-a11y", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/dist-firefox/**",
+    "**/coverage/**",
+    "**/release/**",
+    "**/test-results/**",
+    "**/playwright-report/**",
+    "**/blob-report/**",
+    "**/.playwright/**",
+    "**/.astro/**"
+  ],
+  "rules": {
+    // React 17+ JSX transform: components never import React for JSX.
+    "react/react-in-jsx-scope": "off",
+    // react-hooks/exhaustive-deps already covers this; the react copy reports the same findings.
+    "react/exhaustive-effect-dependencies": "off",
+    // The effects that mirror server state into local form state are deliberate.
+    "react/set-state-in-effect": "off",
+
+    // Stylesheet side-effect imports are how Vite and Astro pull in global CSS.
+    "import/no-unassigned-import": "off",
+
+    // The command palette uses the ARIA combobox/listbox pattern and dialogs dismiss on backdrop
+    // clicks, so the semantic-tag and key-event heuristics report false positives.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/no-noninteractive-element-interactions": "off",
+    "jsx-a11y/no-noninteractive-element-to-interactive-role": "off",
+
+    // In-place sorting is intentional in the packaging and parser tests.
+    "unicorn/no-array-sort": "off",
+    // Test helpers stay next to the suite that uses them.
+    "unicorn/consistent-function-scoping": "off",
+    // tsc already infers mock signatures; annotating them only adds noise.
+    "vitest/require-mock-type-parameters": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/relego.extension/**"],
+      "env": {
+        "webextensions": true,
+        "serviceworker": true
+      }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/tests/**"],
+      "env": {
+        "vitest": true
+      }
+    }
+  ]
+}

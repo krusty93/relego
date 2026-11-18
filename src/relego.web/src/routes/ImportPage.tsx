@@ -49,7 +49,9 @@ export function ImportPage() {
 
     if (file.size === 0) {
       setResult(null);
-      setError(`${file.name} is empty. Copy the file off your reader again and retry.`);
+      setError(
+        `${file.name} is empty. Copy the file off your reader again and retry.`,
+      );
       return;
     }
 
@@ -80,8 +82,8 @@ export function ImportPage() {
         <div>
           <h1 id="im-h">Import highlights</h1>
           <p>
-            Plug your reader into this computer and drop its highlight file here. Nothing leaves
-            your network.
+            Plug your reader into this computer and drop its highlight file
+            here. Nothing leaves your network.
           </p>
         </div>
       </div>
@@ -105,7 +107,10 @@ export function ImportPage() {
         <p>Files stay on your network. Up to {formatBytes(MAX_BYTES)}.</p>
         {/* The input is the real control, so it keeps its own label and focus ring;
             the label around it is what people see and click. */}
-        <label className="btn dz-file" data-disabled={upload.isPending || undefined}>
+        <label
+          className="btn dz-file"
+          data-disabled={upload.isPending || undefined}
+        >
           <span>{upload.isPending ? "Uploading…" : "Choose a file"}</span>
           <input
             ref={inputRef}
@@ -132,18 +137,21 @@ export function ImportPage() {
         <div className="tip">
           <dt>Kobo</dt>
           <dd>
-            Connect by USB, show hidden files, take <code>.kobo/KoboReader.sqlite</code>.
+            Connect by USB, show hidden files, take{" "}
+            <code>.kobo/KoboReader.sqlite</code>.
           </dd>
         </div>
       </dl>
 
       <p className="subtle">
-        No cable handy? <Link to="/app/kindle-sync">Connect your Kindle Notebook</Link> and Relego reads new
-        highlights on its own.
+        No cable handy?{" "}
+        <Link to="/app/kindle-sync">Connect your Kindle Notebook</Link> and
+        Relego reads new highlights on its own.
       </p>
 
       <p className="subtle">
-        Relego skips highlights it already has, so importing the same file twice is safe.
+        Relego skips highlights it already has, so importing the same file twice
+        is safe.
       </p>
 
       {upload.isPending ? (
@@ -171,7 +179,10 @@ export function ImportPage() {
 
       {error ? (
         <div className="import-panel">
-          <ErrorNote message={error} onRetry={() => inputRef.current?.click()} />
+          <ErrorNote
+            message={error}
+            onRetry={() => inputRef.current?.click()}
+          />
         </div>
       ) : null}
 
@@ -180,8 +191,8 @@ export function ImportPage() {
           <header>
             <h2>Imported {result.fileName}</h2>
             <p>
-              Read as {result.sourceName}. {formatCount(result.entriesProcessed)} entries
-              processed.
+              Read as {result.sourceName}.{" "}
+              {formatCount(result.entriesProcessed)} entries processed.
             </p>
           </header>
           <dl className="dl">
@@ -195,10 +206,18 @@ export function ImportPage() {
             <dd>{formatCount(result.newAuthors)}</dd>
           </dl>
           <div className="inline dialog-actions">
-            <button className="btn btn--primary" type="button" onClick={() => navigate("/app")}>
+            <button
+              className="btn btn--primary"
+              type="button"
+              onClick={() => navigate("/app")}
+            >
               Go to library
             </button>
-            <button className="btn" type="button" onClick={() => inputRef.current?.click()}>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => inputRef.current?.click()}
+            >
               Import another file
             </button>
           </div>

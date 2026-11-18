@@ -55,7 +55,8 @@ function useSettingsTest<T>(send: (values: T) => Promise<string>) {
     },
     onError: (error, _values, testedRevision) => {
       if (testedRevision !== revision.current) return;
-      const message = error instanceof Error ? error.message : "The test failed. Try again.";
+      const message =
+        error instanceof Error ? error.message : "The test failed. Try again.";
       setResult({ success: false, message });
       push(message, { tone: "bad" });
     },
@@ -71,11 +72,18 @@ function useSettingsTest<T>(send: (values: T) => Promise<string>) {
 
 function TestStatus({ result }: { result: TestResult | null }) {
   return (
-    <div role="status" className="test-result" data-tone={result?.success ? "ok" : "bad"}>
+    <div
+      role="status"
+      className="test-result"
+      data-tone={result?.success ? "ok" : "bad"}
+    >
       {result ? (
         <>
           {result.success ? <CheckIcon /> : <CrossIcon />}
-          <span>{result.success ? "Test succeeded" : "Test failed"}: {result.message}</span>
+          <span>
+            {result.success ? "Test succeeded" : "Test failed"}:{" "}
+            {result.message}
+          </span>
         </>
       ) : null}
     </div>
@@ -91,7 +99,9 @@ export function SettingsPage() {
       (entries) => {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
+          )[0];
         if (visible) setCurrent(visible.target.id);
       },
       { rootMargin: "-80px 0px -60% 0px" },
@@ -120,7 +130,9 @@ export function SettingsPage() {
             <a
               key={section.id}
               href={`#${section.id}`}
-              {...(current === section.id ? { "aria-current": "true" as const } : {})}
+              {...(current === section.id
+                ? { "aria-current": "true" as const }
+                : {})}
             >
               {section.label}
             </a>
@@ -143,7 +155,11 @@ export function SettingsPage() {
             </div>
           </section>
 
-          <section className="panel" id="s-recaps" aria-labelledby="recaps-heading">
+          <section
+            className="panel"
+            id="s-recaps"
+            aria-labelledby="recaps-heading"
+          >
             <header>
               <h2 id="recaps-heading">Recaps</h2>
             </header>
@@ -161,7 +177,11 @@ function useSettingsForm() {
   const queryClient = useQueryClient();
   const { push } = useToasts();
 
-  const query = useQuery({ queryKey: ["settings"], queryFn: api.settings, retry: false });
+  const query = useQuery({
+    queryKey: ["settings"],
+    queryFn: api.settings,
+    retry: false,
+  });
   const current = query.data;
 
   const save = useMutation({
@@ -169,16 +189,24 @@ function useSettingsForm() {
     // save has to carry the address it isn't editing or the Schedule form would
     // silently wipe the delivery address.
     mutationFn: (body: UpdateSettingsRequest) =>
-      api.updateSettings({ deliveryEmail: current?.deliveryEmail ?? "", ...body }),
+      api.updateSettings({
+        deliveryEmail: current?.deliveryEmail ?? "",
+        ...body,
+      }),
     onSuccess: (data) => {
       queryClient.setQueryData(["settings"], data);
       void queryClient.invalidateQueries({ queryKey: ["status"] });
       push("Settings saved.");
     },
     onError: (error) =>
-      push(error instanceof Error ? error.message : "Could not save those settings.", {
-        tone: "bad",
-      }),
+      push(
+        error instanceof Error
+          ? error.message
+          : "Could not save those settings.",
+        {
+          tone: "bad",
+        },
+      ),
   });
 
   return { query, save, push };
@@ -190,21 +218,27 @@ function DeliveryPanel() {
   const [deliveryEmail, setDeliveryEmail] = useState("");
   const [touched, setTouched] = useState(false);
 
+  const savedKindleEmail = query.data?.kindleEmail;
+  const savedDeliveryEmail = query.data?.deliveryEmail;
+
   useEffect(() => {
-    if (!query.data) return;
-    setKindleEmail(query.data.kindleEmail ?? "");
-    setDeliveryEmail(query.data.deliveryEmail ?? "");
-  }, [query.data?.kindleEmail, query.data?.deliveryEmail]);
+    if (savedKindleEmail === undefined && savedDeliveryEmail === undefined)
+      return;
+    setKindleEmail(savedKindleEmail ?? "");
+    setDeliveryEmail(savedDeliveryEmail ?? "");
+  }, [savedKindleEmail, savedDeliveryEmail]);
 
-  const kindleValid = looksLikeEmail(kindleEmail) && isKindleAddress(kindleEmail);
+  const kindleValid =
+    looksLikeEmail(kindleEmail) && isKindleAddress(kindleEmail);
 
-  const kindleError = !touched || !kindleEmail.trim()
-    ? null
-    : !looksLikeEmail(kindleEmail)
-      ? "That doesn't look like an email address. It needs a domain, like you@kindle.com."
-      : !isKindleAddress(kindleEmail)
-        ? "Send-to-Kindle addresses end in @kindle.com. Check the Preferences page in your Amazon account for yours."
-        : null;
+  const kindleError =
+    !touched || !kindleEmail.trim()
+      ? null
+      : !looksLikeEmail(kindleEmail)
+        ? "That doesn't look like an email address. It needs a domain, like you@kindle.com."
+        : !isKindleAddress(kindleEmail)
+          ? "Send-to-Kindle addresses end in @kindle.com. Check the Preferences page in your Amazon account for yours."
+          : null;
 
   const inboxError =
     touched && deliveryEmail.trim() && !looksLikeEmail(deliveryEmail)
@@ -220,23 +254,35 @@ function DeliveryPanel() {
     return "Test email sent.";
   });
   const kindleChanged = kindleEmail.trim() !== (query.data?.kindleEmail ?? "");
-  const inboxChanged = deliveryEmail.trim() !== (query.data?.deliveryEmail ?? "");
-  const canSave = query.isSuccess && (kindleChanged || inboxChanged) &&
+  const inboxChanged =
+    deliveryEmail.trim() !== (query.data?.deliveryEmail ?? "");
+  const canSave =
+    query.isSuccess &&
+    (kindleChanged || inboxChanged) &&
     (!kindleEmail.trim() || kindleValid) &&
     (!deliveryEmail.trim() || looksLikeEmail(deliveryEmail)) &&
-    (!kindleChanged || !kindleEmail.trim() || kindleTest.result?.success === true) &&
-    (!inboxChanged || !deliveryEmail.trim() || inboxTest.result?.success === true) &&
-    !kindleTest.test.isPending && !inboxTest.test.isPending && !save.isPending;
+    (!kindleChanged ||
+      !kindleEmail.trim() ||
+      kindleTest.result?.success === true) &&
+    (!inboxChanged ||
+      !deliveryEmail.trim() ||
+      inboxTest.result?.success === true) &&
+    !kindleTest.test.isPending &&
+    !inboxTest.test.isPending &&
+    !save.isPending;
 
   return (
     <section className="settings-section" id="s-delivery">
       <header>
         <h3>Where recaps go</h3>
         <p>
-          Set at least one destination. Your reader gets an EPUB via Send-to-Kindle; your inbox
-          gets an HTML email.
+          Set at least one destination. Your reader gets an EPUB via
+          Send-to-Kindle; your inbox gets an HTML email.
         </p>
-        <p>Test each changed address before saving. Tests use your saved email server settings and do not save changes.</p>
+        <p>
+          Test each changed address before saving. Tests use your saved email
+          server settings and do not save changes.
+        </p>
       </header>
 
       <form
@@ -244,7 +290,10 @@ function DeliveryPanel() {
           event.preventDefault();
           setTouched(true);
           if (!canSave) return;
-          save.mutate({ kindleEmail: kindleEmail.trim(), deliveryEmail: deliveryEmail.trim() });
+          save.mutate({
+            kindleEmail: kindleEmail.trim(),
+            deliveryEmail: deliveryEmail.trim(),
+          });
         }}
       >
         <div className="field">
@@ -267,7 +316,12 @@ function DeliveryPanel() {
             <button
               className="btn"
               type="button"
-              disabled={!query.isSuccess || !kindleValid || kindleTest.test.isPending || save.isPending}
+              disabled={
+                !query.isSuccess ||
+                !kindleValid ||
+                kindleTest.test.isPending ||
+                save.isPending
+              }
               onClick={() => kindleTest.test.mutate(kindleEmail.trim())}
             >
               {kindleTest.test.isPending ? "Sending…" : "Send test"}
@@ -306,7 +360,12 @@ function DeliveryPanel() {
             <button
               className="btn"
               type="button"
-              disabled={!query.isSuccess || !looksLikeEmail(deliveryEmail) || inboxTest.test.isPending || save.isPending}
+              disabled={
+                !query.isSuccess ||
+                !looksLikeEmail(deliveryEmail) ||
+                inboxTest.test.isPending ||
+                save.isPending
+              }
               onClick={() => inboxTest.test.mutate(deliveryEmail.trim())}
             >
               {inboxTest.test.isPending ? "Sending…" : "Send test"}
@@ -325,7 +384,11 @@ function DeliveryPanel() {
         </div>
 
         <div className="inline dialog-actions">
-          <button className="btn btn--primary" type="submit" disabled={!canSave}>
+          <button
+            className="btn btn--primary"
+            type="submit"
+            disabled={!canSave}
+          >
             {save.isPending ? "Saving…" : "Save changes"}
           </button>
         </div>
@@ -376,7 +439,10 @@ function SchedulePanel() {
           if (!countValid) return;
           save.mutate({
             schedule: form.schedule,
-            deliveryDay: form.schedule === "weekly" ? (form.deliveryDay ?? "sunday") : null,
+            deliveryDay:
+              form.schedule === "weekly"
+                ? (form.deliveryDay ?? "sunday")
+                : null,
             deliveryTime: form.deliveryTime,
             count: form.count,
           });
@@ -386,7 +452,11 @@ function SchedulePanel() {
           <span className="label" id="cadence-label">
             Cadence
           </span>
-          <div className="seg seg--start" role="group" aria-labelledby="cadence-label">
+          <div
+            className="seg seg--start"
+            role="group"
+            aria-labelledby="cadence-label"
+          >
             {(["daily", "weekly"] as const).map((option) => (
               <button
                 key={option}
@@ -407,7 +477,9 @@ function SchedulePanel() {
               className="control"
               id="day"
               value={form.deliveryDay ?? "sunday"}
-              onChange={(event) => setForm({ ...form, deliveryDay: event.target.value })}
+              onChange={(event) =>
+                setForm({ ...form, deliveryDay: event.target.value })
+              }
             >
               {DAYS.map((day) => (
                 <option key={day} value={day}>
@@ -426,9 +498,13 @@ function SchedulePanel() {
               id="time"
               type="time"
               value={form.deliveryTime}
-              onChange={(event) => setForm({ ...form, deliveryTime: event.target.value })}
+              onChange={(event) =>
+                setForm({ ...form, deliveryTime: event.target.value })
+              }
             />
-            <span className="help">Server timezone: {query.data?.timezone ?? "—"}</span>
+            <span className="help">
+              Server timezone: {query.data?.timezone ?? "—"}
+            </span>
           </div>
 
           <div className="field">
@@ -442,7 +518,9 @@ function SchedulePanel() {
               value={form.count}
               aria-invalid={countValid ? undefined : true}
               aria-describedby="count-help"
-              onChange={(event) => setForm({ ...form, count: Number(event.target.value) })}
+              onChange={(event) =>
+                setForm({ ...form, count: Number(event.target.value) })
+              }
             />
             <span className={countValid ? "help" : "err"} id="count-help">
               Between 1 and 15.
@@ -468,18 +546,24 @@ function SmtpPanel() {
   const queryClient = useQueryClient();
   const { push } = useToasts();
 
-  const query = useQuery({ queryKey: ["smtp"], queryFn: api.smtp, retry: false });
+  const query = useQuery({
+    queryKey: ["smtp"],
+    queryFn: api.smtp,
+    retry: false,
+  });
 
   const [form, setForm] = useState<Pick<
     SmtpSettingsResponse,
     "host" | "port" | "fromAddress" | "username"
   > | null>(null);
   const [password, setPassword] = useState("");
-  const verification = useSettingsTest(async (settings: UpdateSmtpSettingsRequest) => {
-    const result = await api.testSmtp(settings);
-    if (!result.success) throw new Error(result.message);
-    return result.message;
-  });
+  const verification = useSettingsTest(
+    async (settings: UpdateSmtpSettingsRequest) => {
+      const result = await api.testSmtp(settings);
+      if (!result.success) throw new Error(result.message);
+      return result.message;
+    },
+  );
 
   useEffect(() => {
     if (!query.data) return;
@@ -506,15 +590,23 @@ function SmtpPanel() {
       push("Email server settings saved.");
     },
     onError: (error) =>
-      push(error instanceof Error ? error.message : "Could not save those settings.", {
-        tone: "bad",
-      }),
+      push(
+        error instanceof Error
+          ? error.message
+          : "Could not save those settings.",
+        {
+          tone: "bad",
+        },
+      ),
   });
 
   const fieldError = (name: string) =>
-    verification.result?.success === false && verification.test.error instanceof ApiError
+    verification.result?.success === false &&
+    verification.test.error instanceof ApiError
       ? verification.test.error.field(name)
-      : save.error instanceof ApiError ? save.error.field(name) : undefined;
+      : save.error instanceof ApiError
+        ? save.error.field(name)
+        : undefined;
 
   if (query.isError) {
     return (
@@ -523,7 +615,11 @@ function SmtpPanel() {
           <h3>Email server</h3>
         </header>
         <ErrorNote
-          message={query.error instanceof Error ? query.error.message : "Could not load settings."}
+          message={
+            query.error instanceof Error
+              ? query.error.message
+              : "Could not load settings."
+          }
           onRetry={() => void query.refetch()}
         />
       </section>
@@ -542,27 +638,42 @@ function SmtpPanel() {
   }
 
   const fromEnvironment = query.data?.source === "environment";
-  const valid = !!form.host.trim() && Number.isInteger(form.port) &&
-    form.port >= 1 && form.port <= 65535 && looksLikeEmail(form.fromAddress);
-  const changed = form.host !== query.data?.host || form.port !== query.data?.port ||
-    form.fromAddress !== query.data?.fromAddress || form.username !== query.data?.username ||
+  const valid =
+    !!form.host.trim() &&
+    Number.isInteger(form.port) &&
+    form.port >= 1 &&
+    form.port <= 65535 &&
+    looksLikeEmail(form.fromAddress);
+  const changed =
+    form.host !== query.data?.host ||
+    form.port !== query.data?.port ||
+    form.fromAddress !== query.data?.fromAddress ||
+    form.username !== query.data?.username ||
     password !== "";
-  const canSave = valid && (changed || fromEnvironment) && verification.result?.success === true &&
-    !verification.test.isPending && !save.isPending;
+  const canSave =
+    valid &&
+    (changed || fromEnvironment) &&
+    verification.result?.success === true &&
+    !verification.test.isPending &&
+    !save.isPending;
 
   return (
     <section className="settings-section" id="s-smtp">
       <header>
         <h3>Email server</h3>
-        <p>Test your changes before saving. The connection test sends a message without saving these settings.</p>
+        <p>
+          Test your changes before saving. The connection test sends a message
+          without saving these settings.
+        </p>
       </header>
 
       {fromEnvironment ? (
         <div className="callout">
           <InfoIcon strokeWidth={1.8} />
           <span>
-            <strong>Seeded from environment.</strong> These values came from your compose file.
-            Saving here stores them in the database, which takes over from the environment.
+            <strong>Seeded from environment.</strong> These values came from
+            your compose file. Saving here stores them in the database, which
+            takes over from the environment.
           </span>
         </div>
       ) : null}
@@ -578,7 +689,9 @@ function SmtpPanel() {
           <div className="field">
             <label htmlFor="host">
               Host{" "}
-              {fromEnvironment ? <span className="env-badge">from env</span> : null}
+              {fromEnvironment ? (
+                <span className="env-badge">from env</span>
+              ) : null}
             </label>
             <input
               className="control"
@@ -586,8 +699,12 @@ function SmtpPanel() {
               value={form.host}
               disabled={save.isPending}
               aria-invalid={fieldError("host") ? true : undefined}
-              {...(fieldError("host") ? { "aria-describedby": "host-err" } : {})}
-              onChange={(event) => setForm({ ...form, host: event.target.value })}
+              {...(fieldError("host")
+                ? { "aria-describedby": "host-err" }
+                : {})}
+              onChange={(event) =>
+                setForm({ ...form, host: event.target.value })
+              }
             />
             {fieldError("host") ? (
               <span className="err" id="host-err">
@@ -606,7 +723,9 @@ function SmtpPanel() {
               max={65535}
               value={form.port}
               disabled={save.isPending}
-              onChange={(event) => setForm({ ...form, port: Number(event.target.value) })}
+              onChange={(event) =>
+                setForm({ ...form, port: Number(event.target.value) })
+              }
             />
           </div>
         </div>
@@ -620,7 +739,9 @@ function SmtpPanel() {
               autoComplete="username"
               value={form.username}
               disabled={save.isPending}
-              onChange={(event) => setForm({ ...form, username: event.target.value })}
+              onChange={(event) =>
+                setForm({ ...form, username: event.target.value })
+              }
             />
           </div>
 
@@ -631,7 +752,11 @@ function SmtpPanel() {
               id="pass"
               type="password"
               autoComplete="current-password"
-              placeholder={query.data?.passwordSet ? "Saved — leave blank to keep" : "Not set"}
+              placeholder={
+                query.data?.passwordSet
+                  ? "Saved — leave blank to keep"
+                  : "Not set"
+              }
               value={password}
               disabled={save.isPending}
               aria-describedby="pass-help"
@@ -652,8 +777,12 @@ function SmtpPanel() {
             value={form.fromAddress}
             disabled={save.isPending}
             aria-invalid={fieldError("fromAddress") ? true : undefined}
-            {...(fieldError("fromAddress") ? { "aria-describedby": "from-err" } : {})}
-            onChange={(event) => setForm({ ...form, fromAddress: event.target.value })}
+            {...(fieldError("fromAddress")
+              ? { "aria-describedby": "from-err" }
+              : {})}
+            onChange={(event) =>
+              setForm({ ...form, fromAddress: event.target.value })
+            }
           />
           {fieldError("fromAddress") ? (
             <span className="err" id="from-err">
@@ -663,16 +792,22 @@ function SmtpPanel() {
         </div>
 
         <div className="inline dialog-actions">
-          <button className="btn btn--primary" type="submit" disabled={!canSave}>
+          <button
+            className="btn btn--primary"
+            type="submit"
+            disabled={!canSave}
+          >
             {save.isPending ? "Saving…" : "Save changes"}
           </button>
           <button
             className="btn"
             type="button"
-            onClick={() => verification.test.mutate({
-              ...form,
-              ...(password ? { password } : {}),
-            })}
+            onClick={() =>
+              verification.test.mutate({
+                ...form,
+                ...(password ? { password } : {}),
+              })
+            }
             disabled={!valid || verification.test.isPending || save.isPending}
           >
             {verification.test.isPending ? "Testing…" : "Test connection"}
@@ -685,15 +820,19 @@ function SmtpPanel() {
 }
 
 function ConnectionPanel() {
-  const status = useQuery({ queryKey: ["status"], queryFn: api.status, retry: false });
+  const status = useQuery({
+    queryKey: ["status"],
+    queryFn: api.status,
+    retry: false,
+  });
 
   return (
     <section className="panel" id="s-conn">
       <header>
         <h2>Connection</h2>
         <p>
-          Relego has no login. Anyone who can reach this page can change these settings, so keep
-          it on a network you trust.
+          Relego has no login. Anyone who can reach this page can change these
+          settings, so keep it on a network you trust.
         </p>
       </header>
 

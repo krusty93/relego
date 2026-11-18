@@ -35,7 +35,12 @@ import {
   writeNextSyncDueAt,
 } from "./storage";
 import { isSyncRunning, runSync } from "./sync-runner";
-import type { PageResponse, SyncMode, SyncRunOutcome, SyncTrigger } from "./sync-runner";
+import type {
+  PageResponse,
+  SyncMode,
+  SyncRunOutcome,
+  SyncTrigger,
+} from "./sync-runner";
 
 /** Name of the routine sync alarm. */
 export const SYNC_ALARM = "kindle-sync";
@@ -91,10 +96,12 @@ export async function ensureAlarms(): Promise<void> {
     if ((await readNextSyncDueAt()) === null) await recordSyncDueAt();
   }
 
-  const heartbeat = await chrome.alarms.get(HEARTBEAT_ALARM);
+  const current = await chrome.alarms.get(HEARTBEAT_ALARM);
 
-  if (heartbeat === undefined || heartbeat.periodInMinutes !== HEARTBEAT_MINUTES) {
-    await chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: HEARTBEAT_MINUTES });
+  if (current === undefined || current.periodInMinutes !== HEARTBEAT_MINUTES) {
+    await chrome.alarms.create(HEARTBEAT_ALARM, {
+      periodInMinutes: HEARTBEAT_MINUTES,
+    });
   }
 }
 
@@ -105,7 +112,9 @@ export async function ensureAlarms(): Promise<void> {
  * @returns A task that completes once the alarm and the recorded due time agree.
  */
 async function armSyncAlarm(periodInMinutes: number): Promise<void> {
-  await chrome.alarms.create(SYNC_ALARM, { periodInMinutes: clampIntervalMinutes(periodInMinutes) });
+  await chrome.alarms.create(SYNC_ALARM, {
+    periodInMinutes: clampIntervalMinutes(periodInMinutes),
+  });
   await recordSyncDueAt();
 }
 
@@ -179,7 +188,11 @@ export async function syncNow(
 
   const outcome = await runSync(
     { client, fetchPage: fetchNotebookPage },
-    { mode: effectiveMode, trigger, idempotencyKey: idempotencyKey(trigger, interval) },
+    {
+      mode: effectiveMode,
+      trigger,
+      idempotencyKey: idempotencyKey(trigger, interval),
+    },
   );
 
   await reactToOutcome(client, outcome, effectiveMode);
@@ -198,8 +211,15 @@ export async function syncNow(
  * @param mode Mode to retain if the run needs an authentication retry.
  * @returns A task that completes once the reaction has been applied.
  */
-async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome, mode: SyncMode): Promise<void> {
-  if (outcome.kind === "completed" || (outcome.kind === "skipped" && outcome.reason === "already_completed")) {
+async function reactToOutcome(
+  client: RelegoClient,
+  outcome: SyncRunOutcome,
+  mode: SyncMode,
+): Promise<void> {
+  if (
+    outcome.kind === "completed" ||
+    (outcome.kind === "skipped" && outcome.reason === "already_completed")
+  ) {
     await clearAuthRetry();
     return;
   }
@@ -211,7 +231,8 @@ async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome, mod
     return;
   }
 
-  const alreadyWaiting = (await chrome.alarms.get(AUTH_RETRY_ALARM)) !== undefined;
+  const alreadyWaiting =
+    (await chrome.alarms.get(AUTH_RETRY_ALARM)) !== undefined;
   await scheduleAuthRetry(mode);
 
   if (!alreadyWaiting) {
@@ -231,7 +252,9 @@ async function reactToOutcome(client: RelegoClient, outcome: SyncRunOutcome, mod
  * @param region Region whose notebook host needs a signed-in session.
  * @returns A task that completes once the tab has been opened.
  */
-export async function openNotebookForSignIn(region: KindleRegion): Promise<void> {
+export async function openNotebookForSignIn(
+  region: KindleRegion,
+): Promise<void> {
   await chrome.tabs.create({ url: notebookUrl(region), active: true });
 }
 
@@ -265,7 +288,8 @@ export async function heartbeat(): Promise<void> {
 
   const applied = await appliedIntervalMinutes();
   const alarm = await chrome.alarms.get(SYNC_ALARM);
-  const nextSyncDueAt = alarm === undefined ? null : new Date(alarm.scheduledTime).toISOString();
+  const nextSyncDueAt =
+    alarm === undefined ? null : new Date(alarm.scheduledTime).toISOString();
 
   const response = await client.heartbeat({
     profileVersion: PROFILE_VERSION,
@@ -273,10 +297,12 @@ export async function heartbeat(): Promise<void> {
     nextSyncDueAt,
   });
 
-  if (response.intervalMinutes !== applied) await applyInterval(response.intervalMinutes);
+  if (response.intervalMinutes !== applied)
+    await applyInterval(response.intervalMinutes);
 
   if (response.command === "sync") await syncNow("manual");
-  else if (response.command === "full_resync") await syncNow("manual", "full_resync");
+  else if (response.command === "full_resync")
+    await syncNow("manual", "full_resync");
 }
 
 /**
@@ -315,7 +341,8 @@ export async function start(): Promise<void> {
   });
 
   chrome.runtime.onMessage.addListener((message: unknown) => {
-    if (isConfiguredMessage(message)) void applyConfiguration(message.intervalMinutes ?? null, message.reason);
+    if (isConfiguredMessage(message))
+      void applyConfiguration(message.intervalMinutes ?? null, message.reason);
   });
 
   // Before the alarms are reconciled: creating a missing alarm would push its due time a full
@@ -345,7 +372,8 @@ async function runScheduledSync(): Promise<void> {
  * user-requested runs are always distinct.
  */
 function idempotencyKey(trigger: SyncTrigger, intervalMinutes: number): string {
-  if (trigger === "retry") return `${PROVIDER_ID}-retry-${bucket(AUTH_RETRY_MINUTES)}`;
+  if (trigger === "retry")
+    return `${PROVIDER_ID}-retry-${bucket(AUTH_RETRY_MINUTES)}`;
   if (trigger !== "scheduled") return `${trigger}-${crypto.randomUUID()}`;
 
   return `${PROVIDER_ID}-scheduled-${bucket(intervalMinutes)}`;
@@ -357,15 +385,28 @@ function bucket(minutes: number): number {
 }
 
 /** Fetches a notebook page inside the user's own Amazon session. */
-export async function fetchNotebookPage(url: string, signal?: AbortSignal): Promise<PageResponse> {
+export async function fetchNotebookPage(
+  url: string,
+  signal?: AbortSignal,
+): Promise<PageResponse> {
   const controller = new AbortController();
   const abort = (): void => controller.abort(signal?.reason);
   if (signal?.aborted === true) abort();
   else signal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(() => controller.abort(new DOMException("Notebook request timed out.", "TimeoutError")), 60_000);
+  const timeout = setTimeout(
+    () =>
+      controller.abort(
+        new DOMException("Notebook request timed out.", "TimeoutError"),
+      ),
+    60_000,
+  );
 
   try {
-    const response = await fetch(url, { credentials: "include", redirect: "follow", signal: controller.signal });
+    const response = await fetch(url, {
+      credentials: "include",
+      redirect: "follow",
+      signal: controller.signal,
+    });
     if (!response.ok) {
       throw new Error(`Notebook page responded with ${response.status}.`);
     }

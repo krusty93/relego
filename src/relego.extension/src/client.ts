@@ -233,7 +233,10 @@ export class RelegoClient {
    * cannot wait as long as a background job can.
    */
   getStatus(providerId: string, timeoutMs?: number): Promise<RelegoStatus> {
-    return this.getJson<RelegoStatus>(`/sync/${encodeURIComponent(providerId)}`, timeoutMs);
+    return this.getJson<RelegoStatus>(
+      `/sync/${encodeURIComponent(providerId)}`,
+      timeoutMs,
+    );
   }
 
   /** Lists the validated notebook regions, with the disclosure that travels with them. */
@@ -258,7 +261,9 @@ export class RelegoClient {
 
   /** Switches the connection to another allowlisted region without re-pairing. */
   setRegion(regionId: string): Promise<RelegoRegionChange> {
-    return this.putJson<RelegoRegionChange>(`/sync/${PROVIDER_ID}/region`, { regionId });
+    return this.putJson<RelegoRegionChange>(`/sync/${PROVIDER_ID}/region`, {
+      regionId,
+    });
   }
 
   /** Activates the connection using the stored pairing token as the bearer credential. */
@@ -288,25 +293,42 @@ export class RelegoClient {
 
   /** Reports job progress so the server can mark stalled runs as interrupted. */
   reportProgress(jobId: number, progress: RelegoProgress): Promise<void> {
-    return this.postJson<void>(`/sync/${PROVIDER_ID}/jobs/${jobId}/progress`, progress);
+    return this.postJson<void>(
+      `/sync/${PROVIDER_ID}/jobs/${jobId}/progress`,
+      progress,
+    );
   }
 
   /** Completes a job; the server rejects mismatched book counts. */
   completeJob(jobId: number, completion: RelegoJobCompletion): Promise<void> {
-    return this.postJson<void>(`/sync/${PROVIDER_ID}/jobs/${jobId}/complete`, completion);
+    return this.postJson<void>(
+      `/sync/${PROVIDER_ID}/jobs/${jobId}/complete`,
+      completion,
+    );
   }
 
   /** Reports a failed job with a recovery code and sanitized diagnostics. */
   failJob(jobId: number, failure: RelegoJobFailure): Promise<void> {
-    return this.postJson<void>(`/sync/${PROVIDER_ID}/jobs/${jobId}/fail`, failure);
+    return this.postJson<void>(
+      `/sync/${PROVIDER_ID}/jobs/${jobId}/fail`,
+      failure,
+    );
   }
 
   /** Reports liveness and reads the stored schedule and any pending command. */
   heartbeat(report: RelegoHeartbeatReport): Promise<RelegoHeartbeat> {
-    return this.postJson<RelegoHeartbeat>(`/sync/${PROVIDER_ID}/heartbeat`, report);
+    return this.postJson<RelegoHeartbeat>(
+      `/sync/${PROVIDER_ID}/heartbeat`,
+      report,
+    );
   }
 
-  private async send<T>(path: string, method: string, body?: unknown, timeoutMs = 60_000): Promise<T> {
+  private async send<T>(
+    path: string,
+    method: string,
+    body?: unknown,
+    timeoutMs = 60_000,
+  ): Promise<T> {
     const hasBody = body !== undefined;
 
     const response = await fetch(`${this.baseUrl}${path}`, {
@@ -321,7 +343,10 @@ export class RelegoClient {
     });
 
     if (!response.ok) {
-      throw new RelegoApiError(`Relego server responded with ${response.status}.`, response.status);
+      throw new RelegoApiError(
+        `Relego server responded with ${response.status}.`,
+        response.status,
+      );
     }
 
     if (response.status === 204) {

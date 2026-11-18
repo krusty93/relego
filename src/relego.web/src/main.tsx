@@ -31,7 +31,10 @@ createRoot(document.getElementById("root")!).render(
                 <Route element={<AppShell />}>
                   <Route path="/app" element={<LibraryPage />} />
                   <Route path="/app/highlights" element={<HighlightsPage />} />
-                  <Route path="/app/books/:bookId" element={<HighlightsPage />} />
+                  <Route
+                    path="/app/books/:bookId"
+                    element={<HighlightsPage />}
+                  />
                   <Route path="/app/recaps" element={<RecapsPage />} />
                   <Route path="/app/import" element={<ImportPage />} />
                   <Route path="/app/kindle-sync" element={<SyncPage />} />

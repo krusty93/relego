@@ -30,7 +30,9 @@ export function LibraryPage() {
 
   const toggleExclusion = useMutation({
     mutationFn: (book: BookItem) =>
-      book.excluded ? api.include("books", book.id) : api.exclude("books", book.id),
+      book.excluded
+        ? api.include("books", book.id)
+        : api.exclude("books", book.id),
     onSuccess: (_result, book) => {
       void queryClient.invalidateQueries({ queryKey: ["books"] });
       void queryClient.invalidateQueries({ queryKey: ["status"] });
@@ -41,26 +43,33 @@ export function LibraryPage() {
         {
           action: {
             label: "Undo",
-            run: () => toggleExclusion.mutate({ ...book, excluded: !book.excluded }),
+            run: () =>
+              toggleExclusion.mutate({ ...book, excluded: !book.excluded }),
           },
         },
       );
     },
     onError: (error) =>
-      push(error instanceof Error ? error.message : "That didn't work.", { tone: "bad" }),
+      push(error instanceof Error ? error.message : "That didn't work.", {
+        tone: "bad",
+      }),
   });
 
   const rename = useMutation({
-    mutationFn: ({ id, title }: { id: number; title: string }) => api.renameBook(id, title),
+    mutationFn: ({ id, title }: { id: number; title: string }) =>
+      api.renameBook(id, title),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["books"] });
       setRenaming(null);
       push("Title updated.");
     },
     onError: (error) =>
-      push(error instanceof Error ? error.message : "Could not rename that book.", {
-        tone: "bad",
-      }),
+      push(
+        error instanceof Error ? error.message : "Could not rename that book.",
+        {
+          tone: "bad",
+        },
+      ),
   });
 
   useEffect(() => {
@@ -70,7 +79,8 @@ export function LibraryPage() {
   function focusRow(index: number) {
     const clamped = Math.max(0, Math.min(index, items.length - 1));
     setCursor(clamped);
-    const row = rowsRef.current?.querySelectorAll<HTMLTableRowElement>("tr")[clamped];
+    const row =
+      rowsRef.current?.querySelectorAll<HTMLTableRowElement>("tr")[clamped];
     row?.focus();
   }
 
@@ -91,15 +101,23 @@ export function LibraryPage() {
     },
   });
 
-  function onRowKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, book: BookItem) {
+  function onRowKeyDown(
+    event: React.KeyboardEvent<HTMLTableRowElement>,
+    book: BookItem,
+  ) {
     if (event.key !== "Enter") return;
 
     event.preventDefault();
     navigate(`/app/books/${book.id}`);
   }
 
-  const totalHighlights = items.reduce((sum, book) => sum + book.highlightCount, 0);
-  const excludedCount = items.filter((book) => book.excluded || book.authorExcluded).length;
+  const totalHighlights = items.reduce(
+    (sum, book) => sum + book.highlightCount,
+    0,
+  );
+  const excludedCount = items.filter(
+    (book) => book.excluded || book.authorExcluded,
+  ).length;
 
   return (
     <section className="view" aria-labelledby="lib-h">
@@ -109,13 +127,19 @@ export function LibraryPage() {
           <p>
             {books.data
               ? `${plural(books.data.total, "book")} · ${plural(totalHighlights, "highlight")}${
-                  excludedCount > 0 ? ` · ${formatCount(excludedCount)} kept out of recaps` : ""
+                  excludedCount > 0
+                    ? ` · ${formatCount(excludedCount)} kept out of recaps`
+                    : ""
                 }.`
               : "Every book Relego has highlights for."}
           </p>
         </div>
         <div className="actions">
-          <button className="btn" type="button" onClick={() => navigate("/app/import")}>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => navigate("/app/import")}
+          >
             Import highlights
           </button>
         </div>
@@ -129,27 +153,31 @@ export function LibraryPage() {
         empty={
           debounced ? (
             <EmptyState title="No books match that search">
-              Nothing in your library matches “{debounced}”. Try a shorter word, or clear the
-              search box.
+              Nothing in your library matches “{debounced}”. Try a shorter word,
+              or clear the search box.
             </EmptyState>
           ) : (
             <EmptyState
               title="No books yet"
               action={
-                <button className="btn btn--primary" type="button" onClick={() => navigate("/app/import")}>
+                <button
+                  className="btn btn--primary"
+                  type="button"
+                  onClick={() => navigate("/app/import")}
+                >
                   Import highlights
                 </button>
               }
             >
-              Connect your Kindle or Kobo by USB and drop its highlight file in. Relego takes it
-              from there.
+              Connect your Kindle or Kobo by USB and drop its highlight file in.
+              Relego takes it from there.
             </EmptyState>
           )
         }
       >
         <p className="subtle hint-line">
-          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> open · <kbd>n</kbd> rename ·{" "}
-          <kbd>e</kbd> exclude book
+          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> open · <kbd>n</kbd>{" "}
+          rename · <kbd>e</kbd> exclude book
         </p>
 
         <div className="table-wrap">
@@ -251,10 +279,16 @@ function RenameDialog({
             autoFocus
             onChange={(event) => setTitle(event.target.value)}
           />
-          <span className="help">This only changes how the book appears in Relego.</span>
+          <span className="help">
+            This only changes how the book appears in Relego.
+          </span>
         </div>
         <div className="inline dialog-actions">
-          <button className="btn btn--primary" type="submit" disabled={pending || !title.trim()}>
+          <button
+            className="btn btn--primary"
+            type="submit"
+            disabled={pending || !title.trim()}
+          >
             {pending ? "Saving…" : "Save"}
           </button>
           <button className="btn" type="button" onClick={onCancel}>

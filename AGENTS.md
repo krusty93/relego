@@ -24,7 +24,8 @@ Prerequisites: .NET 10 SDK and Docker. Node.js 26+ and pnpm (via Corepack) only 
 
 - .NET: `dotnet test src/Relego.Tests/Relego.Tests.csproj`
 - Web UI (Playwright): `pnpm install && cd src/relego.web && pnpm exec playwright install --with-deps chromium && pnpm test` (typecheck: `pnpm run typecheck`)
-- CI: the `ci.yaml` Run tests step runs `dotnet test --configuration Release --no-build` inside the CI image; a separate job runs the Playwright web tests
+- Lint and format (all three JS/TS projects, from the repository root): `pnpm run lint`, `pnpm run format:check`; fix with `pnpm run lint:fix` and `pnpm run format`
+- CI: the `ci.yaml` Run tests step runs `dotnet test --configuration Release --no-build` inside the CI image; a separate job runs the Playwright web tests, and the `Lint and format check` job runs `pnpm run lint` and `pnpm run format:check`
 
 ## Code style guidelines
 
@@ -35,6 +36,7 @@ Prerequisites: .NET 10 SDK and Docker. Node.js 26+ and pnpm (via Corepack) only 
 - When adding new .NET projects: `dotnet sln src/Relego.slnx add src/<Project>/<Project>.csproj` in the same PR
 - Diagrams: Mermaid preferred; ASCII only for spatial layouts
 - Web UI work (`src/relego.web`, `src/landing`): use the `impeccable` skill before changing UI
+- JavaScript/TypeScript style is enforced by `oxfmt` (`.oxfmtrc.json`) and lint by `oxlint` (`.oxlintrc.json`); never reformat by hand or add another formatter. Run `pnpm run format` and `pnpm run lint:fix` before pushing.
 
 ## Testing instructions
 

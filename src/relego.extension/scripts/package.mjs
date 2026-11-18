@@ -16,7 +16,13 @@
  * single source of truth shared with the version-bump check and the release tagging workflow.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
@@ -39,7 +45,8 @@ const FIREFOX_REPLACED_FILES = new Set(["manifest.json", "background.js"]);
 function readExtensionVersion() {
   const propsPath = join(repoRoot, "src", "PackageVersions.props");
   const props = readFileSync(propsPath, "utf8");
-  const match = /<RelegoExtensionVersion>([^<]+)<\/RelegoExtensionVersion>/.exec(props);
+  const match =
+    /<RelegoExtensionVersion>([^<]+)<\/RelegoExtensionVersion>/.exec(props);
 
   if (match === null || match[1] === undefined) {
     throw new Error(`RelegoExtensionVersion is missing from ${propsPath}`);
@@ -80,7 +87,9 @@ function collectFiles(dir, prefix = "") {
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      found.push(...collectFiles(join(dir, entry.name), posix.join(prefix, entry.name)));
+      found.push(
+        ...collectFiles(join(dir, entry.name), posix.join(prefix, entry.name)),
+      );
       continue;
     }
 
@@ -115,7 +124,10 @@ function run(command, args) {
 async function writeZip(path, addContents) {
   const zip = new JSZip();
   await addContents(zip);
-  writeFileSync(path, await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+  writeFileSync(
+    path,
+    await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }),
+  );
   return path;
 }
 
@@ -129,13 +141,18 @@ async function main() {
   rmSync(releaseDir, { recursive: true, force: true });
   mkdirSync(releaseDir, { recursive: true });
 
-  const distFiles = collectFiles(distDir).filter((file) => file !== "manifest.json");
+  const distFiles = collectFiles(distDir).filter(
+    (file) => file !== "manifest.json",
+  );
 
   const chromePath = await writeZip(
     join(releaseDir, `relego-extension-${version}-chrome.zip`),
     async (zip) => {
       addFiles(zip, distDir, distFiles);
-      zip.file("manifest.json", `${JSON.stringify(chromeManifest(base, version), null, 2)}\n`);
+      zip.file(
+        "manifest.json",
+        `${JSON.stringify(chromeManifest(base, version), null, 2)}\n`,
+      );
     },
   );
 
@@ -148,7 +165,10 @@ async function main() {
         distFiles.filter((file) => !FIREFOX_REPLACED_FILES.has(file)),
       );
       addFiles(zip, firefoxBackgroundDir, ["background.js"]);
-      zip.file("manifest.json", `${JSON.stringify(firefoxManifest(base, version), null, 2)}\n`);
+      zip.file(
+        "manifest.json",
+        `${JSON.stringify(firefoxManifest(base, version), null, 2)}\n`,
+      );
     },
   );
 

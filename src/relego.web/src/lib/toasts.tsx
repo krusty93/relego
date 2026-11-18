@@ -17,7 +17,10 @@ export interface Toast {
 
 interface ToastContextValue {
   toasts: Toast[];
-  push: (message: string, options?: { tone?: Toast["tone"]; action?: Toast["action"]; ms?: number }) => void;
+  push: (
+    message: string,
+    options?: { tone?: Toast["tone"]; action?: Toast["action"]; ms?: number },
+  ) => void;
   dismiss: (id: number) => void;
 }
 
@@ -40,14 +43,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((current) => [...current, toast]);
 
       // Undoable toasts linger; a plain confirmation clears itself quickly.
-      window.setTimeout(() => dismiss(id), options?.ms ?? (options?.action ? 8000 : 4000));
+      window.setTimeout(
+        () => dismiss(id),
+        options?.ms ?? (options?.action ? 8000 : 4000),
+      );
     },
     [dismiss],
   );
 
-  const value = useMemo(() => ({ toasts, push, dismiss }), [toasts, push, dismiss]);
+  const value = useMemo(
+    () => ({ toasts, push, dismiss }),
+    [toasts, push, dismiss],
+  );
 
-  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
+  return (
+    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+  );
 }
 
 export function useToasts(): ToastContextValue {

@@ -17,7 +17,10 @@ function createElement(value = "") {
   };
 }
 
-async function loadPopup(paired = true, options: { status?: string; statusError?: unknown } = {}) {
+async function loadPopup(
+  paired = true,
+  options: { status?: string; statusError?: unknown } = {},
+) {
   const elements = {
     settings: createElement(),
     done: createElement(),
@@ -34,8 +37,12 @@ async function loadPopup(paired = true, options: { status?: string; statusError?
     notice: createElement(),
     save: createElement(),
   };
-  const stored: Record<string, unknown> = paired ? { serverUrl: SERVER, token: "old-code" } : {};
-  const writes = vi.fn(async (values: Record<string, unknown>) => { Object.assign(stored, values); });
+  const stored: Record<string, unknown> = paired
+    ? { serverUrl: SERVER, token: "old-code" }
+    : {};
+  const writes = vi.fn(async (values: Record<string, unknown>) => {
+    Object.assign(stored, values);
+  });
   const request = vi.fn(async () => true);
   const sendMessage = vi.fn(async () => undefined);
   const get = vi.fn(async () => ({ ...stored }));
@@ -60,10 +67,17 @@ async function loadPopup(paired = true, options: { status?: string; statusError?
   const calls: { path: string; token: string | null; body: unknown }[] = [];
   const fetch = vi.fn(async (input: string, init?: RequestInit) => {
     const path = new URL(input).pathname;
-    const body = init?.body === undefined ? null : JSON.parse(String(init.body));
-    calls.push({ path, token: new Headers(init?.headers).get("Authorization"), body });
+    const body =
+      init?.body === undefined ? null : JSON.parse(String(init.body));
+    calls.push({
+      path,
+      token: new Headers(init?.headers).get("Authorization"),
+      body,
+    });
     if (path.endsWith("/pair")) {
-      return new Response(JSON.stringify({ intervalMinutes: 360 }), { status: pairStatus });
+      return new Response(JSON.stringify({ intervalMinutes: 360 }), {
+        status: pairStatus,
+      });
     }
     if (path.endsWith("/region")) {
       regionId = body.regionId;
@@ -73,23 +87,44 @@ async function loadPopup(paired = true, options: { status?: string; statusError?
     return Response.json({
       providerId: "kindle-cloud",
       status: options.status ?? "connected",
-      connection: { region: { id: regionId, displayName: "United States", host: "read.amazon.com" } },
+      connection: {
+        region: {
+          id: regionId,
+          displayName: "United States",
+          host: "read.amazon.com",
+        },
+      },
     });
   });
   vi.stubGlobal("fetch", fetch);
   vi.resetModules();
   await import("../src/popup");
   await vi.waitFor(() => {
-    expect(elements.settings.addEventListener).toHaveBeenCalledWith("submit", expect.any(Function));
+    expect(elements.settings.addEventListener).toHaveBeenCalledWith(
+      "submit",
+      expect.any(Function),
+    );
     expect(elements.save.disabled).toBe(false);
   });
-  const submit = elements.settings.addEventListener.mock.calls[0]?.[1] as (event: { preventDefault(): void }) => void;
+  const submit = elements.settings.addEventListener.mock
+    .calls[0]?.[1] as (event: { preventDefault(): void }) => void;
 
   return {
-    elements, stored, writes, request, fetch, calls, sendMessage, get,
-    setPairStatus: (status: number) => { pairStatus = status; },
+    elements,
+    stored,
+    writes,
+    request,
+    fetch,
+    calls,
+    sendMessage,
+    get,
+    setPairStatus: (status: number) => {
+      pairStatus = status;
+    },
     submit: () => submit({ preventDefault: () => undefined }),
-    settled: async () => { await vi.waitFor(() => expect(elements.save.disabled).toBe(false)); },
+    settled: async () => {
+      await vi.waitFor(() => expect(elements.save.disabled).toBe(false));
+    },
   };
 }
 
@@ -101,7 +136,9 @@ describe("popup configuration", () => {
     expect(popup.elements.state.textContent).toContain("Reading United States");
     popup.submit();
     await popup.settled();
-    expect(popup.calls.map((call) => call.path)).toEqual(["/sync/kindle-cloud"]);
+    expect(popup.calls.map((call) => call.path)).toEqual([
+      "/sync/kindle-cloud",
+    ]);
     expect(popup.elements.notice.textContent).toContain("Nothing changed");
   });
 
@@ -113,13 +150,21 @@ describe("popup configuration", () => {
 
     popup.submit();
 
-    expect(popup.request).toHaveBeenCalledWith({ origins: ["https://lesen.amazon.de/*"] });
+    expect(popup.request).toHaveBeenCalledWith({
+      origins: ["https://lesen.amazon.de/*"],
+    });
     expect(popup.fetch).not.toHaveBeenCalled();
     expect(popup.get).not.toHaveBeenCalled();
     await popup.settled();
-    expect(popup.calls.filter((call) => call.path.endsWith("/region"))[0]?.body).toEqual({ regionId: "de" });
+    expect(
+      popup.calls.filter((call) => call.path.endsWith("/region"))[0]?.body,
+    ).toEqual({
+      regionId: "de",
+    });
     expect(popup.sendMessage).toHaveBeenCalledWith({
-      type: CONFIGURED_MESSAGE, reason: "region_changed", intervalMinutes: undefined,
+      type: CONFIGURED_MESSAGE,
+      reason: "region_changed",
+      intervalMinutes: undefined,
     });
   });
 
@@ -129,29 +174,39 @@ describe("popup configuration", () => {
     popup.submit();
     await popup.settled();
 
-    expect(popup.calls.find((call) => call.path.endsWith("/pair"))?.token).toBe("Bearer replacement");
+    expect(popup.calls.find((call) => call.path.endsWith("/pair"))?.token).toBe(
+      "Bearer replacement",
+    );
     expect(popup.stored).toEqual({ serverUrl: SERVER, token: "replacement" });
     expect(popup.writes).toHaveBeenCalledTimes(1);
     expect(popup.elements.code.value).toBe("");
     expect(popup.sendMessage).toHaveBeenCalledWith({
-      type: CONFIGURED_MESSAGE, reason: "paired", intervalMinutes: 360,
+      type: CONFIGURED_MESSAGE,
+      reason: "paired",
+      intervalMinutes: 360,
     });
   });
 
-  it.each(["denied", "invalid address", "rejected code"])("preserves the working config after %s", async (failure) => {
-    const popup = await loadPopup();
-    popup.elements.serverUrl.value = failure === "invalid address" ? "localhost:8080" : "http://new-relego.test";
-    popup.elements.code.value = "new-code";
-    if (failure === "denied") popup.request.mockResolvedValue(false);
-    if (failure === "rejected code") popup.setPairStatus(401);
-    popup.submit();
-    await popup.settled();
+  it.each(["denied", "invalid address", "rejected code"])(
+    "preserves the working config after %s",
+    async (failure) => {
+      const popup = await loadPopup();
+      popup.elements.serverUrl.value =
+        failure === "invalid address"
+          ? "localhost:8080"
+          : "http://new-relego.test";
+      popup.elements.code.value = "new-code";
+      if (failure === "denied") popup.request.mockResolvedValue(false);
+      if (failure === "rejected code") popup.setPairStatus(401);
+      popup.submit();
+      await popup.settled();
 
-    expect(popup.writes).not.toHaveBeenCalled();
-    expect(popup.stored).toEqual({ serverUrl: SERVER, token: "old-code" });
-    expect(popup.sendMessage).not.toHaveBeenCalled();
-    expect(popup.elements.notice.dataset["tone"]).toBe("warn");
-  });
+      expect(popup.writes).not.toHaveBeenCalled();
+      expect(popup.stored).toEqual({ serverUrl: SERVER, token: "old-code" });
+      expect(popup.sendMessage).not.toHaveBeenCalled();
+      expect(popup.elements.notice.dataset["tone"]).toBe("warn");
+    },
+  );
 
   it("retries pairing after a failed first setup instead of treating it as connected", async () => {
     const popup = await loadPopup(false);
@@ -166,7 +221,9 @@ describe("popup configuration", () => {
     popup.setPairStatus(200);
     popup.submit();
     await popup.settled();
-    expect(popup.calls.filter((call) => call.path.endsWith("/pair"))).toHaveLength(2);
+    expect(
+      popup.calls.filter((call) => call.path.endsWith("/pair")),
+    ).toHaveLength(2);
     expect(popup.writes).toHaveBeenCalledTimes(1);
     expect(popup.stored).toEqual({ serverUrl: SERVER, token: "new-code" });
   });
@@ -180,7 +237,9 @@ describe("popup configuration", () => {
     await popup.settled();
 
     expect(popup.stored).toEqual({ serverUrl: SERVER, token: "new-code" });
-    expect(popup.elements.notice.textContent).toContain("Saved, but the background sync could not be started");
+    expect(popup.elements.notice.textContent).toContain(
+      "Saved, but the background sync could not be started",
+    );
   });
 
   it("keeps a warning about the connection readable in the confirmation view", async () => {
@@ -189,7 +248,9 @@ describe("popup configuration", () => {
     expect(popup.elements.done.hidden).toBe(false);
     expect(popup.elements.settings.hidden).toBe(true);
     expect(popup.elements.notice.dataset["tone"]).toBe("warn");
-    expect(popup.elements.notice.textContent).toContain("Amazon sign-in needed");
+    expect(popup.elements.notice.textContent).toContain(
+      "Amazon sign-in needed",
+    );
   });
 
   it("offers the form when the status read does not finish in time", async () => {
@@ -199,6 +260,8 @@ describe("popup configuration", () => {
 
     expect(popup.elements.settings.hidden).toBe(false);
     expect(popup.elements.done.hidden).toBe(true);
-    expect(popup.elements.notice.textContent).toContain("did not answer within 10 seconds");
+    expect(popup.elements.notice.textContent).toContain(
+      "did not answer within 10 seconds",
+    );
   });
 });

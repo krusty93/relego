@@ -8,6 +8,8 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - '.oxlintrc.json'
+      - '.oxfmtrc.json'
       - 'Dockerfile.ci'
       - 'Dockerfile.server'
       - '.github/workflows/ci.yaml'
@@ -60,6 +62,32 @@ jobs:
           name: test-results
           path: test-results/
           if-no-files-found: warn
+
+  lint:
+    name: Lint and format check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Format check
+        run: pnpm run format:check
 
   web:
     name: Test published web UI

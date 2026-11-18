@@ -118,6 +118,21 @@ cd src/landing
 pnpm run build
 ```
 
+Linting and formatting for `src/relego.web`, `src/relego.extension`, and `src/landing` run from the
+repository root with [oxlint](https://oxc.rs/docs/guide/usage/linter.html) and
+[oxfmt](https://oxc.rs/docs/guide/usage/formatter.html). The rules live in `.oxlintrc.json` and the
+style in `.oxfmtrc.json`:
+
+```sh
+pnpm run lint          # fails on lint errors
+pnpm run lint:fix      # applies the safe fixes
+pnpm run format:check  # fails when a file is not formatted
+pnpm run format        # rewrites the JS/TS sources
+```
+
+`tsc --noEmit` stays the type checker; oxlint only covers what types cannot express, so the two do
+not overlap. CI runs `lint` and `format:check`, so run them before pushing.
+
 Docs-only changes usually only need a careful proofread and link/path check.
 
 ## Pull request guidelines

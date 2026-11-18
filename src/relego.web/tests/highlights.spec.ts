@@ -5,9 +5,14 @@ test.describe("highlights", () => {
     await page.goto("/app/highlights", { waitUntil: "networkidle" });
   });
 
-  test("shows shortcut guidance above the highlights list", async ({ page }) => {
+  test("shows shortcut guidance above the highlights list", async ({
+    page,
+  }) => {
     await expect(page.locator(".hint-line + .hl-list")).toBeVisible();
-    await expect(page.locator(".hint-line + .hl-list")).toHaveCSS("margin-top", "16px");
+    await expect(page.locator(".hint-line + .hl-list")).toHaveCSS(
+      "margin-top",
+      "16px",
+    );
   });
 
   for (const width of [1440, 390]) {
@@ -33,13 +38,17 @@ test.describe("highlights", () => {
           if (!box) throw new Error("Highlight card has no box");
           expect(box.x).toBeCloseTo(library.x, 0);
           expect(box.width).toBeCloseTo(library.width, 0);
-          const textWidth = await card.locator(".hl-quote").evaluate((quote) => ({
-            actual: quote.getBoundingClientRect().width,
-            available: quote.parentElement!.getBoundingClientRect().width,
-          }));
+          const textWidth = await card
+            .locator(".hl-quote")
+            .evaluate((quote) => ({
+              actual: quote.getBoundingClientRect().width,
+              available: quote.parentElement!.getBoundingClientRect().width,
+            }));
           expect(textWidth.actual).toBeCloseTo(textWidth.available, 0);
           expect(
-            await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= window.innerWidth,
+            ),
           ).toBe(true);
         }
       }
@@ -58,10 +67,14 @@ test.describe("highlights", () => {
 
   // Same regression as the library list: the keys used to require an already-focused card.
   test.describe("shortcuts work without focusing a card first", () => {
-    test("j and k walk the list, starting at the first card", async ({ page }) => {
+    test("j and k walk the list, starting at the first card", async ({
+      page,
+    }) => {
       const cards = page.locator(".hl-summary");
       await expect(cards.first()).toBeVisible();
-      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("BODY");
+      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe(
+        "BODY",
+      );
 
       await page.keyboard.press("j");
       await expect(cards.nth(0)).toBeFocused();
@@ -87,10 +100,14 @@ test.describe("highlights", () => {
       await expect(page.locator(".hl-summary").first()).toBeVisible();
 
       await page.keyboard.press("e");
-      await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(1);
+      await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(
+        1,
+      );
 
       await page.locator(".toast-action").click();
-      await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(0);
+      await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(
+        0,
+      );
     });
   });
 
@@ -111,7 +128,9 @@ test.describe("highlights", () => {
     await expect(page.locator(".hl-summary").nth(1)).toBeFocused();
   });
 
-  test("excluding offers an undo that restores the highlight", async ({ page }) => {
+  test("excluding offers an undo that restores the highlight", async ({
+    page,
+  }) => {
     await page.locator(".hl-summary").first().focus();
     await page.keyboard.press("e");
 
@@ -123,7 +142,9 @@ test.describe("highlights", () => {
     await expect(page.locator('.hl .tag[data-tone="excluded"]')).toHaveCount(0);
   });
 
-  test("dragging across the quote selects text instead of expanding the card", async ({ page }) => {
+  test("dragging across the quote selects text instead of expanding the card", async ({
+    page,
+  }) => {
     const quote = page.locator(".hl-quote").first();
     await expect(quote).toHaveCSS("cursor", "text");
     const box = await quote.boundingBox();
@@ -131,10 +152,14 @@ test.describe("highlights", () => {
 
     await page.mouse.move(box.x + 4, box.y + box.height / 4);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 4, { steps: 8 });
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 4, {
+      steps: 8,
+    });
     await page.mouse.up();
 
-    const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    const selected = await page.evaluate(
+      () => window.getSelection()?.toString() ?? "",
+    );
     expect(selected.trim().length).toBeGreaterThan(0);
     await expect(page.locator(".hl-body:visible")).toHaveCount(0);
   });
@@ -155,12 +180,21 @@ test.describe("highlights", () => {
     await expect(page.locator(".hl-body").first()).toBeHidden();
   });
 
-  test("copying puts the whole highlight on the clipboard", async ({ page, context }) => {
+  test("copying puts the whole highlight on the clipboard", async ({
+    page,
+    context,
+  }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.locator(".hl-summary").first().click();
 
-    const text = await page.locator(".hl-quote").first().evaluate((node) => node.textContent);
-    await page.getByRole("button", { name: "Copy highlight text" }).first().click();
+    const text = await page
+      .locator(".hl-quote")
+      .first()
+      .evaluate((node) => node.textContent);
+    await page
+      .getByRole("button", { name: "Copy highlight text" })
+      .first()
+      .click();
 
     await expect(page.locator(".toast")).toContainText("Highlight copied.");
     await expect
@@ -168,7 +202,9 @@ test.describe("highlights", () => {
       .toBe(text);
   });
 
-  test("deleting takes a second confirmation and Keep backs out", async ({ page }) => {
+  test("deleting takes a second confirmation and Keep backs out", async ({
+    page,
+  }) => {
     const before = await page.locator(".hl").count();
 
     await page.locator(".hl-summary").first().click();
@@ -186,13 +222,19 @@ test.describe("highlights", () => {
   test("collapsing a row abandons a pending delete", async ({ page }) => {
     await page.locator(".hl-summary").first().click();
     await page.getByRole("button", { name: "Delete", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Yes, delete" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Yes, delete" }),
+    ).toBeVisible();
 
     await page.locator(".hl-summary").first().click();
-    await expect(page.getByRole("button", { name: "Yes, delete" })).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "Yes, delete" }),
+    ).toBeHidden();
 
     await page.locator(".hl-summary").first().click();
-    await expect(page.getByRole("button", { name: "Yes, delete" })).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "Yes, delete" }),
+    ).toBeHidden();
   });
 
   test("confirming the delete removes the highlight", async ({ page }) => {

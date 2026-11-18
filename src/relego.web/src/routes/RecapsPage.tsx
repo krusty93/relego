@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { AsyncSection, EmptyState, Tag } from "../components/ui";
 import { api } from "../lib/api";
-import { describeSchedule, formatDateTime, formatDateTimeInZone, plural } from "../lib/format";
+import {
+  describeSchedule,
+  formatDateTime,
+  formatDateTimeInZone,
+  plural,
+} from "../lib/format";
 import { useToasts } from "../lib/toasts";
 
 function resultTone(status: string): "ok" | "bad" | "excluded" {
@@ -16,9 +21,21 @@ export function RecapsPage() {
   const queryClient = useQueryClient();
   const { push } = useToasts();
 
-  const status = useQuery({ queryKey: ["status"], queryFn: api.status, retry: false });
-  const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings, retry: false });
-  const history = useQuery({ queryKey: ["recaps"], queryFn: api.recapHistory, retry: false });
+  const status = useQuery({
+    queryKey: ["status"],
+    queryFn: api.status,
+    retry: false,
+  });
+  const settings = useQuery({
+    queryKey: ["settings"],
+    queryFn: api.settings,
+    retry: false,
+  });
+  const history = useQuery({
+    queryKey: ["recaps"],
+    queryFn: api.recapHistory,
+    retry: false,
+  });
 
   const sendNow = useMutation({
     mutationFn: api.sendRecapNow,
@@ -28,7 +45,10 @@ export function RecapsPage() {
       push("Recap queued. It will be delivered shortly.");
     },
     onError: (error) =>
-      push(error instanceof Error ? error.message : "Could not send the recap.", { tone: "bad" }),
+      push(
+        error instanceof Error ? error.message : "Could not send the recap.",
+        { tone: "bad" },
+      ),
   });
 
   const items = history.data?.items ?? [];
@@ -36,9 +56,15 @@ export function RecapsPage() {
   const hasDestination = Boolean(
     settings.data?.kindleEmail?.trim() || settings.data?.deliveryEmail?.trim(),
   );
-  const blockedReason = settings.isSuccess && !hasDestination ? "Add a reader address first." : null;
+  const blockedReason =
+    settings.isSuccess && !hasDestination
+      ? "Add a reader address first."
+      : null;
 
-  const nextRecap = formatDateTimeInZone(status.data?.nextRecap, settings.data?.timezone);
+  const nextRecap = formatDateTimeInZone(
+    status.data?.nextRecap,
+    settings.data?.timezone,
+  );
 
   return (
     <section className="view" aria-labelledby="rc-h">
@@ -46,8 +72,8 @@ export function RecapsPage() {
         <div>
           <h1 id="rc-h">Recaps</h1>
           <p>
-            Relego picks highlights by weight and by how long since you last saw them, then emails
-            them to your reader.
+            Relego picks highlights by weight and by how long since you last saw
+            them, then emails them to your reader.
           </p>
         </div>
         <div className="actions">
@@ -65,8 +91,8 @@ export function RecapsPage() {
 
       {blockedReason ? (
         <p className="notice" id="rc-blocked">
-          {blockedReason} <Link to="/app/settings">Open settings</Link> to choose where recaps are
-          delivered.
+          {blockedReason} <Link to="/app/settings">Open settings</Link> to
+          choose where recaps are delivered.
         </p>
       ) : null}
 
@@ -102,11 +128,14 @@ export function RecapsPage() {
 
           <dt>Delivering to</dt>
           <dd>
-            {settings.data?.kindleEmail || <span className="subtle">No reader address set</span>}
+            {settings.data?.kindleEmail || (
+              <span className="subtle">No reader address set</span>
+            )}
             {settings.data?.deliveryEmail ? (
               <>
                 {" "}
-                <span className="subtle">and</span> {settings.data.deliveryEmail}
+                <span className="subtle">and</span>{" "}
+                {settings.data.deliveryEmail}
               </>
             ) : null}
           </dd>
@@ -119,7 +148,10 @@ export function RecapsPage() {
                   {status.data.lastRecapStatus}
                 </Tag>
                 {status.data.lastRecapError ? (
-                  <span className="subtle"> · {status.data.lastRecapError}</span>
+                  <span className="subtle">
+                    {" "}
+                    · {status.data.lastRecapError}
+                  </span>
                 ) : null}
               </>
             ) : (
@@ -141,7 +173,8 @@ export function RecapsPage() {
           isEmpty={items.length === 0}
           empty={
             <EmptyState title="No recaps sent yet">
-              Once a recap goes out, every attempt shows up here with its result.
+              Once a recap goes out, every attempt shows up here with its
+              result.
             </EmptyState>
           }
         >
@@ -162,7 +195,9 @@ export function RecapsPage() {
                 {items.map((item) => (
                   <tr key={item.id} tabIndex={0}>
                     <td>{formatDateTime(item.scheduledFor)}</td>
-                    <td className="muted">{formatDateTime(item.deliveredAt)}</td>
+                    <td className="muted">
+                      {formatDateTime(item.deliveredAt)}
+                    </td>
                     <td className="num">{item.attemptCount}</td>
                     <td>
                       <Tag tone={resultTone(item.status)}>

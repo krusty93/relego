@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import AxeBuilder from "@axe-core/playwright";
+import { AxeBuilder } from "@axe-core/playwright";
 
 const ROUTES = [
   ["library", "/app"],
@@ -20,7 +20,9 @@ async function expectNoViolations(page: Page) {
     Promise.all(
       document
         .getAnimations()
-        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .filter(
+          (animation) => animation.effect?.getTiming().iterations !== Infinity,
+        )
         .map((animation) => animation.finished.catch(() => undefined)),
     ),
   );
@@ -30,7 +32,10 @@ async function expectNoViolations(page: Page) {
     .analyze();
 
   expect(
-    violations.map((v) => `[${v.impact}] ${v.id}: ${v.help} — ${v.nodes[0]?.target.join(" ")}`),
+    violations.map(
+      (v) =>
+        `[${v.impact}] ${v.id}: ${v.help} — ${v.nodes[0]?.target.join(" ")}`,
+    ),
   ).toEqual([]);
 }
 
@@ -38,7 +43,10 @@ for (const theme of THEMES) {
   test.describe(`${theme} theme`, () => {
     test.beforeEach(async ({ page }) => {
       await page.emulateMedia({ colorScheme: theme });
-      await page.addInitScript((value) => localStorage.setItem("relego.theme", value), theme);
+      await page.addInitScript(
+        (value) => localStorage.setItem("relego.theme", value),
+        theme,
+      );
     });
 
     for (const [name, path] of ROUTES) {
@@ -62,13 +70,17 @@ for (const theme of THEMES) {
       await expectNoViolations(page);
 
       await page.keyboard.press("Control+k");
-      await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+      await expect(
+        page.getByRole("dialog", { name: "Command palette" }),
+      ).toBeVisible();
       await expectNoViolations(page);
       await page.keyboard.press("Escape");
 
       await page.locator("main").click({ position: { x: 10, y: 10 } });
       await page.keyboard.press("?");
-      await expect(page.getByRole("dialog", { name: /shortcut/i })).toBeVisible();
+      await expect(
+        page.getByRole("dialog", { name: /shortcut/i }),
+      ).toBeVisible();
       await expectNoViolations(page);
       await page.keyboard.press("Escape");
 
@@ -83,26 +95,39 @@ for (const theme of THEMES) {
       page,
       isMobile,
     }) => {
-      test.skip(isMobile !== true, "Covers the touch path; desktop uses chords.");
+      test.skip(
+        isMobile !== true,
+        "Covers the touch path; desktop uses chords.",
+      );
 
       await page.goto("/app/highlights", { waitUntil: "networkidle" });
 
       await page.getByRole("button", { name: "Commands" }).tap();
-      await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+      await expect(
+        page.getByRole("dialog", { name: "Command palette" }),
+      ).toBeVisible();
       await expectNoViolations(page);
       await page.keyboard.press("Escape");
 
       await page.locator(".hl-summary").first().tap();
       await expect(page.locator(".hl-body").first()).toBeVisible();
-      await page.getByRole("button", { name: "Delete", exact: true }).first().tap();
-      await expect(page.getByRole("button", { name: "Yes, delete" })).toBeVisible();
+      await page
+        .getByRole("button", { name: "Delete", exact: true })
+        .first()
+        .tap();
+      await expect(
+        page.getByRole("button", { name: "Yes, delete" }),
+      ).toBeVisible();
       await expectNoViolations(page);
     });
 
     // An outset focus ring on a control that sits flush inside an `overflow: hidden`
     // parent is clipped away entirely — the keyboard user sees no ring at all. axe
     // cannot see this, so the rule is asserted directly.
-    test("focus rings are not clipped by their container", async ({ page, isMobile }) => {
+    test("focus rings are not clipped by their container", async ({
+      page,
+      isMobile,
+    }) => {
       test.skip(isMobile === true, "Table rows are stacked on mobile.");
 
       for (const [path, selector] of [
@@ -117,7 +142,8 @@ for (const theme of THEMES) {
         for (let i = 0; i < 40 && !reached; i += 1) {
           await page.keyboard.press("Tab");
           reached = await page.evaluate(
-            (sel) => document.activeElement?.matches(`${sel}:focus-visible`) === true,
+            (sel) =>
+              document.activeElement?.matches(`${sel}:focus-visible`) === true,
             selector,
           );
         }
@@ -131,15 +157,22 @@ for (const theme of THEMES) {
           let clip: DOMRect | null = null;
           for (let node = el.parentElement; node; node = node.parentElement) {
             const parent = getComputedStyle(node);
-            if (/hidden|auto|scroll|clip/.test(parent.overflowX + parent.overflowY)) {
+            if (
+              /hidden|auto|scroll|clip/.test(
+                parent.overflowX + parent.overflowY,
+              )
+            ) {
               clip = node.getBoundingClientRect();
               break;
             }
           }
 
-          const grow = parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth);
+          const grow =
+            parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth);
           return {
-            hasOutline: style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0,
+            hasOutline:
+              style.outlineStyle !== "none" &&
+              parseFloat(style.outlineWidth) > 0,
             outer: {
               top: rect.top - grow,
               left: rect.left - grow,
@@ -172,7 +205,9 @@ for (const theme of THEMES) {
 
     // Placeholders are text. They inherit no exemption from the 4.5:1 floor, and the
     // UA default (#757575) fails it in both themes.
-    test("placeholder text meets the 4.5:1 contrast floor", async ({ page }) => {
+    test("placeholder text meets the 4.5:1 contrast floor", async ({
+      page,
+    }) => {
       const measure = () =>
         page.evaluate(() => {
           function parse(value: string) {
@@ -184,10 +219,16 @@ for (const theme of THEMES) {
               const c = v! / 255;
               return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
             };
-            return 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!);
+            return (
+              0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!)
+            );
           }
           function backgroundOf(el: Element) {
-            for (let node: Element | null = el; node; node = node.parentElement) {
+            for (
+              let node: Element | null = el;
+              node;
+              node = node.parentElement
+            ) {
               const bg = parse(getComputedStyle(node).backgroundColor);
               if (bg[3] > 0) return bg;
             }
@@ -201,8 +242,12 @@ for (const theme of THEMES) {
               const fg = parse(style.color);
               const bg = backgroundOf(el);
               const alpha = fg[3] * Number(style.opacity || "1");
-              const blended = [0, 1, 2].map((i) => fg[i]! * alpha + bg[i]! * (1 - alpha));
-              const [a, b] = [luminance(blended), luminance(bg)].sort((x, y) => y - x);
+              const blended = [0, 1, 2].map(
+                (i) => fg[i]! * alpha + bg[i]! * (1 - alpha),
+              );
+              const [a, b] = [luminance(blended), luminance(bg)].sort(
+                (x, y) => y - x,
+              );
               return {
                 placeholder: (el as HTMLInputElement).placeholder,
                 ratio: Math.round(((a! + 0.05) / (b! + 0.05)) * 100) / 100,
@@ -220,7 +265,9 @@ for (const theme of THEMES) {
 
       // The palette input lives in a `<dialog>`, so it is only measurable when open.
       await page.keyboard.press("ControlOrMeta+k");
-      await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+      await expect(
+        page.getByRole("dialog", { name: "Command palette" }),
+      ).toBeVisible();
       measured.push(...(await measure()));
 
       expect(measured.length).toBeGreaterThan(0);

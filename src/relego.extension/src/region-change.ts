@@ -13,7 +13,11 @@
 
 import { REGIONS, resolveRegion } from "./profile";
 import type { KindleRegion } from "./profile";
-import { notebookOrigin, serverOriginPattern, staleNotebookOrigins } from "./permissions";
+import {
+  notebookOrigin,
+  serverOriginPattern,
+  staleNotebookOrigins,
+} from "./permissions";
 import type { HostPermissions } from "./permissions";
 
 /** One row of the region picker, in the words the popup shows. */
@@ -73,10 +77,18 @@ export type RegionChoice =
       readonly released: readonly string[];
     }
   | { readonly kind: "already_selected"; readonly region: KindleRegion }
-  | { readonly kind: "access_denied"; readonly region: KindleRegion; readonly origins: readonly string[] }
+  | {
+      readonly kind: "access_denied";
+      readonly region: KindleRegion;
+      readonly origins: readonly string[];
+    }
   | { readonly kind: "unsupported_region"; readonly regionId: string }
   | { readonly kind: "invalid_server_url"; readonly serverBaseUrl: string }
-  | { readonly kind: "failed"; readonly region: KindleRegion; readonly status: number | null };
+  | {
+      readonly kind: "failed";
+      readonly region: KindleRegion;
+      readonly status: number | null;
+    };
 
 /**
  * Applies a region choice.
@@ -90,15 +102,21 @@ export async function chooseRegion(
   ports: RegionChoicePorts,
 ): Promise<RegionChoice> {
   const region = resolveRegion(request.regionId);
-  if (region === null) return { kind: "unsupported_region", regionId: request.regionId };
+  if (region === null)
+    return { kind: "unsupported_region", regionId: request.regionId };
 
   const serverPattern =
-    request.serverBaseUrl === null ? null : serverOriginPattern(request.serverBaseUrl);
+    request.serverBaseUrl === null
+      ? null
+      : serverOriginPattern(request.serverBaseUrl);
   if (request.serverBaseUrl !== null && serverPattern === null) {
     return { kind: "invalid_server_url", serverBaseUrl: request.serverBaseUrl };
   }
 
-  const origins = serverPattern === null ? [notebookOrigin(region)] : [serverPattern, notebookOrigin(region)];
+  const origins =
+    serverPattern === null
+      ? [notebookOrigin(region)]
+      : [serverPattern, notebookOrigin(region)];
   // Start the request before any await so it retains the submit gesture's user activation.
   const [alreadyGranted, granted] = await Promise.all([
     ports.permissions.contains([notebookOrigin(region)]),
@@ -113,8 +131,10 @@ export async function chooseRegion(
   }
 
   try {
-    const intervalMinutes = serverPattern === null ? null : await ports.pair(region.id);
-    const pendingCommand = serverPattern === null ? await ports.setRegion(region.id) : null;
+    const intervalMinutes =
+      serverPattern === null ? null : await ports.pair(region.id);
+    const pendingCommand =
+      serverPattern === null ? await ports.setRegion(region.id) : null;
 
     return {
       kind: "region_selected",
@@ -124,7 +144,8 @@ export async function chooseRegion(
       released: await releaseOtherNotebookOrigins(region, ports.permissions),
     };
   } catch (error) {
-    if (!alreadyGranted) await ports.permissions.remove([notebookOrigin(region)]);
+    if (!alreadyGranted)
+      await ports.permissions.remove([notebookOrigin(region)]);
 
     return { kind: "failed", region, status: statusOf(error) };
   }

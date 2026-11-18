@@ -48,15 +48,24 @@ const TITLE_CANDIDATES: readonly Selector[] = [
   { className: "kp-notebook-book-title" },
 ];
 
-const AUTHOR_CANDIDATES: readonly Selector[] = [SELECTORS.bookAuthor, { className: "kp-notebook-book-author" }];
+const AUTHOR_CANDIDATES: readonly Selector[] = [
+  SELECTORS.bookAuthor,
+  { className: "kp-notebook-book-author" },
+];
 
 /**
  * A library row is a small card, so its author may be an unmarked paragraph. The book page is not:
  * there a bare `<p>` could be highlight prose, so it keeps the id/class anchors only.
  */
-const ROW_AUTHOR_CANDIDATES: readonly Selector[] = [...AUTHOR_CANDIDATES, { tag: "p" }];
+const ROW_AUTHOR_CANDIDATES: readonly Selector[] = [
+  ...AUTHOR_CANDIDATES,
+  { tag: "p" },
+];
 
-const EMPTY_CANDIDATES: readonly Selector[] = [SELECTORS.libraryEmpty, { className: "kp-notebook-empty" }];
+const EMPTY_CANDIDATES: readonly Selector[] = [
+  SELECTORS.libraryEmpty,
+  { className: "kp-notebook-empty" },
+];
 
 const HIGHLIGHT_CANDIDATES: readonly Selector[] = [
   SELECTORS.highlightText,
@@ -137,13 +146,19 @@ export interface ContractDiagnostics {
 export type ParseOutcome =
   | { readonly kind: "ok"; readonly result: ParseResult }
   | { readonly kind: "sign_in" }
-  | { readonly kind: "contract_changed"; readonly diagnostics: ContractDiagnostics };
+  | {
+      readonly kind: "contract_changed";
+      readonly diagnostics: ContractDiagnostics;
+    };
 
 /** Outcome of parsing the notebook library page. */
 export type LibraryOutcome =
   | { readonly kind: "ok"; readonly books: readonly LibraryBook[] }
   | { readonly kind: "sign_in" }
-  | { readonly kind: "contract_changed"; readonly diagnostics: ContractDiagnostics };
+  | {
+      readonly kind: "contract_changed";
+      readonly diagnostics: ContractDiagnostics;
+    };
 
 /**
  * Parses the notebook library page into the book list.
@@ -152,11 +167,17 @@ export type LibraryOutcome =
  * @param region Region whose notebook host was read.
  * @returns The parsed book list, a sign-in signal, or a contract break.
  */
-export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome {
+export function parseLibrary(
+  html: string,
+  region: KindleRegion,
+): LibraryOutcome {
   if (isSignInPage(html, region)) return { kind: "sign_in" };
 
   const list = elementContent(html, SELECTORS.libraryList);
-  if (list === null) return contractBreak("libraryList", { lists: findElements(html, SELECTORS.libraryList).length });
+  if (list === null)
+    return contractBreak("libraryList", {
+      lists: findElements(html, SELECTORS.libraryList).length,
+    });
 
   const rows = findElements(list, SELECTORS.bookRow);
   if (rows.length === 0) {
@@ -198,11 +219,19 @@ export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome
   }
 
   if (missingTitles > 0) {
-    return contractBreak("bookTitle", { bookRows: rows.length, missingTitles, titleAnchors: countText(list, TITLE_CANDIDATES) });
+    return contractBreak("bookTitle", {
+      bookRows: rows.length,
+      missingTitles,
+      titleAnchors: countText(list, TITLE_CANDIDATES),
+    });
   }
 
   if (missingKeys > 0) {
-    return contractBreak("bookKey", { bookRows: rows.length, keyedRows: books.length, missingKeys });
+    return contractBreak("bookKey", {
+      bookRows: rows.length,
+      keyedRows: books.length,
+      missingKeys,
+    });
   }
 
   return { kind: "ok", books };
@@ -221,7 +250,10 @@ export function parseLibrary(html: string, region: KindleRegion): LibraryOutcome
  * @returns The parsed book, a sign-in signal, or a contract break.
  */
 export function parseBookPage(
-  html: string, region: KindleRegion, fallbackKey: string, advertisedCount: number | null = null,
+  html: string,
+  region: KindleRegion,
+  fallbackKey: string,
+  advertisedCount: number | null = null,
 ): ParseOutcome {
   if (isSignInPage(html, region)) return { kind: "sign_in" };
 
@@ -233,7 +265,10 @@ export function parseBookPage(
   const truncated = elementContent(annotations, SELECTORS.exportLimit) !== null;
   const blocks = selectAll(annotations, ANNOTATION_CANDIDATES);
   if (blocks.length === 0 && advertisedCount !== 0) {
-    return contractBreak("annotation", { annotations: 0, advertisedCount: advertisedCount ?? -1 });
+    return contractBreak("annotation", {
+      annotations: 0,
+      advertisedCount: advertisedCount ?? -1,
+    });
   }
   const highlights: ParsedHighlight[] = [];
   let missingText = 0;
@@ -246,7 +281,8 @@ export function parseBookPage(
     }
 
     highlights.push({
-      externalId: attribute(block.open, "data-highlight-id") ?? annotationId(block.open),
+      externalId:
+        attribute(block.open, "data-highlight-id") ?? annotationId(block.open),
       text,
       note: elementText(block.content, SELECTORS.annotationNote),
       location: elementText(block.content, SELECTORS.annotationLocation),
@@ -255,7 +291,10 @@ export function parseBookPage(
   }
 
   if (missingText > 0) {
-    return contractBreak("highlightText", { annotations: blocks.length, missingText });
+    return contractBreak("highlightText", {
+      annotations: blocks.length,
+      missingText,
+    });
   }
 
   return {
@@ -263,7 +302,9 @@ export function parseBookPage(
     result: {
       books: [
         {
-          externalKey: bookKeyOf(elementOpen(html, SELECTORS.bookContainer) ?? "") ?? fallbackKey,
+          externalKey:
+            bookKeyOf(elementOpen(html, SELECTORS.bookContainer) ?? "") ??
+            fallbackKey,
           title,
           author: selectText(html, AUTHOR_CANDIDATES),
           truncated,
@@ -285,7 +326,10 @@ export function isSignInPage(html: string, region: KindleRegion): boolean {
   return canonical !== null && region.signInHostPatterns.includes(canonical);
 }
 
-function contractBreak(check: string, counts: Record<string, number>): {
+function contractBreak(
+  check: string,
+  counts: Record<string, number>,
+): {
   readonly kind: "contract_changed";
   readonly diagnostics: ContractDiagnostics;
 } {
@@ -296,7 +340,9 @@ function contractBreak(check: string, counts: Record<string, number>): {
 }
 
 function countText(html: string, candidates: readonly Selector[]): number {
-  return selectAll(html, candidates).filter((element) => textOf(element.content).length > 0).length;
+  return selectAll(html, candidates).filter(
+    (element) => textOf(element.content).length > 0,
+  ).length;
 }
 
 function parseCount(value: string | null): number | null {
@@ -326,7 +372,8 @@ interface Element {
 /** Attributes of an opening tag, keyed by lowercased name, with either quote style or none. */
 function attributesOf(openTag: string): Map<string, string> {
   const attributes = new Map<string, string>();
-  const pattern = /([a-zA-Z_:][-\w:.]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g;
+  const pattern =
+    /([a-zA-Z_:][-\w:.]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g;
   const body = openTag.replace(/^<\s*\/?\s*[a-zA-Z][\w:-]*/, "");
 
   let match: RegExpExecArray | null;
@@ -346,10 +393,16 @@ function matches(openTag: string, selector: Selector): boolean {
   const id = attributes.get("id") ?? null;
 
   if (selector.id !== undefined && id !== selector.id) return false;
-  if (selector.idPrefix !== undefined && (id === null || !id.startsWith(selector.idPrefix))) return false;
+  if (
+    selector.idPrefix !== undefined &&
+    (id === null || !id.startsWith(selector.idPrefix))
+  )
+    return false;
 
   if (selector.className !== undefined) {
-    const tokens = (attributes.get("class") ?? "").split(/\s+/).filter((token) => token.length > 0);
+    const tokens = (attributes.get("class") ?? "")
+      .split(/\s+/)
+      .filter((token) => token.length > 0);
     if (!tokens.includes(selector.className)) return false;
   }
 
@@ -368,7 +421,10 @@ function tagOf(openTag: string): string | null {
  */
 function findElements(html: string, selector: Selector): Element[] {
   const results: Element[] = [];
-  const openPattern = selector.tag === undefined ? /<[a-zA-Z][^>]*>/g : new RegExp(`<${selector.tag}\\b[^>]*>`, "gi");
+  const openPattern =
+    selector.tag === undefined
+      ? /<[a-zA-Z][^>]*>/g
+      : new RegExp(`<${selector.tag}\\b[^>]*>`, "gi");
   let match: RegExpExecArray | null;
 
   while ((match = openPattern.exec(html)) !== null) {
@@ -378,7 +434,11 @@ function findElements(html: string, selector: Selector): Element[] {
     const tag = tagOf(openTag);
     const contentStart = match.index + openTag.length;
 
-    if (tag === null || openTag.endsWith("/>") || VOID_TAGS.has(tag.toLowerCase())) {
+    if (
+      tag === null ||
+      openTag.endsWith("/>") ||
+      VOID_TAGS.has(tag.toLowerCase())
+    ) {
       results.push({ open: openTag, content: "" });
       continue;
     }
@@ -386,14 +446,31 @@ function findElements(html: string, selector: Selector): Element[] {
     const contentEnd = findCloseIndex(html, tag, contentStart);
     if (contentEnd === null) continue;
 
-    results.push({ open: openTag, content: html.slice(contentStart, contentEnd) });
+    results.push({
+      open: openTag,
+      content: html.slice(contentStart, contentEnd),
+    });
     openPattern.lastIndex = contentEnd;
   }
 
   return results;
 }
 
-const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
+const VOID_TAGS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "source",
+  "track",
+  "wbr",
+]);
 
 /** Every element matched by any candidate, deduplicated, in document order. */
 function selectAll(html: string, candidates: readonly Selector[]): Element[] {
@@ -414,7 +491,10 @@ function selectAll(html: string, candidates: readonly Selector[]): Element[] {
 }
 
 /** First element matched by any candidate, or `null`. */
-function selectFirst(html: string, candidates: readonly Selector[]): Element | null {
+function selectFirst(
+  html: string,
+  candidates: readonly Selector[],
+): Element | null {
   for (const candidate of candidates) {
     const found = findElements(html, candidate);
     if (found.length > 0) return found[0] as Element;
@@ -424,7 +504,10 @@ function selectFirst(html: string, candidates: readonly Selector[]): Element | n
 }
 
 /** Visible text of the first candidate that matches with non-blank text, or `null`. */
-function selectText(html: string, candidates: readonly Selector[]): string | null {
+function selectText(
+  html: string,
+  candidates: readonly Selector[],
+): string | null {
   for (const candidate of candidates) {
     const text = elementText(html, candidate);
     if (text !== null) return text;
@@ -434,7 +517,11 @@ function selectText(html: string, candidates: readonly Selector[]): string | nul
 }
 
 /** Index of the `</tag>` that closes the element opened just before `from`, or `null`. */
-function findCloseIndex(html: string, tag: string, from: number): number | null {
+function findCloseIndex(
+  html: string,
+  tag: string,
+  from: number,
+): number | null {
   const pattern = new RegExp(`<(/?)${tag}\\b[^>]*>`, "gi");
   pattern.lastIndex = from;
   let depth = 1;
@@ -473,7 +560,10 @@ function elementText(html: string, selector: Selector): string | null {
 
 /** Value of the first `name="value"` attribute in the fragment, or `null`. */
 function attribute(html: string, name: string): string | null {
-  const pattern = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'\`=<>]+))`, "i");
+  const pattern = new RegExp(
+    `\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'\`=<>]+))`,
+    "i",
+  );
   const match = pattern.exec(html);
   if (match === null) return null;
 
@@ -489,7 +579,8 @@ function attribute(html: string, name: string): string | null {
  * matched on that shape rather than on a `B` prefix, and either as the whole id or embedded in it.
  */
 function bookKeyOf(openTag: string): string | null {
-  const explicit = attribute(openTag, "data-book-key") ?? attribute(openTag, "data-asin");
+  const explicit =
+    attribute(openTag, "data-book-key") ?? attribute(openTag, "data-asin");
   if (explicit !== null) return explicit;
 
   const id = attribute(openTag, "id");
@@ -590,7 +681,10 @@ const NAMED_ENTITIES = new Map<string, number>(
   NAMED_ENTITY_DATA.split(",").map((pair) => {
     const separator = pair.indexOf(":");
 
-    return [pair.slice(0, separator), Number.parseInt(pair.slice(separator + 1), 10)];
+    return [
+      pair.slice(0, separator),
+      Number.parseInt(pair.slice(separator + 1), 10),
+    ];
   }),
 );
 
@@ -598,7 +692,12 @@ const NAMED_ENTITIES = new Map<string, number>(
 function isScalarValue(codePoint: number): boolean {
   const surrogate = codePoint >= 0xd800 && codePoint <= 0xdfff;
 
-  return Number.isInteger(codePoint) && codePoint > 0 && codePoint <= 0x10ffff && !surrogate;
+  return (
+    Number.isInteger(codePoint) &&
+    codePoint > 0 &&
+    codePoint <= 0x10ffff &&
+    !surrogate
+  );
 }
 
 /**
@@ -616,7 +715,9 @@ function decodeEntities(value: string): string {
         ? Number.parseInt(body.slice(2), 16)
         : Number.parseInt(body.slice(1), 10);
 
-      return isScalarValue(codePoint) ? String.fromCodePoint(codePoint) : reference;
+      return isScalarValue(codePoint)
+        ? String.fromCodePoint(codePoint)
+        : reference;
     }
 
     const named = NAMED_ENTITIES.get(body);

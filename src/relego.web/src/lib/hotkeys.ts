@@ -31,7 +31,10 @@ export interface HotkeyHandlers {
  */
 export function useHotkeys(handlers: HotkeyHandlers): void {
   const ref = useRef(handlers);
-  ref.current = handlers;
+
+  useEffect(() => {
+    ref.current = handlers;
+  });
 
   useEffect(() => {
     let chordArmed = false;

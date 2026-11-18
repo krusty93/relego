@@ -7,17 +7,24 @@ test.describe("library", () => {
 
   test("shows shortcut guidance above the book list", async ({ page }) => {
     await expect(page.locator(".hint-line + .table-wrap")).toBeVisible();
-    await expect(page.locator(".hint-line + .table-wrap")).toHaveCSS("margin-top", "16px");
+    await expect(page.locator(".hint-line + .table-wrap")).toHaveCSS(
+      "margin-top",
+      "16px",
+    );
   });
 
   // The shortcuts used to be `onKeyDown` handlers on each row, so they only fired once a
   // row already had DOM focus. A user landing on the page and pressing `j` got nothing.
   // These tests deliberately never call focus() first.
   test.describe("shortcuts work without focusing a row first", () => {
-    test("j and k walk the list, starting at the first row", async ({ page }) => {
+    test("j and k walk the list, starting at the first row", async ({
+      page,
+    }) => {
       const rows = page.locator("tbody tr");
       await expect(rows.first()).toBeVisible();
-      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("BODY");
+      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe(
+        "BODY",
+      );
 
       await page.keyboard.press("j");
       await expect(rows.nth(0)).toBeFocused();
@@ -61,7 +68,9 @@ test.describe("library", () => {
       await expect(page.getByRole("dialog")).toHaveCount(0);
     });
 
-    test("shortcuts stand down while a dialog owns the keyboard", async ({ page }) => {
+    test("shortcuts stand down while a dialog owns the keyboard", async ({
+      page,
+    }) => {
       await expect(page.locator("tbody tr").first()).toBeVisible();
       await page.keyboard.press("n");
       await expect(page.getByRole("dialog", { name: /rename/i })).toBeVisible();
@@ -73,7 +82,9 @@ test.describe("library", () => {
     });
   });
 
-  test("n renames a book and the table picks up the new title", async ({ page }) => {
+  test("n renames a book and the table picks up the new title", async ({
+    page,
+  }) => {
     const row = page.locator("tbody tr").first();
     const original = (await row.locator("td").first().innerText()).trim();
 
@@ -85,7 +96,10 @@ test.describe("library", () => {
     await page.locator("dialog button[type=submit]").click();
     await expect(page.locator("tbody")).toContainText(`${original} (renamed)`);
 
-    await page.locator("tbody tr", { hasText: `${original} (renamed)` }).first().focus();
+    await page
+      .locator("tbody tr", { hasText: `${original} (renamed)` })
+      .first()
+      .focus();
     await page.keyboard.press("n");
     await page.locator("#rename-title").fill(original);
     await page.locator("dialog button[type=submit]").click();

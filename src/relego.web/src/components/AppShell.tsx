@@ -25,10 +25,25 @@ import {
 
 const NAV = [
   { to: "/app", label: "Library", Icon: LibraryIcon, chord: "l" },
-  { to: "/app/highlights", label: "Highlights", Icon: HighlightsIcon, chord: "h" },
+  {
+    to: "/app/highlights",
+    label: "Highlights",
+    Icon: HighlightsIcon,
+    chord: "h",
+  },
   { to: "/app/recaps", label: "Recaps", Icon: RecapsIcon, chord: "r" },
-  { to: "/app/import", label: "Import Highlights", Icon: ImportIcon, chord: "i" },
-  { to: "/app/kindle-sync", label: "Kindle Notebook Sync", Icon: SyncIcon, chord: "y" },
+  {
+    to: "/app/import",
+    label: "Import Highlights",
+    Icon: ImportIcon,
+    chord: "i",
+  },
+  {
+    to: "/app/kindle-sync",
+    label: "Kindle Notebook Sync",
+    Icon: SyncIcon,
+    chord: "y",
+  },
   { to: "/app/settings", label: "Settings", Icon: SettingsIcon, chord: "s" },
 ] as const;
 
@@ -49,7 +64,11 @@ export function AppShell() {
 
   const cycleTheme = useCallback(() => {
     const next = cycle();
-    push(next === "system" ? "Theme follows your system." : `${capitalise(next)} theme.`);
+    push(
+      next === "system"
+        ? "Theme follows your system."
+        : `${capitalise(next)} theme.`,
+    );
   }, [cycle, push]);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -61,7 +80,11 @@ export function AppShell() {
     refetchInterval: 20_000,
     retry: false,
   });
-  const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings, retry: false });
+  const settings = useQuery({
+    queryKey: ["settings"],
+    queryFn: api.settings,
+    retry: false,
+  });
 
   // Sync only asks for attention when the user has to act outside Relego. The Sync page owns this
   // cache entry too, so its faster polling wins while the page is open.
@@ -72,11 +95,13 @@ export function AppShell() {
     retry: false,
   });
   const syncProviderId =
-    syncProviders.data?.find((item) => item.providerId === PREFERRED_SYNC_PROVIDER_ID)?.providerId ??
-    syncProviders.data?.[0]?.providerId;
+    syncProviders.data?.find(
+      (item) => item.providerId === PREFERRED_SYNC_PROVIDER_ID,
+    )?.providerId ?? syncProviders.data?.[0]?.providerId;
   const syncStatus = useQuery({
     queryKey: ["sync", syncProviderId ?? "none"],
-    queryFn: async () => (syncProviderId ? syncApi.status(syncProviderId) : null),
+    queryFn: async () =>
+      syncProviderId ? syncApi.status(syncProviderId) : null,
     enabled: Boolean(syncProviderId),
     refetchInterval: SYNC_ATTENTION_POLL_MS,
     retry: false,
@@ -120,7 +145,10 @@ export function AppShell() {
       group: "Actions",
       label: "Send recap now",
       run: async () => {
-        const sent = await guardSend(api.sendRecapNow, "Could not send the recap.")();
+        const sent = await guardSend(
+          api.sendRecapNow,
+          "Could not send the recap.",
+        )();
         if (!sent) return;
         void queryClient.invalidateQueries({ queryKey: ["recaps"] });
         void queryClient.invalidateQueries({ queryKey: ["status"] });
@@ -132,11 +160,20 @@ export function AppShell() {
       group: "Actions",
       label: "Send test email to your reader",
       run: async () => {
-        const sent = await guardSend(api.testKindleEmail, "Could not send the test email.")();
+        const sent = await guardSend(
+          api.testKindleEmail,
+          "Could not send the test email.",
+        )();
         if (sent) push("Test email sent to your reader.");
       },
     },
-    { id: "theme", group: "Actions", label: "Cycle theme", hint: "t", run: cycleTheme },
+    {
+      id: "theme",
+      group: "Actions",
+      label: "Cycle theme",
+      hint: "t",
+      run: cycleTheme,
+    },
     {
       id: "shortcuts",
       group: "Actions",
@@ -148,7 +185,9 @@ export function AppShell() {
 
   useHotkeys({
     meta: { k: () => setPaletteOpen(true) },
-    goChords: Object.fromEntries(NAV.map((item) => [item.chord, () => go(item.to)])),
+    goChords: Object.fromEntries(
+      NAV.map((item) => [item.chord, () => go(item.to)]),
+    ),
     keys: {
       "/": () => searchRef.current?.focus(),
       "?": () => setSheetOpen(true),
@@ -160,7 +199,8 @@ export function AppShell() {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      if (document.activeElement === searchRef.current) searchRef.current?.blur();
+      if (document.activeElement === searchRef.current)
+        searchRef.current?.blur();
     }
 
     window.addEventListener("keydown", onKeyDown);
@@ -168,7 +208,11 @@ export function AppShell() {
   }, []);
 
   const connected = status.isSuccess;
-  const connectionState = status.isSuccess ? "online" : status.isError ? "offline" : "checking";
+  const connectionState = status.isSuccess
+    ? "online"
+    : status.isError
+      ? "offline"
+      : "checking";
   const serverOrigin = window.location.origin;
   const serverLabel = window.location.host;
 
@@ -184,20 +228,36 @@ export function AppShell() {
             <span className="mark">
               relego<span className="dot">.</span>
             </span>
-            {status.data?.serverVersion ? <small>v{status.data.serverVersion}</small> : null}
-            <span className="beta-badge" title="The web UI is in beta. You may encounter rough edges.">beta</span>
+            {status.data?.serverVersion ? (
+              <small>v{status.data.serverVersion}</small>
+            ) : null}
+            <span
+              className="beta-badge"
+              title="The web UI is in beta. You may encounter rough edges."
+            >
+              beta
+            </span>
           </div>
 
           <nav className="nav" aria-label="Primary">
             {NAV.map(({ to, label, Icon }) => (
-              <NavLink key={to} to={to} end={to === "/app"} className="nav-item">
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/app"}
+                className="nav-item"
+              >
                 <Icon className="icon" />
                 {label}
                 {label === "Library" && status.data ? (
-                  <span className="count">{formatCount(status.data.totalBooks)}</span>
+                  <span className="count">
+                    {formatCount(status.data.totalBooks)}
+                  </span>
                 ) : null}
                 {label === "Highlights" && status.data ? (
-                  <span className="count">{formatCount(status.data.totalHighlights)}</span>
+                  <span className="count">
+                    {formatCount(status.data.totalHighlights)}
+                  </span>
                 ) : null}
                 {to === SYNC_ROUTE && syncNeedsSignIn ? (
                   <>
@@ -220,7 +280,11 @@ export function AppShell() {
               Give feedback
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
-            <button className="nav-item" type="button" onClick={() => setSheetOpen(true)}>
+            <button
+              className="nav-item"
+              type="button"
+              onClick={() => setSheetOpen(true)}
+            >
               <KeyboardIcon className="icon" />
               Shortcuts <kbd>?</kbd>
             </button>
@@ -228,7 +292,11 @@ export function AppShell() {
             <div className="conn" data-state={connectionState}>
               <span className="led" aria-hidden="true" />
               <span className="conn-label">
-                {connected ? "Connected" : status.isError ? "Disconnected" : "Connecting…"}
+                {connected
+                  ? "Connected"
+                  : status.isError
+                    ? "Disconnected"
+                    : "Connecting…"}
               </span>
               <code title={serverOrigin}>{serverLabel}</code>
             </div>
@@ -253,7 +321,10 @@ export function AppShell() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && location.pathname !== "/app/highlights") {
+                  if (
+                    event.key === "Enter" &&
+                    location.pathname !== "/app/highlights"
+                  ) {
                     go("/app/highlights");
                   }
                 }}

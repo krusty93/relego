@@ -1,3 +1,12 @@
 # Shell scripts run inside Linux containers, so they must keep LF even on Windows
 # checkouts - a CRLF shebang makes the kernel report "not found".
 *.sh text eol=lf
+
+# oxfmt writes LF, so keep the JavaScript and TypeScript sources on LF too. Without this a Windows
+# checkout with core.autocrlf=true rewrites every file and `oxfmt --check` fails on clean trees.
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf

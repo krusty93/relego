@@ -21,6 +21,12 @@ indent_size = 2
 [*.json]
 indent_size = 2
 
+# TypeScript / JavaScript files (kept in sync with .oxfmtrc.json, which formats them)
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+indent_size = 2
+max_line_length = 80
+end_of_line = lf
+
 # Powershell files
 [*.ps1]
 indent_size = 2
