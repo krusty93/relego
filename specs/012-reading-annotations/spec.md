@@ -4,7 +4,7 @@
 
 **Created**: 2026-04-18
 
-**Status**: Draft
+**Status**: Revision 1 — spec, plan and tasks approved 2026-11-21; implementation not started
 
 **Input**: User description: "Implement FR-02 of the V1 PRD: preserve highlight text, notes, title/author, source location and timestamps; capture chapters from explicit heading annotations; keep missing data unknown; keep legacy records working." Extended during specification to cover the rest of the annotation vocabulary a reader may already be using: notes, chapter markers, stitched highlights and inline tags.
 
