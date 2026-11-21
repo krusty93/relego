@@ -83,10 +83,7 @@ async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function annotations(
-  bookId: number,
-  filter = "",
-): Promise<Annotation[]> {
+async function annotations(bookId: number, filter = ""): Promise<Annotation[]> {
   const response = await getJson<{ items: Annotation[] }>(
     `/highlights?page=1&pageSize=200&bookId=${bookId}${filter}`,
   );
@@ -141,9 +138,10 @@ test("a heading reads as a heading, and only as the level the payload reports", 
       .filter({ hasText: heading.text });
 
     await expect(card).toHaveCount(1);
-    await expect(
-      card.locator(".hl-heading"),
-    ).toHaveAttribute("data-level", String(heading.headingLevel));
+    await expect(card.locator(".hl-heading")).toHaveAttribute(
+      "data-level",
+      String(heading.headingLevel),
+    );
     await expect(card.locator(".hl-eyebrow")).toHaveText(
       levelWord(heading.headingLevel!),
     );
@@ -290,7 +288,9 @@ test("the tag chips agree with the tag payload and filter to the same annotation
   await chip.click();
 
   await expect(chip).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".tag-filter-chip[data-active=true]")).toHaveCount(1);
+  await expect(page.locator(".tag-filter-chip[data-active=true]")).toHaveCount(
+    1,
+  );
   await expect(page.locator(".hl")).toHaveCount(rowCount(scoped));
 
   // Nothing survives the filter that the payload does not tag, and no dot-marker is left behind

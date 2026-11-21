@@ -9,6 +9,15 @@ using Relego.Cli.Infrastructure;
 
 namespace Relego.Tests.Cli;
 
+// Spectre.Console.Cli renders through the process-wide AnsiConsole.Console, so a class that
+// replaces it to capture output must not run beside another class whose command is still writing.
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class ConsoleOutputCollection
+{
+    public const string Name = "Console output";
+}
+
+[Collection(ConsoleOutputCollection.Name)]
 public sealed class HighlightsCommandTests : IDisposable
 {
     private readonly MockHttpMessageHandler _mockHttp = new();

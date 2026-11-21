@@ -281,8 +281,8 @@ confirm both report the same note, chapter context, stitched grouping and tags.
 - [X] T063 [P] Update the docs site under `src/landing/content/docs/docs/` — `import.md` currently claims only quote, title and author are read; document `.h1`–`.h3`, `.c1`–`.cN`, `.tag`, the retired `[my note] ` prefix, and how to browse by chapter and tag (this is the documentation user story carried as a Polish task)
 - [X] T064 [P] Update `CONTRIBUTING.md`: what a new highlight source must now report (note, position) and why marker interpretation stays on the server
 - [X] T065 [P] Re-read `docs/adr/009-reading-annotations-vocabulary-and-derived-context.md` against the delivered code and correct any drift, including the `[my note] ` cross-links in ADR-005 and ADR-008
-- [ ] T066 Run `dotnet build src/Relego.slnx` and `dotnet test src/Relego.Tests/Relego.Tests.csproj`; fix every failure — warnings are errors per `src/Directory.Build.props`
-- [ ] T067 Run `pnpm run lint`, `pnpm run format:check` and `cd src/relego.web && pnpm test`; fix findings with `pnpm run lint:fix` and `pnpm run format` (never by hand)
+- [X] T066 Run `dotnet build src/Relego.slnx` and `dotnet test src/Relego.Tests/Relego.Tests.csproj`; fix every failure — warnings are errors per `src/Directory.Build.props`
+- [X] T067 Run `pnpm run lint`, `pnpm run format:check` and `cd src/relego.web && pnpm test`; fix findings with `pnpm run lint:fix` and `pnpm run format` (never by hand)
 - [ ] T068 Execute the six scenarios in [quickstart.md](quickstart.md) end to end against a running server and confirm each expected outcome, including the pre-upgrade database run in Scenario 6
 - [ ] T069 Verify SC-014 and SC-016 by hand: every dot-prefixed word written as a tag appears as a tag and none appears as commentary, and the API, web and CLI payloads for one annotation are identical
 
