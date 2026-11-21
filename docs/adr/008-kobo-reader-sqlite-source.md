@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-14
-**Updated:** 2026-06-25 — added the open source-registry extensibility model (§5) and multi-source import behaviour (§3).
+**Updated:** 2026-06-25 — added the open source-registry extensibility model (§5) and multi-source import behaviour (§3); 2026-11-19 — the `[my note] ` prefix handling was revised by ADR-009, so note rows are no longer imported as prefixed highlights.
 
 ## Context
 
@@ -40,6 +40,7 @@ ORDER BY c.Title, b.DateCreated;
 - `Type = note` rows get the existing `[my note]` prefix prepended to their text (mirrors the Kindle parser).
 - `dogear` / text-less rows (plain bookmarks) are skipped, exactly as Kindle bookmarks are.
 - `Hidden` (soft-deleted) rows are skipped.
+- How a note row and its dot-prefixed markers are interpreted, and the retirement of the `[my note] ` prefix described above, is decided in ADR-009.
 - The reader copies `KoboReader.sqlite` to a temporary file before opening it, because the device file may be locked or mounted read-only.
 
 **Rationale**: `KoboReader.sqlite` is the canonical, complete record of all Kobo highlights and is the source used by every established open-source Kobo highlight tool. The `.annot` files are partial, format-inconsistent, and present only for Adobe-DRM titles, adding edge cases for negligible coverage benefit. A single authoritative source keeps the parser focused and testable.
