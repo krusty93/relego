@@ -4,11 +4,27 @@ import { useNavigate, useParams } from "react-router";
 import { AsyncSection, EmptyState, Tag, WeightPips } from "../components/ui";
 import { api } from "../lib/api";
 import { copyToClipboard } from "../lib/clipboard";
-import { plural } from "../lib/format";
+import {
+  describeChapterPath,
+  describeHeadingLevel,
+  formatCount,
+  plural,
+} from "../lib/format";
 import { useListKeys } from "../lib/listkeys";
 import { useDebounced, useSearch } from "../lib/search";
 import { useToasts } from "../lib/toasts";
-import type { BookItem, HighlightItem } from "../lib/types";
+import type {
+  BookItem,
+  ChapterItem,
+  HighlightItem,
+  UnknownChapterItem,
+} from "../lib/types";
+
+/** The chapter the list is narrowed to; `null` is the whole book. */
+type ChapterFilter = number | "unknown" | null;
+
+/** Stable identity, so downstream `useMemo`s do not re-run on every render. */
+const NO_CHAPTERS: ChapterItem[] = [];
 
 /** A drag that selects text also fires a click; expanding then would swallow the selection. */
 function isSelectingWithin(container: HTMLElement): boolean {
@@ -30,11 +46,31 @@ export function HighlightsPage() {
   const [openId, setOpenId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [cursor, setCursor] = useState(0);
+  const [chapterFilter, setChapterFilter] = useState<ChapterFilter>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // The server narrows the list, so the whole book arrives in one page rather than
+  // being filtered here: chapter paths are derived from every annotation in the book.
+  const scope = useMemo(
+    () =>
+      bookId === null
+        ? undefined
+        : chapterFilter === null
+          ? { bookId }
+          : { bookId, chapterId: chapterFilter },
+    [bookId, chapterFilter],
+  );
+
   const highlights = useQuery({
-    queryKey: ["highlights", debounced],
-    queryFn: () => api.highlights(debounced || undefined),
+    queryKey: ["highlights", debounced, scope],
+    queryFn: () => api.highlights(debounced || undefined, 1, 200, scope),
+    retry: false,
+  });
+
+  const toc = useQuery({
+    queryKey: ["chapters", bookId],
+    queryFn: async () => api.chapters(bookId as number),
+    enabled: bookId !== null,
     retry: false,
   });
 
@@ -74,10 +110,37 @@ export function HighlightsPage() {
     return bookId ? all.filter((item) => item.bookId === bookId) : all;
   }, [highlights.data, bookId]);
 
+  const chapters = useMemo(
+    () => (toc.data?.hasTableOfContents ? toc.data.chapters : NO_CHAPTERS),
+    [toc.data],
+  );
+  // Only children add to the total: a parent already counts its descendants.
+  const bookTotal = useMemo(
+    () =>
+      chapters
+        .filter((chapter) => chapter.parentId === null)
+        .reduce((sum, chapter) => sum + chapter.annotationCount, 0) +
+      (toc.data?.unknownChapter.annotationCount ?? 0),
+    [chapters, toc.data],
+  );
+
+  const activeChapter: ChapterItem | UnknownChapterItem | null =
+    chapterFilter === null
+      ? null
+      : chapterFilter === "unknown"
+        ? (toc.data?.unknownChapter ?? null)
+        : (chapters.find((chapter) => chapter.id === chapterFilter) ?? null);
+
   useEffect(() => {
     setCursor(0);
     setOpenId(null);
-  }, [debounced, bookId]);
+  }, [debounced, bookId, chapterFilter]);
+
+  // A chapter belongs to one book; carrying the filter into another would show an
+  // empty list with no visible cause.
+  useEffect(() => {
+    setChapterFilter(null);
+  }, [bookId]);
 
   // A pending delete confirmation belongs to one open row; collapsing or moving
   // to another row must not leave a live "Yes, delete" behind.
@@ -248,7 +311,14 @@ export function HighlightsPage() {
           <p className="muted">
             {book ? (
               <>
-                {book.authorName} · {plural(items.length, "highlight")} ·{" "}
+                {book.authorName} · {plural(items.length, "highlight")}
+                {activeChapter ? (
+                  <>
+                    {" in "}
+                    <b>{activeChapter.title}</b>
+                  </>
+                ) : null}{" "}
+                ·{" "}
                 {book.excluded ? (
                   <Tag tone="excluded">Excluded</Tag>
                 ) : (
@@ -300,13 +370,42 @@ export function HighlightsPage() {
         </div>
       </div>
 
+      {toc.data ? (
+        <TableOfContents
+          chapters={chapters}
+          unknown={toc.data.unknownChapter}
+          total={bookTotal}
+          selected={chapterFilter}
+          onSelect={setChapterFilter}
+        />
+      ) : null}
+
       <AsyncSection
         isLoading={isLoading}
         error={highlights.error ?? weights.error ?? exclusions.error}
         onRetry={() => void highlights.refetch()}
         isEmpty={items.length === 0}
         empty={
-          debounced ? (
+          activeChapter ? (
+            <EmptyState
+              title="No highlights here"
+              action={
+                <button
+                  className="btn btn--sm"
+                  type="button"
+                  onClick={() => setChapterFilter(null)}
+                >
+                  Show the whole book
+                </button>
+              }
+            >
+              {debounced
+                ? `Nothing in “${activeChapter.title}” matches “${debounced}”.`
+                : toc.data?.hasTableOfContents
+                  ? `“${activeChapter.title}” has nothing of its own. Pick another entry in the contents above.`
+                  : `“${activeChapter.title}” has nothing of its own yet.`}
+            </EmptyState>
+          ) : debounced ? (
             <EmptyState title="No highlights match that search">
               Nothing matches “{debounced}”. Try a shorter word, or clear the
               search box.
@@ -366,12 +465,34 @@ export function HighlightsPage() {
                   }}
                 >
                   <span>
-                    {item.text ? (
+                    {item.headingLevel !== null ? (
+                      <span
+                        className="hl-heading"
+                        data-level={item.headingLevel}
+                      >
+                        <span className="hl-eyebrow">
+                          {describeHeadingLevel(item.headingLevel)}
+                        </span>
+                        <span className="hl-quote hl-quote--heading">
+                          {item.text}
+                        </span>
+                      </span>
+                    ) : item.text ? (
                       <span className="hl-quote">{item.text}</span>
                     ) : null}
                     {item.note ? (
-                      <span className="hl-note">
-                        <span className="sr-only">Note: </span>
+                      <span
+                        className={
+                          item.headingLevel !== null
+                            ? "hl-note hl-note--summary"
+                            : "hl-note"
+                        }
+                      >
+                        <span className="sr-only">
+                          {item.headingLevel !== null
+                            ? "Section summary: "
+                            : "Note: "}
+                        </span>
                         {item.note}
                       </span>
                     ) : null}
@@ -383,6 +504,14 @@ export function HighlightsPage() {
                             : item.bookTitle}
                         </span>
                       )}
+                      {/* The heading is its own chapter, so its path would only repeat it. */}
+                      {item.chapterPath.length > 0 &&
+                      item.headingLevel === null ? (
+                        <span className="subtle hl-crumb">
+                          <span className="sr-only">Chapter: </span>
+                          {describeChapterPath(item.chapterPath)}
+                        </span>
+                      ) : null}
                       {excluded ? <Tag tone="excluded">Excluded</Tag> : null}
                     </span>
                   </span>
@@ -475,5 +604,92 @@ export function HighlightsPage() {
         </div>
       </AsyncSection>
     </section>
+  );
+}
+
+/**
+ * The book's chapter structure as a filterable contents list. Levels nest by indentation
+ * rather than nesting lists: the reading order is already linear, and a flat list of
+ * buttons keeps the keyboard path obvious.
+ */
+function TableOfContents({
+  chapters,
+  unknown,
+  total,
+  selected,
+  onSelect,
+}: {
+  chapters: ChapterItem[];
+  unknown: UnknownChapterItem;
+  total: number;
+  selected: ChapterFilter;
+  onSelect: (next: ChapterFilter) => void;
+}) {
+  // Books without a level-1 heading have no table of contents at all: `.h2`/`.h3` alone
+  // is not a structure a reader can navigate.
+  if (chapters.length === 0) return null;
+
+  return (
+    <nav className="toc" aria-labelledby="toc-h">
+      <div className="toc-head">
+        <h2 className="toc-title" id="toc-h">
+          Contents
+        </h2>
+        <span className="subtle">
+          {plural(chapters.length, "chapter")} in this book
+        </span>
+      </div>
+
+      <ul className="toc-list">
+        <li>
+          <button
+            className="toc-entry"
+            type="button"
+            aria-current={selected === null ? "true" : undefined}
+            onClick={() => onSelect(null)}
+          >
+            <span className="toc-label">All highlights</span>
+            <span className="toc-count">{formatCount(total)}</span>
+          </button>
+        </li>
+
+        {chapters.map((chapter) => (
+          <li key={chapter.id} data-level={Math.min(chapter.level, 4)}>
+            <button
+              className="toc-entry"
+              type="button"
+              aria-current={selected === chapter.id ? "true" : undefined}
+              onClick={() => onSelect(chapter.id)}
+            >
+              <span className="toc-label">
+                <span className="sr-only">
+                  {describeHeadingLevel(chapter.level)}:{" "}
+                </span>
+                {chapter.title}
+              </span>
+              <span className="toc-count">
+                {formatCount(chapter.annotationCount)}
+              </span>
+            </button>
+          </li>
+        ))}
+
+        {unknown.annotationCount > 0 ? (
+          <li data-level={1}>
+            <button
+              className="toc-entry toc-entry--unknown"
+              type="button"
+              aria-current={selected === "unknown" ? "true" : undefined}
+              onClick={() => onSelect("unknown")}
+            >
+              <span className="toc-label">{unknown.title}</span>
+              <span className="toc-count">
+                {formatCount(unknown.annotationCount)}
+              </span>
+            </button>
+          </li>
+        ) : null}
+      </ul>
+    </nav>
   );
 }

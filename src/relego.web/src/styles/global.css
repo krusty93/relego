@@ -739,6 +739,125 @@ td {
 }
 
 /* ---------------------------------------------------------- Highlights */
+/* Contents: the book's own structure, set as a typographic list of leaders rather than a
+   filter bar, so it reads as the book and not as chrome above it. */
+.toc {
+  margin-bottom: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.toc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.toc-title {
+  font-family: var(--font-quote);
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+
+.toc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Contents pages are scanned, not read: two columns keep a forty-chapter book from
+     pushing the list itself below the fold. */
+  columns: 2;
+  column-gap: var(--sp-6);
+}
+
+@media (max-width: 720px) {
+  .toc-list {
+    columns: 1;
+  }
+}
+
+.toc-list > li {
+  break-inside: avoid;
+}
+
+.toc-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-1) var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+
+.toc-list > li[data-level="2"] .toc-entry {
+  padding-left: var(--sp-4);
+}
+
+.toc-list > li[data-level="3"] .toc-entry {
+  padding-left: var(--sp-6);
+}
+
+.toc-list > li[data-level="4"] .toc-entry {
+  padding-left: var(--sp-7);
+}
+
+.toc-entry:hover {
+  color: var(--ink);
+  background: var(--accent-wash);
+}
+
+.toc-entry:focus-visible {
+  outline-offset: -2px;
+}
+
+.toc-entry[aria-current="true"] {
+  color: var(--ink);
+  background: var(--accent-wash);
+  font-weight: 550;
+}
+
+.toc-entry--unknown .toc-label {
+  font-style: italic;
+}
+
+.toc-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+/* The leader: without it the eye loses the row halfway across a wide column. */
+.toc-label::after {
+  content: "";
+  flex: 1 1 auto;
+  min-width: var(--sp-3);
+  transform: translateY(-0.2em);
+  border-bottom: 1px dotted var(--border-strong);
+}
+
+.toc-count {
+  color: var(--ink-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.toc-entry[aria-current="true"] .toc-count {
+  color: var(--accent-ink);
+}
+
 .hl-list {
   display: flex;
   flex-direction: column;
@@ -821,12 +940,54 @@ td {
   overflow: hidden;
 }
 
+/* A heading annotation is the book's own structure, not a passage: it reads as a section
+   title with its summary under it, so it is scanned rather than weighted. */
+.hl-heading {
+  display: block;
+  cursor: text;
+}
+
+.hl-eyebrow {
+  display: block;
+  margin-bottom: var(--sp-1);
+  color: var(--ink-subtle);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hl-quote--heading {
+  font-size: var(--t-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.hl[data-open="false"] .hl-quote--heading {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.hl-note--summary {
+  margin-top: var(--sp-2);
+  padding-left: 0;
+  border-left: 0;
+  font-style: italic;
+}
+
 .hl-meta {
   display: flex;
   gap: var(--sp-3);
   align-items: center;
   margin-top: var(--sp-2);
   flex-wrap: wrap;
+}
+
+.hl-crumb {
+  /* Chapter paths get as long as the book is deep; break rather than push the pips out. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .hl-side {

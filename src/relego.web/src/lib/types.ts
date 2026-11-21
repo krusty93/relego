@@ -61,6 +61,43 @@ export interface HighlightsResponse {
   items: HighlightItem[];
 }
 
+/** One real heading in a book, keyed by the annotation that titles it. */
+export interface ChapterItem {
+  /** The titling annotation's id. */
+  id: number;
+  title: string;
+  /** 1–3, from the `.h1`–`.h3` marker. */
+  level: number;
+  /** Nearest preceding chapter with a strictly smaller level; null for a top-level chapter. */
+  parentId: number | null;
+  /** Every annotation in this chapter and its descendants, the titling one included. */
+  annotationCount: number;
+  /** The section summary: the titling annotation's note. */
+  note: string | null;
+  position: string | null;
+  addedOn: string | null;
+}
+
+/** Annotations before the first heading. Always present, with `id: null`. */
+export interface UnknownChapterItem {
+  id: null;
+  title: string;
+  level: number;
+  parentId: null;
+  annotationCount: number;
+  note: null;
+  position: null;
+  addedOn: null;
+}
+
+export interface TableOfContentsResponse {
+  bookId: number;
+  /** Only a book with at least one level-1 heading has a table of contents. */
+  hasTableOfContents: boolean;
+  chapters: ChapterItem[];
+  unknownChapter: UnknownChapterItem;
+}
+
 export interface WeightedHighlight {
   id: number;
   text: string;

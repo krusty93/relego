@@ -78,6 +78,7 @@ builder.Services.AddScoped<WeightRepository>();
 builder.Services.AddScoped<RecapRepository>();
 builder.Services.AddScoped<HighlightRepository>();
 builder.Services.AddScoped<BookRepository>();
+builder.Services.AddScoped<AnnotationContextService>();
 builder.Services.AddScoped<SmtpSettingsRepository>();
 builder.Services.AddScoped<SmtpConfigurationService>();
 builder.Services.AddScoped<UploadImportService>();

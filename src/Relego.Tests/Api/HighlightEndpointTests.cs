@@ -279,6 +279,167 @@ public sealed class HighlightEndpointTests : IDisposable
         Assert.Contains("pageSize", body);
     }
 
+    [Fact]
+    public async Task GetHighlights_ChapterFields_ReportHeadingAndChapterContext()
+    {
+        await SeedChapteredBookAsync();
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        Assert.NotNull(result);
+        Assert.Equal(5, result.Total);
+
+        var heading = Assert.Single(result.Items, item => item.Text == "Foundations");
+        var headingPassage = Assert.Single(result.Items, item => item.Text == "Foundations passage");
+        var subheading = Assert.Single(result.Items, item => item.Text == "The Eight Fallacies");
+        var subheadingPassage = Assert.Single(result.Items, item => item.Text == "The Eight Fallacies passage");
+        var beforeChapter = Assert.Single(result.Items, item => item.Text == "Before the chapter");
+
+        Assert.Equal(1, heading.HeadingLevel);
+        Assert.Equal(heading.Id, heading.ChapterId);
+        Assert.Equal(new[] { "Foundations" }, heading.ChapterPath);
+        Assert.Equal(heading.Text, heading.ChapterPath[^1]);
+
+        Assert.Null(headingPassage.HeadingLevel);
+        Assert.Equal(heading.Id, headingPassage.ChapterId);
+        Assert.Equal(new[] { "Foundations" }, headingPassage.ChapterPath);
+
+        Assert.Equal(2, subheading.HeadingLevel);
+        Assert.Equal(subheading.Id, subheading.ChapterId);
+        Assert.Equal(new[] { "Foundations", "The Eight Fallacies" }, subheading.ChapterPath);
+
+        Assert.Null(subheadingPassage.HeadingLevel);
+        Assert.Equal(subheading.Id, subheadingPassage.ChapterId);
+        Assert.Equal(new[] { "Foundations", "The Eight Fallacies" }, subheadingPassage.ChapterPath);
+
+        Assert.Null(beforeChapter.HeadingLevel);
+        Assert.Null(beforeChapter.ChapterId);
+        Assert.Empty(beforeChapter.ChapterPath);
+    }
+
+    [Fact]
+    public async Task GetHighlights_WithoutAnyHeading_ReportsNullChapterAndEmptyPath()
+    {
+        await ImportAsync(new SyncHighlightRequest { Text = "A plain passage." });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        var item = Assert.Single(result!.Items);
+        Assert.Null(item.HeadingLevel);
+        Assert.Null(item.ChapterId);
+        Assert.Empty(item.ChapterPath);
+    }
+
+    [Fact]
+    public async Task GetHighlights_FilterByBook_ReturnsOnlyThatBooksItems()
+    {
+        await SeedHighlightsAsync();
+
+        var alphaBookId = await GetBookIdByTitleAsync("Book Alpha");
+        var betaBookId = await GetBookIdByTitleAsync("Book Beta");
+
+        var alpha = await _client.GetFromJsonAsync<HighlightsResponse>($"/highlights?bookId={alphaBookId}");
+        var beta = await _client.GetFromJsonAsync<HighlightsResponse>($"/highlights?bookId={betaBookId}");
+
+        Assert.NotNull(alpha);
+        Assert.Equal(2, alpha.Total);
+        Assert.Equal(2, alpha.Items.Count);
+        Assert.All(alpha.Items, item => Assert.Equal(alphaBookId, item.BookId));
+        Assert.DoesNotContain(alpha.Items, item => item.BookTitle == "Book Beta");
+
+        Assert.NotNull(beta);
+        Assert.Equal(1, beta.Total);
+        Assert.Single(beta.Items);
+        Assert.All(beta.Items, item => Assert.Equal(betaBookId, item.BookId));
+    }
+
+    [Fact]
+    public async Task GetHighlights_FilterByChapterId_ReturnsChapterSection()
+    {
+        await SeedSingleChapterBookAsync();
+
+        var bookId = await GetBookIdByTitleAsync("Book Single Chapter");
+        var all = await _client.GetFromJsonAsync<HighlightsResponse>($"/highlights?bookId={bookId}");
+        var chapterId = Assert.Single(all!.Items, item => item.HeadingLevel == 1).Id;
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>(
+            $"/highlights?bookId={bookId}&chapterId={chapterId}");
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Total);
+        Assert.Equal(2, result.Items.Count);
+        Assert.All(result.Items, item => Assert.Equal(chapterId, item.ChapterId));
+        Assert.Contains(result.Items, item => item.HeadingLevel == 1);
+        Assert.Contains(result.Items, item => item.Text == "Inside the chapter");
+        Assert.DoesNotContain(result.Items, item => item.Text == "Before any chapter");
+    }
+
+    [Fact]
+    public async Task GetHighlights_FilterByUnknownChapter_ReturnsAnnotationsBeforeFirstHeading()
+    {
+        await SeedSingleChapterBookAsync();
+
+        var bookId = await GetBookIdByTitleAsync("Book Single Chapter");
+        var all = await _client.GetFromJsonAsync<HighlightsResponse>($"/highlights?bookId={bookId}");
+        var chapterId = Assert.Single(all!.Items, item => item.HeadingLevel == 1).Id;
+
+        var chapter = await _client.GetFromJsonAsync<HighlightsResponse>(
+            $"/highlights?bookId={bookId}&chapterId={chapterId}");
+        var unknown = await _client.GetFromJsonAsync<HighlightsResponse>(
+            $"/highlights?bookId={bookId}&chapterId=unknown");
+
+        Assert.NotNull(chapter);
+        Assert.NotNull(unknown);
+        Assert.Equal(2, chapter.Total);
+        Assert.Equal(1, unknown.Total);
+        Assert.Equal(all.Total, chapter.Total + unknown.Total);
+
+        var item = Assert.Single(unknown.Items);
+        Assert.Equal("Before any chapter", item.Text);
+        Assert.Null(item.HeadingLevel);
+        Assert.Null(item.ChapterId);
+        Assert.Empty(item.ChapterPath);
+    }
+
+    [Fact]
+    public async Task GetHighlights_ChapterIdWithoutBook_IsIgnored()
+    {
+        await SeedSingleChapterBookAsync();
+
+        var all = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+        var chapterId = Assert.Single(all!.Items, item => item.HeadingLevel == 1).Id;
+
+        var response = await _client.GetAsync($"/highlights?chapterId={chapterId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<HighlightsResponse>();
+        Assert.NotNull(result);
+        Assert.Equal(all.Total, result.Total);
+        Assert.Equal(all.Items.Count, result.Items.Count);
+    }
+
+    [Fact]
+    public async Task GetHighlights_BookFilterNoMatch_ReturnsEmptyList()
+    {
+        await SeedHighlightsAsync();
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights?bookId=9999");
+
+        Assert.NotNull(result);
+        Assert.Equal(0, result.Total);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public async Task GetHighlights_BookIdZero_Returns422()
+    {
+        var response = await _client.GetAsync("/highlights?bookId=0");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("bookId", body);
+    }
+
     private async Task SeedProvenanceAsync(int highlightId)
     {
         var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
@@ -349,5 +510,62 @@ public sealed class HighlightEndpointTests : IDisposable
         });
 
         response.EnsureSuccessStatusCode();
+    }
+
+    private async Task SeedChapteredBookAsync()
+    {
+        var response = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
+        {
+            Books =
+            [
+                new SyncBookRequest
+                {
+                    Title = "Book Chapters",
+                    Author = "Author Chapters",
+                    Highlights =
+                    [
+                        new SyncHighlightRequest { Text = "Before the chapter" },
+                        new SyncHighlightRequest { Text = "Foundations", Note = ".h1" },
+                        new SyncHighlightRequest { Text = "Foundations passage" },
+                        new SyncHighlightRequest { Text = "The Eight Fallacies", Note = ".h2" },
+                        new SyncHighlightRequest { Text = "The Eight Fallacies passage" }
+                    ]
+                }
+            ]
+        });
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task SeedSingleChapterBookAsync()
+    {
+        var response = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
+        {
+            Books =
+            [
+                new SyncBookRequest
+                {
+                    Title = "Book Single Chapter",
+                    Author = "Author Single Chapter",
+                    Highlights =
+                    [
+                        new SyncHighlightRequest { Text = "Before any chapter" },
+                        new SyncHighlightRequest { Text = "Only Chapter", Note = ".h1" },
+                        new SyncHighlightRequest { Text = "Inside the chapter" }
+                    ]
+                }
+            ]
+        });
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task<int> GetBookIdByTitleAsync(string title)
+    {
+        var books = await _client.GetFromJsonAsync<BooksResponse>("/books");
+
+        Assert.NotNull(books);
+        var book = Assert.Single(books.Items, item => item.Title == title);
+        return book.Id;
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Globalization;
+using Microsoft.AspNetCore.Mvc;
 using Relego.Core.Contracts;
 using Relego.Server.Data;
 
@@ -13,7 +14,9 @@ public static class HighlightEndpoints
             [FromServices] HighlightRepository highlightRepo,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 50,
-            [FromQuery] string? q = null) =>
+            [FromQuery] string? q = null,
+            [FromQuery] int? bookId = null,
+            [FromQuery] string? chapterId = null) =>
         {
             if (page < 1)
             {
@@ -29,13 +32,48 @@ public static class HighlightEndpoints
                     statusCode: StatusCodes.Status422UnprocessableEntity);
             }
 
+            if (bookId is <= 0)
+            {
+                return Results.ValidationProblem(
+                    new Dictionary<string, string[]> { { "bookId", ["bookId must be greater than 0."] } },
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+
+            int? chapterFilterId = null;
+            var unknownChapter = false;
+
+            if (!string.IsNullOrWhiteSpace(chapterId))
+            {
+                if (string.Equals(chapterId.Trim(), "unknown", StringComparison.OrdinalIgnoreCase))
+                {
+                    unknownChapter = true;
+                }
+                else if (int.TryParse(chapterId.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedChapterId) && parsedChapterId > 0)
+                {
+                    chapterFilterId = parsedChapterId;
+                }
+                else
+                {
+                    return Results.ValidationProblem(
+                        new Dictionary<string, string[]> { { "chapterId", ["chapterId must be a chapter id or the literal \"unknown\"."] } },
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+            }
+
+            // Chapters belong to a book, so a chapter filter without one selects nothing extra.
+            if (bookId is null)
+            {
+                chapterFilterId = null;
+                unknownChapter = false;
+            }
+
             var userId = await userRepo.EnsureUserAsync();
-            var result = await highlightRepo.GetHighlightsAsync(userId, page, pageSize, q);
+            var result = await highlightRepo.GetHighlightsAsync(userId, page, pageSize, q, bookId, chapterFilterId, unknownChapter);
             return Results.Ok(result);
         })
         .WithTags("Highlights")
         .WithSummary("List highlights.")
-        .WithDescription("Returns a paginated, optionally filtered list of highlights stored in the database.")
+        .WithDescription("Returns a paginated, optionally filtered list of highlights. Filter by book with bookId, and narrow it to a chapter with chapterId (a chapter id or the literal unknown).")
         .Produces<HighlightsResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
