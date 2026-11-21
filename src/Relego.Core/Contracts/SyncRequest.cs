@@ -46,4 +46,16 @@ public sealed record SyncHighlightRequest
     /// Original clipping timestamp from the source, when available.
     /// </summary>
     public DateTimeOffset? AddedOn { get; set; }
+
+    /// <summary>
+    /// Reader note attached to the passage, markers included, or <c>null</c> when the annotation
+    /// carries none. An annotation that is only a note sends <see cref="Text"/> empty.
+    /// </summary>
+    public string? Note { get; set; }
+
+    /// <summary>
+    /// Reading position as reported by the source (for example <c>Location 1234-1236</c>), or
+    /// <c>null</c> when the source reports none.
+    /// </summary>
+    public string? Position { get; set; }
 }

@@ -219,32 +219,22 @@ public sealed class KoboReaderSource : IHighlightSource
             }
 
             var isNote = string.Equals(row.Type, "note", StringComparison.OrdinalIgnoreCase);
-            string text;
-            if (isNote)
+            if (!hasText && !isNote)
             {
-                // The user's typed comment (Annotation) is the note; fall back to the anchored
-                // passage (Text) when the annotation is empty. The "[my note] " prefix is applied
-                // by HighlightAggregator (same as the Kindle path) so notes are indistinguishable.
-                text = hasAnnotation ? row.Annotation! : row.Text!;
-            }
-            else
-            {
-                if (!hasText)
-                {
-                    skipped++;
-                    continue;
-                }
-
-                text = row.Text!;
+                skipped++;
+                continue;
             }
 
+            // A Kobo note keeps its anchored passage as the text and the typed comment as the note,
+            // so the note reaches the annotation identity with its own position. An annotation with
+            // no passage becomes a note-only annotation.
             clippings.Add(new RawClipping(
                 Title: row.Title,
                 Author: NormalizeAuthor(row.Author),
-                IsNote: isNote,
                 Location: null,
                 AddedOn: ParseDate(row.DateCreated),
-                Text: text));
+                Text: hasText ? row.Text! : string.Empty,
+                Note: hasAnnotation ? row.Annotation : null));
         }
 
         if (skipped > 0)

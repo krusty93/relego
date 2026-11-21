@@ -174,7 +174,9 @@ public sealed class ClippingsImportWorkflow(
                 Highlights = book.Highlights.Select(highlight => new SyncHighlightRequest
                 {
                     Text = highlight.Text,
-                    AddedOn = highlight.AddedOn
+                    AddedOn = highlight.AddedOn,
+                    Note = highlight.Note,
+                    Position = highlight.Position
                 }).ToList()
             }).ToList()
         };

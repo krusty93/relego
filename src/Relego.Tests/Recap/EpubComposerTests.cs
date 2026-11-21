@@ -292,6 +292,55 @@ public sealed class EpubComposerTests
         Assert.DoesNotContain("<li>", xhtml);
     }
 
+    [Fact]
+    public void Compose_HighlightsXhtml_RendersNoteBeneathItsPassage()
+    {
+        var highlights = new List<SelectionCandidate>
+        {
+            new(1, "Simplicity is prerequisite for reliability.", "Book Alpha", "Author One", 4, null, RecapDate.AddDays(-2), 9, "the whole design principle in one line"),
+        };
+
+        var epub = EpubComposer.Compose(highlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+        var xhtml = ReadEntry(archive, "OEBPS/highlights.xhtml");
+
+        Assert.Contains("<p class=\"note\">the whole design principle in one line</p>", xhtml);
+        var passageIndex = xhtml.IndexOf("Simplicity is prerequisite", StringComparison.Ordinal);
+        var noteIndex = xhtml.IndexOf("the whole design principle", StringComparison.Ordinal);
+        Assert.True(passageIndex < noteIndex, "Note should follow its passage");
+    }
+
+    [Fact]
+    public void Compose_HighlightsXhtml_OmitsNoteElementWhenAnnotationHasNoNote()
+    {
+        var epub = EpubComposer.Compose(SampleHighlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+        var xhtml = ReadEntry(archive, "OEBPS/highlights.xhtml");
+
+        Assert.DoesNotContain("class=\"note\"", xhtml);
+    }
+
+    [Fact]
+    public void Compose_HighlightsXhtml_EscapesNoteCharacters()
+    {
+        var highlights = new List<SelectionCandidate>
+        {
+            new(1, "Passage.", "Book", "Author", 3, null, RecapDate, 5, "note with <tags> & \"quotes\""),
+        };
+
+        var epub = EpubComposer.Compose(highlights, RecapDate, "daily");
+
+        using var stream = new MemoryStream(epub);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+        var xhtml = ReadEntry(archive, "OEBPS/highlights.xhtml");
+
+        Assert.Contains("note with &lt;tags&gt; &amp; &quot;quotes&quot;", xhtml);
+    }
+
     private static string ReadEntry(ZipArchive archive, string path)
     {
         var entry = archive.GetEntry(path);

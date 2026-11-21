@@ -35,9 +35,23 @@ export interface HighlightItem {
   id: number;
   bookId: number;
   authorId: number;
+  /** The highlighted passage. Empty when the annotation is a note with no passage. */
   text: string;
   bookTitle: string;
-  authorName: string;
+  /** null when the source reported no author for the book. */
+  authorName: string | null;
+  /** The reader's note with its markers stripped; null when the annotation has none. */
+  note: string | null;
+  tags: string[];
+  headingLevel: number | null;
+  chapterId: number | null;
+  chapterPath: string[];
+  stitchGroupId: number | null;
+  stitchIndex: number | null;
+  stitchedText: string | null;
+  /** Reading position as the source reported it, e.g. "Location 1234-1236". */
+  position: string | null;
+  addedOn: string | null;
 }
 
 export interface HighlightsResponse {

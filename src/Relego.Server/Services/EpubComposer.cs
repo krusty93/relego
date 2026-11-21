@@ -152,7 +152,10 @@ public static class EpubComposer
 
         foreach (var h in highlights)
         {
-            sb.AppendLine($"<li><blockquote>{EscapeXml(h.Text)}</blockquote><p><em>{EscapeXml(h.BookTitle)}</em> by {EscapeXml(h.AuthorName)}</p></li>");
+            var note = string.IsNullOrWhiteSpace(h.Note)
+                ? string.Empty
+                : $"<p class=\"note\">{EscapeXml(h.Note)}</p>";
+            sb.AppendLine($"<li><blockquote>{EscapeXml(h.Text)}</blockquote>{note}<p><em>{EscapeXml(h.BookTitle)}</em> by {EscapeXml(h.AuthorName)}</p></li>");
         }
 
         sb.AppendLine("</ul>");
@@ -160,8 +163,10 @@ public static class EpubComposer
         return sb.ToString();
     }
 
-    private static string EscapeXml(string text) =>
-        text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+    private static string EscapeXml(string? text) =>
+        text is null
+            ? string.Empty
+            : text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
 
     private static byte[] ReadEmbeddedBinary(string resourceName)
     {

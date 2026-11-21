@@ -8,4 +8,5 @@ public sealed record SelectionCandidate(
     int Weight,
     DateTimeOffset? LastSeen,
     DateTimeOffset CreatedAt,
-    int Score);
+    int Score,
+    string? Note = null);

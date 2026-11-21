@@ -32,8 +32,12 @@ public static class SyncEndpoints
                 {
                     for (var j = 0; j < book.Highlights.Count; j++)
                     {
-                        if (string.IsNullOrWhiteSpace(book.Highlights[j].Text))
-                            errors[$"books[{i}].highlights[{j}].text"] = ["Highlight text must not be empty or whitespace."];
+                        var highlight = book.Highlights[j];
+                        var isNoteOnly = string.IsNullOrWhiteSpace(highlight.Text)
+                            && !string.IsNullOrWhiteSpace(highlight.Note);
+
+                        if (!isNoteOnly && string.IsNullOrWhiteSpace(highlight.Text))
+                            errors[$"books[{i}].highlights[{j}].text"] = ["Highlight text must not be empty or whitespace unless a note carries the content."];
                     }
                 }
             }

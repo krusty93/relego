@@ -128,10 +128,17 @@ public static partial class ClippingsParser
         // Bookmarks have no text — return with empty text so caller can filter
         if (isBookmark)
         {
-            return new RawClipping(title, author, IsNote: false, location, addedOn, Text: string.Empty);
+            return new RawClipping(title, author, location, addedOn, Text: string.Empty);
         }
 
-        return new RawClipping(title, author, isNote, location, addedOn, text);
+        // A Kindle note annotates a passage that arrives as a separate clipping at the same
+        // position, so the note itself carries no passage.
+        if (isNote)
+        {
+            return new RawClipping(title, author, location, addedOn, Text: string.Empty, Note: text);
+        }
+
+        return new RawClipping(title, author, location, addedOn, text);
     }
 
     private static (string Title, string? Author) ExtractTitleAndAuthor(string titleLine)

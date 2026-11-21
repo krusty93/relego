@@ -63,7 +63,83 @@ public sealed class HighlightEndpointTests : IDisposable
         Assert.True(item.AuthorId > 0);
         Assert.NotEmpty(item.Text);
         Assert.NotEmpty(item.BookTitle);
-        Assert.NotEmpty(item.AuthorName);
+        Assert.False(string.IsNullOrWhiteSpace(item.AuthorName));
+        Assert.Null(item.Note);
+        Assert.Empty(item.Tags);
+    }
+
+    [Fact]
+    public async Task GetHighlights_NoteFromImport_RoundTripsNoteAndPosition()
+    {
+        await ImportAsync(new SyncHighlightRequest
+        {
+            Text = "Courage is resistance to fear.",
+            Note = ".prob worth rereading",
+            Position = "Location 1234-1236",
+            AddedOn = DateTimeOffset.Parse("2024-05-01T10:00:00Z", CultureInfo.InvariantCulture),
+        });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        Assert.NotNull(result);
+        var item = Assert.Single(result.Items);
+        Assert.Equal("Courage is resistance to fear.", item.Text);
+        Assert.Equal("worth rereading", item.Note);
+        Assert.Equal("Location 1234-1236", item.Position);
+        Assert.Equal(
+            DateTimeOffset.Parse("2024-05-01T10:00:00Z", CultureInfo.InvariantCulture),
+            item.AddedOn);
+    }
+
+    [Fact]
+    public async Task GetHighlights_TextNeverCarriesMarkersOrLegacyPrefix()
+    {
+        await ImportAsync(new SyncHighlightRequest
+        {
+            Text = "Courage is resistance to fear.",
+            Note = ".h2 .prob note body",
+        });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        var item = Assert.Single(result!.Items);
+        Assert.Equal("Courage is resistance to fear.", item.Text);
+        Assert.DoesNotContain(".h2", item.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain(".prob", item.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("[my note]", item.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain(".h2", item.Note!, StringComparison.Ordinal);
+        Assert.Equal("note body", item.Note);
+    }
+
+    [Fact]
+    public async Task GetHighlights_NoteOnlyAnnotation_ReturnsEmptyTextWithNote()
+    {
+        await ImportAsync(new SyncHighlightRequest
+        {
+            Text = string.Empty,
+            Note = "a standalone thought",
+        });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        var item = Assert.Single(result!.Items);
+        Assert.Equal(string.Empty, item.Text);
+        Assert.Equal("a standalone thought", item.Note);
+        Assert.Null(item.Position);
+        Assert.Null(item.AddedOn);
+    }
+
+    [Fact]
+    public async Task GetHighlights_WithoutNote_ReturnsNullNoteAndEmptyTags()
+    {
+        await ImportAsync(new SyncHighlightRequest { Text = "A plain passage." });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        var item = Assert.Single(result!.Items);
+        Assert.Null(item.Note);
+        Assert.Empty(item.Tags);
+        Assert.Null(item.HeadingLevel);
     }
 
     [Fact]
@@ -224,6 +300,24 @@ public sealed class HighlightEndpointTests : IDisposable
         command.CommandText = "SELECT COUNT(*) FROM highlight_provenance WHERE highlight_id = @HighlightId";
         command.Parameters.Add(new SqliteParameter("@HighlightId", highlightId));
         return Convert.ToInt32(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    private async Task ImportAsync(params SyncHighlightRequest[] highlights)
+    {
+        var response = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
+        {
+            Books =
+            [
+                new SyncBookRequest
+                {
+                    Title = "Book Alpha",
+                    Author = "Author Alpha",
+                    Highlights = [.. highlights]
+                }
+            ]
+        });
+
+        response.EnsureSuccessStatusCode();
     }
 
     private async Task SeedHighlightsAsync()

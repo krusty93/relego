@@ -149,6 +149,50 @@ public sealed class HtmlEmailComposerTests
     }
 
     [Fact]
+    public void Compose_Note_RendersBeneathPassageInHtmlAndIsIndentedInPlainText()
+    {
+        var highlights = new List<SelectionCandidate>
+        {
+            new(1, "Simplicity is prerequisite for reliability.", "Book Alpha", "Author One", 4, null, DateTimeOffset.UtcNow, 9, "the whole design principle in one line"),
+        };
+
+        var (htmlBody, plainTextBody) = HtmlEmailComposer.Compose(highlights, RecapDate);
+
+        Assert.Contains("the whole design principle in one line", htmlBody);
+        Assert.Contains("the whole design principle in one line", plainTextBody);
+
+        var passageIndex = htmlBody.IndexOf("Simplicity is prerequisite", StringComparison.Ordinal);
+        var noteIndex = htmlBody.IndexOf("the whole design principle", StringComparison.Ordinal);
+        Assert.True(passageIndex < noteIndex, "Note should follow its passage in the HTML body");
+
+        var plainPassageIndex = plainTextBody.IndexOf("Simplicity is prerequisite", StringComparison.Ordinal);
+        var plainNoteIndex = plainTextBody.IndexOf("  the whole design principle", StringComparison.Ordinal);
+        Assert.True(plainNoteIndex > plainPassageIndex, "Plain-text note should follow its passage and be indented");
+    }
+
+    [Fact]
+    public void Compose_WithoutNote_DoesNotEmitAnEmptyNoteBlock()
+    {
+        var (htmlBody, plainTextBody) = HtmlEmailComposer.Compose(SampleHighlights, RecapDate);
+
+        Assert.DoesNotContain("margin:6px 0 0;color:#5b4f47", htmlBody);
+        Assert.False(string.IsNullOrWhiteSpace(plainTextBody));
+    }
+
+    [Fact]
+    public void Compose_Note_IsHtmlEscapedInHtmlBody()
+    {
+        var highlights = new List<SelectionCandidate>
+        {
+            new(1, "Passage.", "Book", "Author", 3, null, DateTimeOffset.UtcNow, 5, "note with <tags> & \"quotes\""),
+        };
+
+        var (htmlBody, _) = HtmlEmailComposer.Compose(highlights, RecapDate);
+
+        Assert.Contains("note with &lt;tags&gt; &amp; &quot;quotes&quot;", htmlBody);
+    }
+
+    [Fact]
     public void Compose_NoMimeKitDependency()
     {
         // Verify the method returns raw strings, not MIME objects

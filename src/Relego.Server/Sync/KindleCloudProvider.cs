@@ -216,7 +216,9 @@ public sealed class KindleCloudProvider : ICloudSyncProvider
                     .Select(highlight => new SyncHighlightRequest
                     {
                         Text = highlight.Text,
-                        AddedOn = highlight.AddedOn
+                        AddedOn = highlight.AddedOn,
+                        Note = highlight.Note,
+                        Position = highlight.Location
                     })
                     .ToList()
             }).ToList()

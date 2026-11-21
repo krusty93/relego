@@ -36,28 +36,29 @@ public sealed class SyncRequestParityTests : IDisposable
     [Fact]
     public async Task CreateSyncRequest_KoboResult_HasIdenticalShapeToKindleResult()
     {
-        // Kindle: one book, one highlight + one note, via the existing parser.
+        // Kindle: one passage with a note attached to it, written as two clippings that share a
+        // location start ("Location 100-102" and "Location 100").
         var kindleInput =
             "A Book (Author One)\n" +
-            "- Your Highlight on Location 100 | Added on Thursday, January 1, 2026 12:00:00 AM\n" +
+            "- Your Highlight on Location 100-102 | Added on Thursday, January 1, 2026 12:00:00 AM\n" +
             "\n" +
             "first passage\n" +
             "==========\n" +
             "A Book (Author One)\n" +
-            "- Your Note on Location 110 | Added on Thursday, January 1, 2026 12:00:00 AM\n" +
+            "- Your Note on Location 100 | Added on Thursday, January 1, 2026 12:00:00 AM\n" +
             "\n" +
             "my comment\n" +
             "==========\n";
         using var reader = new StringReader(kindleInput);
         var kindleResult = await ClippingsParser.ParseAsync(reader);
 
-        // Kobo: the same logical content (highlight then note, by DateCreated).
+        // Kobo: the same logical content in a single bookmark — the anchored passage as text and
+        // the typed comment as annotation.
         var db = KoboTestDatabase.Create(
             books: [new("book-1", "A Book", "Author One")],
             bookmarks:
             [
-                new("book-1", Text: "first passage", DateCreated: "2022-01-01T10:00:00.000"),
-                new("book-1", Text: "passage", Annotation: "my comment", Type: "note", DateCreated: "2022-01-01T11:00:00.000"),
+                new("book-1", Text: "first passage", Annotation: "my comment", Type: "note", DateCreated: "2022-01-01T10:00:00.000"),
             ]);
         _tempFiles.Add(db);
         var koboResult = await new KoboReaderSource().ReadAsync(db);
@@ -66,6 +67,11 @@ public sealed class SyncRequestParityTests : IDisposable
         var koboRequest = ClippingsImportWorkflow.CreateSyncRequest(koboResult);
 
         Assert.Equal(Shape(kindleRequest), Shape(koboRequest));
+
+        // Parity is only meaningful if the note survived on both paths, not if both dropped it.
+        var highlight = Assert.Single(kindleRequest.Books.Single().Highlights);
+        Assert.Equal("first passage", highlight.Text);
+        Assert.Equal("my comment", highlight.Note);
     }
 
     [Fact]
@@ -87,9 +93,12 @@ public sealed class SyncRequestParityTests : IDisposable
         Assert.Equal(koboResult.Books.Single().Highlights.Single().AddedOn, highlight.AddedOn);
     }
 
-    // A source-agnostic projection of the request: titles, authors, and ordered highlight texts.
+    // A source-agnostic projection of the request: titles, authors, and ordered highlight texts
+    // with their notes, so a note dropped on either path breaks parity.
     private static List<(string Title, string? Author, string Texts)> Shape(SyncRequest request)
         => request.Books
-            .Select(b => (b.Title, b.Author, string.Join("\u241F", b.Highlights.Select(h => h.Text))))
+            .Select(b => (b.Title, b.Author, string.Join(
+                "\u241F",
+                b.Highlights.Select(h => h.Note is null ? h.Text : $"{h.Text}\u241E{h.Note}"))))
             .ToList();
 }

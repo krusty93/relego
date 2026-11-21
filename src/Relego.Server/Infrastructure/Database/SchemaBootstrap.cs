@@ -14,7 +14,7 @@ public sealed class SchemaBootstrap
 
         CREATE TABLE IF NOT EXISTS authors (
             id   INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT    NOT NULL
+            name TEXT    NULL
         );
 
         CREATE TABLE IF NOT EXISTS books (
@@ -25,15 +25,24 @@ public sealed class SchemaBootstrap
         );
 
         CREATE TABLE IF NOT EXISTS highlights (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id        INTEGER NOT NULL REFERENCES users(id),
-            book_id        INTEGER NOT NULL REFERENCES books(id),
-            text           TEXT    NOT NULL,
-            weight         INTEGER NOT NULL DEFAULT 3 CHECK(weight BETWEEN 1 AND 5),
-            excluded       INTEGER NOT NULL DEFAULT 0,
-            last_seen      TEXT    NULL,
-            delivery_count INTEGER NOT NULL DEFAULT 0,
-            created_at     TEXT    NOT NULL
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER NOT NULL REFERENCES users(id),
+            book_id         INTEGER NOT NULL REFERENCES books(id),
+            text            TEXT    NOT NULL,
+            weight          INTEGER NOT NULL DEFAULT 3 CHECK(weight BETWEEN 1 AND 5),
+            excluded        INTEGER NOT NULL DEFAULT 0,
+            last_seen       TEXT    NULL,
+            delivery_count  INTEGER NOT NULL DEFAULT 0,
+            created_at      TEXT    NOT NULL,
+            note            TEXT    NULL,
+            heading_level   INTEGER NULL CHECK(heading_level IS NULL OR heading_level BETWEEN 1 AND 3),
+            stitch_level    INTEGER NULL CHECK(stitch_level IS NULL OR stitch_level >= 1),
+            tags            TEXT    NULL,
+            source_position TEXT    NULL,
+            position_start  INTEGER NULL,
+            position_kind   TEXT    NULL CHECK(position_kind IS NULL OR position_kind IN ('location', 'page')),
+            added_on        TEXT    NULL,
+            CHECK(length(text) > 0 OR note IS NOT NULL)
         );
 
         CREATE TABLE IF NOT EXISTS excluded_books (
@@ -83,11 +92,16 @@ public sealed class SchemaBootstrap
         CREATE UNIQUE INDEX IF NOT EXISTS uq_authors_name
             ON authors(name);
 
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_authors_unknown
+            ON authors(name) WHERE name IS NULL;
+
         CREATE UNIQUE INDEX IF NOT EXISTS uq_books_user_author_title
             ON books(user_id, author_id, title);
 
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_highlights_user_book_text
-            ON highlights(user_id, book_id, text);
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            id         TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        );
 
         CREATE UNIQUE INDEX IF NOT EXISTS uq_recap_jobs_user_slot
             ON recap_jobs(user_id, scheduled_for);
@@ -215,8 +229,42 @@ public sealed class SchemaBootstrap
         await EnsureColumnAsync(connection, "sync_jobs", "failure_code", "TEXT NULL", cancellationToken);
         await EnsureColumnAsync(connection, "sync_jobs", "ended_at", "TEXT NULL", cancellationToken);
 
+        // Migrations: the annotation columns, for a database that predates them
+        await EnsureColumnAsync(connection, "highlights", "note", "TEXT NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "highlights", "heading_level", "INTEGER NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "highlights", "stitch_level", "INTEGER NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "highlights", "tags", "TEXT NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "highlights", "source_position", "TEXT NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "highlights", "position_start", "INTEGER NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "highlights", "position_kind", "TEXT NULL", cancellationToken);
+        await EnsureColumnAsync(connection, "highlights", "added_on", "TEXT NULL", cancellationToken);
+
+        // Migration: the annotation identity replaces the passage-only identity (existing databases)
+        await MigrateAnnotationIdentityAsync(connection, cancellationToken);
+
         // Migration: keep at most one running job per connection (existing databases)
         await MigrateSingleRunningJobAsync(connection, cancellationToken);
+    }
+
+    /// <summary>Replaces the passage-only highlight identity with the annotation identity.</summary>
+    private static async Task MigrateAnnotationIdentityAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DROP INDEX IF EXISTS uq_highlights_user_book_text;
+
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_highlights_user_book_passage
+                ON highlights(user_id, book_id, text, coalesce(source_position, ''))
+                WHERE text <> '';
+
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_highlights_user_book_note
+                ON highlights(user_id, book_id, note)
+                WHERE text = '';
+
+            CREATE INDEX IF NOT EXISTS idx_highlights_user_book_order
+                ON highlights(user_id, book_id, position_start, added_on, id);
+            """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     /// <summary>Adds a column to an existing table when the database predates it.</summary>
