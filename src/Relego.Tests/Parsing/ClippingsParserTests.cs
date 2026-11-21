@@ -179,6 +179,7 @@ public class ClippingsParserTests
         var h = result.Books[0].Highlights[0];
         Assert.Equal("Highlighted text here.", h.Text);
         Assert.Equal("Location 100-105", h.Location);
+        Assert.Equal("Location 100-105", h.Position);
         Assert.NotNull(h.AddedOn);
         Assert.Equal(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 1, 1))), h.AddedOn);
     }

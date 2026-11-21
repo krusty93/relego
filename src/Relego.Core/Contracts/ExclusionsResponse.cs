@@ -58,9 +58,9 @@ public sealed record ExcludedBookDto
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// Author display name.
+    /// Author display name, or <c>null</c> when the source reported none.
     /// </summary>
-    public string AuthorName { get; set; } = string.Empty;
+    public string? AuthorName { get; set; }
 
     /// <summary>
     /// Number of highlights stored for the book.
@@ -79,9 +79,9 @@ public sealed record ExcludedAuthorDto
     public int Id { get; set; }
 
     /// <summary>
-    /// Author display name.
+    /// Author display name, or <c>null</c> when the source reported none.
     /// </summary>
-    public string Name { get; set; } = string.Empty;
+    public string? Name { get; set; }
 
     /// <summary>
     /// Number of books stored for the author.

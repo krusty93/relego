@@ -60,7 +60,11 @@ public sealed class ExcludeListCommand(RelegoHttpClient client, ILogger<ExcludeL
             table.AddColumn("Author");
             table.AddColumn("Highlights");
             foreach (var b in response.Books)
-                table.AddRow(b.Id.ToString(), Markup.Escape(b.Title), Markup.Escape(b.AuthorName), b.HighlightCount.ToString());
+                table.AddRow(
+                    b.Id.ToString(),
+                    Markup.Escape(b.Title),
+                    Markup.Escape(b.AuthorName ?? "-"),
+                    b.HighlightCount.ToString());
             AnsiConsole.Write(table);
         }
 
@@ -77,7 +81,7 @@ public sealed class ExcludeListCommand(RelegoHttpClient client, ILogger<ExcludeL
             table.AddColumn("Name");
             table.AddColumn("Books");
             foreach (var a in response.Authors)
-                table.AddRow(a.Id.ToString(), Markup.Escape(a.Name), a.BookCount.ToString());
+                table.AddRow(a.Id.ToString(), Markup.Escape(a.Name ?? "-"), a.BookCount.ToString());
             AnsiConsole.Write(table);
         }
 

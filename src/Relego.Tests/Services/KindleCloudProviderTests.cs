@@ -92,7 +92,7 @@ public sealed class KindleCloudProviderTests
                     Author = "  An Author  ",
                     Highlights =
                     [
-                        new CloudSyncHighlight { ExternalId = "h1", Text = "  A highlight  " }
+                        new CloudSyncHighlight { ExternalId = "h1", Text = "  A highlight  ", Location = "Location 42" }
                     ]
                 }
             ]
@@ -113,6 +113,7 @@ public sealed class KindleCloudProviderTests
         Assert.Equal("A Book", requestBook.Title);
         Assert.Equal("An Author", requestBook.Author);
         Assert.Equal("A highlight", Assert.Single(requestBook.Highlights).Text);
+        Assert.Equal("Location 42", Assert.Single(requestBook.Highlights).Position);
     }
 
     [Fact]
@@ -142,6 +143,9 @@ public sealed class KindleCloudProviderTests
         Assert.Null(highlight.Note);
         Assert.Null(highlight.Location);
         Assert.Null(highlight.Color);
+
+        var requestHighlight = Assert.Single(Assert.Single(Provider.ToSyncRequest(result).Books).Highlights);
+        Assert.Null(requestHighlight.Position);
     }
 
     [Theory]

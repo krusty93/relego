@@ -1029,6 +1029,45 @@ td {
   border-top: 1px solid var(--border);
 }
 
+/* Provenance is the card's footnote: what the source reported about where and when, in the
+   same quiet label-over-value rhythm as the page head. A value the source never reported keeps
+   its row and says so, so a missing position reads as unknown rather than as a blank gap. */
+.hl-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-6);
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+.hl-provenance > div {
+  display: grid;
+  gap: var(--sp-0);
+  min-width: 0;
+}
+
+.hl-provenance dt {
+  color: var(--ink-subtle);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hl-provenance dd {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.hl-provenance dd[data-unknown="true"] {
+  color: var(--ink-subtle);
+  font-style: italic;
+}
+
 .confirm {
   display: inline-flex;
   gap: var(--sp-2);

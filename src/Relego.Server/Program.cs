@@ -164,7 +164,7 @@ app.MapBookEndpoints();
 app.MapFallbackToFile("index.html");
 
 var schemaBootstrap = new SchemaBootstrap();
-await schemaBootstrap.ApplyAsync(dbPath);
+await schemaBootstrap.ApplyAsync(dbPath, cancellationToken: default, logger: app.Logger);
 await QuartzSchemaInitializer.ApplyAsync(connectionString);
 
 // Seed the mail server configuration from SMTP_* on first boot only. Once a client saves

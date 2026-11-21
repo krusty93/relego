@@ -86,9 +86,28 @@ public sealed class HighlightEndpointTests : IDisposable
         Assert.Equal("Courage is resistance to fear.", item.Text);
         Assert.Equal("worth rereading", item.Note);
         Assert.Equal("Location 1234-1236", item.Position);
+        Assert.NotNull(item.AddedOn);
         Assert.Equal(
             DateTimeOffset.Parse("2024-05-01T10:00:00Z", CultureInfo.InvariantCulture),
             item.AddedOn);
+    }
+
+    [Fact]
+    public async Task GetHighlights_SourceWithoutPositionOrDate_ReturnsNullProvenance()
+    {
+        await ImportAsync(new SyncHighlightRequest
+        {
+            Text = "Courage is resistance to fear.",
+            Position = null,
+            AddedOn = null,
+        });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        Assert.NotNull(result);
+        var item = Assert.Single(result.Items);
+        Assert.Null(item.Position);
+        Assert.Null(item.AddedOn);
     }
 
     [Fact]
@@ -140,6 +159,83 @@ public sealed class HighlightEndpointTests : IDisposable
         Assert.Null(item.Note);
         Assert.Empty(item.Tags);
         Assert.Null(item.HeadingLevel);
+    }
+
+    [Fact]
+    public async Task GetHighlights_BookWithoutAuthor_ReturnsNullAuthorName()
+    {
+        var importResponse = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
+        {
+            Books =
+            [
+                new SyncBookRequest
+                {
+                    Title = "Book Nameless",
+                    Author = null,
+                    Highlights = [new SyncHighlightRequest { Text = "A passage with no reported author." }]
+                },
+                new SyncBookRequest
+                {
+                    Title = "Book Blank Author",
+                    Author = "  ",
+                    Highlights = [new SyncHighlightRequest { Text = "Another passage with no reported author." }]
+                }
+            ]
+        });
+
+        importResponse.EnsureSuccessStatusCode();
+
+        var highlights = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        Assert.NotNull(highlights);
+        Assert.Equal(2, highlights.Total);
+        Assert.All(highlights.Items, item => Assert.Null(item.AuthorName));
+        Assert.All(highlights.Items, item => Assert.NotEqual("Unknown Author", item.AuthorName));
+
+        var books = await _client.GetFromJsonAsync<BooksResponse>("/books");
+
+        Assert.NotNull(books);
+        Assert.Equal(2, books.Items.Count);
+        Assert.All(books.Items, book => Assert.Null(book.AuthorName));
+        Assert.All(books.Items, book => Assert.NotEqual("Unknown Author", book.AuthorName));
+    }
+
+    [Fact]
+    public async Task GetHighlights_TwoBooksWithoutAuthor_ShareSingleUnknownAuthorRow()
+    {
+        var importResponse = await _client.PostAsJsonAsync("/highlights/import", new SyncRequest
+        {
+            Books =
+            [
+                new SyncBookRequest
+                {
+                    Title = "Book Nameless One",
+                    Author = null,
+                    Highlights = [new SyncHighlightRequest { Text = "First passage with no reported author." }]
+                },
+                new SyncBookRequest
+                {
+                    Title = "Book Nameless Two",
+                    Author = null,
+                    Highlights = [new SyncHighlightRequest { Text = "Second passage with no reported author." }]
+                }
+            ]
+        });
+
+        importResponse.EnsureSuccessStatusCode();
+
+        var firstBookId = await GetBookIdByTitleAsync("Book Nameless One");
+        var secondBookId = await GetBookIdByTitleAsync("Book Nameless Two");
+
+        Assert.NotEqual(firstBookId, secondBookId);
+        Assert.Equal(2, await CountBooksAsync());
+        Assert.Equal(1, await CountUnknownAuthorsAsync());
+
+        var firstAuthorId = await GetBookAuthorIdAsync(firstBookId);
+        var secondAuthorId = await GetBookAuthorIdAsync(secondBookId);
+
+        Assert.Equal(await GetUnknownAuthorIdAsync(), firstAuthorId);
+        Assert.Equal(firstAuthorId, secondAuthorId);
     }
 
     [Fact]
@@ -460,6 +556,40 @@ public sealed class HighlightEndpointTests : IDisposable
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM highlight_provenance WHERE highlight_id = @HighlightId";
         command.Parameters.Add(new SqliteParameter("@HighlightId", highlightId));
+        return Convert.ToInt32(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    private async Task<int> CountBooksAsync()
+    {
+        var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM books";
+        return Convert.ToInt32(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    private async Task<int> CountUnknownAuthorsAsync()
+    {
+        var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM authors WHERE name IS NULL";
+        return Convert.ToInt32(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    private async Task<int?> GetUnknownAuthorIdAsync()
+    {
+        var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id FROM authors WHERE name IS NULL";
+        var value = await command.ExecuteScalarAsync();
+        return value is null ? null : Convert.ToInt32(value, CultureInfo.InvariantCulture);
+    }
+
+    private async Task<int> GetBookAuthorIdAsync(int bookId)
+    {
+        var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT author_id FROM books WHERE id = @BookId";
+        command.Parameters.Add(new SqliteParameter("@BookId", bookId));
         return Convert.ToInt32(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 

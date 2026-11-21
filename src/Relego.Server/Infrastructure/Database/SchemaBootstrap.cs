@@ -1,9 +1,19 @@
 ﻿using Microsoft.Data.Sqlite;
+using Relego.Core.Parsing;
 
 namespace Relego.Server.Infrastructure.Database;
 
 public sealed class SchemaBootstrap
 {
+    /// <summary>Identifies the note-split and author-identity migration in the schema history.</summary>
+    private const string NoteSplitMigrationId = "012-note-split-and-identity";
+
+    /// <summary>The exact prefix older imports used to store a reader's note as a second highlight.</summary>
+    private const string LegacyNotePrefix = "[my note] ";
+
+    /// <summary>The author name older imports wrote when a source reported none.</summary>
+    private const string LegacyUnknownAuthor = "Unknown Author";
+
     private const string SchemaSql = """
         CREATE TABLE IF NOT EXISTS users (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,7 +103,7 @@ public sealed class SchemaBootstrap
             ON authors(name);
 
         CREATE UNIQUE INDEX IF NOT EXISTS uq_authors_unknown
-            ON authors(name) WHERE name IS NULL;
+            ON authors(coalesce(name, '')) WHERE name IS NULL;
 
         CREATE UNIQUE INDEX IF NOT EXISTS uq_books_user_author_title
             ON books(user_id, author_id, title);
@@ -211,9 +221,21 @@ public sealed class SchemaBootstrap
         CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_reminders_connection_quiet ON sync_reminders(connection_id, quiet_since);
         """;
 
-    public async Task ApplyAsync(SqliteConnection connection, CancellationToken cancellationToken = default)
+    /// <summary>Creates the schema and applies every pending migration.</summary>
+    /// <param name="connection">Open connection to the database to upgrade.</param>
+    /// <param name="cancellationToken">Token that cancels the operation.</param>
+    /// <param name="logger">Logger that records what the migrations changed, or <c>null</c>.</param>
+    public async Task ApplyAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(connection);
+
+        // A database with no schema at all is a fresh install: the schema below already is the
+        // migrated shape, so the upgrade migrations below have nothing to record and must leave
+        // schema_migrations empty.
+        var isFreshInstall = !await TableExistsAsync(connection, "authors", cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = SchemaSql;
@@ -239,17 +261,227 @@ public sealed class SchemaBootstrap
         await EnsureColumnAsync(connection, "highlights", "position_kind", "TEXT NULL", cancellationToken);
         await EnsureColumnAsync(connection, "highlights", "added_on", "TEXT NULL", cancellationToken);
 
-        // Migration: the annotation identity replaces the passage-only identity (existing databases)
-        await MigrateAnnotationIdentityAsync(connection, cancellationToken);
+        // Migration: the annotation identity replaces the passage-only identity, legacy notes move
+        // out of the passage and the unknown author stops being a real name (existing databases)
+        await MigrateNoteSplitAndIdentityAsync(connection, logger, isFreshInstall, cancellationToken);
 
         // Migration: keep at most one running job per connection (existing databases)
         await MigrateSingleRunningJobAsync(connection, cancellationToken);
     }
 
-    /// <summary>Replaces the passage-only highlight identity with the annotation identity.</summary>
-    private static async Task MigrateAnnotationIdentityAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    /// <summary>
+    /// Applies the note-split, author-identity and annotation-index migration exactly once.
+    /// </summary>
+    /// <param name="connection">Open connection to the database to upgrade.</param>
+    /// <param name="logger">Logger that records what the migration changed, or <c>null</c>.</param>
+    /// <param name="isFreshInstall">Whether the database had no schema before this run.</param>
+    /// <param name="cancellationToken">Token that cancels the operation.</param>
+    /// <remarks>
+    /// The authors table is rebuilt here, so foreign keys have to be switched off outside the
+    /// transaction (SQLite ignores the pragma inside one) and restored unconditionally afterwards:
+    /// a half-applied upgrade must not leave the connection able to write orphans.
+    /// </remarks>
+    private static async Task MigrateNoteSplitAndIdentityAsync(
+        SqliteConnection connection,
+        ILogger? logger,
+        bool isFreshInstall,
+        CancellationToken cancellationToken)
+    {
+        await ExecuteNonQueryAsync(connection, null, "PRAGMA foreign_keys = OFF;", cancellationToken);
+
+        try
+        {
+            await using var transaction = connection.BeginTransaction();
+
+            if (isFreshInstall)
+            {
+                // A fresh database is already in the target shape, so only the annotation identity
+                // has to be created. Nothing is recorded in schema_migrations: upgrade tracking
+                // starts empty on a database this process created from scratch.
+                await MigrateAnnotationIdentityAsync(connection, transaction, cancellationToken);
+            }
+            else if (!await IsMigrationAppliedAsync(connection, transaction, cancellationToken))
+            {
+                var splitNotes = await SplitLegacyNotesAsync(connection, transaction, cancellationToken);
+                var mergedAuthors = await RebuildAuthorsAsync(connection, transaction, cancellationToken);
+                await MigrateAnnotationIdentityAsync(connection, transaction, cancellationToken);
+
+                await using var markCommand = connection.CreateCommand();
+                markCommand.Transaction = transaction;
+                markCommand.CommandText = """
+                    INSERT INTO schema_migrations (id, applied_at) VALUES (@Id, @AppliedAt);
+                    """;
+                markCommand.Parameters.AddWithValue("@Id", NoteSplitMigrationId);
+                markCommand.Parameters.AddWithValue("@AppliedAt", DateTimeOffset.UtcNow.ToString("o"));
+                await markCommand.ExecuteNonQueryAsync(cancellationToken);
+
+                logger?.LogInformation(
+                    "Applied schema migration {MigrationId}: {SplitNotes} legacy note row(s) split, " +
+                    "{MergedAuthors} duplicate unknown author row(s) merged",
+                    NoteSplitMigrationId,
+                    splitNotes,
+                    mergedAuthors);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        finally
+        {
+            await ExecuteNonQueryAsync(connection, null, "PRAGMA foreign_keys = ON;", CancellationToken.None);
+        }
+    }
+
+    private static async Task<bool> IsMigrationAppliedAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COUNT(*) FROM schema_migrations WHERE id = @Id;";
+        command.Parameters.AddWithValue("@Id", NoteSplitMigrationId);
+
+        var applied = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt64(applied, System.Globalization.CultureInfo.InvariantCulture) > 0;
+    }
+
+    /// <summary>Moves the text of a legacy <c>[my note] </c> row into its note column.</summary>
+    /// <returns>The number of rows that were split.</returns>
+    private static async Task<int> SplitLegacyNotesAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var legacyRows = new List<(long Id, string Text)>();
+
+        await using (var selectCommand = connection.CreateCommand())
+        {
+            selectCommand.Transaction = transaction;
+            selectCommand.CommandText = """
+                SELECT id, text FROM highlights
+                WHERE substr(text, 1, @PrefixLength) = @Prefix
+                ORDER BY id;
+                """;
+            selectCommand.Parameters.AddWithValue("@Prefix", LegacyNotePrefix);
+            selectCommand.Parameters.AddWithValue("@PrefixLength", LegacyNotePrefix.Length);
+
+            await using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                legacyRows.Add((reader.GetInt64(0), reader.GetString(1)));
+        }
+
+        foreach (var (id, text) in legacyRows)
+        {
+            var remainder = text[LegacyNotePrefix.Length..];
+            var markers = AnnotationMarkerParser.Parse(remainder);
+
+            // A note that is nothing but markers leaves no prose; the raw remainder is kept so a
+            // row that only carried a note still carries one, exactly as the import path does.
+            var note = markers.Note ?? (string.IsNullOrWhiteSpace(remainder) ? null : remainder.Trim());
+
+            await using var updateCommand = connection.CreateCommand();
+            updateCommand.Transaction = transaction;
+            updateCommand.CommandText = """
+                UPDATE highlights
+                SET text          = '',
+                    note          = @Note,
+                    heading_level = @HeadingLevel,
+                    stitch_level  = @StitchLevel,
+                    tags          = @Tags
+                WHERE id = @Id;
+                """;
+            updateCommand.Parameters.AddWithValue("@Id", id);
+            updateCommand.Parameters.AddWithValue("@Note", (object?)note ?? DBNull.Value);
+            updateCommand.Parameters.AddWithValue("@HeadingLevel", (object?)markers.HeadingLevel ?? DBNull.Value);
+            updateCommand.Parameters.AddWithValue("@StitchLevel", (object?)markers.StitchLevel ?? DBNull.Value);
+            updateCommand.Parameters.AddWithValue(
+                "@Tags",
+                markers.Tags.Count == 0 ? DBNull.Value : string.Join(' ', markers.Tags));
+            await updateCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return legacyRows.Count;
+    }
+
+    /// <summary>
+    /// Rebuilds <c>authors</c> so a name can be absent, folding every sentinel row into the single
+    /// row whose name is <c>NULL</c>.
+    /// </summary>
+    /// <returns>The number of duplicate sentinel rows that were folded away.</returns>
+    private static async Task<int> RebuildAuthorsAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using (var createCommand = connection.CreateCommand())
+        {
+            createCommand.Transaction = transaction;
+            createCommand.CommandText = """
+                CREATE TABLE authors_migration (
+                    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT    NULL
+                );
+
+                INSERT INTO authors_migration (id, name)
+                SELECT id, CASE WHEN name = @Sentinel THEN NULL ELSE name END
+                FROM authors;
+                """;
+            createCommand.Parameters.AddWithValue("@Sentinel", LegacyUnknownAuthor);
+            await createCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var unknownIds = new List<long>();
+        await using (var selectCommand = connection.CreateCommand())
+        {
+            selectCommand.Transaction = transaction;
+            selectCommand.CommandText = "SELECT id FROM authors_migration WHERE name IS NULL ORDER BY id;";
+            await using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                unknownIds.Add(reader.GetInt64(0));
+        }
+
+        if (unknownIds.Count > 1)
+        {
+            var survivorId = unknownIds[0];
+            await using var mergeCommand = connection.CreateCommand();
+            mergeCommand.Transaction = transaction;
+            mergeCommand.CommandText = """
+                UPDATE books SET author_id = @SurvivorId WHERE author_id = @DuplicateId;
+                UPDATE excluded_authors SET author_id = @SurvivorId WHERE author_id = @DuplicateId;
+                DELETE FROM authors_migration WHERE id = @DuplicateId;
+                """;
+            mergeCommand.Parameters.AddWithValue("@SurvivorId", survivorId);
+            mergeCommand.Parameters.AddWithValue("@DuplicateId", 0L);
+
+            foreach (var duplicateId in unknownIds.Skip(1))
+            {
+                mergeCommand.Parameters["@DuplicateId"].Value = duplicateId;
+                await mergeCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        await using var swapCommand = connection.CreateCommand();
+        swapCommand.Transaction = transaction;
+        swapCommand.CommandText = """
+            DROP TABLE authors;
+            ALTER TABLE authors_migration RENAME TO authors;
+
+            CREATE UNIQUE INDEX uq_authors_name ON authors(name);
+            CREATE UNIQUE INDEX uq_authors_unknown ON authors(coalesce(name, '')) WHERE name IS NULL;
+            """;
+        await swapCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        return Math.Max(0, unknownIds.Count - 1);
+    }
+
+    /// <summary>Replaces the passage-only highlight identity with the annotation identity.</summary>
+    private static async Task MigrateAnnotationIdentityAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             DROP INDEX IF EXISTS uq_highlights_user_book_text;
 
@@ -265,6 +497,32 @@ public sealed class SchemaBootstrap
                 ON highlights(user_id, book_id, position_start, added_on, id);
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task ExecuteNonQueryAsync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>Tells whether the database already holds a table, which a fresh file does not.</summary>
+    private static async Task<bool> TableExistsAsync(
+        SqliteConnection connection,
+        string table,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @Name;";
+        command.Parameters.AddWithValue("@Name", table);
+
+        var count = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt64(count, System.Globalization.CultureInfo.InvariantCulture) > 0;
     }
 
     /// <summary>Adds a column to an existing table when the database predates it.</summary>
@@ -337,7 +595,14 @@ public sealed class SchemaBootstrap
         }
     }
 
-    public async Task ApplyAsync(string dbPath, CancellationToken cancellationToken = default)
+    /// <summary>Creates the schema and applies every pending migration to the database at a path.</summary>
+    /// <param name="dbPath">Path of the database file, created when missing.</param>
+    /// <param name="cancellationToken">Token that cancels the operation.</param>
+    /// <param name="logger">Logger that records what the migrations changed, or <c>null</c>.</param>
+    public async Task ApplyAsync(
+        string dbPath,
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dbPath);
 
@@ -355,6 +620,6 @@ public sealed class SchemaBootstrap
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        await ApplyAsync(connection, cancellationToken);
+        await ApplyAsync(connection, cancellationToken, logger);
     }
 }

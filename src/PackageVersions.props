@@ -1,7 +1,7 @@
 ﻿<Project>
 
   <PropertyGroup>
-    <RelegoCoreVersion>0.10.2</RelegoCoreVersion>
+    <RelegoCoreVersion>0.10.3</RelegoCoreVersion>
     <RelegoCliVersion>0.17.1</RelegoCliVersion>
     <RelegoServerVersion>0.20.6</RelegoServerVersion>
     <RelegoExtensionVersion>0.1.2</RelegoExtensionVersion>

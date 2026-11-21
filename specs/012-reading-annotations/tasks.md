@@ -157,11 +157,11 @@ while the legacy notes are now notes.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T035 [P] [US4] Add `src/Relego.Tests/Infrastructure/SchemaBootstrapMigrationTests.cs`, constructing the pre-feature schema and rows in code (no binary fixture): a `[my note] ` row becomes `text = ''` with the remainder as its marker-parsed note; an `"Unknown Author"` author becomes `NULL` with exactly one unknown-author row; `id`, `weight`, `excluded`, `delivery_count`, `last_seen`, book and author are preserved; the visible record count does not drop; a `highlight_provenance` row still points at the same `highlight_id`; a second `ApplyAsync` changes nothing and leaves exactly one `schema_migrations` row; and `PRAGMA foreign_keys` is back on after both a success and a mid-migration failure
+- [X] T035 [P] [US4] Add `src/Relego.Tests/Infrastructure/SchemaBootstrapMigrationTests.cs`, constructing the pre-feature schema and rows in code (no binary fixture): a `[my note] ` row becomes `text = ''` with the remainder as its marker-parsed note; an `"Unknown Author"` author becomes `NULL` with exactly one unknown-author row; `id`, `weight`, `excluded`, `delivery_count`, `last_seen`, book and author are preserved; the visible record count does not drop; a `highlight_provenance` row still points at the same `highlight_id`; a second `ApplyAsync` changes nothing and leaves exactly one `schema_migrations` row; and `PRAGMA foreign_keys` is back on after both a success and a mid-migration failure
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] Add the guarded migration to `src/Relego.Server/Infrastructure/Database/SchemaBootstrap.cs`: set `PRAGMA foreign_keys = OFF` **outside** the transaction and restore it in a `finally`; inside one transaction, if `schema_migrations` lacks `012-note-split-and-identity`, rebuild `authors` with nullable `name` (sentinel rows → `NULL`, both indexes recreated), split `[my note] ` rows through `AnnotationMarkerParser`, drop `uq_highlights_user_book_text`, create the three new indexes, and insert the marker row; log through `ILogger`, never `Console.WriteLine`
+- [X] T036 [US4] Add the guarded migration to `src/Relego.Server/Infrastructure/Database/SchemaBootstrap.cs`: set `PRAGMA foreign_keys = OFF` **outside** the transaction and restore it in a `finally`; inside one transaction, if `schema_migrations` lacks `012-note-split-and-identity`, rebuild `authors` with nullable `name` (sentinel rows → `NULL`, both indexes recreated), split `[my note] ` rows through `AnnotationMarkerParser`, drop `uq_highlights_user_book_text`, create the three new indexes, and insert the marker row; log through `ILogger`, never `Console.WriteLine`
 
 **Checkpoint**: an existing library upgrades safely; no record is lost.
 
@@ -179,15 +179,15 @@ the known values are shown while the missing ones are reported as unknown.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T037 [P] [US5] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `position` and `addedOn` round-trip; a source without them yields `null` (never the import time); `authorName` is `null` when the source reports no author and never the literal `"Unknown Author"`; two books by an unreported author share one author row
-- [ ] T038 [P] [US5] Extend `src/Relego.Tests/Data/SyncRepositoryAnnotationTests.cs`: `created_at` is the import time for a new row and is preserved on update; `added_on` holds only what the source reported
+- [X] T037 [P] [US5] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `position` and `addedOn` round-trip; a source without them yields `null` (never the import time); `authorName` is `null` when the source reports no author and never the literal `"Unknown Author"`; two books by an unreported author share one author row
+- [X] T038 [P] [US5] Extend `src/Relego.Tests/Data/SyncRepositoryAnnotationTests.cs`: `created_at` is the import time for a new row and is preserved on update; `added_on` holds only what the source reported
 
 ### Implementation for User Story 5
 
-- [ ] T039 [US5] Write `source_position`, `position_start`, `position_kind` and `added_on` in `src/Relego.Server/Data/SyncRepository.cs`; `created_at` becomes import time only, and existing rows keep their `created_at`
-- [ ] T040 [US5] Stop inventing an author: replace the `"Unknown Author"` sentinel in `SyncRepository.ResolveAuthorName` (`src/Relego.Server/Data/SyncRepository.cs`) with the single `NULL`-named author row, and return `null` from `src/Relego.Server/Data/BookRepository.cs` so the API and web render their own "unknown author"
-- [ ] T041 [US5] Populate `Position` on every ingestion path: `src/Relego.Core/Parsing/ClippingsParser.cs` (from the clipping metadata), `src/Relego.Server/Sync/KindleCloudProvider.cs` (from `CloudSyncHighlight.Location`), and `src/Relego.Core/Sources/KoboReaderSource.cs` (stays `null` — Kobo reports none, and none is invented)
-- [ ] T042 [US5] Map `Position`/`AddedOn` in `src/Relego.Server/Endpoints/HighlightEndpoints.cs` and render unknown values as unknown, not blank, in `src/relego.web/src/routes/HighlightsPage.tsx` and `src/relego.web/src/lib/format.ts`; `impeccable` skill required
+- [X] T039 [US5] Write `source_position`, `position_start`, `position_kind` and `added_on` in `src/Relego.Server/Data/SyncRepository.cs`; `created_at` becomes import time only, and existing rows keep their `created_at`
+- [X] T040 [US5] Stop inventing an author: replace the `"Unknown Author"` sentinel in `SyncRepository.ResolveAuthorName` (`src/Relego.Server/Data/SyncRepository.cs`) with the single `NULL`-named author row, and return `null` from `src/Relego.Server/Data/BookRepository.cs` so the API and web render their own "unknown author"
+- [X] T041 [US5] Populate `Position` on every ingestion path: `src/Relego.Core/Parsing/ClippingsParser.cs` (from the clipping metadata), `src/Relego.Server/Sync/KindleCloudProvider.cs` (from `CloudSyncHighlight.Location`), and `src/Relego.Core/Sources/KoboReaderSource.cs` (stays `null` — Kobo reports none, and none is invented)
+- [X] T042 [US5] Map `Position`/`AddedOn` in `src/Relego.Server/Endpoints/HighlightEndpoints.cs` and render unknown values as unknown, not blank, in `src/relego.web/src/routes/HighlightsPage.tsx` and `src/relego.web/src/lib/format.ts`; `impeccable` skill required
 
 **Checkpoint**: provenance is honest across every surface.
 

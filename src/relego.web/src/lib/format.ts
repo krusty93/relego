@@ -144,16 +144,44 @@ export function formatDateTimeInZone(
 }
 
 export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  return dateText(iso) ?? "—";
+}
+
+/** The date `iso` names at day precision, or `null` when it is missing or unreadable. */
+function dateText(iso: string | null | undefined): string | null {
+  if (!iso) return null;
 
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return null;
 
   return date.toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
+}
+
+/** What the UI says where a source reported nothing: never blank, never a dash. */
+export const UNKNOWN = "Unknown";
+
+/** The fallback for a book whose source reported no author (FR-008). */
+export const UNKNOWN_AUTHOR = "Unknown author";
+
+/**
+ * The reading date the source reported, or `Unknown`. Never the import time: `addedOn` is the
+ * source's own date and `created_at` is when Relego learned about the annotation (FR-007).
+ */
+export function formatReadingDate(iso: string | null | undefined): string {
+  return dateText(iso) ?? UNKNOWN;
+}
+
+/** The reading position exactly as the source reported it, or `Unknown` (FR-006). */
+export function formatReadingPosition(
+  position: string | null | undefined,
+): string {
+  const reported = position?.trim();
+
+  return reported ? reported : UNKNOWN;
 }
 
 export function formatBytes(bytes: number): string {

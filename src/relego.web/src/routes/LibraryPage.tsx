@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { AsyncSection, EmptyState } from "../components/ui";
 import { api } from "../lib/api";
-import { formatCount, plural } from "../lib/format";
+import { formatCount, plural, UNKNOWN_AUTHOR } from "../lib/format";
 import { useListKeys } from "../lib/listkeys";
 import { useDebounced, useSearch } from "../lib/search";
 import { useToasts } from "../lib/toasts";
@@ -204,7 +204,9 @@ export function LibraryPage() {
                   onKeyDown={(event) => onRowKeyDown(event, book)}
                 >
                   <td className="book-title">{book.title}</td>
-                  <td className="book-author">{book.authorName}</td>
+                  <td className="book-author">
+                    {book.authorName ?? UNKNOWN_AUTHOR}
+                  </td>
                   <td className="num">{formatCount(book.highlightCount)}</td>
                   <td>
                     {book.excluded ? (

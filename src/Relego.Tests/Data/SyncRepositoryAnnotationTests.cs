@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using System.Globalization;
+using Microsoft.Data.Sqlite;
 using Relego.Core.Contracts;
 using Relego.Server.Data;
 using Relego.Server.Infrastructure.Database;
@@ -174,6 +175,66 @@ public sealed class SyncRepositoryAnnotationTests : IAsyncLifetime
         Assert.Null(row.Tags);
     }
 
+    [Fact]
+    public async Task ImportAsync_NewRow_StampsCreatedAtWithTheImportTime()
+    {
+        await ImportAsync(Highlight("The passage.", "My remark.", "Location 100-110"));
+
+        var row = Assert.Single(await ReadAnnotationsAsync());
+        var createdAt = DateTimeOffset.Parse(row.CreatedAt, CultureInfo.InvariantCulture);
+
+        Assert.True(
+            Math.Abs((createdAt - DateTimeOffset.UtcNow).TotalMinutes) < 5,
+            $"created_at '{row.CreatedAt}' is not close to the import time.");
+        Assert.NotEqual(AddedOn, createdAt);
+        Assert.NotEqual(AddedOn.ToString("o"), row.CreatedAt);
+    }
+
+    [Fact]
+    public async Task ImportAsync_ExistingRow_KeepsItsCreatedAt()
+    {
+        var request = Request(Highlight("The passage.", "My remark.", "Location 100-110"));
+        await _repository.ImportAsync(_userId, request);
+
+        const string pinnedCreatedAt = "2020-01-01T00:00:00.0000000+00:00";
+        await SetCreatedAtAsync(pinnedCreatedAt);
+
+        await _repository.ImportAsync(_userId, Clone(request));
+        var afterDuplicate = Assert.Single(await ReadAnnotationsAsync());
+        Assert.Equal(pinnedCreatedAt, afterDuplicate.CreatedAt);
+
+        await _repository.ImportAsync(_userId, Request(Highlight("The passage.", "Final wording.", "Location 100-110")));
+        var afterUpdate = Assert.Single(await ReadAnnotationsAsync());
+        Assert.Equal(pinnedCreatedAt, afterUpdate.CreatedAt);
+        Assert.NotEqual(AddedOn.ToString("o"), afterUpdate.CreatedAt);
+    }
+
+    [Fact]
+    public async Task ImportAsync_SourceWithoutAddedOn_LeavesAddedOnNull()
+    {
+        await ImportAsync(new SyncHighlightRequest
+        {
+            Text = "The passage.",
+            Position = "Location 100-110",
+            Note = "My remark.",
+            AddedOn = null,
+        });
+
+        var row = Assert.Single(await ReadAnnotationsAsync());
+        Assert.Null(row.AddedOn);
+        Assert.NotNull(row.CreatedAt);
+    }
+
+    [Fact]
+    public async Task ImportAsync_SourceWithAddedOn_StoresOnlyWhatTheSourceReported()
+    {
+        await ImportAsync(Highlight("The passage.", "My remark.", "Location 100-110"));
+
+        var row = Assert.Single(await ReadAnnotationsAsync());
+        Assert.Equal(AddedOn.ToString("o"), row.AddedOn);
+        Assert.Equal(AddedOn, DateTimeOffset.Parse(row.AddedOn!, CultureInfo.InvariantCulture));
+    }
+
     private static SyncRequest Request(params SyncHighlightRequest[] highlights) => new()
     {
         Books =
@@ -231,6 +292,14 @@ public sealed class SyncRepositoryAnnotationTests : IAsyncLifetime
         await command.ExecuteNonQueryAsync();
     }
 
+    private async Task SetCreatedAtAsync(string createdAt)
+    {
+        await using var command = _connection.CreateCommand();
+        command.CommandText = "UPDATE highlights SET created_at = $createdAt;";
+        command.Parameters.AddWithValue("$createdAt", createdAt);
+        await command.ExecuteNonQueryAsync();
+    }
+
     private async Task<List<AnnotationRow>> ReadAnnotationsAsync()
     {
         var rows = new List<AnnotationRow>();
@@ -238,7 +307,7 @@ public sealed class SyncRepositoryAnnotationTests : IAsyncLifetime
         await using var command = _connection.CreateCommand();
         command.CommandText = """
             SELECT id, text, note, heading_level, stitch_level, tags, source_position, position_start,
-                   position_kind, weight, excluded, delivery_count, last_seen
+                   position_kind, weight, excluded, delivery_count, last_seen, created_at, added_on
             FROM highlights
             ORDER BY id;
             """;
@@ -259,7 +328,9 @@ public sealed class SyncRepositoryAnnotationTests : IAsyncLifetime
                 Weight: reader.GetInt32(9),
                 Excluded: reader.GetInt32(10),
                 DeliveryCount: reader.GetInt32(11),
-                LastSeen: reader.IsDBNull(12) ? null : reader.GetString(12)));
+                LastSeen: reader.IsDBNull(12) ? null : reader.GetString(12),
+                CreatedAt: reader.GetString(13),
+                AddedOn: reader.IsDBNull(14) ? null : reader.GetString(14)));
         }
 
         return rows;
@@ -278,5 +349,7 @@ public sealed class SyncRepositoryAnnotationTests : IAsyncLifetime
         int Weight,
         int Excluded,
         int DeliveryCount,
-        string? LastSeen);
+        string? LastSeen,
+        string CreatedAt,
+        string? AddedOn);
 }

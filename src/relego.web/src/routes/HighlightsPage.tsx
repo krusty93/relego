@@ -8,7 +8,10 @@ import {
   describeChapterPath,
   describeHeadingLevel,
   formatCount,
+  formatReadingDate,
+  formatReadingPosition,
   plural,
+  UNKNOWN_AUTHOR,
 } from "../lib/format";
 import { useListKeys } from "../lib/listkeys";
 import { useDebounced, useSearch } from "../lib/search";
@@ -311,7 +314,8 @@ export function HighlightsPage() {
           <p className="muted">
             {book ? (
               <>
-                {book.authorName} · {plural(items.length, "highlight")}
+                {book.authorName ?? UNKNOWN_AUTHOR} ·{" "}
+                {plural(items.length, "highlight")}
                 {activeChapter ? (
                   <>
                     {" in "}
@@ -499,9 +503,7 @@ export function HighlightsPage() {
                     <span className="hl-meta">
                       {book ? null : (
                         <span className="subtle">
-                          {item.authorName
-                            ? `${item.bookTitle} · ${item.authorName}`
-                            : item.bookTitle}
+                          {`${item.bookTitle} · ${item.authorName ?? UNKNOWN_AUTHOR}`}
                         </span>
                       )}
                       {/* The heading is its own chapter, so its path would only repeat it. */}
@@ -597,6 +599,23 @@ export function HighlightsPage() {
                       </button>
                     )}
                   </div>
+                  {/* Where and when the source said this was marked. Reference data, so it
+                      closes the card; a value the source never reported keeps its row and says
+                      it is unknown instead of vanishing (FR-006, FR-007). */}
+                  <dl className="hl-provenance">
+                    <div>
+                      <dt>Position</dt>
+                      <dd data-unknown={item.position === null}>
+                        {formatReadingPosition(item.position)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Added</dt>
+                      <dd data-unknown={item.addedOn === null}>
+                        {formatReadingDate(item.addedOn)}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
               </article>
             );
