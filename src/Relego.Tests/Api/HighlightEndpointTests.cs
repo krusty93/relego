@@ -536,6 +536,111 @@ public sealed class HighlightEndpointTests : IDisposable
         Assert.Contains("bookId", body);
     }
 
+    [Fact]
+    public async Task GetHighlights_StitchedPassage_ReportsGroupAndIndexOnEveryFragment()
+    {
+        await ImportAsync(
+            new SyncHighlightRequest { Text = "The argument opens.", Note = ".c1" },
+            new SyncHighlightRequest { Text = "It continues here.", Note = ".c2" });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights");
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Items.Count);
+
+        var first = result.Items[0];
+        var second = result.Items[1];
+
+        Assert.Equal(first.Id, first.StitchGroupId);
+        Assert.Equal(first.Id, second.StitchGroupId);
+        Assert.Equal(0, first.StitchIndex);
+        Assert.Equal(1, second.StitchIndex);
+        Assert.Equal("The argument opens. … It continues here.", first.StitchedText);
+        Assert.Null(second.StitchedText);
+    }
+
+    [Fact]
+    public async Task GetHighlights_StitchedPassage_KeepsStitchedTextOnFirstFragmentWhenPaged()
+    {
+        await ImportAsync(
+            new SyncHighlightRequest { Text = "The argument opens.", Note = ".c1" },
+            new SyncHighlightRequest { Text = "It continues here.", Note = ".c2" });
+
+        var firstPage = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights?pageSize=1&page=1");
+        var secondPage = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights?pageSize=1&page=2");
+
+        var first = Assert.Single(firstPage!.Items);
+        var second = Assert.Single(secondPage!.Items);
+
+        Assert.Equal(first.Id, second.StitchGroupId);
+        Assert.Equal(0, first.StitchIndex);
+        Assert.Equal(1, second.StitchIndex);
+        Assert.Equal("The argument opens. … It continues here.", first.StitchedText);
+        Assert.Null(second.StitchedText);
+    }
+
+    [Fact]
+    public async Task GetHighlights_FilterByTag_MatchesCaseInsensitivelyAndKeepsSpelling()
+    {
+        await ImportAsync(
+            new SyncHighlightRequest { Text = "An upper-cased tag.", Note = ".PROB" },
+            new SyncHighlightRequest { Text = "A lower-cased tag.", Note = ".prob" },
+            new SyncHighlightRequest { Text = "Another tag entirely.", Note = ".review" });
+
+        var upper = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights?tag=PROB");
+        var lower = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights?tag=prob");
+
+        Assert.NotNull(upper);
+        Assert.NotNull(lower);
+        Assert.Equal(2, upper.Total);
+        Assert.Equal(2, lower.Total);
+        Assert.Equal(upper.Items.Select(item => item.Id), lower.Items.Select(item => item.Id));
+        Assert.Equal(new[] { "PROB" }, upper.Items[0].Tags);
+        Assert.Equal(new[] { "prob" }, upper.Items[1].Tags);
+    }
+
+    [Fact]
+    public async Task GetHighlights_FilterByTag_MatchesWholeTagOnly()
+    {
+        await ImportAsync(
+            new SyncHighlightRequest { Text = "A tag that contains the needle.", Note = ".probably" },
+            new SyncHighlightRequest { Text = "The tag itself.", Note = ".prob" });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights?tag=prob");
+
+        var item = Assert.Single(result!.Items);
+        Assert.Equal("The tag itself.", item.Text);
+    }
+
+    [Fact]
+    public async Task GetHighlights_FilterByText_MatchesTagName()
+    {
+        await ImportAsync(
+            new SyncHighlightRequest { Text = "An upper-cased tag.", Note = ".PROB" },
+            new SyncHighlightRequest { Text = "A lower-cased tag.", Note = ".prob" },
+            new SyncHighlightRequest { Text = "Another tag entirely.", Note = ".review" });
+
+        var result = await _client.GetFromJsonAsync<HighlightsResponse>("/highlights?q=prob");
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Total);
+        Assert.All(result.Items, item => Assert.Contains(item.Tags, tag => tag.Contains("prob", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public async Task GetHighlights_FilterByTagNoMatch_ReturnsEmptyPage()
+    {
+        await ImportAsync(new SyncHighlightRequest { Text = "A tagged passage.", Note = ".prob" });
+
+        var response = await _client.GetAsync("/highlights?tag=missing");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<HighlightsResponse>();
+        Assert.NotNull(result);
+        Assert.Equal(0, result.Total);
+        Assert.Empty(result.Items);
+    }
+
     private async Task SeedProvenanceAsync(int highlightId)
     {
         var connection = (SqliteConnection)_factory.Services.GetRequiredService<IDbConnection>();
