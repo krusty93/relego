@@ -6,17 +6,35 @@ using Relego.Core.Contracts;
 namespace Relego.Server.Services;
 
 /// <summary>
-/// The derived chapter information of one book: the hierarchy itself plus the table of contents
-/// shaped for the API. Both come from the same derivation, so the navigation and the annotation
-/// list cannot disagree.
+/// The derived information of one book: the chapter hierarchy, the table of contents shaped for
+/// the API, the stitched passages and each annotation's tags. All of it comes from the same
+/// derivation, so the navigation and the annotation list cannot disagree.
 /// </summary>
 /// <param name="Tree">Derived chapter hierarchy of the book.</param>
 /// <param name="TableOfContents">Table of contents as returned by <c>GET /books/{id}/chapters</c>.</param>
-public sealed record BookAnnotationContext(ChapterTree Tree, TableOfContentsResponse TableOfContents);
+/// <param name="Stitches">Derived stitched passages of the book.</param>
+/// <param name="Tags">Tags of each annotation, keyed by annotation id, orphan markers included.</param>
+public sealed record BookAnnotationContext(
+    ChapterTree Tree,
+    TableOfContentsResponse TableOfContents,
+    StitchIndex Stitches,
+    IReadOnlyDictionary<int, IReadOnlyList<string>> Tags);
+
+/// <summary>
+/// The derived information of a page of annotations: chapter context, stitch membership and tags,
+/// keyed by annotation id and derived from each annotation's whole book.
+/// </summary>
+/// <param name="Chapters">Chapter context of every annotation.</param>
+/// <param name="Stitches">Stitched passages of the books the page touches.</param>
+/// <param name="Tags">Tags of every annotation, orphan markers included.</param>
+public sealed record AnnotationDerivations(
+    IReadOnlyDictionary<int, AnnotationContext> Chapters,
+    StitchIndex Stitches,
+    IReadOnlyDictionary<int, IReadOnlyList<string>> Tags);
 
 /// <summary>
 /// The single place that turns stored rows into derived annotation context. Every surface reads
-/// chapters through this service, so no endpoint or client re-derives them.
+/// chapters, stitches and tags through this service, so no endpoint or client re-derives them.
 /// </summary>
 public sealed class AnnotationContextService(IDbConnection connection)
 {
@@ -24,7 +42,8 @@ public sealed class AnnotationContextService(IDbConnection connection)
     public const string UnknownChapterTitle = "Unknown chapter";
 
     /// <summary>
-    /// Derives the chapter hierarchy and the table of contents of one book.
+    /// Derives the chapter hierarchy, the table of contents, the stitched passages and the tags of
+    /// one book.
     /// </summary>
     /// <param name="userId">Owning user id.</param>
     /// <param name="bookId">Book to derive.</param>
@@ -40,27 +59,34 @@ public sealed class AnnotationContextService(IDbConnection connection)
 
         var annotations = await QueryAnnotationsAsync(userId, [bookId]).ConfigureAwait(false);
         var tree = BuildTree(annotations);
+        var stitches = BuildStitches(annotations);
 
-        return new BookAnnotationContext(tree, ToTableOfContents(bookId, tree));
+        return new BookAnnotationContext(
+            tree,
+            ToTableOfContents(bookId, tree),
+            stitches,
+            BuildTags(annotations, stitches));
     }
 
     /// <summary>
-    /// Derives the chapter context of every annotation of the given books. Derivation runs per
-    /// book, so a page of annotations still knows its whole book's structure.
+    /// Derives the chapter context, the stitched passages and the tags of every annotation of the
+    /// given books. Derivation runs per book, so a page of annotations still knows its whole book's
+    /// structure.
     /// </summary>
     /// <param name="userId">Owning user id.</param>
     /// <param name="bookIds">Books whose rows are needed.</param>
-    /// <returns>Chapter context keyed by annotation id; empty when no book is given.</returns>
-    public async Task<IReadOnlyDictionary<int, AnnotationContext>> GetContextsAsync(
+    /// <returns>The derived lookups; empty when no book is given.</returns>
+    public async Task<AnnotationDerivations> GetDerivationsAsync(
         int userId,
         IReadOnlyCollection<int> bookIds)
     {
         ArgumentNullException.ThrowIfNull(bookIds);
 
-        var contexts = new Dictionary<int, AnnotationContext>();
+        var chapters = new Dictionary<int, AnnotationContext>();
+        var tags = new Dictionary<int, IReadOnlyList<string>>();
 
         if (bookIds.Count == 0)
-            return contexts;
+            return new AnnotationDerivations(chapters, BuildStitches([]), tags);
 
         var annotations = await QueryAnnotationsAsync(userId, bookIds).ConfigureAwait(false);
 
@@ -69,13 +95,15 @@ public sealed class AnnotationContextService(IDbConnection connection)
             var tree = BuildTree(book);
 
             foreach (var pair in tree.Contexts)
-                contexts[pair.Key] = pair.Value;
+                chapters[pair.Key] = pair.Value;
         }
 
-        return contexts;
+        var stitches = BuildStitches(annotations);
+
+        return new AnnotationDerivations(chapters, stitches, BuildTags(annotations, stitches));
     }
 
-    private static ChapterTree BuildTree(IEnumerable<ChapterRow> annotations) =>
+    private static ChapterTree BuildTree(IEnumerable<AnnotationRow> annotations) =>
         ChapterTreeBuilder.Build(annotations.Select(annotation => new ChapterSourceAnnotation
         {
             Id = annotation.Id,
@@ -85,6 +113,53 @@ public sealed class AnnotationContextService(IDbConnection connection)
             Position = annotation.Position,
             AddedOn = annotation.AddedOn,
         }));
+
+    private static StitchIndex BuildStitches(IEnumerable<AnnotationRow> annotations) =>
+        StitchedPassageBuilder.Build(annotations.Select(annotation => new StitchSourceAnnotation
+        {
+            Id = annotation.Id,
+            BookId = annotation.BookId,
+            Text = annotation.Text,
+            Note = annotation.Note,
+            StitchLevel = annotation.StitchLevel,
+            Tags = SplitTags(annotation.Tags),
+            Position = annotation.Position,
+            AddedOn = annotation.AddedOn,
+            Weight = annotation.Weight,
+            Excluded = annotation.Excluded,
+            DeliveryCount = annotation.DeliveryCount,
+        }));
+
+    // An orphaned ".cN" marker is not persisted as a tag: only the whole book shows that no
+    // preceding ".c1" exists, so the tag is added here, at read time (Story 6 AS-2).
+    private static IReadOnlyDictionary<int, IReadOnlyList<string>> BuildTags(
+        IEnumerable<AnnotationRow> annotations,
+        StitchIndex stitches)
+    {
+        var tags = new Dictionary<int, IReadOnlyList<string>>();
+
+        foreach (var annotation in annotations)
+        {
+            var parsed = SplitTags(annotation.Tags);
+
+            if (stitches.OrphanMarkerTags.TryGetValue(annotation.Id, out var marker)
+                && !parsed.Any(tag => string.Equals(tag, marker, StringComparison.OrdinalIgnoreCase)))
+            {
+                parsed = [.. parsed, marker];
+            }
+
+            tags[annotation.Id] = parsed;
+        }
+
+        return tags;
+    }
+
+    // Tags are stored space-separated because a note declares them that way; the column is the
+    // only persisted form, so the split must stay in step with the import writer.
+    private static List<string> SplitTags(string? raw) =>
+        string.IsNullOrWhiteSpace(raw)
+            ? []
+            : [.. raw.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
 
     private static TableOfContentsResponse ToTableOfContents(int bookId, ChapterTree tree) => new()
     {
@@ -113,10 +188,10 @@ public sealed class AnnotationContextService(IDbConnection connection)
         AnnotationCount = chapter.AnnotationCount,
     };
 
-    private async Task<IReadOnlyList<ChapterRow>> QueryAnnotationsAsync(
+    private async Task<IReadOnlyList<AnnotationRow>> QueryAnnotationsAsync(
         int userId,
         IReadOnlyCollection<int> bookIds) =>
-        [.. await connection.QueryAsync<ChapterRow>(
+        [.. await connection.QueryAsync<AnnotationRow>(
             """
             SELECT
                 h.book_id       AS BookId,
@@ -124,6 +199,11 @@ public sealed class AnnotationContextService(IDbConnection connection)
                 h.text          AS Text,
                 h.note          AS Note,
                 h.heading_level AS HeadingLevel,
+                h.stitch_level  AS StitchLevel,
+                h.tags          AS Tags,
+                h.weight        AS Weight,
+                h.excluded      AS Excluded,
+                h.delivery_count AS DeliveryCount,
                 h.source_position AS Position,
                 h.added_on      AS AddedOn
             FROM highlights h
@@ -133,13 +213,18 @@ public sealed class AnnotationContextService(IDbConnection connection)
             """,
             new { UserId = userId, BookIds = bookIds }).ConfigureAwait(false)];
 
-    private sealed class ChapterRow
+    private sealed class AnnotationRow
     {
         public int BookId { get; set; }
         public int Id { get; set; }
         public string Text { get; set; } = string.Empty;
         public string? Note { get; set; }
         public int? HeadingLevel { get; set; }
+        public int? StitchLevel { get; set; }
+        public string? Tags { get; set; }
+        public int Weight { get; set; }
+        public bool Excluded { get; set; }
+        public int DeliveryCount { get; set; }
         public string? Position { get; set; }
         public DateTimeOffset? AddedOn { get; set; }
     }

@@ -161,6 +161,7 @@ app.MapExclusionEndpoints();
 app.MapWeightEndpoints();
 app.MapHighlightEndpoints();
 app.MapBookEndpoints();
+app.MapTagEndpoints();
 app.MapFallbackToFile("index.html");
 
 var schemaBootstrap = new SchemaBootstrap();

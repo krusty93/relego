@@ -14,52 +14,57 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
         string? q,
         int? bookId = null,
         int? chapterId = null,
-        bool unknownChapter = false)
+        bool unknownChapter = false,
+        string? tag = null)
     {
         // A chapter only exists inside a book; without one the filter has nothing to resolve.
         if (bookId is not null && (chapterId is not null || unknownChapter))
-            return await GetChapterSectionAsync(userId, page, pageSize, q, bookId.Value, chapterId, unknownChapter);
+            return await GetChapterSectionAsync(userId, page, pageSize, q, bookId.Value, chapterId, unknownChapter, tag);
 
         var hasFilter = !string.IsNullOrWhiteSpace(q);
         var filter = hasFilter ? $"%{q}%" : null;
-        var bookCondition = bookId is null ? string.Empty : " AND h.book_id = @BookId";
+        var hasTag = !string.IsNullOrWhiteSpace(tag);
 
-        var countSql = hasFilter
-            ? $"""
-               SELECT COUNT(*)
-               FROM highlights h
-               INNER JOIN books b ON b.id = h.book_id
-               INNER JOIN authors a ON a.id = b.author_id
-               WHERE h.user_id = @UserId
-                 AND (h.text LIKE @Filter OR h.note LIKE @Filter OR b.title LIKE @Filter OR a.name LIKE @Filter){bookCondition}
-               """
-            : $"SELECT COUNT(*) FROM highlights h WHERE h.user_id = @UserId{bookCondition}";
+        var conditions = new List<string> { "h.user_id = @UserId" };
 
-        var itemSql = hasFilter
-            ? $"""
-               SELECT h.id AS Id, b.id AS BookId, a.id AS AuthorId, h.text AS Text, b.title AS BookTitle, a.name AS AuthorName, h.note AS Note, h.heading_level AS HeadingLevel, h.source_position AS Position, h.added_on AS AddedOn
-               FROM highlights h
-               INNER JOIN books b ON b.id = h.book_id
-               INNER JOIN authors a ON a.id = b.author_id
-               WHERE h.user_id = @UserId
-                 AND (h.text LIKE @Filter OR h.note LIKE @Filter OR b.title LIKE @Filter OR a.name LIKE @Filter){bookCondition}
-               ORDER BY h.id ASC
-               LIMIT @PageSize OFFSET @Offset
-               """
-            : $"""
-               SELECT h.id AS Id, b.id AS BookId, a.id AS AuthorId, h.text AS Text, b.title AS BookTitle, a.name AS AuthorName, h.note AS Note, h.heading_level AS HeadingLevel, h.source_position AS Position, h.added_on AS AddedOn
-               FROM highlights h
-               INNER JOIN books b ON b.id = h.book_id
-               INNER JOIN authors a ON a.id = b.author_id
-               WHERE h.user_id = @UserId{bookCondition}
-               ORDER BY h.id ASC
-               LIMIT @PageSize OFFSET @Offset
-               """;
+        if (bookId is not null)
+            conditions.Add("h.book_id = @BookId");
+
+        // FR-051: a tag name is searchable like any other word, without changing what the other
+        // clauses match.
+        if (hasFilter)
+            conditions.Add("(h.text LIKE @Filter OR h.note LIKE @Filter OR b.title LIKE @Filter OR a.name LIKE @Filter OR h.tags LIKE @Filter)");
+
+        // Tags are stored space-separated, so surrounding the column with spaces makes the needle
+        // an exact token: "prob" must not match "probably".
+        if (hasTag)
+            conditions.Add("instr(' ' || lower(coalesce(h.tags, '')) || ' ', @TagNeedle) > 0");
+
+        var where = string.Join("\n  AND ", conditions);
+
+        var countSql = $"""
+            SELECT COUNT(*)
+            FROM highlights h
+            INNER JOIN books b ON b.id = h.book_id
+            INNER JOIN authors a ON a.id = b.author_id
+            WHERE {where}
+            """;
+
+        var itemSql = $"""
+            SELECT h.id AS Id, b.id AS BookId, a.id AS AuthorId, h.text AS Text, b.title AS BookTitle, a.name AS AuthorName, h.note AS Note, h.heading_level AS HeadingLevel, h.source_position AS Position, h.added_on AS AddedOn
+            FROM highlights h
+            INNER JOIN books b ON b.id = h.book_id
+            INNER JOIN authors a ON a.id = b.author_id
+            WHERE {where}
+            ORDER BY h.id ASC
+            LIMIT @PageSize OFFSET @Offset
+            """;
 
         var param = new
         {
             UserId = userId,
             Filter = filter,
+            TagNeedle = hasTag ? $" {tag!.Trim().ToLowerInvariant()} " : null,
             BookId = bookId,
             PageSize = pageSize,
             Offset = (page - 1) * pageSize,
@@ -68,7 +73,7 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
         var total = await connection.ExecuteScalarAsync<int>(countSql, param);
         var items = (await connection.QueryAsync<HighlightItemDto>(itemSql, param)).AsList();
 
-        await AttachChapterContextAsync(userId, items);
+        await AttachDerivedContextAsync(userId, items);
 
         return new HighlightsResponse
         {
@@ -88,7 +93,8 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
         string? q,
         int bookId,
         int? chapterId,
-        bool unknownChapter)
+        bool unknownChapter,
+        string? tag)
     {
         var empty = new HighlightsResponse { Total = 0, Page = page, PageSize = pageSize, Items = [] };
         var bookContext = await annotationContext.GetBookContextAsync(userId, bookId);
@@ -108,9 +114,15 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
             """,
             new { UserId = userId, BookId = bookId })).AsList();
 
+        ApplyDerivations(bookContext, rows);
+
         Func<HighlightItemDto, bool> matchesQuery = string.IsNullOrWhiteSpace(q)
             ? _ => true
             : item => MatchesQuery(item, q);
+
+        Func<HighlightItemDto, bool> matchesTag = string.IsNullOrWhiteSpace(tag)
+            ? _ => true
+            : item => MatchesTag(item.Tags, tag);
 
         IReadOnlySet<int>? section = null;
 
@@ -126,7 +138,7 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
 
         foreach (var item in rows)
         {
-            if (!matchesQuery(item))
+            if (!matchesQuery(item) || !matchesTag(item))
                 continue;
 
             bookContext.Tree.Contexts.TryGetValue(item.Id, out var context);
@@ -138,12 +150,6 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
 
             if (!inSelection)
                 continue;
-
-            if (context is not null)
-            {
-                item.ChapterId = context.ChapterId;
-                item.ChapterPath = [.. context.ChapterPath];
-            }
 
             selected.Add(item);
         }
@@ -163,19 +169,45 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
         item.Text.Contains(q, StringComparison.OrdinalIgnoreCase)
         || (item.Note?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
         || item.BookTitle.Contains(q, StringComparison.OrdinalIgnoreCase)
-        || (item.AuthorName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+        || (item.AuthorName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+        || item.Tags.Any(candidate => candidate.Contains(q, StringComparison.OrdinalIgnoreCase));
 
-    private async Task AttachChapterContextAsync(int userId, IReadOnlyCollection<HighlightItemDto> items)
+    private static bool MatchesTag(IReadOnlyCollection<string> tags, string tag) =>
+        tags.Any(candidate => string.Equals(candidate, tag.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private static void ApplyDerivations(BookAnnotationContext context, IEnumerable<HighlightItemDto> items)
+    {
+        foreach (var item in items)
+        {
+            if (context.Tree.Contexts.TryGetValue(item.Id, out var chapter))
+            {
+                item.ChapterId = chapter.ChapterId;
+                item.ChapterPath = [.. chapter.ChapterPath];
+            }
+
+            if (context.Stitches.Memberships.TryGetValue(item.Id, out var stitch))
+            {
+                item.StitchGroupId = stitch.GroupId;
+                item.StitchIndex = stitch.Index;
+                item.StitchedText = stitch.StitchedText;
+            }
+
+            if (context.Tags.TryGetValue(item.Id, out var tags))
+                item.Tags = [.. tags];
+        }
+    }
+
+    private async Task AttachDerivedContextAsync(int userId, IReadOnlyCollection<HighlightItemDto> items)
     {
         if (items.Count == 0)
             return;
 
         var bookIds = items.Select(item => item.BookId).Distinct().ToList();
-        var contexts = await annotationContext.GetContextsAsync(userId, bookIds);
+        var derivations = await annotationContext.GetDerivationsAsync(userId, bookIds);
 
         foreach (var item in items)
         {
-            if (contexts.TryGetValue(item.Id, out var context))
+            if (derivations.Chapters.TryGetValue(item.Id, out var context))
             {
                 item.ChapterId = context.ChapterId;
                 item.ChapterPath = [.. context.ChapterPath];
@@ -184,7 +216,70 @@ public sealed class HighlightRepository(IDbConnection connection, AnnotationCont
             {
                 item.ChapterPath = [];
             }
+
+            if (derivations.Stitches.Memberships.TryGetValue(item.Id, out var stitch))
+            {
+                item.StitchGroupId = stitch.GroupId;
+                item.StitchIndex = stitch.Index;
+                item.StitchedText = stitch.StitchedText;
+            }
+
+            if (derivations.Tags.TryGetValue(item.Id, out var tags))
+                item.Tags = [.. tags];
         }
+    }
+
+    /// <summary>
+    /// Lists every tag of the library. Spellings are grouped case-insensitively and each group
+    /// reports the spelling of its lowest annotation id, so the list is stable across a re-import.
+    /// </summary>
+    /// <param name="userId">Owning user id.</param>
+    /// <returns>Tags ordered by annotation count descending, then by lower-cased name.</returns>
+    public async Task<TagsResponse> GetTagsAsync(int userId)
+    {
+        var rows = await connection.QueryAsync<TagRow>(
+            """
+            SELECT id AS Id, tags AS Tags
+            FROM highlights
+            WHERE user_id = @UserId
+              AND tags IS NOT NULL
+              AND tags <> ''
+            ORDER BY id ASC
+            """,
+            new { UserId = userId });
+
+        var summaries = new Dictionary<string, TagSummaryDto>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            foreach (var tag in (row.Tags ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (summaries.TryGetValue(tag, out var summary))
+                {
+                    summary.Count++;
+                }
+                else
+                {
+                    summaries[tag] = new TagSummaryDto { Name = tag, Count = 1 };
+                }
+            }
+        }
+
+        return new TagsResponse
+        {
+            Tags =
+            [
+                .. summaries.Values
+                    .OrderByDescending(summary => summary.Count)
+                    .ThenBy(summary => summary.Name, StringComparer.OrdinalIgnoreCase),
+            ],
+        };
+    }
+
+    private sealed class TagRow
+    {
+        public int Id { get; set; }
+        public string? Tags { get; set; }
     }
 
     /// <summary>

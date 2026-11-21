@@ -18,6 +18,12 @@ public sealed record AnnotationMarkers
     public int? StitchLevel { get; init; }
 
     /// <summary>
+    /// Stitch marker as the reader wrote it, without the leading dot (for example <c>c2</c>), or
+    /// <c>null</c>. Kept so an orphaned marker can be surfaced as a tag in the reader's spelling.
+    /// </summary>
+    public string? StitchMarker { get; init; }
+
+    /// <summary>
     /// Tags written in the note, in the reader's spelling and first-seen order; never <c>null</c>.
     /// </summary>
     public IReadOnlyList<string> Tags { get; init; } = [];
