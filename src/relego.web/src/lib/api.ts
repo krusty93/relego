@@ -15,6 +15,7 @@ import type {
   SyncScheduleChangeResponse,
   SyncStatusResponse,
   TableOfContentsResponse,
+  TagsResponse,
   UpdateSettingsRequest,
   UpdateSmtpSettingsRequest,
   WeightedHighlight,
@@ -23,10 +24,12 @@ import type {
 /**
  * Which slice of the library a highlight query covers. `chapterId` needs `bookId`; the server
  * ignores it on its own. The literal `"unknown"` selects annotations outside every chapter.
+ * `tag` matches any spelling of the tag, so the list narrows without regard to letter case.
  */
 export interface HighlightScope {
   bookId?: number;
   chapterId?: number | "unknown";
+  tag?: string;
 }
 
 /**
@@ -147,9 +150,12 @@ export const api = {
     if (scope?.bookId !== undefined) params.set("bookId", String(scope.bookId));
     if (scope?.chapterId !== undefined)
       params.set("chapterId", String(scope.chapterId));
+    if (scope?.tag) params.set("tag", scope.tag);
 
     return request<HighlightsResponse>(`/highlights?${params.toString()}`);
   },
+
+  tags: () => request<TagsResponse>("/tags"),
 
   deleteHighlight: (id: number) =>
     request<void>(`/highlights/${id}`, { method: "DELETE" }),

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { AsyncSection, EmptyState, Tag, WeightPips } from "../components/ui";
 import { api } from "../lib/api";
@@ -20,6 +20,7 @@ import type {
   BookItem,
   ChapterItem,
   HighlightItem,
+  TagSummary,
   UnknownChapterItem,
 } from "../lib/types";
 
@@ -28,6 +29,49 @@ type ChapterFilter = number | "unknown" | null;
 
 /** Stable identity, so downstream `useMemo`s do not re-run on every render. */
 const NO_CHAPTERS: ChapterItem[] = [];
+const NO_TAGS: TagSummary[] = [];
+
+/**
+ * One line of the list. A stitched passage is read as a single quoted item, so it is one line
+ * even though it owns several annotations; its fragments stay reachable when it is opened.
+ */
+type ListRow =
+  | { kind: "annotation"; item: HighlightItem }
+  | {
+      kind: "passage";
+      id: number;
+      lead: HighlightItem;
+      fragments: HighlightItem[];
+    };
+
+type PassageRow = Extract<ListRow, { kind: "passage" }>;
+
+/** The annotation a row's curation keys act on: the fragment that opens a passage. */
+function primaryOf(row: ListRow): HighlightItem {
+  return row.kind === "passage" ? row.lead : row.item;
+}
+
+/** Tags as the reader wrote them, first spelling wins, compared without regard to case. */
+function unionTags(items: HighlightItem[]): string[] {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+
+  for (const item of items) {
+    for (const tag of item.tags) {
+      const key = tag.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tags.push(tag);
+    }
+  }
+
+  return tags;
+}
+
+/** Tags are matched without regard to letter case, exactly as the tag filter does. */
+function sameTag(tag: string, other: string | null): boolean {
+  return other !== null && tag.toLowerCase() === other.toLowerCase();
+}
 
 /** A drag that selects text also fires a click; expanding then would swallow the selection. */
 function isSelectingWithin(container: HTMLElement): boolean {
@@ -50,23 +94,34 @@ export function HighlightsPage() {
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [cursor, setCursor] = useState(0);
   const [chapterFilter, setChapterFilter] = useState<ChapterFilter>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // The server narrows the list, so the whole book arrives in one page rather than
   // being filtered here: chapter paths are derived from every annotation in the book.
-  const scope = useMemo(
-    () =>
-      bookId === null
-        ? undefined
-        : chapterFilter === null
-          ? { bookId }
-          : { bookId, chapterId: chapterFilter },
-    [bookId, chapterFilter],
-  );
+  const scope = useMemo(() => {
+    if (bookId === null && tagFilter === null) return undefined;
+
+    return {
+      ...(bookId === null ? {} : { bookId }),
+      ...(bookId === null || chapterFilter === null
+        ? {}
+        : { chapterId: chapterFilter }),
+      ...(tagFilter === null ? {} : { tag: tagFilter }),
+    };
+  }, [bookId, chapterFilter, tagFilter]);
 
   const highlights = useQuery({
     queryKey: ["highlights", debounced, scope],
     queryFn: () => api.highlights(debounced || undefined, 1, 200, scope),
+    retry: false,
+  });
+
+  // Every tag in the library, so the filter offers the reader's own spellings rather than
+  // whatever this one book happens to contain.
+  const tags = useQuery({
+    queryKey: ["tags"],
+    queryFn: api.tags,
     retry: false,
   });
 
@@ -113,6 +168,50 @@ export function HighlightsPage() {
     return bookId ? all.filter((item) => item.bookId === bookId) : all;
   }, [highlights.data, bookId]);
 
+  // Stitched fragments are stored as their own annotations; the list reads them as one quoted
+  // item, in the order their markers were read. A passage of one is the annotation it is.
+  const rows = useMemo<ListRow[]>(() => {
+    const built: ListRow[] = [];
+    const passages = new Map<number, PassageRow>();
+
+    for (const item of items) {
+      if (item.stitchGroupId === null) {
+        built.push({ kind: "annotation", item });
+        continue;
+      }
+
+      const open = passages.get(item.stitchGroupId);
+      if (open) {
+        open.fragments.push(item);
+        continue;
+      }
+
+      const row = {
+        kind: "passage" as const,
+        id: item.stitchGroupId,
+        lead: item,
+        fragments: [item],
+      };
+      passages.set(item.stitchGroupId, row);
+      built.push(row);
+    }
+
+    return built.flatMap((row): ListRow[] => {
+      if (row.kind !== "passage") return [row];
+
+      // Each fragment reports its own index; the list order is not the reading order.
+      row.fragments.sort(
+        (left, right) => (left.stitchIndex ?? 0) - (right.stitchIndex ?? 0),
+      );
+
+      return row.fragments.length < 2
+        ? [{ kind: "annotation", item: row.lead }]
+        : [row];
+    });
+  }, [items]);
+
+  const tagItems = tags.data?.tags ?? NO_TAGS;
+
   const chapters = useMemo(
     () => (toc.data?.hasTableOfContents ? toc.data.chapters : NO_CHAPTERS),
     [toc.data],
@@ -137,7 +236,7 @@ export function HighlightsPage() {
   useEffect(() => {
     setCursor(0);
     setOpenId(null);
-  }, [debounced, bookId, chapterFilter]);
+  }, [debounced, bookId, chapterFilter, tagFilter]);
 
   // A chapter belongs to one book; carrying the filter into another would show an
   // empty list with no visible cause.
@@ -153,6 +252,7 @@ export function HighlightsPage() {
 
   function refreshAll() {
     void queryClient.invalidateQueries({ queryKey: ["highlights"] });
+    void queryClient.invalidateQueries({ queryKey: ["tags"] });
     void queryClient.invalidateQueries({ queryKey: ["exclusions"] });
     void queryClient.invalidateQueries({ queryKey: ["weights"] });
     void queryClient.invalidateQueries({ queryKey: ["books"] });
@@ -242,32 +342,34 @@ export function HighlightsPage() {
   });
 
   function focusCard(index: number) {
-    const clamped = Math.max(0, Math.min(index, items.length - 1));
+    const clamped = Math.max(0, Math.min(index, rows.length - 1));
     setCursor(clamped);
     const cards = listRef.current?.querySelectorAll<HTMLElement>(".hl-summary");
     cards?.[clamped]?.focus();
   }
 
   useListKeys({
-    count: items.length,
+    count: rows.length,
     cursor,
     containerRef: listRef,
     focusAt: focusCard,
     actions: {
       e: (index) => {
-        const item = items[index];
-        if (item)
+        const row = rows[index];
+        if (row) {
+          const item = primaryOf(row);
           toggleHighlight.mutate({
             id: item.id,
             excluded: excludedIds.has(item.id),
           });
+        }
       },
       ...Object.fromEntries(
         [1, 2, 3, 4, 5].map((weight) => [
           String(weight),
           (index: number) => {
-            const item = items[index];
-            if (item) setWeight.mutate({ id: item.id, weight });
+            const row = rows[index];
+            if (row) setWeight.mutate({ id: primaryOf(row).id, weight });
           },
         ]),
       ),
@@ -286,6 +388,235 @@ export function HighlightsPage() {
       event.preventDefault();
       setOpenId(null);
     }
+  }
+
+  /**
+   * A stitched passage reads as one quoted item, because that is how it was read. Opening it
+   * hands back the fragments: each keeps its own note, position and curation controls, so
+   * nothing the reader wrote is folded away.
+   */
+  function passageCard(row: PassageRow, index: number) {
+    const { lead, fragments } = row;
+    const open = openId === lead.id;
+    const weight = weightById.get(lead.id) ?? 3;
+    // The server joins the passage so every client shows the same text; the local join is
+    // only a fallback for a server that predates stitching.
+    const passage =
+      lead.stitchedText ?? fragments.map((part) => part.text).join(" … ");
+    const parts = passage.split(" … ");
+    const passageTags = unionTags(fragments);
+    const excludedCount = fragments.filter((item) =>
+      excludedIds.has(item.id),
+    ).length;
+
+    function fragmentActions(item: HighlightItem) {
+      const fragmentExcluded = excludedIds.has(item.id);
+      const fragmentWeight = weightById.get(item.id) ?? 3;
+
+      return (
+        <div className="hl-actions">
+          <span className="seg-label" id={`w-${item.id}`}>
+            Weight
+          </span>
+          <div className="seg" role="group" aria-labelledby={`w-${item.id}`}>
+            {[1, 2, 3, 4, 5].map((step) => (
+              <button
+                key={step}
+                type="button"
+                aria-pressed={fragmentWeight === step}
+                onClick={() => setWeight.mutate({ id: item.id, weight: step })}
+              >
+                {step}
+              </button>
+            ))}
+          </div>
+          <button
+            className="btn btn--sm"
+            type="button"
+            onClick={() =>
+              toggleHighlight.mutate({
+                id: item.id,
+                excluded: fragmentExcluded,
+              })
+            }
+          >
+            {fragmentExcluded ? "Include again" : "Exclude fragment"}
+          </button>
+          <button
+            className="btn btn--sm"
+            type="button"
+            aria-label="Copy fragment text"
+            onClick={() => void copyHighlight(item.text)}
+          >
+            Copy
+          </button>
+          {confirmingId === item.id ? (
+            <span className="confirm" role="group" aria-label="Confirm delete">
+              <span className="confirm-q">Delete permanently?</span>
+              <button
+                className="btn btn--sm btn--danger"
+                type="button"
+                disabled={removeHighlight.isPending}
+                onClick={() => removeHighlight.mutate(item.id)}
+              >
+                {removeHighlight.isPending ? "Deleting…" : "Yes, delete"}
+              </button>
+              <button
+                className="btn btn--sm btn--ghost"
+                type="button"
+                onClick={() => setConfirmingId(null)}
+              >
+                Keep
+              </button>
+            </span>
+          ) : (
+            <button
+              className="btn btn--sm btn--danger"
+              type="button"
+              onClick={() => setConfirmingId(item.id)}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <article
+        className="hl hl--stitch"
+        key={`passage-${row.id}`}
+        data-open={open}
+      >
+        <div
+          className="hl-summary"
+          role="button"
+          aria-expanded={open}
+          aria-controls={`hlb-${lead.id}`}
+          tabIndex={index === cursor ? 0 : -1}
+          onFocus={() => setCursor(index)}
+          onClick={(event) => {
+            if (isSelectingWithin(event.currentTarget)) return;
+            setOpenId(open ? null : lead.id);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpenId(open ? null : lead.id);
+              return;
+            }
+            onCardKeyDown(event, lead);
+          }}
+        >
+          <span>
+            <span className="hl-quote hl-quote--passage">
+              {parts.map((part, position) => (
+                <Fragment key={part + position}>
+                  {position > 0 ? (
+                    <span className="hl-stitch-sep" aria-hidden="true">
+                      …
+                    </span>
+                  ) : null}
+                  {part}
+                </Fragment>
+              ))}
+            </span>
+            <span className="hl-meta">
+              {book ? null : (
+                <span className="subtle">
+                  {`${lead.bookTitle} · ${lead.authorName ?? UNKNOWN_AUTHOR}`}
+                </span>
+              )}
+              {lead.chapterPath.length > 0 ? (
+                <span className="subtle hl-crumb">
+                  <span className="sr-only">Chapter: </span>
+                  {describeChapterPath(lead.chapterPath)}
+                </span>
+              ) : null}
+              <span className="hl-stitch-count">
+                {plural(fragments.length, "fragment")} stitched
+              </span>
+              {excludedCount > 0 ? (
+                <Tag tone="excluded">
+                  {excludedCount === fragments.length
+                    ? "Excluded"
+                    : `${excludedCount} of ${fragments.length} excluded`}
+                </Tag>
+              ) : null}
+              {passageTags.length > 0 ? (
+                <span className="hl-tags">
+                  {passageTags.map((tag) => (
+                    <span
+                      className="hl-tag"
+                      key={tag}
+                      data-active={sameTag(tag, tagFilter)}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+            </span>
+          </span>
+          <span className="hl-side">
+            <WeightPips value={weight} />
+          </span>
+        </div>
+
+        <div className="hl-body" id={`hlb-${lead.id}`} hidden={!open}>
+          <p className="subtle hl-stitch-intro">
+            {plural(fragments.length, "fragment")} stitched into one passage.
+            Each keeps its own note, position and weight.
+          </p>
+          <ol className="hl-fragments">
+            {fragments.map((item, position) => (
+              <li className="hl-fragment" key={item.id}>
+                <span className="hl-fragment-mark" aria-hidden="true">
+                  {position + 1}
+                </span>
+                <div className="hl-fragment-body">
+                  <span className="hl-quote">{item.text}</span>
+                  {item.note ? (
+                    <span className="hl-note">
+                      <span className="sr-only">Note: </span>
+                      {item.note}
+                    </span>
+                  ) : null}
+                  <dl className="hl-provenance">
+                    <div>
+                      <dt>Position</dt>
+                      <dd data-unknown={item.position === null}>
+                        {formatReadingPosition(item.position)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Added</dt>
+                      <dd data-unknown={item.addedOn === null}>
+                        {formatReadingDate(item.addedOn)}
+                      </dd>
+                    </div>
+                  </dl>
+                  {fragmentActions(item)}
+                </div>
+              </li>
+            ))}
+          </ol>
+          {/* Exclusion and weight are per annotation, so they belong to the fragments below.
+              `e` and `1`–`5` on a passage row act on its first fragment, which is the
+              annotation the group's id and text come from. */}
+          <div className="hl-actions">
+            <button
+              className="btn btn--sm"
+              type="button"
+              aria-label="Copy the whole passage"
+              onClick={() => void copyHighlight(passage)}
+            >
+              Copy passage
+            </button>
+          </div>
+        </div>
+      </article>
+    );
   }
 
   const heading = book ? book.title : "Highlights";
@@ -384,13 +715,60 @@ export function HighlightsPage() {
         />
       ) : null}
 
+      {/* A library with no tags offers no tag filter, rather than an empty row that implies
+          tagging is a thing this reader has forgotten to do (Story 7 AS-5). */}
+      {tagItems.length > 0 ? (
+        <div className="tag-filter" role="group" aria-label="Filter by tag">
+          <span className="seg-label">Tag</span>
+          <div className="tag-filter-chips">
+            {tagItems.map((tag) => {
+              const active = sameTag(tag.name, tagFilter);
+
+              return (
+                <button
+                  className="tag-filter-chip"
+                  key={tag.name}
+                  type="button"
+                  aria-pressed={active}
+                  data-active={active}
+                  onClick={() => {
+                    setTagFilter(active ? null : tag.name);
+                    setOpenId(null);
+                  }}
+                >
+                  {tag.name}
+                  <span className="tag-filter-count">{tag.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <AsyncSection
         isLoading={isLoading}
         error={highlights.error ?? weights.error ?? exclusions.error}
         onRetry={() => void highlights.refetch()}
         isEmpty={items.length === 0}
         empty={
-          activeChapter ? (
+          tagFilter !== null ? (
+            <EmptyState
+              title="Nothing tagged that"
+              action={
+                <button
+                  className="btn btn--sm"
+                  type="button"
+                  onClick={() => setTagFilter(null)}
+                >
+                  Show every tag
+                </button>
+              }
+            >
+              No highlight tagged “{tagFilter}”
+              {activeChapter ? ` in “${activeChapter.title}”` : ""}
+              {debounced ? `, and none of those match “${debounced}”` : ""}.
+            </EmptyState>
+          ) : activeChapter ? (
             <EmptyState
               title="No highlights here"
               action={
@@ -439,7 +817,10 @@ export function HighlightsPage() {
         </p>
 
         <div className="hl-list" ref={listRef}>
-          {items.map((item, index) => {
+          {rows.map((row, index) => {
+            if (row.kind === "passage") return passageCard(row, index);
+
+            const item = row.item;
             const open = openId === item.id;
             const excluded = excludedIds.has(item.id);
             const weight = weightById.get(item.id) ?? 3;
@@ -515,6 +896,21 @@ export function HighlightsPage() {
                         </span>
                       ) : null}
                       {excluded ? <Tag tone="excluded">Excluded</Tag> : null}
+                      {/* Tags are shown as the reader spelled them, and name the filter that
+                          would narrow the list to them. */}
+                      {item.tags.length > 0 ? (
+                        <span className="hl-tags">
+                          {item.tags.map((tag) => (
+                            <span
+                              className="hl-tag"
+                              key={tag}
+                              data-active={sameTag(tag, tagFilter)}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                     </span>
                   </span>
                   <span className="hl-side">
