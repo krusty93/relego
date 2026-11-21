@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11-19
+**Updated:** 2026-11-21 — corrected against the delivered code: marker edge cases (`.h0`, `.h4`, `.c0`), how a source with no position is matched, and the recap composers, which carry the note with the passage they already selected rather than deriving context.
 
 ## Context
 
@@ -48,9 +49,10 @@ A note is not free text. It is a small, closed grammar, interpreted identically 
 | `.prob`, `.prob .review` | one or more tags; no commentary |
 | `.prob a real comment` | tag `prob`, note `a real comment` |
 | bare `.` (or `. `) | commentary carrying no passage — the dot stays in the note |
+| `.h0`, `.h4`, `.c0` | heading- or stitch-shaped but not a valid level: the note is prose from that token on |
 | `[my note] …` | legacy encoding: retired on upgrade, never recognised at import |
 
-Leading tokens only, whitespace-separated, case-insensitive for matching and spelling-preserving for display. The grammar lives in one place, `Relego.Core.Parsing.AnnotationMarkerParser`, which turns a note into `(Note, HeadingLevel, StitchLevel, Tags)`. `HighlightAggregator` attaches a source's note to the right passage — matched on book and position, never on note text — and every client sends annotations **raw**: the CLI, the web portal, uploads, cloud sync and any future client transport the note as written, and the server classifies it. Nothing but that one parser decides what a dot-prefixed token means, and there is no setting to turn recognition off.
+Leading tokens only, whitespace-separated, case-insensitive for matching and spelling-preserving for display. The first token that is not a marker starts the prose, so nothing after it is ever reinterpreted. The grammar lives in one place, `Relego.Core.Parsing.AnnotationMarkerParser`, which turns a note into `(Note, HeadingLevel, StitchLevel, Tags)`. `HighlightAggregator` attaches a source's note to the right passage — matched on book and position, never on note text, and a source that reports no position (Kobo) is matched on the passage the clipping is anchored to — and every client sends annotations **raw**: the CLI, the web portal, uploads, cloud sync and any future client transport the note as written, and the server classifies it. Nothing but that one parser decides what a dot-prefixed token means, and there is no setting to turn recognition off.
 
 The deliberate exception: Relego-specific prefixes are **retired rather than added**. `[my note] ` disappears from the aggregator and from stored rows (§3) instead of gaining a sibling.
 
@@ -60,7 +62,7 @@ The deliberate exception: Relego-specific prefixes are **retired rather than add
 
 There is no chapter table, no tag table and no stitch table. Two pure builders in `Relego.Core.Annotations` project them from a book's stored annotations in source order: `ChapterTreeBuilder` derives the table of contents (a heading annotation titles a chapter; parent is the nearest preceding heading of a strictly smaller level; annotations before the first heading belong to the unknown chapter; a table of contents exists only when at least one level-1 heading exists, FR-026), and `StitchedPassageBuilder` joins `.cN` fragments (a level-1 fragment opens a group, later levels append to it, an orphan `.cN` stays out of any group and surfaces its marker as a tag, FR-042).
 
-Both sit behind a single service, `Relego.Server.Services.AnnotationContextService`, which is the only path from stored rows to presented annotations. It serves the REST API (`GET /highlights` with `bookId`, `chapterId` and `tag`, plus `GET /books/{id}/chapters` and `GET /tags`), the CLI and the web portal as thin clients over those endpoints, and the EPUB and HTML recap composers through the same builders on `SelectionCandidate` (FR-033).
+Both sit behind a single service, `Relego.Server.Services.AnnotationContextService`, which is the only path from stored rows to presented annotations. It serves the REST API (`GET /highlights` with `bookId`, `chapterId` and `tag`, plus `GET /books/{id}/chapters` and `GET /tags`), and the CLI and the web portal are thin clients over those endpoints. The recap composers are the deliberate exception: they render the notes that come attached to the passages a candidate already selected (FR-033) and never build a chapter tree or a stitched passage, so no email surface acquires a second derivation.
 
 Consequences that follow from deriving:
 

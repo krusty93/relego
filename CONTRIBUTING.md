@@ -83,12 +83,15 @@ Relego's import side is intentionally open for new highlight sources. The archit
 
 To add a source:
 
-1. Implement `IHighlightSource` in `src/Relego.Cli/Sources/`.
+1. Implement `IHighlightSource` in `src/Relego.Core/Sources/`, next to `KindleClippingsSource` and `KoboReaderSource`, so both the CLI and the server's `POST /imports` get it.
 2. Give it a stable `SourceDescriptor`, for example `new("kobo", "Kobo")`. The id is for reporting and logs only; do not branch on it.
 3. Implement `Locate(string? userPath)` so the source owns its filename, directory, export, or device-detection rules and returns all probed locations in `SourceProbe`.
-4. Implement `ReadAsync(...)` so it returns the shared `ParseResult` shape. For row-oriented sources, normalize raw records to `RawClipping` and run them through `HighlightAggregator.Aggregate(...)` so deduplication, note prefixing, and grouping stay consistent.
-5. Register one line in `src/Relego.Cli/Program.cs`, for example `builder.Services.AddSingleton<IHighlightSource, KoboSource>();`. Registration order is processing order when several sources are detected.
-6. Add focused tests under `src/Relego.Tests/Sources/`. Include a small fixture in `src/Relego.Tests/Fixtures/` for test stability; add a docs-facing example under `docs/examples/` when it helps contributors or users understand the format.
+4. Implement `ReadAsync(...)` so it returns the shared `ParseResult` shape. For row-oriented sources, normalize raw records to `RawClipping` and run them through `HighlightAggregator.Aggregate(...)` so deduplication, note attachment, and grouping stay consistent.
+5. Report everything the source knows, per annotation, in `ParsedHighlight`: the passage `Text` (`string.Empty` for a note with no passage), the reader's `Note` **exactly as written**, the source `Position` and `Location`, and `AddedOn` when the source dates the annotation. A source that reports no position keeps text-only identity, so indistinguishable records collapse into one annotation; reporting a position keeps two identical passages apart.
+6. Register one line in `src/Relego.Cli/Program.cs`, for example `builder.Services.AddSingleton<IHighlightSource, KoboSource>();`. Registration order is processing order when several sources are detected.
+7. Add focused tests under `src/Relego.Tests/Sources/`. Include a small fixture in `src/Relego.Tests/Fixtures/` for test stability; add a docs-facing example under `docs/examples/` when it helps contributors or users understand the format.
+
+Never interpret the reader's markers in a source. `.h1`–`.h3`, `.c1`–`.cN`, `.tag` words and the retired `[my note] ` prefix belong to `Relego.Core.Parsing.AnnotationMarkerParser`, and the server applies it to the raw note once, on the way in. A source that stripped or translated markers would give the web UI, the CLI and recaps three different meanings for the same note, and the marker grammar is the reader's existing Readwise vocabulary rather than something a source may reinterpret. Reporting the note and the position is all a source has to do; chapters, tags and stitched passages follow from them (see [ADR-009](docs/adr/009-reading-annotations-vocabulary-and-derived-context.md)).
 
 Do not edit `HighlightSourceResolver`, `ClippingsImportWorkflow`, `ImportCommand`, or a central enum to add source-specific handling. There is no central enum by design: the resolver iterates the DI-registered sources and the workflow imports every resolved source with per-source failure isolation. Keeping that Open/Closed guarantee is part of the contributor contract.
 

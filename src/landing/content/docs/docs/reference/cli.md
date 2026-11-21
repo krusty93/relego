@@ -93,6 +93,23 @@ For Kobo, mount the device root and import `.kobo/KoboReader.sqlite`.
 | `relego status` | None | Shows server health, library totals, delivery configuration, and the next recap |
 | `relego --version` | None | Prints the CLI version |
 
+### Browsing annotations
+
+| Command | Accepted parameters | Result |
+| --- | --- | --- |
+| `relego highlights list` | `--book <id>`, `--chapter <id\|unknown>`, `--tag <name>`, `--search <text>`, `--page <n>`, `--page-size <n>` | Lists annotations with their note, tags, chapter path, position and reading date |
+| `relego highlights chapters --book <id>` | Numeric book ID | Prints that book's chapter tree with per-chapter annotation counts |
+
+`--chapter` needs `--book`, because a chapter belongs to one book; without it the command stops with
+`--chapter requires --book <id>.`. Filters combine: `--book` and `--tag` together list only that
+book's tagged annotations. An empty result is not an error, so the command prints its empty message
+and exits `0`.
+
+```sh
+relego highlights list --book 7 --tag prob
+relego highlights chapters --book 7
+```
+
 ### Schedule
 
 | Command | Accepted parameters | Result |

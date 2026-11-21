@@ -14,8 +14,9 @@ subtitle: "Bring highlights into your library from a Kindle or Kobo file, or syn
 | Kindle | `documents/My Clippings.txt` | Contains device highlights, notes, and bookmarks |
 | Kobo | `.kobo/KoboReader.sqlite` | `.kobo` is a hidden folder |
 
-Relego reads the quote, book title, and author. You do not need SQLite tooling
-for Kobo, upload the file as-is.
+Relego reads the passage, the book title, the author, your own note on the
+passage, and where it sits in the book. You do not need SQLite tooling for Kobo,
+upload the file as-is.
 
 :::note
 `My Clippings.txt` does not include highlights made in Kindle mobile or desktop
@@ -104,6 +105,53 @@ Importing from Kobo requires USB connection:
 - Connect your Kobo over USB and wait for it to appear on your computer.
 - Copy the `.kobo` directory from the device to your computer. If you don't see the directory, you have to enable hidden files in your file manager settings.
 - In the Relego web, go to **Import**, then drop in `.kobo/KoboReader.sqlite` or click to browse for it.
+
+## Your notes become chapters and tags
+
+Your own notes are imported next to the passage they belong to, not as separate
+quotes. Relego also reads the small vocabulary Readwise teaches, so a library you
+already annotated keeps its meaning:
+
+| At the start of a note | What Relego does |
+| --- | --- |
+| `.h1`, `.h2`, `.h3` | Makes the passage a chapter title at that level, and builds a chapter tree per book |
+| `.h1` followed by text | Chapter title, with the remaining text as that chapter's summary |
+| `.c1` … `.cN` | Marks a fragment of one continuous passage, so the fragments are shown joined in order |
+| `.prob`, `.prob .review` | Files the passage under those tags |
+| `.prob a real comment` | Tag `prob`, comment `a real comment` |
+
+Only leading, space-separated dot-words are markers. Everything after them is
+your comment, and your spelling is kept as written even though matching ignores
+case. A note on its own, with no passage, is kept as a note.
+
+:::note
+Older Relego versions saved notes as separate highlights with a `[my note] `
+prefix. That prefix is retired: an existing library is converted once on
+upgrade, and it is never needed again or recognised on a new import.
+:::
+
+Chapters and tags are worked out when you look at them, not stored, so editing or
+deleting a marker on your device and importing again is enough to change the
+structure. An annotation that loses its marker stays in your library and falls
+back to the nearest chapter, or to **Unknown chapter**.
+
+## Browse by chapter and tag
+
+Open **Highlights** in the web interface: the chapter rail narrows the list to
+one chapter, and the tag chips narrow it to one word, so `.prob` passages are one
+click away. Filtering by chapter and by tag at the same time is allowed.
+
+From a terminal, the same views:
+
+```sh
+relego highlights chapters --book 7
+relego highlights list --book 7 --chapter 12
+relego highlights list --tag prob
+```
+
+The [CLI reference](/docs/reference/cli/#browsing-annotations) documents every
+option. Web, CLI and recap all read the note through the server, so a marker can
+never mean one thing in the browser and another in your email.
 
 ## Next
 

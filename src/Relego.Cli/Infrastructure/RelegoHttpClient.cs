@@ -9,7 +9,14 @@ namespace Relego.Cli.Infrastructure;
 /// </summary>
 public sealed class RelegoHttpClient(HttpClient http)
 {
-    public async Task<HighlightsResponse> GetHighlightsAsync(int page, int pageSize, string? query, CancellationToken ct = default)
+    public async Task<HighlightsResponse> GetHighlightsAsync(
+        int page,
+        int pageSize,
+        string? query,
+        int? bookId = null,
+        string? chapterId = null,
+        string? tag = null,
+        CancellationToken ct = default)
     {
         var requestUri = $"/highlights?page={page}&pageSize={pageSize}";
         if (!string.IsNullOrWhiteSpace(query))
@@ -17,8 +24,29 @@ public sealed class RelegoHttpClient(HttpClient http)
             requestUri += $"&q={Uri.EscapeDataString(query)}";
         }
 
+        if (bookId is not null)
+        {
+            requestUri += $"&bookId={bookId.Value}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(chapterId))
+        {
+            requestUri += $"&chapterId={Uri.EscapeDataString(chapterId.Trim())}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            requestUri += $"&tag={Uri.EscapeDataString(tag.Trim())}";
+        }
+
         return (await http.GetFromJsonAsync(requestUri, RelegoJsonContext.Default.HighlightsResponse, ct).ConfigureAwait(false))!;
     }
+
+    public async Task<TableOfContentsResponse> GetChaptersAsync(int bookId, CancellationToken ct = default)
+        => (await http.GetFromJsonAsync($"/books/{bookId}/chapters", RelegoJsonContext.Default.TableOfContentsResponse, ct).ConfigureAwait(false))!;
+
+    public async Task<TagsResponse> GetTagsAsync(CancellationToken ct = default)
+        => (await http.GetFromJsonAsync("/tags", RelegoJsonContext.Default.TagsResponse, ct).ConfigureAwait(false))!;
 
     public async Task<SyncResponse> PostSyncAsync(SyncRequest request, CancellationToken ct = default)
     {

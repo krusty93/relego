@@ -50,6 +50,7 @@ flowchart LR
 - Responsibilities:
   - Parse and sync highlights from registered highlight sources to the server (Kindle and Kobo today)
   - Manage user settings via CLI commands (schedule, count, weights, exclusions)
+  - Browse highlights by book, chapter and tag (`relego highlights list`, `relego highlights chapters`) over the same read endpoints the web UI uses
   - Display server status
 
 #### Highlight source registry (`Relego.Core/Sources/`)
@@ -75,12 +76,14 @@ All sources are responsible for transforming raw source data into structured dat
 - **Output types**:
   - `ParseResult` — top-level result: list of `ParsedBook`, total entries processed, duplicates removed
   - `ParsedBook` — `(Title, Author?, IReadOnlyList<ParsedHighlight> Highlights)`
-  - `ParsedHighlight` — `(Text, Location?, AddedOn?)`
+  - `ParsedHighlight` — `(Text, Location?, AddedOn?, Note?, Position?)`; `Text` is empty for a note-only annotation and `Note` carries the reader's note **with its markers intact**
 - **Design decisions**:
   - Streaming for Kindle text: reads lines one-by-one via `ReadLineAsync()`; no full file in memory
   - Skip-and-warn: malformed entries are skipped with an `ILogger.LogWarning`; never throws
-  - Deduplication: `HashSet<(Title, Author, Text)>` — exact case-sensitive match, first occurrence kept
-  - Notes as highlights: entries of type "Note" are emitted as highlights with `[my note] ` prefix on their text
+  - Deduplication: clippings group by `(Title, Author)` and source position; identical passages and notes inside a group collapse, first occurrence kept
+  - Note attachment: a note joins the passage at its position (never by note text); a note whose passage did not survive becomes a note-only annotation
+  - Notes as annotations: a source reports its note in `Note` next to the passage it belongs to; nothing is prefixed, and a note with no passage is a note-only annotation
+  - Markers stay raw: sources never interpret `.hN`, `.cN`, `.tag` or the legacy `[my note] ` prefix — the server's marker parser is the only interpreter (see [Reading annotations](#reading-annotations-markers-and-derivation))
   - Bookmarks: entries of type "Bookmark" are silently dropped
   - Shared aggregation: `HighlightAggregator` performs deduplication and grouping for every source so Kindle and Kobo produce identical downstream shapes
 
@@ -95,6 +98,7 @@ All sources are responsible for transforming raw source data into structured dat
 - Always-on, handles all automated operations
 - Responsibilities:
   - Store highlights, recap history, weights, exclusions, settings in SQLite
+  - Interpret the reader's note markers once, and derive chapter trees, tags and stitched passages on read
   - Run scheduled recap generation (daily or weekly, configurable time)
   - Select highlights via spaced repetition algorithm
   - Compose recap document and send via SMTP to Kindle email address
@@ -132,10 +136,37 @@ settings before enabling their respective Save changes buttons. Editing a tested
 invalidates its result; clearing a delivery address requires no test. Saving remains explicit.
 - Status: `GET /status`
 - Recap: `POST /recaps`, `GET /recaps` (delivery history)
-- Highlights: `GET /highlights`, `DELETE /highlights/{id}`
+- Highlights: `GET /highlights` (filters `bookId`, `chapterId`, `tag`, `q`), `DELETE /highlights/{id}`
+- Chapters: `GET /books/{id}/chapters` — the book's derived table of contents
+- Tags: `GET /tags` — the reader's vocabulary with usage counts
 - Books: `GET /books`, `PUT /books/{id}/title`
 - Exclusions: `*/{id}/exclusions` plus `GET /exclusions`
 - Weights: `PUT /highlights/{id}/weight`, `GET /highlights/weights`
+
+#### Reading annotations: markers and derivation
+
+Everything a reader writes on the device — a comment on a passage, the title of a section, the word they file a passage under, the marker that joins two passages into one argument — is stored as one annotation: a passage `text`, the reader's `note` as written, and the position the source reported. Interpretation happens **once, on the server**, in `Relego.Core.Parsing.AnnotationMarkerParser`, which turns a note into `(Note, HeadingLevel, StitchLevel, Tags)`:
+
+| In the note | Meaning |
+|---|---|
+| `.h1`, `.h2`, `.h3` (any case) | heading at that level; the passage becomes a chapter title |
+| `.h1` plus text | heading at that level, the remaining text is the chapter's section note |
+| `.c1` … `.cN` | explicit stitch level for one fragment of a continuous passage |
+| `.prob`, `.prob .review` | tags only |
+| `.prob a real comment` | tag `prob`, note `a real comment` |
+| bare `.` | commentary carrying no passage |
+| `[my note] …` | legacy encoding: retired on upgrade, never recognised at import |
+
+Only leading whitespace-separated dot-tokens are markers; matching is case-insensitive and display preserves the reader's spelling. No endpoint, composer or client re-implements this grammar: every client sends the note raw (`POST /highlights/import`, `POST /imports`, cloud sync batches, the web portal, the CLI) and the server classifies it. The grammar is Readwise's own Kindle grammar, so a library exported from Readwise imports with the meaning the reader already gave it.
+
+Chapters and stitched passages are **derived on read and never persisted** — there is no chapter, tag or stitch table:
+
+- `ChapterTreeBuilder` builds the table of contents: a heading annotation titles a chapter, its parent is the nearest preceding heading of a strictly smaller level, annotations before the first heading belong to `Unknown chapter`, and a table of contents exists only when at least one level-1 heading exists.
+- `StitchedPassageBuilder` joins `.cN` fragments in source order: a level-1 fragment opens a group, later levels append to it, and an orphan `.cN` stays out of every group and surfaces its marker as a tag. Each fragment keeps its own row, weight, exclusion and delivery history; stitching is a reading of the fragments, not a replacement for them.
+
+`Relego.Server.Services.AnnotationContextService` is the single path from stored rows to presented annotations. It resolves chapter and tag context **per book** (a table of contents cannot be derived from one page of annotations), and the REST endpoints, the web UI and `relego highlights list|chapters` all read through it; recap composers receive the note with the passage they already selected, never a second derivation. Deriving is what makes the structure self-healing: editing or deleting a heading marker, excluding a fragment or re-importing a book changes nothing stored, so the tree and the passages are correct on the next read (ADR-009).
+
+The one migration in the codebase reclassifies pre-existing rows and is recorded in a `schema_migrations` marker table under the id `012-note-split-and-identity`. It splits a legacy `[my note] ` prefix out of `text` into `note`, runs the marker parser on the remainder so a migrated `.h2` or `.prob` means what a fresh import would mean, folds the `"Unknown Author"` sentinel into a single `NULL` author and replaces the passage-only identity index with the annotation identity. The new provenance columns (`added_on`, `source_position`, `position_start`, `position_kind`) are added as `NULL` and stay `NULL` for rows whose source never reported them. A fresh database is created in the target shape and records nothing, so the migration never runs twice and never touches annotations received afterwards.
 
 #### Cloud sync (`Relego.Server/Sync/`)
 
@@ -189,7 +220,7 @@ Single-page application built with Vite and referenced by `Relego.Server` throug
 - **Tech stack**: Vite 7, React 19, TypeScript, React Router, TanStack Query. Plain CSS with a token layer.
 - **Same-origin API calls**: browser requests use relative paths, so the web UI always talks to the server that served it.
 - **Offline-capable assets**: fonts are bundled (`@fontsource/playfair-display`); nothing is fetched from a CDN at runtime, which matters for a self-hosted tool on an isolated network.
-- **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights · `/recaps` · `/import` · `/settings`
+- **Routes**: `/` library · `/books/{id}` one book's highlights · `/highlights` all highlights (filterable by chapter and tag) · `/recaps` · `/import` · `/settings`
 - **Accessibility**: every route is verified with axe-core in both themes at desktop and mobile widths, plus the command palette, shortcut sheet, expanded highlight, and rename dialog. The suite fails on any violation.
 - **Build**: `dotnet publish src/Relego.Server` installs the locked pnpm dependencies, runs the Vite production build, and writes the assets to the server publish output's `wwwroot/`. `pnpm run build` in `src/relego.web` remains available for frontend-only work.
 - **Tests**: `pnpm test` in `src/relego.web` — Playwright builds the SPA, starts `relego-server` against a throwaway SQLite file, seeds the fixtures used by the .NET tests, then runs the behavioural and accessibility suites.
@@ -269,9 +300,14 @@ Static marketing landing page built with Astro and Tailwind CSS. Completely inde
 
 ```
 users            (id, kindle_email[''], delivery_email[NULL], created_at)
-authors          (id, name)
+authors          (id, name[NULL])
 books            (id, user_id, author_id, title)
-highlights       (id, user_id, book_id, text, weight[1-5], excluded, last_seen, delivery_count, created_at)
+highlights       (id, user_id, book_id, text, note[NULL], heading_level[1-3, NULL], stitch_level[NULL],
+                  tags[space-separated, NULL], source_position[NULL], position_start[NULL],
+                  position_kind['location'|'page', NULL], added_on[NULL], weight[1-5], excluded,
+                  last_seen, delivery_count, created_at,
+                  CHECK(length(text) > 0 OR note IS NOT NULL))
+schema_migrations (id, applied_at)
 excluded_books   (id, user_id, book_id, excluded_at)
 excluded_authors (id, user_id, author_id, excluded_at)
 settings         (user_id, schedule['daily'|'weekly'], delivery_day, delivery_time[default:'18:00'], count[1-15, default:3])
@@ -300,9 +336,12 @@ sync_reminders   (id, connection_id, user_id, quiet_since, threshold_days, creat
 
 Current uniqueness constraints used by the REST layer:
 
-- `authors(name)`
+- `authors(name)` — plus a partial unique index on `coalesce(name, '')` where `name IS NULL`, so a book with no reported author resolves to one shared `NULL` author
 - `books(user_id, author_id, title)`
-- `highlights(user_id, book_id, text)`
+- `highlights(user_id, book_id, text, coalesce(source_position, ''))` — a source that reports no position keeps text-only identity
+- `highlights(user_id, book_id, note)` — partial index, so two note-only annotations stay distinct
+
+> **Derived, not stored:** chapter trees, tag lists and stitched passages have no tables. They are computed per book from the stored annotations by `Relego.Core/Annotations/` and never cached (see [Reading annotations](#reading-annotations-markers-and-derivation)).
 
 ---
 
@@ -354,12 +393,14 @@ LIMIT @count
 | `POST`   | `/settings/smtp/test`             | Verify the SMTP connection                  | Settings   |
 | `POST`   | `/recaps`                         | Execute a recap immediately                 | Recap      |
 | `GET`    | `/recaps`                         | Recap delivery history                      | Recap      |
-| `GET`    | `/highlights`                     | List/paginate/search highlights             | Highlights |
+| `GET`    | `/highlights`                     | List/paginate/search highlights (`bookId`, `chapterId`, `tag`, `q`) | Highlights |
 | `DELETE` | `/highlights/{id}`                | Delete a highlight                          | Highlights |
 | `PUT`    | `/highlights/{id}/weight`         | Set highlight recap weight                  | Weights    |
 | `GET`    | `/highlights/weights`             | List weighted highlights                    | Weights    |
 | `GET`    | `/books`                          | List books with highlight counts            | Books      |
 | `PUT`    | `/books/{id}/title`               | Rename a book                               | Books      |
+| `GET`    | `/books/{id}/chapters`            | Derived table of contents for one book      | Chapters   |
+| `GET`    | `/tags`                           | Reader's tags with usage counts             | Tags       |
 | `POST`   | `/highlights/{id}/exclusions`     | Exclude a highlight                         | Exclusions |
 | `DELETE` | `/highlights/{id}/exclusions`     | Re-include a highlight                      | Exclusions |
 | `POST`   | `/books/{id}/exclusions`          | Exclude a book                              | Exclusions |
@@ -388,6 +429,7 @@ Current repository split:
 - `WeightRepository`: weight updates and weighted highlight listings
 - `SyncConnectionRepository`, `SyncJobRepository`, `SyncReminderRepository`: cloud sync connection state, job lifecycle and inactivity reminders
 - `ProvenanceRepository`: per-highlight origin (source, region, external id, truncation)
+- `HighlightRepository`: annotation reads in source order, with book, chapter and tag filters
 
 ### Error handling
 

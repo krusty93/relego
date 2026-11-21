@@ -259,15 +259,15 @@ confirm both report the same note, chapter context, stitched grouping and tags.
 
 ### Tests for User Story 8 ⚠️
 
-- [ ] T056 [P] [US8] Add `src/Relego.Tests/Cli/HighlightsCommandTests.cs` using the existing mock-HTTP pattern from `src/Relego.Tests/Cli/ImportCommandTests.cs`: `list` renders note, tags, chapter path, position and date; a note-only annotation prints its block with an empty passage; unknown author prints `Unknown author`; `chapters` prints nesting and an actionable line when `hasTableOfContents` is false; `--chapter` without `--book` fails with `--chapter requires --book <id>.`; an empty result exits `0`
-- [ ] T057 [P] [US8] Add `src/relego.web/tests/annotations.spec.ts` (Playwright) asserting SC-016: heading distinction, note, tag chips, stitched grouping and chapter filtering agree with the API payload for the same annotation
+- [X] T056 [P] [US8] Add `src/Relego.Tests/Cli/HighlightsCommandTests.cs` using the existing mock-HTTP pattern from `src/Relego.Tests/Cli/ImportCommandTests.cs`: `list` renders note, tags, chapter path, position and date; a note-only annotation prints its block with an empty passage; unknown author prints `Unknown author`; `chapters` prints nesting and an actionable line when `hasTableOfContents` is false; `--chapter` without `--book` fails with `--chapter requires --book <id>.`; an empty result exits `0`
+- [X] T057 [P] [US8] Add `src/relego.web/tests/annotations.spec.ts` (Playwright) asserting SC-016: heading distinction, note, tag chips, stitched grouping and chapter filtering agree with the API payload for the same annotation
 
 ### Implementation for User Story 8
 
-- [ ] T058 [US8] Add the three new request methods to `src/Relego.Cli/Infrastructure/RelegoHttpClient.cs` and `[JsonSerializable]` entries for every new DTO to `src/Relego.Cli/Infrastructure/RelegoJsonContext.cs` (the source-generated serializer will not see them otherwise)
-- [ ] T059 [US8] Add `HighlightsListCommand` in `src/Relego.Cli/Commands/Highlights/HighlightsListCommand.cs` with `--book`, `--chapter`, `--tag`, `--search`, `--page`, `--page-size` per [contracts/cli.md](contracts/cli.md)
-- [ ] T060 [US8] Add `HighlightsChaptersCommand` in `src/Relego.Cli/Commands/Highlights/HighlightsChaptersCommand.cs` rendering nesting, per-chapter counts and the unknown chapter
-- [ ] T061 [US8] Register the `highlights` branch (`list`, `chapters`) in `src/Relego.Cli/Program.cs` following the existing `exclude` / `weight` grouping style
+- [X] T058 [US8] Add the three new request methods to `src/Relego.Cli/Infrastructure/RelegoHttpClient.cs` and `[JsonSerializable]` entries for every new DTO to `src/Relego.Cli/Infrastructure/RelegoJsonContext.cs` (the source-generated serializer will not see them otherwise)
+- [X] T059 [US8] Add `HighlightsListCommand` in `src/Relego.Cli/Commands/Highlights/HighlightsListCommand.cs` with `--book`, `--chapter`, `--tag`, `--search`, `--page`, `--page-size` per [contracts/cli.md](contracts/cli.md)
+- [X] T060 [US8] Add `HighlightsChaptersCommand` in `src/Relego.Cli/Commands/Highlights/HighlightsChaptersCommand.cs` rendering nesting, per-chapter counts and the unknown chapter
+- [X] T061 [US8] Register the `highlights` branch (`list`, `chapters`) in `src/Relego.Cli/Program.cs` following the existing `exclude` / `weight` grouping style
 
 **Checkpoint**: all eight stories work, and web and CLI agree field by field.
 
@@ -277,10 +277,10 @@ confirm both report the same note, chapter context, stitched grouping and tags.
 
 **Purpose**: documentation, the living map and end-to-end validation.
 
-- [ ] T062 [P] Update `docs/ARCHITECTURE.md`: the annotation vocabulary, the derived chapter/stitch model, the one derive path and the migration marker
-- [ ] T063 [P] Update the docs site under `src/landing/content/docs/docs/` — `import.md` currently claims only quote, title and author are read; document `.h1`–`.h3`, `.c1`–`.cN`, `.tag`, the retired `[my note] ` prefix, and how to browse by chapter and tag (this is the documentation user story carried as a Polish task)
-- [ ] T064 [P] Update `CONTRIBUTING.md`: what a new highlight source must now report (note, position) and why marker interpretation stays on the server
-- [ ] T065 [P] Re-read `docs/adr/009-reading-annotations-vocabulary-and-derived-context.md` against the delivered code and correct any drift, including the `[my note] ` cross-links in ADR-005 and ADR-008
+- [X] T062 [P] Update `docs/ARCHITECTURE.md`: the annotation vocabulary, the derived chapter/stitch model, the one derive path and the migration marker
+- [X] T063 [P] Update the docs site under `src/landing/content/docs/docs/` — `import.md` currently claims only quote, title and author are read; document `.h1`–`.h3`, `.c1`–`.cN`, `.tag`, the retired `[my note] ` prefix, and how to browse by chapter and tag (this is the documentation user story carried as a Polish task)
+- [X] T064 [P] Update `CONTRIBUTING.md`: what a new highlight source must now report (note, position) and why marker interpretation stays on the server
+- [X] T065 [P] Re-read `docs/adr/009-reading-annotations-vocabulary-and-derived-context.md` against the delivered code and correct any drift, including the `[my note] ` cross-links in ADR-005 and ADR-008
 - [ ] T066 Run `dotnet build src/Relego.slnx` and `dotnet test src/Relego.Tests/Relego.Tests.csproj`; fix every failure — warnings are errors per `src/Directory.Build.props`
 - [ ] T067 Run `pnpm run lint`, `pnpm run format:check` and `cd src/relego.web && pnpm test`; fix findings with `pnpm run lint:fix` and `pnpm run format` (never by hand)
 - [ ] T068 Execute the six scenarios in [quickstart.md](quickstart.md) end to end against a running server and confirm each expected outcome, including the pre-upgrade database run in Scenario 6

@@ -10,6 +10,7 @@ using Relego.Cli.Commands;
 using Relego.Cli.Commands.Config;
 using Relego.Cli.Commands.Config.Email;
 using Relego.Cli.Commands.Exclude;
+using Relego.Cli.Commands.Highlights;
 using Relego.Cli.Commands.Recap;
 using Relego.Cli.Commands.Weight;
 using Relego.Cli.Infrastructure;
@@ -129,6 +130,15 @@ app.Configure(config =>
         r.SetDescription("Manage recaps.");
         r.AddCommand<RecapTriggerCommand>("trigger")
             .WithDescription("Trigger a recap immediately.");
+    });
+
+    config.AddBranch("highlights", hl =>
+    {
+        hl.SetDescription("Browse annotations, their chapters and their tags.");
+        hl.AddCommand<HighlightsListCommand>("list")
+            .WithDescription("List annotations with their note, tags, chapter and reading date.");
+        hl.AddCommand<HighlightsChaptersCommand>("chapters")
+            .WithDescription("Show a book's chapters with their annotation counts.");
     });
 
     config.AddCommand<RenameBookCommand>("rename-book")
