@@ -87,16 +87,22 @@ public static class SourceOrder
             && items.All(item => item.Key.PositionStart is not null)
             && items.Select(item => item.Key.PositionKind).Distinct(StringComparer.Ordinal).Count() == 1;
 
-        var ordered = orderByPosition
-            ? items
+        IEnumerable<(T Annotation, AnnotationOrderKey Key)> ordered;
+        if (orderByPosition)
+        {
+            ordered = items
                 .OrderBy(item => item.Key.PositionStart)
-                .ThenBy(item => item.Key.Id)
-            : items
-                // A missing source date sorts last: an annotation without a date cannot claim to
-                // have been read first.
+                .ThenBy(item => item.Key.Id);
+        }
+        else
+        {
+            // A missing source date sorts last: an annotation without a date cannot claim to have
+            // been read first.
+            ordered = items
                 .OrderBy(item => item.Key.AddedOn is null)
                 .ThenBy(item => item.Key.AddedOn)
                 .ThenBy(item => item.Key.Id);
+        }
 
         return [.. ordered.Select(item => item.Annotation)];
     }
