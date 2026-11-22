@@ -34,6 +34,11 @@ COPY --from=server-build /out/ ./
 
 ENV ASPNETCORE_HTTP_PORTS=8080
 
+# The PostHog project token is an ingest-only public key, baked in at build time so the published image
+# can report its own version. An image built without it sends nothing (ADR-010, PRIVACY.md).
+ARG RELEGO_POSTHOG_TOKEN=""
+ENV RELEGO_POSTHOG_TOKEN=${RELEGO_POSTHOG_TOKEN}
+
 RUN mkdir -p /data \
     && ln -s /data /app/.data
 

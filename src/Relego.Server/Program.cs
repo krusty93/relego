@@ -15,6 +15,7 @@ using Relego.Server.Infrastructure.Smtp;
 using Relego.Server.Jobs;
 using Relego.Server.Services;
 using Relego.Server.Sync;
+using Relego.Server.Telemetry;
 
 SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
 
@@ -92,6 +93,13 @@ builder.Services.AddScoped<SyncReminderService>();
 
 // The inactivity sweep and the status endpoint both need "now" on a controllable clock.
 builder.Services.AddSingleton(TimeProvider.System);
+
+// Anonymous usage telemetry (ADR-010): on by default, off when the operator sets DISABLE_TELEMETRY or
+// DO_NOT_TRACK, and inert in images built without a project token.
+builder.Services.AddSingleton(TelemetrySettings.FromEnvironment());
+builder.Services.AddSingleton(new InstallationIdStore(Path.GetDirectoryName(Path.GetFullPath(dbPath)) ?? "."));
+builder.Services.AddHttpClient<TelemetryClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHostedService<TelemetryHeartbeatService>();
 
 builder.Services.AddQuartz(q =>
 {

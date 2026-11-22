@@ -21,6 +21,8 @@ services:
       SMTP_USER: ${RELEGO_SMTP_USER:-}
       SMTP_PASSWORD: ${RELEGO_SMTP_PASSWORD:-}
       KINDLE_EMAIL: ${RELEGO_KINDLE_EMAIL:-}
+      # One anonymous heartbeat a day, disclosed in PRIVACY.md (ADR-010). Opt out with "true".
+      DISABLE_TELEMETRY: ${DISABLE_TELEMETRY:-false}
     ports:
       - "8080:8080"
     volumes:
