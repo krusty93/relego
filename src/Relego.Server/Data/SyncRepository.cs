@@ -105,13 +105,15 @@ public sealed class SyncRepository(IDbConnection connection)
 
                 // Re-importing only refreshes what the source said about the annotation; the reader's
                 // weight, exclusion, delivery count and last-seen date belong to Relego and are kept.
+                // The note and the markers it carries are source-owned, so an absent value is an
+                // answer: removing a marker clears the vocabulary it produced (SC-013, FR-043).
                 await connection.ExecuteAsync(
                     """
                     UPDATE highlights
-                    SET note            = coalesce(@Note, note),
-                        heading_level   = coalesce(@HeadingLevel, heading_level),
-                        stitch_level    = coalesce(@StitchLevel, stitch_level),
-                        tags            = coalesce(@Tags, tags),
+                    SET note            = @Note,
+                        heading_level   = @HeadingLevel,
+                        stitch_level    = @StitchLevel,
+                        tags            = @Tags,
                         source_position = coalesce(@Position, source_position),
                         position_start  = coalesce(@PositionStart, position_start),
                         position_kind   = coalesce(@PositionKind, position_kind),

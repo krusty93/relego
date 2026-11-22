@@ -106,6 +106,28 @@ public sealed class SyncRepositoryAnnotationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ImportAsync_MarkersRemoved_ClearsTheVocabularyAndKeepsTheRow()
+    {
+        await _repository.ImportAsync(_userId, Request(
+            Highlight("First fragment.", ".h1 .c1 .prob", "Location 100-110")));
+        await MarkReaderStateAsync(weight: 5, excluded: 1, deliveryCount: 3, lastSeen: "2026-03-01T00:00:00Z");
+        var original = Assert.Single(await ReadAnnotationsAsync());
+
+        await _repository.ImportAsync(_userId, Request(
+            Highlight("First fragment.", "Just a remark.", "Location 100-110")));
+        var updated = Assert.Single(await ReadAnnotationsAsync());
+
+        Assert.Equal(original.Id, updated.Id);
+        Assert.Equal("Just a remark.", updated.Note);
+        Assert.Null(updated.HeadingLevel);
+        Assert.Null(updated.StitchLevel);
+        Assert.Null(updated.Tags);
+        Assert.Equal(5, updated.Weight);
+        Assert.Equal(1, updated.Excluded);
+        Assert.Equal(3, updated.DeliveryCount);
+    }
+
+    [Fact]
     public async Task ImportAsync_NoteMarkers_AreStoredAsVocabulary()
     {
         await ImportAsync(Highlight(
