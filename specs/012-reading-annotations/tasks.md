@@ -284,7 +284,7 @@ confirm both report the same note, chapter context, stitched grouping and tags.
 - [X] T066 Run `dotnet build src/Relego.slnx` and `dotnet test src/Relego.Tests/Relego.Tests.csproj`; fix every failure — warnings are errors per `src/Directory.Build.props`
 - [X] T067 Run `pnpm run lint`, `pnpm run format:check` and `cd src/relego.web && pnpm test`; fix findings with `pnpm run lint:fix` and `pnpm run format` (never by hand)
 - [X] T068 Execute the six scenarios in [quickstart.md](quickstart.md) end to end against a running server and confirm each expected outcome, including the pre-upgrade database run in Scenario 6
-- [ ] T069 Verify SC-014 and SC-016 by hand: every dot-prefixed word written as a tag appears as a tag and none appears as commentary, and the API, web and CLI payloads for one annotation are identical
+- [X] T069 Verify SC-014 and SC-016 by hand: every dot-prefixed word written as a tag appears as a tag and none appears as commentary, and the API, web and CLI payloads for one annotation are identical
 
 ---
 
