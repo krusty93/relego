@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 29 October 2026_
+_Last updated: 23 November 2026_
 
 Relego is free, open-source, self-hosted software. This policy covers every part of the project: the Relego server, the `relego` CLI, the web interface, the browser extension, the install scripts, and the [relego.app](https://relego.app) website.
 
@@ -8,7 +8,8 @@ Relego is free, open-source, self-hosted software. This policy covers every part
 
 - Relego runs on infrastructure you control. The project does not run any service that receives, stores, or processes your highlights, reading activity, or account details.
 - Relego does not sell, rent, or share your data, and does not use it for advertising.
-- The Relego software (server, CLI, web interface, browser extension) contains no analytics, telemetry, or tracking.
+- The Relego CLI, web interface, and browser extension contain no analytics, telemetry, or tracking.
+- The Relego server sends one anonymous usage heartbeat per day, and you can switch it off. It never includes your highlights, books, email addresses, or settings. See [Telemetry](#telemetry) for exactly what is sent.
 - The relego.app website uses privacy-friendly, cookieless visit analytics (see [Website](#website)).
 
 ## Data handled by Relego
@@ -28,7 +29,7 @@ All data below stays on the machines you run Relego on, unless you configure it 
 
 ### Server
 
-The server stores the data in the table above and uses it to build recaps. Recaps are sent by email through the SMTP server you configure, to the delivery addresses you configure. The server does not contact any Relego-operated service.
+The server stores the data in the table above and uses it to build recaps. Recaps are sent by email through the SMTP server you configure, to the delivery addresses you configure. The server does not contact any Relego-operated service: the only outbound contact that is not something you configured is the anonymous telemetry heartbeat described in [Telemetry](#telemetry), which you can switch off.
 
 ### CLI and web interface
 
@@ -48,6 +49,28 @@ The extension syncs highlights from your Amazon Kindle Notebook to your Relego s
 
 The install scripts download Relego release files from GitHub. Those downloads are subject to [GitHub's Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 
+## Telemetry
+
+Running Relego gives the project no visibility into how it is used, because the server runs on hardware the project never sees. To size and steer server releases, the Relego **server** sends one anonymous heartbeat per day. Deciding this, and what it may carry, is recorded in [ADR-010](docs/adr/010-anonymous-usage-telemetry.md).
+
+Only the server sends anything. The `relego` CLI, the web interface, the browser extension, and the install scripts send no telemetry and carry no identifier.
+
+**What is sent.** One event per day, containing exactly three fields:
+
+- A random installation identifier, generated on your server on first run and stored in your `/data` volume next to the database. It is not derived from your hardware, hostname, email, network, or any other device attribute, and it means nothing outside Relego.
+- The Relego server version you are running.
+- The CPU architecture your server runs on (for example `x64` or `arm64`).
+
+The country an install runs in is added by the analytics provider, which derives it from the connection's IP address before discarding that address. The IP address itself is not stored with the event.
+
+**What is never sent.** Highlights or any passage text, book titles, authors, notes, tags, exclusions, delivery or inbox email addresses, SMTP settings or credentials, connection tokens, the contents of your database, filesystem paths, hostnames, container identifiers, log lines, or any other string you supplied. The event has no field that could carry them. See the payload implementation at [`src/Relego.Server/Telemetry/TelemetryPayload.cs`](src/Relego.Server/Telemetry/TelemetryPayload.cs) — the link is the authoritative list, and it is a single small file so it can be checked rather than trusted.
+
+**It is anonymous.** There is no account, no cookie, no person profile, and no cross-site identifier. Events are not linked to any other service, are not used for advertising, and are not sold or shared.
+
+**How to switch it off.** Set `DISABLE_TELEMETRY=true` on your server container. The server also honours `DO_NOT_TRACK=1`. Once off, the server stops sending and does not retry; the setting is durable and needs no rebuild.
+
+**Who processes it.** Events go to **PostHog Cloud EU**, hosted on AWS in Frankfurt, Germany (`eu-central-1`) as an independent EU instance, so no telemetry data is transferred outside the EU. PostHog processes it as a data processor under the GDPR, under a Data Processing Agreement. See [PostHog's privacy policy](https://posthog.com/privacy) and [PostHog's DPA](https://posthog.com/dpa).
+
 ## Website
 
 The relego.app website is static and has no accounts or forms. It uses:
@@ -61,11 +84,14 @@ Relego works with services you choose and configure. Their own privacy policies 
 
 - **Amazon**, when you use Send-to-Kindle or Kindle Notebook sync.
 - **Your email or SMTP provider**, which delivers recap emails.
+- **PostHog Cloud EU**, which receives the anonymous server heartbeat described in [Telemetry](#telemetry) unless you switch it off.
 - **GitHub**, when you download releases, open issues, or contribute.
 
 ## Retention and deletion
 
 You control all data Relego stores. Delete individual highlights in Relego, or delete the server's data volume (`/data/relego.db`) to remove everything. Disconnect or uninstall the browser extension to remove its local data.
+
+Telemetry events are kept by PostHog Cloud EU for one year and then deleted. Deleting your `/data` volume also deletes the installation identifier, so a rebuilt server is a new install with no link to the old one; switching telemetry off stops new events immediately.
 
 ## Children
 

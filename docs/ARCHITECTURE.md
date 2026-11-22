@@ -35,6 +35,7 @@ flowchart LR
     app --> smtp
     app --> database
     smtp --> delivery["Send-to-Kindle or inbox email"]
+    app -->|daily anonymous heartbeat| posthog["PostHog Cloud EU"]
 ```
 
 ---
@@ -99,6 +100,7 @@ All sources are responsible for transforming raw source data into structured dat
   - Compose recap document and send via SMTP to Kindle email address
   - Serve the React web UI and REST HTTP API from one origin
   - Accept cloud sync pushes from the browser extension and record highlight provenance
+  - Send one anonymous usage heartbeat per day to PostHog Cloud EU, which can be switched off (see [ADR-010](adr/010-anonymous-usage-telemetry.md))
 
 #### REST API layer (`Relego.Server/`)
 
@@ -490,3 +492,4 @@ src/landing/                # Static marketing landing page (independent from .N
 | [ADR-006](adr/006-docker-only-distribution.md)          | Docker-only server distribution              |
 | [ADR-007](adr/007-dual-channel-email-delivery.md)       | Dual-channel email delivery                  |
 | [ADR-008](adr/008-kobo-reader-sqlite-source.md)         | `KoboReader.sqlite` as Kobo highlight source |
+| [ADR-010](adr/010-anonymous-usage-telemetry.md)         | Anonymous, opt-out server usage telemetry    |
