@@ -94,8 +94,6 @@ builder.Services.AddScoped<SyncReminderService>();
 // The inactivity sweep and the status endpoint both need "now" on a controllable clock.
 builder.Services.AddSingleton(TimeProvider.System);
 
-// Anonymous usage telemetry (ADR-010): on by default, off when the operator sets DISABLE_TELEMETRY or
-// DO_NOT_TRACK. The project token is compiled in because it can only ingest events.
 builder.Services.AddSingleton(TelemetrySettings.FromEnvironment());
 builder.Services.AddSingleton(new InstallationIdStore(Path.GetDirectoryName(Path.GetFullPath(dbPath)) ?? "."));
 builder.Services.AddHttpClient<TelemetryClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
