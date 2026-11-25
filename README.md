@@ -32,7 +32,7 @@
 Relego comes from the Latin *relegere*: to read again, go over carefully, review. That is the core idea of the project: bring your highlights back to Kindle so they can be revisited, not forgotten.
 
 - **E-ink first**: recaps delivered as native Kindle documents, not push notifications on your phone
-- **Free and self-hosted**: no subscription, no data leaving your infrastructure
+- **Free and self-hosted**: no subscription, and your highlights, books, and settings never leave your infrastructure
 - **No lock-in**: your highlights stay yours, in an open format
 - **Multiple import sources**: Kindle and Kobo supported today
 - **Privacy**: your reading habits are not sent to any cloud service

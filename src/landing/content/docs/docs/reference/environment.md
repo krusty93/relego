@@ -23,3 +23,18 @@ The server reads these at startup. Put them in a `.env` file next to
 | `RELEGO_SMTP_PORT` | Yes | Relay port, commonly `587` |
 | `RELEGO_SMTP_USER` | Usually | Relay username |
 | `RELEGO_SMTP_PASSWORD` | Usually | Relay password or API key |
+
+## Privacy
+
+The server sends one anonymous heartbeat a day so the project can tell how many installs are running
+and on which version. It carries an installation ID, the server version, and the CPU architecture, and
+nothing else — [what leaves your server](https://github.com/krusty93/relego/blob/main/src/Relego.Server/Telemetry/TelemetryPayload.cs)
+is the complete list. Countries are derived from the request IP, which is then discarded. There is no
+account, no cookie, and no data from your highlights, books, or mail settings.
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DISABLE_TELEMETRY` | No | Set to `true` to stop the heartbeat |
+| `DO_NOT_TRACK` | No | Same as `DISABLE_TELEMETRY` to honor the convention |
+
+The full disclosure is in [PRIVACY.md](https://github.com/krusty93/relego/blob/main/PRIVACY.md).
