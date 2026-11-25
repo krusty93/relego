@@ -15,6 +15,7 @@ using Relego.Server.Infrastructure.Smtp;
 using Relego.Server.Jobs;
 using Relego.Server.Services;
 using Relego.Server.Sync;
+using Relego.Server.Telemetry;
 
 SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
 
@@ -92,6 +93,11 @@ builder.Services.AddScoped<SyncReminderService>();
 
 // The inactivity sweep and the status endpoint both need "now" on a controllable clock.
 builder.Services.AddSingleton(TimeProvider.System);
+
+builder.Services.AddSingleton(TelemetrySettings.FromEnvironment());
+builder.Services.AddSingleton(new InstallationIdStore(Path.GetDirectoryName(Path.GetFullPath(dbPath)) ?? "."));
+builder.Services.AddHttpClient<TelemetryClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHostedService<TelemetryHeartbeatService>();
 
 builder.Services.AddQuartz(q =>
 {
