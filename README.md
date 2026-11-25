@@ -132,6 +132,12 @@ gh attestation verify \
   --owner Krusty93
 ```
 
+Verify a published release and every asset it contains via its release attestation:
+
+```sh
+gh release verify <component>/v<version> --repo krusty93/relego
+```
+
 ---
 
 ## License

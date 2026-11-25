@@ -48,7 +48,8 @@ The CI will check that every modified component has a bumped version and post a 
 After the merge:
 
 - `post-merge.yml` resolves the central version properties for `core`, `cli`, `server`, and `extension` and creates a git tag for each component whose bumped version does not yet have a matching tag (format: `<component>/v<version>`)
-- The tag push triggers `release.yml`, which publishes one GitHub Release per component tag using the squash-merge commit titles since the previous component tag, with a link to the originating PR when available
+- The tag push triggers `release.yml`, which publishes one GitHub Release per component tag using the squash-merge commit titles since the previous component tag, with a link to the originating PR when available. The release is created as a **draft**, every asset (including the CLI SLSA provenance bundle) is attached to the draft, and the draft is published last, so the published release attestation covers the complete asset set
+- The publish step then verifies the release is immutable and that `gh release verify <tag>` succeeds; the job fails if the release attestation is missing
 - The published GitHub Release triggers `deploy-cli.yml` (Docker image) and `deploy-server.yml` (Docker image)
 - An `extension/v<version>` release carries the signed-ready Chrome and Firefox packages plus their SHA256 checksums and cosign bundles; uploading them to the Chrome Web Store and addons.mozilla.org stays a manual release step
 
@@ -78,7 +79,14 @@ extension/v0.1.0
 
 | Secret          | Scope                                   | Used by                                                                    |
 | --------------- | --------------------------------------- | -------------------------------------------------------------------------- |
-| `RELEASE_TOKEN` | fine-grained PAT, `contents:read+write` | `post-merge.yml` — pushes tags in a way that triggers downstream workflows |
+| `RELEASE_TOKEN` | fine-grained PAT, `contents:read+write` | `post-merge.yml` — pushes tags in a way that triggers downstream workflows; `release.yml` — creates the draft release, publishes it, and verifies its attestation |
+
+Release immutability must be enabled for the repository (or organisation policy on
+selected repositories) under **Settings → Releases → Enable release immutability**.
+GitHub only generates a **release attestation** for immutable releases, and the
+setting applies to future releases only, so releases published while it was off
+stay mutable and unattested. `release.yml` fails when a published release is not
+immutable or has no valid attestation.
 
 Branch protection on `main`:
 
