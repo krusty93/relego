@@ -47,7 +47,4 @@ jobs:
       version: ${{ needs.check-tag.outputs.version }}
       description: Learn from your highlights. For free.
       authors: Krusty93
-      # The PostHog project token is ingest-only and public by design; it is baked into the image so the
-      # official build reports its own version. Without the secret, the image simply stays silent.
-      build_args: RELEGO_POSTHOG_TOKEN=${{ secrets.RELEGO_POSTHOG_TOKEN }}
     secrets: inherit

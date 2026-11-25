@@ -2,7 +2,7 @@
 
 /// <summary>
 /// Resolved telemetry configuration. Telemetry is on by default (ADR-010) and stops as soon as the
-/// user opts out or no project token is compiled into the image.
+/// user opts out with an environment variable.
 /// </summary>
 /// <param name="IsEnabled">Whether heartbeats are sent at all.</param>
 /// <param name="ApiKey">The PostHog project token that receives the events.</param>
@@ -16,8 +16,13 @@ public sealed record TelemetrySettings(bool IsEnabled, string? ApiKey, Uri Endpo
     /// <summary>The cross-vendor opt-out convention, honoured alongside <see cref="DisableVariable"/>.</summary>
     public const string DoNotTrackVariable = "DO_NOT_TRACK";
 
-    /// <summary>The project token, supplied when the image is built so no value lives in the repository.</summary>
-    public const string ApiKeyVariable = "RELEGO_POSTHOG_TOKEN";
+    /// <summary>
+    /// The PostHog project token that receives the events. It is committed rather than injected because
+    /// a project token can only write events, never read them, so PostHog documents it as safe to
+    /// publish alongside a client. Replace the placeholder with the project's token before release.
+    /// </summary>
+    // codeql[cs/hard-coded-credentials] A project token is public by design; it can only ingest events.
+    public const string ProjectToken = "phc_REPLACE_WITH_PROJECT_TOKEN";
 
     /// <summary>The EU capture endpoint; the US instance is never contacted.</summary>
     public static Uri DefaultEndpoint { get; } = new("https://eu.i.posthog.com/capture/");
@@ -30,15 +35,15 @@ public sealed record TelemetrySettings(bool IsEnabled, string? ApiKey, Uri Endpo
     public static TelemetrySettings FromEnvironment() => FromVariables(
         Environment.GetEnvironmentVariable(DisableVariable),
         Environment.GetEnvironmentVariable(DoNotTrackVariable),
-        Environment.GetEnvironmentVariable(ApiKeyVariable));
+        ProjectToken);
 
     /// <summary>
-    /// Resolves the settings from raw variable values, so the opt-out rules can be exercised without
-    /// touching the process environment.
+    /// Resolves the settings from raw values, so the opt-out rules can be exercised without touching the
+    /// process environment.
     /// </summary>
     /// <param name="disableTelemetry">The <see cref="DisableVariable"/> value.</param>
     /// <param name="doNotTrack">The <see cref="DoNotTrackVariable"/> value.</param>
-    /// <param name="apiKey">The <see cref="ApiKeyVariable"/> value.</param>
+    /// <param name="apiKey">The project token to send with.</param>
     /// <returns>The resolved settings.</returns>
     public static TelemetrySettings FromVariables(string? disableTelemetry, string? doNotTrack, string? apiKey)
     {
@@ -48,9 +53,9 @@ public sealed record TelemetrySettings(bool IsEnabled, string? ApiKey, Uri Endpo
         if (optedOut)
             return new TelemetrySettings(false, key, DefaultEndpoint, $"{DisableVariable} or {DoNotTrackVariable} is set");
 
-        // Without a token there is nowhere to send the event, so an image built without one stays silent.
+        // A token is compiled in, so this only guards a build where the placeholder was blanked out.
         return key is null
-            ? new TelemetrySettings(false, null, DefaultEndpoint, $"{ApiKeyVariable} is not set")
+            ? new TelemetrySettings(false, null, DefaultEndpoint, "no project token is compiled in")
             : new TelemetrySettings(true, key, DefaultEndpoint);
     }
 
