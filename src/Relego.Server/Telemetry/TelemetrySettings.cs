@@ -22,7 +22,7 @@ public sealed record TelemetrySettings(bool IsEnabled, string? ApiKey, Uri Endpo
     /// publish alongside a client. Replace the placeholder with the project's token before release.
     /// </summary>
     // codeql[cs/hard-coded-credentials] A project token is public by design; it can only ingest events.
-    public const string ProjectToken = "phc_REPLACE_WITH_PROJECT_TOKEN";
+    public const string ProjectToken = "phc_sxk5fSdeo2uHdPk45x7mbkZnctQREtYZQYhUGFU29E6U";
 
     /// <summary>The EU capture endpoint; the US instance is never contacted.</summary>
     public static Uri DefaultEndpoint { get; } = new("https://eu.i.posthog.com/capture/");
