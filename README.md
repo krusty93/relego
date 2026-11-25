@@ -35,7 +35,7 @@ Relego comes from the Latin *relegere*: to read again, go over carefully, review
 - **Free and self-hosted**: no subscription, and your highlights, books, and settings never leave your infrastructure
 - **No lock-in**: your highlights stay yours, in an open format
 - **Multiple import sources**: Kindle and Kobo supported today
-- **Privacy**: your reading habits are not sent to any cloud service. The only thing that leaves the server is an anonymous, opt-out usage heartbeat, described in [PRIVACY.md](PRIVACY.md) and implemented in the [exact payload sent](src/Relego.Server/Telemetry/TelemetryPayload.cs)
+- **Privacy**: your reading habits are not sent to any cloud service
 
 ## See it
 
