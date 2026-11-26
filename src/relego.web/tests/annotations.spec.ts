@@ -132,10 +132,12 @@ test("a heading reads as a heading, and only as the level the payload reports", 
   expect(headings.length).toBeGreaterThan(0);
 
   for (const heading of headings) {
+    // Match the title itself, not the whole row: a nested chapter's head also names its parent
+    // in the crumb, so hasText on the row would match more than one card.
     const card = page
       .locator(".hl")
       .filter({ has: page.locator(".hl-quote--heading") })
-      .filter({ hasText: heading.text });
+      .filter({ has: page.getByText(heading.text, { exact: true }) });
 
     await expect(card).toHaveCount(1);
     await expect(card.locator(".hl-heading")).toHaveAttribute(
@@ -147,8 +149,12 @@ test("a heading reads as a heading, and only as the level the payload reports", 
     );
     await expect(card.locator(".hl-quote--heading")).toHaveText(heading.text);
 
-    // The heading is its own chapter, so a path under it would only repeat it.
-    await expect(card.locator(".hl-crumb")).toHaveCount(0);
+    // The heading is its own chapter, so its own title never repeats as a crumb. A nested
+    // heading may still name the chapter it sits inside, which is not a repeat.
+    const crumbs = card.locator(".hl-crumb");
+    for (let index = 0; index < (await crumbs.count()); index += 1) {
+      await expect(crumbs.nth(index)).not.toContainText(heading.text);
+    }
   }
 
   // Everything else is a passage, never promoted to a heading.
@@ -177,9 +183,48 @@ test("a note and its tags read the way the payload reports them", async ({
   await expect(card.locator(".hl-note")).not.toContainText(".prob");
   await expect(card.locator(".hl-note")).not.toContainText(".review");
   await expect(card.locator(".hl-tag")).toHaveText(annotated.tags);
-  await expect(card.locator(".hl-crumb")).toContainText(
-    annotated.chapterPath.join(" › "),
+});
+
+test("a chapter is drawn as one rail that names itself once", async ({
+  page,
+}) => {
+  const payload = await annotations(bookId);
+  const inChapter = payload.find(
+    (item) =>
+      item.chapterPath.length > 0 &&
+      item.headingLevel === null &&
+      item.text.length > 0,
   );
+  if (!inChapter) throw new Error("The fixture lost its chaptered highlight");
+
+  const card = page.locator(".hl").filter({ hasText: inChapter.text }).first();
+  const region = page.locator(".hl-group").filter({ has: card });
+
+  // The chapter is stated at the region head, not repeated on every card: that repetition is
+  // what forced the reader to decode a crumb to see that two highlights belong together.
+  await expect(card.locator(".hl-crumb")).toHaveCount(0);
+  await expect(region).toHaveAttribute(
+    "aria-label",
+    inChapter.chapterPath.join(" › "),
+  );
+  await expect(region).not.toHaveAttribute("data-loose", "true");
+
+  // The connection is drawn: the stop carries its run of the spine.
+  expect(
+    await card.evaluate((el) => getComputedStyle(el, "::before").content),
+  ).not.toBe("none");
+
+  // Highlights outside every chapter are separated without a rail, so the two kinds of
+  // separation cannot be confused for each other.
+  const loose = page.locator('.hl-group[data-loose="true"]');
+  if ((await loose.count()) > 0) {
+    expect(
+      await loose
+        .locator(".hl-group-body > .hl")
+        .first()
+        .evaluate((el) => getComputedStyle(el, "::before").content),
+    ).toBe("none");
+  }
 });
 
 test("a stitched passage reads as one item that keeps every fragment", async ({

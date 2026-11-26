@@ -46,6 +46,21 @@ type ListRow =
 
 type PassageRow = Extract<ListRow, { kind: "passage" }>;
 
+/**
+ * One chapter and the highlights hanging on it. A chapter is a linkage the page can draw, so
+ * it is drawn as a rail and its name is stated once at the head — not repeated as a crumb on
+ * every card, which is what forced the reader to decode metadata to see the connection.
+ */
+type Region = {
+  /** Path folded into a key, so two chapters that share a title cannot merge. */
+  key: string;
+  /** Root to leaf; empty when the annotation sits outside every chapter. */
+  path: string[];
+  /** The annotation that titles the chapter, promoted to the region head. */
+  head: { item: HighlightItem; index: number } | null;
+  stops: { row: ListRow; index: number }[];
+};
+
 /** The annotation a row's curation keys act on: the fragment that opens a passage. */
 function primaryOf(row: ListRow): HighlightItem {
   return row.kind === "passage" ? row.lead : row.item;
@@ -210,6 +225,55 @@ export function HighlightsPage() {
     });
   }, [items]);
 
+  // Grouping happens here, not on the server: the chapter of a highlight arrives with it, and
+  // rebuilding the tree as rails is a reading concern. Library-wide there is no single book's
+  // structure to draw, so that list stays flat.
+  const regions = useMemo<Region[]>(() => {
+    if (bookId === null) return [];
+
+    const byPath = new Map<string, Region>();
+    const ordered: Region[] = [];
+    const remainder: Region[] = [];
+
+    rows.forEach((row, index) => {
+      const path = primaryOf(row).chapterPath;
+      const key = path.join("\u0000");
+
+      let region = byPath.get(key);
+      if (!region) {
+        region = { key, path, head: null, stops: [] };
+        byPath.set(key, region);
+        // Annotations outside every chapter are the book's remainder, so they close the list
+        // the same way the contents list puts the unknown chapter last.
+        if (path.length === 0) remainder.push(region);
+        else ordered.push(region);
+      }
+
+      const lead = primaryOf(row);
+      // A chapter is titled by the annotation that carries its `.hN`, so that row is the head.
+      // Rendering it again as a stop would say the chapter's name twice.
+      if (
+        region.head === null &&
+        row.kind === "annotation" &&
+        lead.headingLevel !== null &&
+        path.length > 0 &&
+        lead.text === path[path.length - 1]
+      ) {
+        region.head = { item: lead, index };
+        return;
+      }
+
+      region.stops.push({ row, index });
+    });
+
+    return [...ordered, ...remainder];
+  }, [rows, bookId]);
+
+  // A book with no structure yields a single region spanning everything, which is a flat list
+  // wearing a heading. Drawing rails there would promise a connection the book does not have.
+  const grouped =
+    regions.length > 0 && (regions.length > 1 || regions[0]!.path.length > 0);
+
   const tagItems = tags.data?.tags ?? NO_TAGS;
 
   const chapters = useMemo(
@@ -344,8 +408,14 @@ export function HighlightsPage() {
   function focusCard(index: number) {
     const clamped = Math.max(0, Math.min(index, rows.length - 1));
     setCursor(clamped);
-    const cards = listRef.current?.querySelectorAll<HTMLElement>(".hl-summary");
-    cards?.[clamped]?.focus();
+    // Regions reorder the rows on screen (a chapter's remainder closes the list), so DOM order
+    // is no longer row order. Each summary carries its row index instead of relying on it.
+    const cards = listRef.current?.querySelectorAll<HTMLElement>(
+      ".hl-summary[data-row]",
+    );
+    Array.from(cards ?? [])
+      .find((card) => card.dataset.row === String(clamped))
+      ?.focus();
   }
 
   useListKeys({
@@ -388,6 +458,218 @@ export function HighlightsPage() {
       event.preventDefault();
       setOpenId(null);
     }
+  }
+
+  /**
+   * One annotation. Inside a chapter region it renders as a stop on that chapter's rail; the
+   * annotation that titles the chapter renders as the region head instead, where the chapter's
+   * name and the count of what hangs below it replace the crumb every card used to repeat.
+   */
+  function annotationCard(
+    item: HighlightItem,
+    index: number,
+    region?: { ancestors: string[] },
+  ) {
+    const open = openId === item.id;
+    const excluded = excludedIds.has(item.id);
+    const weight = weightById.get(item.id) ?? 3;
+
+    return (
+      <article
+        className={region ? "hl hl--region-head" : "hl"}
+        key={item.id}
+        data-open={open}
+      >
+        {/* A div rather than a button: button labels can't be selected, and the quote
+            is exactly what people want to drag-select and copy. */}
+        <div
+          className="hl-summary"
+          role="button"
+          data-row={index}
+          aria-expanded={open}
+          aria-controls={`hlb-${item.id}`}
+          tabIndex={index === cursor ? 0 : -1}
+          onFocus={() => setCursor(index)}
+          onClick={(event) => {
+            if (isSelectingWithin(event.currentTarget)) return;
+            setOpenId(open ? null : item.id);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpenId(open ? null : item.id);
+              return;
+            }
+            onCardKeyDown(event, item);
+          }}
+        >
+          <span>
+            {item.headingLevel !== null ? (
+              <span className="hl-heading" data-level={item.headingLevel}>
+                <span className="hl-eyebrow">
+                  {describeHeadingLevel(item.headingLevel)}
+                </span>
+                <span className="hl-quote hl-quote--heading">{item.text}</span>
+              </span>
+            ) : item.text ? (
+              <span className="hl-quote">{item.text}</span>
+            ) : null}
+            {item.note ? (
+              <span
+                className={
+                  item.headingLevel !== null
+                    ? "hl-note hl-note--summary"
+                    : "hl-note"
+                }
+              >
+                <span className="sr-only">
+                  {item.headingLevel !== null ? "Section summary: " : "Note: "}
+                </span>
+                {item.note}
+              </span>
+            ) : null}
+            <span className="hl-meta">
+              {book ? null : (
+                <span className="subtle">
+                  {`${item.bookTitle} · ${item.authorName ?? UNKNOWN_AUTHOR}`}
+                </span>
+              )}
+              {/* Only the library-wide list shows a path per item: inside a book the chapter
+                  is the rail the item hangs from. The head names it and counts what it holds. */}
+              {region === undefined &&
+              book === undefined &&
+              item.chapterPath.length > 0 &&
+              item.headingLevel === null ? (
+                <span className="subtle hl-crumb">
+                  <span className="sr-only">Chapter: </span>
+                  {describeChapterPath(item.chapterPath)}
+                </span>
+              ) : null}
+              {region && region.ancestors.length > 0 ? (
+                <span className="subtle hl-crumb">
+                  <span className="sr-only">Part of: </span>
+                  {describeChapterPath(region.ancestors)}
+                </span>
+              ) : null}
+
+              {excluded ? <Tag tone="excluded">Excluded</Tag> : null}
+              {/* Tags are shown as the reader spelled them, and name the filter that
+                  would narrow the list to them. */}
+              {item.tags.length > 0 ? (
+                <span className="hl-tags">
+                  {item.tags.map((tag) => (
+                    <span
+                      className="hl-tag"
+                      key={tag}
+                      data-active={sameTag(tag, tagFilter)}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+            </span>
+          </span>
+          <span className="hl-side">
+            <WeightPips value={weight} />
+          </span>
+        </div>
+
+        <div className="hl-body" id={`hlb-${item.id}`} hidden={!open}>
+          <div className="hl-actions">
+            <span className="seg-label" id={`w-${item.id}`}>
+              Weight
+            </span>
+            <div className="seg" role="group" aria-labelledby={`w-${item.id}`}>
+              {[1, 2, 3, 4, 5].map((step) => (
+                <button
+                  key={step}
+                  type="button"
+                  aria-pressed={weight === step}
+                  onClick={() =>
+                    setWeight.mutate({ id: item.id, weight: step })
+                  }
+                >
+                  {step}
+                </button>
+              ))}
+            </div>
+            <button
+              className="btn btn--sm"
+              type="button"
+              onClick={() => toggleHighlight.mutate({ id: item.id, excluded })}
+            >
+              {excluded ? "Include again" : "Exclude highlight"}
+            </button>
+            <button
+              className="btn btn--sm"
+              type="button"
+              aria-label="Copy highlight text"
+              onClick={() => void copyHighlight(item.text)}
+            >
+              Copy
+            </button>
+            {/* Deleting is not reversible on the server, so it takes two
+                deliberate steps rather than one stray click. */}
+            {confirmingId === item.id ? (
+              <span
+                className="confirm"
+                role="group"
+                aria-label="Confirm delete"
+              >
+                <span className="confirm-q">Delete permanently?</span>
+                <button
+                  className="btn btn--sm btn--danger"
+                  type="button"
+                  disabled={removeHighlight.isPending}
+                  onClick={() => removeHighlight.mutate(item.id)}
+                >
+                  {removeHighlight.isPending ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button
+                  className="btn btn--sm btn--ghost"
+                  type="button"
+                  onClick={() => setConfirmingId(null)}
+                >
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <button
+                className="btn btn--sm btn--danger"
+                type="button"
+                onClick={() => setConfirmingId(item.id)}
+              >
+                Delete
+              </button>
+            )}
+          </div>
+          {/* Where and when the source said this was marked. Reference data, so it
+              closes the card; a value the source never reported keeps its row and says
+              it is unknown instead of vanishing (FR-006, FR-007). */}
+          <dl className="hl-provenance">
+            <div>
+              <dt>Position</dt>
+              <dd data-unknown={item.position === null}>
+                {formatReadingPosition(item.position)}
+              </dd>
+            </div>
+            <div>
+              <dt>Added</dt>
+              <dd data-unknown={item.addedOn === null}>
+                {formatReadingDate(item.addedOn)}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </article>
+    );
+  }
+
+  function rowCard(row: ListRow, index: number) {
+    return row.kind === "passage"
+      ? passageCard(row, index)
+      : annotationCard(row.item, index);
   }
 
   /**
@@ -491,6 +773,7 @@ export function HighlightsPage() {
         <div
           className="hl-summary"
           role="button"
+          data-row={index}
           aria-expanded={open}
           aria-controls={`hlb-${lead.id}`}
           tabIndex={index === cursor ? 0 : -1}
@@ -527,7 +810,9 @@ export function HighlightsPage() {
                   {`${lead.bookTitle} · ${lead.authorName ?? UNKNOWN_AUTHOR}`}
                 </span>
               )}
-              {lead.chapterPath.length > 0 ? (
+              {/* Inside a book the chapter is the rail this hangs from, so the path is stated
+                  once at the region head instead of on every item. */}
+              {book === undefined && lead.chapterPath.length > 0 ? (
                 <span className="subtle hl-crumb">
                   <span className="sr-only">Chapter: </span>
                   {describeChapterPath(lead.chapterPath)}
@@ -816,206 +1101,47 @@ export function HighlightsPage() {
           <kbd>e</kbd> exclude · <kbd>1</kbd>–<kbd>5</kbd> weight
         </p>
 
-        <div className="hl-list" ref={listRef}>
-          {rows.map((row, index) => {
-            if (row.kind === "passage") return passageCard(row, index);
+        <div
+          className={grouped ? "hl-list hl-list--grouped" : "hl-list"}
+          ref={listRef}
+        >
+          {grouped
+            ? regions.map((region) => {
+                // The contents list and the CLI both call this bucket the unknown chapter; the
+                // page must not invent a third name for it.
+                const label =
+                  region.path.length > 0
+                    ? describeChapterPath(region.path)
+                    : "Unknown chapter";
 
-            const item = row.item;
-            const open = openId === item.id;
-            const excluded = excludedIds.has(item.id);
-            const weight = weightById.get(item.id) ?? 3;
-
-            return (
-              <article className="hl" key={item.id} data-open={open}>
-                {/* A div rather than a button: button labels can't be selected, and the quote
-                    is exactly what people want to drag-select and copy. */}
-                <div
-                  className="hl-summary"
-                  role="button"
-                  aria-expanded={open}
-                  aria-controls={`hlb-${item.id}`}
-                  tabIndex={index === cursor ? 0 : -1}
-                  onFocus={() => setCursor(index)}
-                  onClick={(event) => {
-                    if (isSelectingWithin(event.currentTarget)) return;
-                    setOpenId(open ? null : item.id);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setOpenId(open ? null : item.id);
-                      return;
-                    }
-                    onCardKeyDown(event, item);
-                  }}
-                >
-                  <span>
-                    {item.headingLevel !== null ? (
-                      <span
-                        className="hl-heading"
-                        data-level={item.headingLevel}
-                      >
-                        <span className="hl-eyebrow">
-                          {describeHeadingLevel(item.headingLevel)}
-                        </span>
-                        <span className="hl-quote hl-quote--heading">
-                          {item.text}
-                        </span>
-                      </span>
-                    ) : item.text ? (
-                      <span className="hl-quote">{item.text}</span>
-                    ) : null}
-                    {item.note ? (
-                      <span
-                        className={
-                          item.headingLevel !== null
-                            ? "hl-note hl-note--summary"
-                            : "hl-note"
-                        }
-                      >
-                        <span className="sr-only">
-                          {item.headingLevel !== null
-                            ? "Section summary: "
-                            : "Note: "}
-                        </span>
-                        {item.note}
-                      </span>
-                    ) : null}
-                    <span className="hl-meta">
-                      {book ? null : (
-                        <span className="subtle">
-                          {`${item.bookTitle} · ${item.authorName ?? UNKNOWN_AUTHOR}`}
-                        </span>
-                      )}
-                      {/* The heading is its own chapter, so its path would only repeat it. */}
-                      {item.chapterPath.length > 0 &&
-                      item.headingLevel === null ? (
-                        <span className="subtle hl-crumb">
-                          <span className="sr-only">Chapter: </span>
-                          {describeChapterPath(item.chapterPath)}
-                        </span>
-                      ) : null}
-                      {excluded ? <Tag tone="excluded">Excluded</Tag> : null}
-                      {/* Tags are shown as the reader spelled them, and name the filter that
-                          would narrow the list to them. */}
-                      {item.tags.length > 0 ? (
-                        <span className="hl-tags">
-                          {item.tags.map((tag) => (
-                            <span
-                              className="hl-tag"
-                              key={tag}
-                              data-active={sameTag(tag, tagFilter)}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </span>
-                      ) : null}
-                    </span>
-                  </span>
-                  <span className="hl-side">
-                    <WeightPips value={weight} />
-                  </span>
-                </div>
-
-                <div className="hl-body" id={`hlb-${item.id}`} hidden={!open}>
-                  <div className="hl-actions">
-                    <span className="seg-label" id={`w-${item.id}`}>
-                      Weight
-                    </span>
-                    <div
-                      className="seg"
-                      role="group"
-                      aria-labelledby={`w-${item.id}`}
-                    >
-                      {[1, 2, 3, 4, 5].map((step) => (
-                        <button
-                          key={step}
-                          type="button"
-                          aria-pressed={weight === step}
-                          onClick={() =>
-                            setWeight.mutate({ id: item.id, weight: step })
-                          }
-                        >
-                          {step}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      className="btn btn--sm"
-                      type="button"
-                      onClick={() =>
-                        toggleHighlight.mutate({ id: item.id, excluded })
-                      }
-                    >
-                      {excluded ? "Include again" : "Exclude highlight"}
-                    </button>
-                    <button
-                      className="btn btn--sm"
-                      type="button"
-                      aria-label="Copy highlight text"
-                      onClick={() => void copyHighlight(item.text)}
-                    >
-                      Copy
-                    </button>
-                    {/* Deleting is not reversible on the server, so it takes two
-                        deliberate steps rather than one stray click. */}
-                    {confirmingId === item.id ? (
-                      <span
-                        className="confirm"
-                        role="group"
-                        aria-label="Confirm delete"
-                      >
-                        <span className="confirm-q">Delete permanently?</span>
-                        <button
-                          className="btn btn--sm btn--danger"
-                          type="button"
-                          disabled={removeHighlight.isPending}
-                          onClick={() => removeHighlight.mutate(item.id)}
-                        >
-                          {removeHighlight.isPending
-                            ? "Deleting…"
-                            : "Yes, delete"}
-                        </button>
-                        <button
-                          className="btn btn--sm btn--ghost"
-                          type="button"
-                          onClick={() => setConfirmingId(null)}
-                        >
-                          Keep
-                        </button>
-                      </span>
+                return (
+                  <div
+                    className="hl-group"
+                    key={region.key}
+                    role="group"
+                    aria-label={label}
+                    data-loose={region.path.length === 0 ? "true" : undefined}
+                  >
+                    {region.head ? (
+                      annotationCard(region.head.item, region.head.index, {
+                        ancestors: region.path.slice(0, -1),
+                      })
                     ) : (
-                      <button
-                        className="btn btn--sm btn--danger"
-                        type="button"
-                        onClick={() => setConfirmingId(item.id)}
-                      >
-                        Delete
-                      </button>
+                      <header className="hl-group-head">
+                        <h2 className="hl-group-title">{label}</h2>
+                      </header>
                     )}
+                    {region.stops.length > 0 ? (
+                      <div className="hl-group-body">
+                        {region.stops.map(({ row, index }) =>
+                          rowCard(row, index),
+                        )}
+                      </div>
+                    ) : null}
                   </div>
-                  {/* Where and when the source said this was marked. Reference data, so it
-                      closes the card; a value the source never reported keeps its row and says
-                      it is unknown instead of vanishing (FR-006, FR-007). */}
-                  <dl className="hl-provenance">
-                    <div>
-                      <dt>Position</dt>
-                      <dd data-unknown={item.position === null}>
-                        {formatReadingPosition(item.position)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Added</dt>
-                      <dd data-unknown={item.addedOn === null}>
-                        {formatReadingDate(item.addedOn)}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </article>
-            );
-          })}
+                );
+              })
+            : rows.map((row, index) => rowCard(row, index))}
         </div>
       </AsyncSection>
     </section>

@@ -864,20 +864,171 @@ td {
   gap: var(--sp-2);
 }
 
+/* Grouped, the gaps are the grammar: pieces on one rail sit close, chapters stand apart. */
+.hl-list--grouped {
+  gap: 0;
+}
+
+.hl-group {
+  /* The margin the rail lives in, and where the rail runs inside it. Both are inherited by
+     every highlight the group holds, so one value moves the whole spine. They are whole pixels
+     on purpose: a fractional offset antialiases a 1px line across two device pixels and the
+     spine then reads lighter than the rules it joins. */
+  --hl-gutter: 1.875rem;
+  --hl-rail: 0.375rem;
+}
+
+.hl-group + .hl-group {
+  margin-top: var(--sp-6);
+}
+
+/* A chapter's name is stated once, here, instead of repeating as a crumb on every card. */
+.hl-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4) var(--sp-2) var(--hl-gutter);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+/* A chapter with no rail is not a chapter the page can point at, so its head is quieter. */
+.hl-group[data-loose="true"] .hl-group-head {
+  padding-left: 0;
+  border-bottom-style: dotted;
+}
+
+.hl-group-title {
+  margin: 0;
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+/* The rail is the chapter, drawn. Each stop contributes its own run of it, so the line is
+   continuous through the group and never disappears behind a hover or an open wash. The first
+   and last runs are feathered so the spine reads as a segment of the book, not a stray border. */
+.hl-group-body {
+  position: relative;
+}
+
+/* Only stops on a rail get the spine: the region head and the flat library-wide list are not
+   guttered, and `--hl-gutter` is undefined there, so it must fall back or the whole padding
+   shorthand would be dropped. */
+.hl-group-body > .hl::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--hl-rail);
+  width: 1px;
+  background: var(--border-strong);
+}
+
+/* The rail begins flush against the chapter head's rule, so the spine reads as descending from
+   the chapter rather than starting in mid-air. Only the far end is feathered: the list is open
+   ended, the top is not. */
+.hl-group-body > .hl:first-child::before {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.hl-group-body > .hl:last-child::before {
+  -webkit-mask-image: linear-gradient(to top, transparent, black var(--sp-5));
+  mask-image: linear-gradient(to top, transparent, black var(--sp-5));
+}
+
+.hl-group-body > .hl:first-child:last-child::before {
+  -webkit-mask-image: linear-gradient(to top, transparent, black var(--sp-5));
+  mask-image: linear-gradient(to top, transparent, black var(--sp-5));
+}
+
 .hl {
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  overflow: hidden;
-  transition: border-color var(--dur) var(--ease);
+  position: relative;
+  padding: 0 var(--sp-4) 0 var(--hl-gutter, 0);
+  transition: background-color var(--dur) var(--ease);
+}
+
+/* The separation between two highlights of the same chapter is a rule that starts at the rail,
+   so it reads as a stop hanging off the connection instead of as another box. */
+.hl-group-body > .hl + .hl::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--hl-rail);
+  height: 1px;
+  background: var(--border);
+}
+
+/* The library-wide list spans books, so it has no chapter to draw and no rail to join. It
+   separates with a plain hairline at the same rhythm, and claims no linkage it cannot show. */
+.hl-list:not(.hl-list--grouped) {
+  gap: 0;
+}
+
+.hl-list:not(.hl-list--grouped) > .hl + .hl {
+  border-top: 1px solid var(--border);
+}
+
+/* Two highlights that share no chapter are separated by a dotted, full-bleed rule and nothing
+   else: no rail, no junction, and more air. Disconnected has to look disconnected. */
+.hl-group[data-loose="true"] .hl {
+  padding-left: 0;
+}
+
+.hl-group[data-loose="true"] .hl-group-body > .hl::before,
+.hl-group[data-loose="true"] .hl + .hl::after {
+  content: none;
+}
+
+.hl-group[data-loose="true"] .hl + .hl {
+  margin-top: var(--sp-2);
+  border-top: 1px dotted var(--border-strong);
 }
 
 .hl:hover {
-  border-color: var(--border-strong);
+  background: var(--surface);
 }
 
+/* Open is the current position on the rail: the run beside it takes the accent. The row steps
+   up to the surface tone rather than onto an accent wash, because the wash was not tuned for
+   the subtle ink used inside a row and axe measured it below 4.5:1. */
 .hl[data-open="true"] {
-  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.hl-group-body > .hl[data-open="true"]::before {
+  background: var(--accent);
+}
+
+/* The chapter's own titling annotation is its head: same annotation, same controls, but it
+   names the region and opens the spine below it. The rule starts on the rail rather than at the
+   page edge, so the spine reads as descending from the chapter instead of hanging beside it. */
+.hl--region-head {
+  position: relative;
+  padding-bottom: var(--sp-1);
+}
+
+.hl--region-head::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: var(--hl-rail);
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.hl--region-head .hl-summary {
+  padding-top: 0;
+}
+
+.hl--region-head .hl-note--summary {
+  max-width: 62ch;
 }
 
 .hl-summary {
@@ -885,7 +1036,7 @@ td {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--sp-4);
   align-items: start;
-  padding: var(--sp-4);
+  padding: var(--sp-3) 0;
   width: 100%;
   text-align: left;
   cursor: pointer;
@@ -898,7 +1049,7 @@ td {
 
 .hl-summary:focus-visible {
   outline-offset: -2px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r-sm);
 }
 
 .hl-quote {
@@ -918,13 +1069,14 @@ td {
   overflow: hidden;
 }
 
-/* The reader's own note is a second voice: sans against the passage's serif, quieter ink,
-   and set off by a hairline rule instead of a container so the card stays one flat surface. */
+/* The reader's own note is a second voice: sans against the passage's serif and quieter ink.
+   Its rule is a hairline, not a second spine: the chapter rail is the only strong vertical on
+   the page, and a 2px bar here read as a competing one. */
 .hl-note {
   display: block;
   margin-top: var(--sp-3);
   padding-left: var(--sp-3);
-  border-left: 2px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
   color: var(--ink-muted);
   font-size: var(--t-sm);
   line-height: 1.5;
@@ -1014,8 +1166,10 @@ td {
   background: var(--accent);
 }
 
+/* The body inherits the piece's own inset: adding it again would set the expanded content a
+   step in from the quote it belongs to. */
 .hl-body {
-  padding: 0 var(--sp-4) var(--sp-4);
+  padding: 0 0 var(--sp-4);
   display: grid;
   gap: var(--sp-4);
 }
@@ -1068,11 +1222,24 @@ td {
   font-style: italic;
 }
 
-/* A stitched passage is one quoted item: the fragments read as one sentence again, and the
-   ellipses where they meet carry the accent so the seam is visible without a badge saying so. */
+/* A stitched passage is one quoted item: the fragments read as one sentence again. The join
+   between two fragments is drawn as a dotted seam rather than announced by a badge, so the
+   linkage is visible before any label is read. */
 .hl-stitch-sep {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22em;
+  padding: 0 0.3em;
   color: var(--accent-ink);
-  padding: 0 0.15em;
+  vertical-align: middle;
+}
+
+.hl-stitch-sep::before,
+.hl-stitch-sep::after {
+  content: "";
+  width: 0.5em;
+  border-top: 1px dotted currentColor;
+  opacity: 0.65;
 }
 
 .hl-stitch-count {
@@ -2225,6 +2392,21 @@ dialog[open] {
 
   .hl-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* A phone has no room for a wide margin, so the gutter narrows and the rail moves with it.
+     The grouping still reads: the spine is the same distance from the text at every width. */
+  .hl-group {
+    --hl-gutter: 1.25rem;
+    --hl-rail: 0.25rem;
+  }
+
+  .hl-group-head {
+    gap: var(--sp-2);
+  }
+
+  .hl-group-count {
+    font-size: var(--t-micro);
   }
 
   /* No physical keyboard: the hint line is noise on a phone. */
