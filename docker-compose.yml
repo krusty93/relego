@@ -1,6 +1,6 @@
 services:
   relego-cli:
-    image: ghcr.io/krusty93/relego.cli:latest@sha256:49951d6e4d41a46bb2a76c8f94c28840aecc9927f53d126103319a2353074a32
+    image: ghcr.io/krusty93/relego.cli:latest
     restart: "no"
     tty: true
     environment:
@@ -10,7 +10,7 @@ services:
     profiles: [cli]
 
   relego-server:
-    image: ghcr.io/krusty93/relego.server:latest@sha256:d61ba348777c31a5de547f7b4bc307a380223cb15f923741ffa9f1ad28779bb9
+    image: ghcr.io/krusty93/relego.server:latest
     restart: unless-stopped
     environment:
       # These values seed the configuration on first boot. Settings saved in the web UI
@@ -30,7 +30,7 @@ services:
     profiles: [app, demo]
 
   smtp4dev:
-    image: rnwood/smtp4dev:latest@sha256:211a60c1a4f51ff7ace4a35de055797348994b0e84ab36734991235f90f9ac75
+    image: rnwood/smtp4dev:latest
     restart: unless-stopped
     environment:
       ServerOptions__Port: "2525"
