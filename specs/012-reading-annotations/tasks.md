@@ -104,15 +104,15 @@ its own summary note.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T023 [P] [US2] Add `src/Relego.Tests/Annotations/ChapterTreeBuilderTests.cs`: a `.h2` nests under the preceding `.h1`; a `.h2` before any `.h1` becomes a top-level chapter (Story 2 AS-4); changing a marker's level re-parents descendants; a heading annotation with no passage text creates no chapter (FR-020); the section summary becomes the chapter note; a book with no markers reports every annotation as unknown chapter (Story 2 AS-3); ordering follows reading order, not arrival order (FR-023)
-- [ ] T024 [P] [US2] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: each item reports `headingLevel` and `chapterId`/`chapterPath`, with `null`/`[]` when there is no chapter
+- [X] T023 [P] [US2] Add `src/Relego.Tests/Annotations/ChapterTreeBuilderTests.cs`: a `.h2` nests under the preceding `.h1`; a `.h2` before any `.h1` becomes a top-level chapter (Story 2 AS-4); changing a marker's level re-parents descendants; a heading annotation with no passage text creates no chapter (FR-020); the section summary becomes the chapter note; a book with no markers reports every annotation as unknown chapter (Story 2 AS-3); ordering follows reading order, not arrival order (FR-023)
+- [X] T024 [P] [US2] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: each item reports `headingLevel` and `chapterId`/`chapterPath`, with `null`/`[]` when there is no chapter
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Implement `ChapterTreeBuilder` in `src/Relego.Core/Annotations/ChapterTreeBuilder.cs` using `SourceOrder`: chapters keyed by the titling annotation's `id` (never by title), `ParentId` = nearest preceding chapter with a strictly smaller level, `AnnotationCount` including descendants, `HasTableOfContents` true at ≥ 1 level-1 heading
-- [ ] T026 [US2] Add `AnnotationContextService` in `src/Relego.Server/Services/AnnotationContextService.cs` — the single derive path for a book, returning the `AnnotationContext` per annotation and the `TableOfContents`; register it in `src/Relego.Server/Program.cs`. This service is the only place chapters are computed; no endpoint or client re-derives them
-- [ ] T027 [US2] Attach `HeadingLevel`, `ChapterId` and `ChapterPath` in `src/Relego.Server/Data/HighlightRepository.cs` (derivation runs per book, never per page) and map them in `src/Relego.Server/Endpoints/HighlightEndpoints.cs`
-- [ ] T028 [US2] Render heading annotations structurally distinct from quoted passages, with the section note beneath, in `src/relego.web/src/routes/HighlightsPage.tsx` and `src/relego.web/src/lib/format.ts`; `impeccable` skill required before UI changes
+- [X] T025 [US2] Implement `ChapterTreeBuilder` in `src/Relego.Core/Annotations/ChapterTreeBuilder.cs` using `SourceOrder`: chapters keyed by the titling annotation's `id` (never by title), `ParentId` = nearest preceding chapter with a strictly smaller level, `AnnotationCount` including descendants, `HasTableOfContents` true at ≥ 1 level-1 heading
+- [X] T026 [US2] Add `AnnotationContextService` in `src/Relego.Server/Services/AnnotationContextService.cs` — the single derive path for a book, returning the `AnnotationContext` per annotation and the `TableOfContents`; register it in `src/Relego.Server/Program.cs`. This service is the only place chapters are computed; no endpoint or client re-derives them
+- [X] T027 [US2] Attach `HeadingLevel`, `ChapterId` and `ChapterPath` in `src/Relego.Server/Data/HighlightRepository.cs` (derivation runs per book, never per page) and map them in `src/Relego.Server/Endpoints/HighlightEndpoints.cs`
+- [X] T028 [US2] Render heading annotations structurally distinct from quoted passages, with the section note beneath, in `src/relego.web/src/routes/HighlightsPage.tsx` and `src/relego.web/src/lib/format.ts`; `impeccable` skill required before UI changes
 
 **Checkpoint**: US1 and US2 both work independently.
 
@@ -130,15 +130,15 @@ to it, then filter to the unknown chapter and confirm only the unassigned annota
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T029 [P] [US3] Add `src/Relego.Tests/Api/ChapterEndpointTests.cs`: `GET /books/{id}/chapters` returns chapters in reading order with correct nesting and descendant-inclusive counts; `hasTableOfContents` is `false` and `chapters` empty for a book with no headings **and** for a book whose only markers are `.h2`/`.h3`; `unknownChapter` is always present with `id: null`; a missing book returns `404`
-- [ ] T030 [P] [US3] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `bookId` narrows to one book; `chapterId=<id>` and `chapterId=unknown` select the right halves and their totals sum to the book total; `chapterId` without `bookId` is ignored rather than rejected; a filter matching nothing returns `200` with `items: []` and `total: 0`
+- [X] T029 [P] [US3] Add `src/Relego.Tests/Api/ChapterEndpointTests.cs`: `GET /books/{id}/chapters` returns chapters in reading order with correct nesting and descendant-inclusive counts; `hasTableOfContents` is `false` and `chapters` empty for a book with no headings **and** for a book whose only markers are `.h2`/`.h3`; `unknownChapter` is always present with `id: null`; a missing book returns `404`
+- [X] T030 [P] [US3] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `bookId` narrows to one book; `chapterId=<id>` and `chapterId=unknown` select the right halves and their totals sum to the book total; `chapterId` without `bookId` is ignored rather than rejected; a filter matching nothing returns `200` with `items: []` and `total: 0`
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] Add `TableOfContentsResponse` / `ChapterDto` in `src/Relego.Core/Contracts/TableOfContentsResponse.cs` with the fields and naming of [contracts/annotations-api.md](contracts/annotations-api.md)
-- [ ] T032 [US3] Map `GET /books/{id}/chapters` in `src/Relego.Server/Endpoints/BookEndpoints.cs` on top of `AnnotationContextService`
-- [ ] T033 [US3] Add `bookId` and `chapterId` (int or the literal `unknown`) to the query in `src/Relego.Server/Data/HighlightRepository.cs` and to the parameter binding/validation in `src/Relego.Server/Endpoints/HighlightEndpoints.cs`
-- [ ] T034 [US3] Add the table of contents and the chapter filter to `src/relego.web/src/routes/HighlightsPage.tsx`, with the calls in `src/relego.web/src/lib/api.ts` and the types in `src/relego.web/src/lib/types.ts`; no navigation is offered when `hasTableOfContents` is `false`; `impeccable` skill required
+- [X] T031 [US3] Add `TableOfContentsResponse` / `ChapterDto` in `src/Relego.Core/Contracts/TableOfContentsResponse.cs` with the fields and naming of [contracts/annotations-api.md](contracts/annotations-api.md)
+- [X] T032 [US3] Map `GET /books/{id}/chapters` in `src/Relego.Server/Endpoints/BookEndpoints.cs` on top of `AnnotationContextService`
+- [X] T033 [US3] Add `bookId` and `chapterId` (int or the literal `unknown`) to the query in `src/Relego.Server/Data/HighlightRepository.cs` and to the parameter binding/validation in `src/Relego.Server/Endpoints/HighlightEndpoints.cs`
+- [X] T034 [US3] Add the table of contents and the chapter filter to `src/relego.web/src/routes/HighlightsPage.tsx`, with the calls in `src/relego.web/src/lib/api.ts` and the types in `src/relego.web/src/lib/types.ts`; no navigation is offered when `hasTableOfContents` is `false`; `impeccable` skill required
 
 **Checkpoint**: a reader can navigate a book's structure from the web portal.
 

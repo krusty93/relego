@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Relego.Core.Contracts;
 using Relego.Server.Data;
+using Relego.Server.Services;
 
 namespace Relego.Server.Endpoints;
 
@@ -69,6 +70,24 @@ public static class BookEndpoints
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
+
+        app.MapGet("/books/{id:int}/chapters", async (
+            int id,
+            [FromServices] UserRepository userRepo,
+            [FromServices] AnnotationContextService annotationContext) =>
+        {
+            var userId = await userRepo.EnsureUserAsync();
+            var result = await annotationContext.GetBookContextAsync(userId, id);
+
+            return result is null
+                ? Results.Problem(detail: $"Book {id} not found.", statusCode: StatusCodes.Status404NotFound)
+                : Results.Ok(result.TableOfContents);
+        })
+        .WithTags("Books")
+        .WithSummary("Get a book's table of contents.")
+        .WithDescription("Returns the chapters of a book in reading order with their nesting and descendant-inclusive annotation counts, plus the always-present unknown chapter gathering annotations that precede the first heading.")
+        .Produces<TableOfContentsResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         return app;
     }

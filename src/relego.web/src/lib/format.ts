@@ -74,6 +74,20 @@ export function capitalise(value: string): string {
   return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
 }
 
+/**
+ * What a heading level means to a reader: level 1 titles a chapter, 2 a section, 3 a subsection.
+ * Levels outside 1–3 cannot come from a marker, so they read as the generic "Section".
+ */
+export function describeHeadingLevel(level: number): string {
+  if (level <= 1) return "Chapter";
+  return level === 2 ? "Section" : "Subsection";
+}
+
+/** A chapter path root to leaf as one muted line: "Part One › Notes". */
+export function describeChapterPath(path: string[]): string {
+  return path.join(" › ");
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
 

@@ -14,10 +14,20 @@ import type {
   SyncRegionsResponse,
   SyncScheduleChangeResponse,
   SyncStatusResponse,
+  TableOfContentsResponse,
   UpdateSettingsRequest,
   UpdateSmtpSettingsRequest,
   WeightedHighlight,
 } from "./types";
+
+/**
+ * Which slice of the library a highlight query covers. `chapterId` needs `bookId`; the server
+ * ignores it on its own. The literal `"unknown"` selects annotations outside every chapter.
+ */
+export interface HighlightScope {
+  bookId?: number;
+  chapterId?: number | "unknown";
+}
 
 /**
  * An error the UI can show verbatim. `fieldErrors` carries RFC 9457 validation
@@ -120,10 +130,26 @@ export const api = {
       body: JSON.stringify({ title }),
     }),
 
-  highlights: (query?: string, page = 1, pageSize = 200) =>
-    request<HighlightsResponse>(
-      `/highlights?page=${page}&pageSize=${pageSize}${query ? `&q=${encodeURIComponent(query)}` : ""}`,
-    ),
+  chapters: (bookId: number) =>
+    request<TableOfContentsResponse>(`/books/${bookId}/chapters`),
+
+  highlights: (
+    query?: string,
+    page = 1,
+    pageSize = 200,
+    scope?: HighlightScope,
+  ) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    if (query) params.set("q", query);
+    if (scope?.bookId !== undefined) params.set("bookId", String(scope.bookId));
+    if (scope?.chapterId !== undefined)
+      params.set("chapterId", String(scope.chapterId));
+
+    return request<HighlightsResponse>(`/highlights?${params.toString()}`);
+  },
 
   deleteHighlight: (id: number) =>
     request<void>(`/highlights/${id}`, { method: "DELETE" }),
