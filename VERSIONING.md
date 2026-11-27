@@ -81,13 +81,6 @@ extension/v0.1.0
 | --------------- | --------------------------------------- | -------------------------------------------------------------------------- |
 | `RELEASE_TOKEN` | fine-grained PAT, `contents:read+write` | `post-merge.yml` — pushes tags in a way that triggers downstream workflows; `release.yml` — creates the draft release, publishes it, and verifies its attestation |
 
-Release immutability must be enabled for the repository (or organisation policy on
-selected repositories) under **Settings → Releases → Enable release immutability**.
-GitHub only generates a **release attestation** for immutable releases, and the
-setting applies to future releases only, so releases published while it was off
-stay mutable and unattested. `release.yml` fails when a published release is not
-immutable or has no valid attestation.
-
 Branch protection on `main`:
 
 - Require PR before merging

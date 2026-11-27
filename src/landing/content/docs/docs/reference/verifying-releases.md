@@ -18,7 +18,7 @@ You need the [GitHub CLI](https://cli.github.com/).
 ```sh
 gh attestation verify \
   oci://ghcr.io/krusty93/relego.server:latest \
-  --owner Krusty93
+  --owner krusty93
 ```
 
 ## CLI Docker image
@@ -26,7 +26,7 @@ gh attestation verify \
 ```sh
 gh attestation verify \
   oci://ghcr.io/krusty93/relego.cli:latest \
-  --owner Krusty93
+  --owner krusty93
 ```
 
 A successful run reports the workflow and commit the image was built from. A
@@ -46,6 +46,3 @@ gh release verify <component>/v<version> --repo krusty93/relego
 
 For example, `gh release verify server/v0.21.0 --repo krusty93/relego` once a
 release with that tag exists.
-
-The command prints the tag, commit SHA and asset digests recorded in the
-attestation, and fails if no attestation exists or the tag has moved.

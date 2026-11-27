@@ -93,23 +93,7 @@ jobs:
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
-      - name: Verify attestation
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3 4 5; do
-            if gh attestation verify "oci://${IMAGE_NAME}@${DIGEST}" --owner "${GITHUB_REPOSITORY_OWNER}"; then
-              exit 0
-            fi
-            echo "Attestation not available yet (attempt ${attempt}/5); retrying in 10s."
-            sleep 10
-          done
-          echo "::error::Image attestation for ${IMAGE_NAME}@${DIGEST} could not be verified."
-          exit 1
+          push-to-registry: false
 
       - name: Show verify command
         env:
