@@ -555,6 +555,8 @@ kbd {
 
 /* ---------------------------------------------------------- Views */
 .view {
+  /* The horizontal padding a full-bleed child has to cancel to reach the page edge. */
+  --view-pad-inline: var(--gutter);
   padding: var(--sp-5) var(--gutter);
 }
 
@@ -739,11 +741,34 @@ td {
 }
 
 /* ---------------------------------------------------------- Highlights */
-/* Contents: the book's own structure, set as a typographic list of leaders rather than a
-   filter bar, so it reads as the book and not as chrome above it. */
+/* The book layout: the list, and the book's own structure beside it. The contents column is a
+   margin of the page — a rule, a label and the leaders that already belong to a contents page. */
+.book-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+.book-main {
+  min-width: 0;
+}
+
+/* Narrow: contents becomes a strip pinned under the header, so it stays reachable while the
+   list scrolls. Sticky rather than fixed: it belongs to this page and leaves with it. */
+.book-toc {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: calc(var(--z-sticky) - 1);
+  margin-inline: calc(var(--view-pad-inline) * -1);
+  padding-inline: var(--view-pad-inline);
+  background: var(--canvas);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
 .toc {
-  margin-bottom: var(--sp-5);
-  padding-top: var(--sp-4);
+  margin: 0;
+  padding-top: var(--sp-3);
   border-top: 1px solid var(--border);
 }
 
@@ -751,41 +776,35 @@ td {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-3);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
 }
 
+/* Navigation is labelled, not headlined: the same voice as the library sidebar's groups. */
 .toc-title {
-  font-family: var(--font-quote);
-  font-size: var(--t-md);
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: var(--t-micro);
   font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .toc-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  /* Contents pages are scanned, not read: two columns keep a forty-chapter book from
-     pushing the list itself below the fold. */
-  columns: 2;
-  column-gap: var(--sp-6);
-}
-
-@media (max-width: 720px) {
-  .toc-list {
-    columns: 1;
-  }
 }
 
 .toc-list > li {
-  break-inside: avoid;
+  margin: 0;
 }
 
 .toc-entry {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   width: 100%;
   padding: var(--sp-1) var(--sp-2);
   border: 0;
@@ -793,6 +812,7 @@ td {
   background: none;
   color: var(--ink-muted);
   font: inherit;
+  font-size: var(--t-sm);
   text-align: left;
   cursor: pointer;
   transition:
@@ -858,26 +878,208 @@ td {
   color: var(--accent-ink);
 }
 
+/* Wide: the contents is a margin column that stays put while the list scrolls. It scrolls on
+   its own when a book has more chapters than the viewport is tall. */
+@media (min-width: 1160px) {
+  .book-layout {
+    grid-template-columns: minmax(0, 1fr) 16.5rem;
+    grid-template-areas: "main toc";
+    gap: var(--sp-7);
+    align-items: start;
+  }
+
+  .book-main {
+    grid-area: main;
+  }
+
+  .book-toc {
+    grid-area: toc;
+    position: sticky;
+    top: calc(var(--topbar-h) + var(--sp-5));
+    max-height: calc(100dvh - var(--topbar-h) - var(--sp-6));
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: none;
+    border-top: 0;
+    border-bottom: 0;
+    scrollbar-width: thin;
+  }
+}
+
+/* Narrower than the rail: the same entries in one horizontal run, each its own button so the
+   chapter filter works exactly as it does in the margin column. */
+@media (max-width: 1159px) {
+  .book-toc {
+    padding-inline: 0;
+  }
+
+  .toc {
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-2);
+    border-top: 0;
+  }
+
+  .toc-head {
+    padding-inline: var(--view-pad-inline);
+    margin-bottom: var(--sp-1);
+  }
+
+  .toc-list {
+    display: flex;
+    align-items: stretch;
+    gap: var(--sp-1);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    padding-inline: var(--view-pad-inline);
+    /* Scroll shadows: two canvas-coloured covers travel with the content and hide the shadow
+       at each end, while the shadows themselves stay pinned to the edges. Without them a strip
+       that runs off-screen gives no sign that it does. */
+    background:
+      linear-gradient(to right, var(--canvas) 55%, transparent) left center /
+        var(--view-pad-inline) 100% no-repeat local,
+      linear-gradient(to left, var(--canvas) 55%, transparent) right center /
+        var(--view-pad-inline) 100% no-repeat local,
+      linear-gradient(
+          to right,
+          color-mix(in oklab, var(--ink) 12%, transparent),
+          transparent
+        )
+        left center / var(--sp-3) 100% no-repeat scroll,
+      linear-gradient(
+          to left,
+          color-mix(in oklab, var(--ink) 12%, transparent),
+          transparent
+        )
+        right center / var(--sp-3) 100% no-repeat scroll;
+  }
+
+  .toc-list > li {
+    flex: 0 0 auto;
+  }
+
+  .toc-list > li[data-level="2"] .toc-entry,
+  .toc-list > li[data-level="3"] .toc-entry,
+  .toc-list > li[data-level="4"] .toc-entry {
+    padding-left: var(--sp-2);
+  }
+
+  .toc-entry {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .toc-label {
+    max-width: 16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .toc-label::after {
+    content: none;
+  }
+
+  /* A strip cannot indent, so depth steps down in tone instead. */
+  .toc-list > li[data-level="2"] .toc-label,
+  .toc-list > li[data-level="3"] .toc-label,
+  .toc-list > li[data-level="4"] .toc-label {
+    color: var(--ink-subtle);
+  }
+
+  .toc-entry[aria-current="true"] .toc-label {
+    color: var(--ink);
+  }
+}
+
 .hl-list {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: 0;
+}
+
+/* The chapter is named above its rows, never wrapped around them: no panel, no spine, no
+   gutter. What makes a chapter is the rule at its head and the room before it. */
+.hl-chapter + .hl-chapter {
+  margin-top: var(--sp-6);
+}
+
+/* A chapter whose titling annotation is not in the list (filtered out, or the unknown bucket)
+   still needs its name, so it gets the same rule plus a label. */
+.hl-chapter-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0 var(--sp-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.hl-chapter[data-loose="true"] .hl-chapter-head {
+  border-bottom-style: dotted;
+}
+
+.hl-chapter-title {
+  margin: 0;
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .hl {
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  overflow: hidden;
-  transition: border-color var(--dur) var(--ease);
+  position: relative;
+  padding: 0 var(--sp-4) 0 0;
+  transition: background-color var(--dur) var(--ease);
+}
+
+/* One hairline between any two rows, in a chapter or out of it. The rule joins; the chapter
+   name above says what the join means. */
+.hl + .hl {
+  border-top: 1px solid var(--border);
+}
+
+/* A chapter begins above its titling annotation: more room and a heavier rule, so the break
+   between chapters is louder than the break between the highlights inside one. */
+.hl + .hl--chapter-head,
+.hl--chapter-head {
+  border-top: 1px solid var(--border-strong);
+}
+
+.hl--chapter-head {
+  padding-top: var(--sp-3);
+}
+
+.hl-chapter:first-child > .hl--chapter-head {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.hl--chapter-head .hl-summary {
+  padding-top: var(--sp-2);
+}
+
+.hl--chapter-head .hl-note--summary {
+  max-width: 62ch;
+}
+
+/* Rows outside every chapter are separated by a dotted rule: there is no chapter above them
+   to explain the break, so the break has to say so itself. */
+.hl-chapter[data-loose="true"] .hl + .hl {
+  border-top-style: dotted;
 }
 
 .hl:hover {
-  border-color: var(--border-strong);
+  background: var(--surface);
 }
 
+/* Open is the current position: the row steps up to the surface tone rather than onto an
+   accent wash, because the wash was not tuned for the subtle ink used inside a row and axe
+   measured it below 4.5:1. */
 .hl[data-open="true"] {
-  border-color: var(--accent);
+  background: var(--surface);
 }
 
 .hl-summary {
@@ -885,7 +1087,7 @@ td {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--sp-4);
   align-items: start;
-  padding: var(--sp-4);
+  padding: var(--sp-3) 0;
   width: 100%;
   text-align: left;
   cursor: pointer;
@@ -898,11 +1100,12 @@ td {
 
 .hl-summary:focus-visible {
   outline-offset: -2px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r-sm);
 }
 
 .hl-quote {
   display: block;
+  max-width: var(--measure-prose);
   cursor: text;
   font-family: var(--font-quote);
   font-size: var(--t-md);
@@ -918,13 +1121,14 @@ td {
   overflow: hidden;
 }
 
-/* The reader's own note is a second voice: sans against the passage's serif, quieter ink,
-   and set off by a hairline rule instead of a container so the card stays one flat surface. */
+/* The reader's own note is a second voice: sans against the passage's serif and quieter ink,
+   marked by a hairline rather than a second spine. */
 .hl-note {
   display: block;
+  max-width: var(--measure-prose);
   margin-top: var(--sp-3);
   padding-left: var(--sp-3);
-  border-left: 2px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
   color: var(--ink-muted);
   font-size: var(--t-sm);
   line-height: 1.5;
@@ -1014,8 +1218,10 @@ td {
   background: var(--accent);
 }
 
+/* The body inherits the piece's own inset: adding it again would set the expanded content a
+   step in from the quote it belongs to. */
 .hl-body {
-  padding: 0 var(--sp-4) var(--sp-4);
+  padding: 0 0 var(--sp-4);
   display: grid;
   gap: var(--sp-4);
 }
@@ -1068,19 +1274,19 @@ td {
   font-style: italic;
 }
 
-/* A stitched passage is one quoted item: the fragments read as one sentence again, and the
-   ellipses where they meet carry the accent so the seam is visible without a badge saying so. */
-.hl-stitch-sep {
-  color: var(--accent-ink);
-  padding: 0 0.15em;
+/* A linked passage reads as one sentence again. The fact that it was assembled is stated in a
+   sentence of its own, never drawn between the reader's words. */
+.hl-stitch-count {
+  color: var(--ink-muted);
+  font-size: var(--t-sm);
 }
 
-.hl-stitch-count {
-  color: var(--ink-subtle);
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* The whole row toggles, but the words say what opening it gives you. */
+.hl-stitch-toggle {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 0.18em;
 }
 
 .hl-stitch-intro {
@@ -2116,6 +2322,7 @@ dialog[open] {
   }
 
   .view {
+    --view-pad-inline: var(--sp-4);
     padding: var(--sp-4);
   }
 
@@ -2223,8 +2430,14 @@ dialog[open] {
     content: " highlights";
   }
 
-  .hl-summary {
-    grid-template-columns: minmax(0, 1fr);
+  /* A phone has no room for a margin column, so the contents strip keeps the same entries in
+     one horizontal run; the spacing below it is the list's, not the strip's. */
+  .book-toc {
+    margin-bottom: var(--sp-1);
+  }
+
+  .hl-chapter-head {
+    gap: var(--sp-2);
   }
 
   /* No physical keyboard: the hint line is noise on a phone. */

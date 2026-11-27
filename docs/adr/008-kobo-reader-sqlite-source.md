@@ -37,7 +37,7 @@ WHERE b.Text IS NOT NULL AND b.Hidden = 'false'
 ORDER BY c.Title, b.DateCreated;
 ```
 
-- `Type = note` rows get the existing `[my note]` prefix prepended to their text (mirrors the Kindle parser).
+- A `Type = note` row's annotation is reported as the note beside the passage it is anchored to; it is never copied into the highlight text and never prefixed.
 - `dogear` / text-less rows (plain bookmarks) are skipped, exactly as Kindle bookmarks are.
 - `Hidden` (soft-deleted) rows are skipped.
 - How a note row and its dot-prefixed markers are interpreted, and the retirement of the `[my note] ` prefix described above, is decided in ADR-009.

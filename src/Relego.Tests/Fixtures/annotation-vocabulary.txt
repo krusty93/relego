@@ -1,0 +1,60 @@
+Relego Annotation Vocabulary (Spec Reader)
+- Your Highlight on page 10 | Location 100-102 | Added on Monday, January 3, 2022 9:00:00 AM
+
+Foundations
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Note on page 10 | Location 100 | Added on Monday, January 3, 2022 9:00:30 AM
+
+.h1
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Highlight on page 11 | Location 110-112 | Added on Monday, January 3, 2022 9:01:00 AM
+
+The Eight Fallacies
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Note on page 11 | Location 110 | Added on Monday, January 3, 2022 9:01:30 AM
+
+.h2
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Highlight on page 12 | Location 120-122 | Added on Monday, January 3, 2022 9:02:00 AM
+
+Simplicity is prerequisite for reliability.
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Note on page 12 | Location 120 | Added on Monday, January 3, 2022 9:02:30 AM
+
+.prob .review the whole design principle in one line
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Highlight on page 13 | Location 130-132 | Added on Monday, January 3, 2022 9:03:00 AM
+
+A stitched passage begins here
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Note on page 13 | Location 130 | Added on Monday, January 3, 2022 9:03:30 AM
+
+.c1
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Highlight on page 14 | Location 140-142 | Added on Monday, January 3, 2022 9:04:00 AM
+
+and continues with a second fragment
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Note on page 14 | Location 140 | Added on Monday, January 3, 2022 9:04:30 AM
+
+.c2 .prob middle of the thought
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Highlight on page 15 | Location 150-152 | Added on Monday, January 3, 2022 9:05:00 AM
+
+Fallacy One
+==========
+Relego Annotation Vocabulary (Spec Reader)
+- Your Note on page 15 | Location 150 | Added on Monday, January 3, 2022 9:05:30 AM
+
+.h3
+==========

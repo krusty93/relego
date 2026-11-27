@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { AsyncSection, EmptyState, Tag, WeightPips } from "../components/ui";
 import { api } from "../lib/api";
 import { copyToClipboard } from "../lib/clipboard";
 import {
+  capitalise,
   describeChapterPath,
   describeHeadingLevel,
   formatCount,
@@ -45,6 +46,21 @@ type ListRow =
     };
 
 type PassageRow = Extract<ListRow, { kind: "passage" }>;
+
+/**
+ * One chapter and the highlights hanging on it. The chapter's name is stated once, at its head,
+ * instead of repeating as a crumb on every card; the rows below are separated by a hairline and
+ * nothing else, so a chapter reads as a stretch of the book rather than as a boxed group.
+ */
+type Region = {
+  /** Path folded into a key, so two chapters that share a title cannot merge. */
+  key: string;
+  /** Root to leaf; empty when the annotation sits outside every chapter. */
+  path: string[];
+  /** The annotation that titles the chapter, promoted to the region head. */
+  head: { item: HighlightItem; index: number } | null;
+  stops: { row: ListRow; index: number }[];
+};
 
 /** The annotation a row's curation keys act on: the fragment that opens a passage. */
 function primaryOf(row: ListRow): HighlightItem {
@@ -210,6 +226,55 @@ export function HighlightsPage() {
     });
   }, [items]);
 
+  // Grouping happens here, not on the server: the chapter of a highlight arrives with it, and
+  // splitting the list by chapter is a reading concern. Library-wide there is no single book's
+  // structure to draw, so that list stays flat.
+  const regions = useMemo<Region[]>(() => {
+    if (bookId === null) return [];
+
+    const byPath = new Map<string, Region>();
+    const ordered: Region[] = [];
+    const remainder: Region[] = [];
+
+    rows.forEach((row, index) => {
+      const path = primaryOf(row).chapterPath;
+      const key = path.join("\u0000");
+
+      let region = byPath.get(key);
+      if (!region) {
+        region = { key, path, head: null, stops: [] };
+        byPath.set(key, region);
+        // Annotations outside every chapter are the book's remainder, so they close the list
+        // the same way the contents list puts the unknown chapter last.
+        if (path.length === 0) remainder.push(region);
+        else ordered.push(region);
+      }
+
+      const lead = primaryOf(row);
+      // A chapter is titled by the annotation that carries its `.hN`, so that row is the head.
+      // Rendering it again as a stop would say the chapter's name twice.
+      if (
+        region.head === null &&
+        row.kind === "annotation" &&
+        lead.headingLevel !== null &&
+        path.length > 0 &&
+        lead.text === path[path.length - 1]
+      ) {
+        region.head = { item: lead, index };
+        return;
+      }
+
+      region.stops.push({ row, index });
+    });
+
+    return [...ordered, ...remainder];
+  }, [rows, bookId]);
+
+  // A book with no structure yields a single region spanning everything, which is a flat list
+  // wearing a heading. Drawing rails there would promise a connection the book does not have.
+  const grouped =
+    regions.length > 0 && (regions.length > 1 || regions[0]!.path.length > 0);
+
   const tagItems = tags.data?.tags ?? NO_TAGS;
 
   const chapters = useMemo(
@@ -344,8 +409,14 @@ export function HighlightsPage() {
   function focusCard(index: number) {
     const clamped = Math.max(0, Math.min(index, rows.length - 1));
     setCursor(clamped);
-    const cards = listRef.current?.querySelectorAll<HTMLElement>(".hl-summary");
-    cards?.[clamped]?.focus();
+    // Regions reorder the rows on screen (a chapter's remainder closes the list), so DOM order
+    // is no longer row order. Each summary carries its row index instead of relying on it.
+    const cards = listRef.current?.querySelectorAll<HTMLElement>(
+      ".hl-summary[data-row]",
+    );
+    Array.from(cards ?? [])
+      .find((card) => card.dataset.row === String(clamped))
+      ?.focus();
   }
 
   useListKeys({
@@ -391,19 +462,230 @@ export function HighlightsPage() {
   }
 
   /**
-   * A stitched passage reads as one quoted item, because that is how it was read. Opening it
-   * hands back the fragments: each keeps its own note, position and curation controls, so
-   * nothing the reader wrote is folded away.
+   * One annotation. The annotation that titles a chapter renders as that chapter's head, where
+   * the chapter's name replaces the crumb every card used to repeat; the rest render as rows of
+   * the same list.
+   */
+  function annotationCard(
+    item: HighlightItem,
+    index: number,
+    region?: { ancestors: string[]; chapterHead: true },
+  ) {
+    const open = openId === item.id;
+    const excluded = excludedIds.has(item.id);
+    const weight = weightById.get(item.id) ?? 3;
+
+    return (
+      <article
+        className={region?.chapterHead ? "hl hl--chapter-head" : "hl"}
+        key={item.id}
+        data-open={open}
+      >
+        {/* A div rather than a button: button labels can't be selected, and the quote
+            is exactly what people want to drag-select and copy. */}
+        <div
+          className="hl-summary"
+          role="button"
+          data-row={index}
+          aria-expanded={open}
+          aria-controls={`hlb-${item.id}`}
+          tabIndex={index === cursor ? 0 : -1}
+          onFocus={() => setCursor(index)}
+          onClick={(event) => {
+            if (isSelectingWithin(event.currentTarget)) return;
+            setOpenId(open ? null : item.id);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpenId(open ? null : item.id);
+              return;
+            }
+            onCardKeyDown(event, item);
+          }}
+        >
+          <span>
+            {item.headingLevel !== null ? (
+              <span className="hl-heading" data-level={item.headingLevel}>
+                <span className="hl-eyebrow">
+                  {describeHeadingLevel(item.headingLevel)}
+                </span>
+                <span className="hl-quote hl-quote--heading">{item.text}</span>
+              </span>
+            ) : item.text ? (
+              <span className="hl-quote">{item.text}</span>
+            ) : null}
+            {item.note ? (
+              <span
+                className={
+                  item.headingLevel !== null
+                    ? "hl-note hl-note--summary"
+                    : "hl-note"
+                }
+              >
+                <span className="sr-only">
+                  {item.headingLevel !== null ? "Section summary: " : "Note: "}
+                </span>
+                {item.note}
+              </span>
+            ) : null}
+            <span className="hl-meta">
+              {book ? null : (
+                <span className="subtle">
+                  {`${item.bookTitle} · ${item.authorName ?? UNKNOWN_AUTHOR}`}
+                </span>
+              )}
+              {/* Only the library-wide list shows a path per item: inside a book the chapter
+                  is the rail the item hangs from. The head names it and counts what it holds. */}
+              {region === undefined &&
+              book === undefined &&
+              item.chapterPath.length > 0 &&
+              item.headingLevel === null ? (
+                <span className="subtle hl-crumb">
+                  <span className="sr-only">Chapter: </span>
+                  {describeChapterPath(item.chapterPath)}
+                </span>
+              ) : null}
+              {region && region.ancestors.length > 0 ? (
+                <span className="subtle hl-crumb">
+                  <span className="sr-only">Part of: </span>
+                  {describeChapterPath(region.ancestors)}
+                </span>
+              ) : null}
+
+              {excluded ? <Tag tone="excluded">Excluded</Tag> : null}
+              {/* Tags are shown as the reader spelled them, and name the filter that
+                  would narrow the list to them. */}
+              {item.tags.length > 0 ? (
+                <span className="hl-tags">
+                  {item.tags.map((tag) => (
+                    <span
+                      className="hl-tag"
+                      key={tag}
+                      data-active={sameTag(tag, tagFilter)}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+            </span>
+          </span>
+          <span className="hl-side">
+            <WeightPips value={weight} />
+          </span>
+        </div>
+
+        <div className="hl-body" id={`hlb-${item.id}`} hidden={!open}>
+          <div className="hl-actions">
+            <span className="seg-label" id={`w-${item.id}`}>
+              Weight
+            </span>
+            <div className="seg" role="group" aria-labelledby={`w-${item.id}`}>
+              {[1, 2, 3, 4, 5].map((step) => (
+                <button
+                  key={step}
+                  type="button"
+                  aria-pressed={weight === step}
+                  onClick={() =>
+                    setWeight.mutate({ id: item.id, weight: step })
+                  }
+                >
+                  {step}
+                </button>
+              ))}
+            </div>
+            <button
+              className="btn btn--sm"
+              type="button"
+              onClick={() => toggleHighlight.mutate({ id: item.id, excluded })}
+            >
+              {excluded ? "Include again" : "Exclude highlight"}
+            </button>
+            <button
+              className="btn btn--sm"
+              type="button"
+              aria-label="Copy highlight text"
+              onClick={() => void copyHighlight(item.text)}
+            >
+              Copy
+            </button>
+            {/* Deleting is not reversible on the server, so it takes two
+                deliberate steps rather than one stray click. */}
+            {confirmingId === item.id ? (
+              <span
+                className="confirm"
+                role="group"
+                aria-label="Confirm delete"
+              >
+                <span className="confirm-q">Delete permanently?</span>
+                <button
+                  className="btn btn--sm btn--danger"
+                  type="button"
+                  disabled={removeHighlight.isPending}
+                  onClick={() => removeHighlight.mutate(item.id)}
+                >
+                  {removeHighlight.isPending ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button
+                  className="btn btn--sm btn--ghost"
+                  type="button"
+                  onClick={() => setConfirmingId(null)}
+                >
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <button
+                className="btn btn--sm btn--danger"
+                type="button"
+                onClick={() => setConfirmingId(item.id)}
+              >
+                Delete
+              </button>
+            )}
+          </div>
+          {/* Where and when the source said this was marked. Reference data, so it
+              closes the card; a value the source never reported keeps its row and says
+              it is unknown instead of vanishing (FR-006, FR-007). */}
+          <dl className="hl-provenance">
+            <div>
+              <dt>Position</dt>
+              <dd data-unknown={item.position === null}>
+                {formatReadingPosition(item.position)}
+              </dd>
+            </div>
+            <div>
+              <dt>Added</dt>
+              <dd data-unknown={item.addedOn === null}>
+                {formatReadingDate(item.addedOn)}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </article>
+    );
+  }
+
+  function rowCard(row: ListRow, index: number) {
+    return row.kind === "passage"
+      ? passageCard(row, index)
+      : annotationCard(row.item, index);
+  }
+
+  /**
+   * A passage the reader linked with `.c1`, `.c2` … markers reads as one quoted item, because
+   * that is how it was read. The gaps between the parts are silent on the card — the label says
+   * the passage is linked, and opening it hands back the highlights it was built from, each with
+   * its own note, tags, position and curation controls.
    */
   function passageCard(row: PassageRow, index: number) {
     const { lead, fragments } = row;
     const open = openId === lead.id;
     const weight = weightById.get(lead.id) ?? 3;
-    // The server joins the passage so every client shows the same text; the local join is
-    // only a fallback for a server that predates stitching.
-    const passage =
-      lead.stitchedText ?? fragments.map((part) => part.text).join(" … ");
-    const parts = passage.split(" … ");
+    // One sentence again. The server's join marks each gap so no client invents continuity;
+    // on screen the gaps are spoken by the label below, not drawn into the reader's words.
+    const passage = fragments.map((part) => part.text).join(" ");
     const passageTags = unionTags(fragments);
     const excludedCount = fragments.filter((item) =>
       excludedIds.has(item.id),
@@ -491,6 +773,7 @@ export function HighlightsPage() {
         <div
           className="hl-summary"
           role="button"
+          data-row={index}
           aria-expanded={open}
           aria-controls={`hlb-${lead.id}`}
           tabIndex={index === cursor ? 0 : -1}
@@ -509,32 +792,26 @@ export function HighlightsPage() {
           }}
         >
           <span>
-            <span className="hl-quote hl-quote--passage">
-              {parts.map((part, position) => (
-                <Fragment key={part + position}>
-                  {position > 0 ? (
-                    <span className="hl-stitch-sep" aria-hidden="true">
-                      …
-                    </span>
-                  ) : null}
-                  {part}
-                </Fragment>
-              ))}
-            </span>
+            <span className="hl-quote hl-quote--passage">{passage}</span>
             <span className="hl-meta">
               {book ? null : (
                 <span className="subtle">
                   {`${lead.bookTitle} · ${lead.authorName ?? UNKNOWN_AUTHOR}`}
                 </span>
               )}
-              {lead.chapterPath.length > 0 ? (
+              {/* Inside a book the chapter is the rail this hangs from, so the path is stated
+                  once at the region head instead of on every item. */}
+              {book === undefined && lead.chapterPath.length > 0 ? (
                 <span className="subtle hl-crumb">
                   <span className="sr-only">Chapter: </span>
                   {describeChapterPath(lead.chapterPath)}
                 </span>
               ) : null}
               <span className="hl-stitch-count">
-                {plural(fragments.length, "fragment")} stitched
+                Linked from {plural(fragments.length, "highlight")} ·{" "}
+                <span className="hl-stitch-toggle">
+                  {open ? "hide them" : "show them"}
+                </span>
               </span>
               {excludedCount > 0 ? (
                 <Tag tone="excluded">
@@ -565,8 +842,8 @@ export function HighlightsPage() {
 
         <div className="hl-body" id={`hlb-${lead.id}`} hidden={!open}>
           <p className="subtle hl-stitch-intro">
-            {plural(fragments.length, "fragment")} stitched into one passage.
-            Each keeps its own note, position and weight.
+            {capitalise(plural(fragments.length, "highlight"))} linked into one
+            passage; each keeps its own note, tags, position and weight.
           </p>
           <ol className="hl-fragments">
             {fragments.map((item, position) => (
@@ -575,11 +852,29 @@ export function HighlightsPage() {
                   {position + 1}
                 </span>
                 <div className="hl-fragment-body">
+                  <span className="sr-only">
+                    Highlight {position + 1} of {fragments.length}.{" "}
+                  </span>
                   <span className="hl-quote">{item.text}</span>
                   {item.note ? (
                     <span className="hl-note">
                       <span className="sr-only">Note: </span>
                       {item.note}
+                    </span>
+                  ) : null}
+                  {/* Which highlight a word belongs to is answered by the metadata each one
+                      carries here: its own tags, position and date, not the passage's union. */}
+                  {item.tags.length > 0 ? (
+                    <span className="hl-tags">
+                      {item.tags.map((tag) => (
+                        <span
+                          className="hl-tag"
+                          key={tag}
+                          data-active={sameTag(tag, tagFilter)}
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </span>
                   ) : null}
                   <dl className="hl-provenance">
@@ -608,7 +903,6 @@ export function HighlightsPage() {
             <button
               className="btn btn--sm"
               type="button"
-              aria-label="Copy the whole passage"
               onClick={() => void copyHighlight(passage)}
             >
               Copy passage
@@ -620,8 +914,14 @@ export function HighlightsPage() {
   }
 
   const heading = book ? book.title : "Highlights";
+  // A book with no level-1 heading has no contents to show, so it keeps the full width rather
+  // than reserving a margin column for nothing.
+  const hasContents = bookId !== null && chapters.length > 0;
   const isLoading =
-    highlights.isPending || weights.isPending || exclusions.isPending;
+    highlights.isPending ||
+    weights.isPending ||
+    exclusions.isPending ||
+    (bookId !== null && toc.isPending);
 
   return (
     <section className="view" aria-labelledby="hl-h">
@@ -705,327 +1005,180 @@ export function HighlightsPage() {
         </div>
       </div>
 
-      {toc.data ? (
-        <TableOfContents
-          chapters={chapters}
-          unknown={toc.data.unknownChapter}
-          total={bookTotal}
-          selected={chapterFilter}
-          onSelect={setChapterFilter}
-        />
-      ) : null}
+      {/* The book's own structure, kept beside the list so it stays in view while the list
+          scrolls; on a narrow screen it becomes a strip under the header. The layout follows
+          the route, not the loaded book, so a book page never renders a flash of the
+          library-wide column before its own structure arrives. */}
+      <div className={hasContents ? "book-layout" : undefined}>
+        {hasContents ? (
+          <aside className="book-toc">
+            {toc.data ? (
+              <TableOfContents
+                chapters={chapters}
+                unknown={toc.data.unknownChapter}
+                total={bookTotal}
+                selected={chapterFilter}
+                onSelect={setChapterFilter}
+              />
+            ) : null}
+          </aside>
+        ) : null}
 
-      {/* A library with no tags offers no tag filter, rather than an empty row that implies
-          tagging is a thing this reader has forgotten to do (Story 7 AS-5). */}
-      {tagItems.length > 0 ? (
-        <div className="tag-filter" role="group" aria-label="Filter by tag">
-          <span className="seg-label">Tag</span>
-          <div className="tag-filter-chips">
-            {tagItems.map((tag) => {
-              const active = sameTag(tag.name, tagFilter);
+        <div className={hasContents ? "book-main" : undefined}>
+          {/* A library with no tags offers no tag filter, rather than an empty row that
+              implies tagging is a thing this reader has forgotten to do (Story 7 AS-5). */}
+          {tagItems.length > 0 ? (
+            <div className="tag-filter" role="group" aria-label="Filter by tag">
+              <span className="seg-label">Tag</span>
+              <div className="tag-filter-chips">
+                {tagItems.map((tag) => {
+                  const active = sameTag(tag.name, tagFilter);
 
-              return (
-                <button
-                  className="tag-filter-chip"
-                  key={tag.name}
-                  type="button"
-                  aria-pressed={active}
-                  data-active={active}
-                  onClick={() => {
-                    setTagFilter(active ? null : tag.name);
-                    setOpenId(null);
-                  }}
+                  return (
+                    <button
+                      className="tag-filter-chip"
+                      key={tag.name}
+                      type="button"
+                      aria-pressed={active}
+                      data-active={active}
+                      onClick={() => {
+                        setTagFilter(active ? null : tag.name);
+                        setOpenId(null);
+                      }}
+                    >
+                      {tag.name}
+                      <span className="tag-filter-count">{tag.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <AsyncSection
+            isLoading={isLoading}
+            error={highlights.error ?? weights.error ?? exclusions.error}
+            onRetry={() => void highlights.refetch()}
+            isEmpty={items.length === 0}
+            empty={
+              tagFilter !== null ? (
+                <EmptyState
+                  title="Nothing tagged that"
+                  action={
+                    <button
+                      className="btn btn--sm"
+                      type="button"
+                      onClick={() => setTagFilter(null)}
+                    >
+                      Show every tag
+                    </button>
+                  }
                 >
-                  {tag.name}
-                  <span className="tag-filter-count">{tag.count}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      <AsyncSection
-        isLoading={isLoading}
-        error={highlights.error ?? weights.error ?? exclusions.error}
-        onRetry={() => void highlights.refetch()}
-        isEmpty={items.length === 0}
-        empty={
-          tagFilter !== null ? (
-            <EmptyState
-              title="Nothing tagged that"
-              action={
-                <button
-                  className="btn btn--sm"
-                  type="button"
-                  onClick={() => setTagFilter(null)}
+                  No highlight tagged “{tagFilter}”
+                  {activeChapter ? ` in “${activeChapter.title}”` : ""}
+                  {debounced ? `, and none of those match “${debounced}”` : ""}.
+                </EmptyState>
+              ) : activeChapter ? (
+                <EmptyState
+                  title="No highlights here"
+                  action={
+                    <button
+                      className="btn btn--sm"
+                      type="button"
+                      onClick={() => setChapterFilter(null)}
+                    >
+                      Show the whole book
+                    </button>
+                  }
                 >
-                  Show every tag
-                </button>
-              }
+                  {debounced
+                    ? `Nothing in “${activeChapter.title}” matches “${debounced}”.`
+                    : toc.data?.hasTableOfContents
+                      ? `“${activeChapter.title}” has nothing of its own. Pick another entry in Contents.`
+                      : `“${activeChapter.title}” has nothing of its own yet.`}
+                </EmptyState>
+              ) : debounced ? (
+                <EmptyState title="No highlights match that search">
+                  Nothing matches “{debounced}”. Try a shorter word, or clear
+                  the search box.
+                </EmptyState>
+              ) : (
+                <EmptyState
+                  title="No highlights yet"
+                  action={
+                    <button
+                      className="btn btn--primary"
+                      type="button"
+                      onClick={() => navigate("/app/import")}
+                    >
+                      Import highlights
+                    </button>
+                  }
+                >
+                  Connect your Kindle or Kobo by USB and drop its highlight file
+                  in. Relego takes it from there.
+                </EmptyState>
+              )
+            }
+          >
+            <p className="subtle hint-line">
+              <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> expand ·{" "}
+              <kbd>e</kbd> exclude · <kbd>1</kbd>–<kbd>5</kbd> weight
+            </p>
+
+            <div
+              className={grouped ? "hl-list hl-list--chapters" : "hl-list"}
+              ref={listRef}
             >
-              No highlight tagged “{tagFilter}”
-              {activeChapter ? ` in “${activeChapter.title}”` : ""}
-              {debounced ? `, and none of those match “${debounced}”` : ""}.
-            </EmptyState>
-          ) : activeChapter ? (
-            <EmptyState
-              title="No highlights here"
-              action={
-                <button
-                  className="btn btn--sm"
-                  type="button"
-                  onClick={() => setChapterFilter(null)}
-                >
-                  Show the whole book
-                </button>
-              }
-            >
-              {debounced
-                ? `Nothing in “${activeChapter.title}” matches “${debounced}”.`
-                : toc.data?.hasTableOfContents
-                  ? `“${activeChapter.title}” has nothing of its own. Pick another entry in the contents above.`
-                  : `“${activeChapter.title}” has nothing of its own yet.`}
-            </EmptyState>
-          ) : debounced ? (
-            <EmptyState title="No highlights match that search">
-              Nothing matches “{debounced}”. Try a shorter word, or clear the
-              search box.
-            </EmptyState>
-          ) : (
-            <EmptyState
-              title="No highlights yet"
-              action={
-                <button
-                  className="btn btn--primary"
-                  type="button"
-                  onClick={() => navigate("/app/import")}
-                >
-                  Import highlights
-                </button>
-              }
-            >
-              Connect your Kindle or Kobo by USB and drop its highlight file in.
-              Relego takes it from there.
-            </EmptyState>
-          )
-        }
-      >
-        <p className="subtle hint-line">
-          <kbd>j</kbd> <kbd>k</kbd> move · <kbd>Enter</kbd> expand ·{" "}
-          <kbd>e</kbd> exclude · <kbd>1</kbd>–<kbd>5</kbd> weight
-        </p>
+              {grouped
+                ? regions.map((region) => {
+                    // The contents list and the CLI both call this bucket the unknown chapter; the
+                    // page must not invent a third name for it.
+                    const label =
+                      region.path.length > 0
+                        ? describeChapterPath(region.path)
+                        : "Unknown chapter";
 
-        <div className="hl-list" ref={listRef}>
-          {rows.map((row, index) => {
-            if (row.kind === "passage") return passageCard(row, index);
-
-            const item = row.item;
-            const open = openId === item.id;
-            const excluded = excludedIds.has(item.id);
-            const weight = weightById.get(item.id) ?? 3;
-
-            return (
-              <article className="hl" key={item.id} data-open={open}>
-                {/* A div rather than a button: button labels can't be selected, and the quote
-                    is exactly what people want to drag-select and copy. */}
-                <div
-                  className="hl-summary"
-                  role="button"
-                  aria-expanded={open}
-                  aria-controls={`hlb-${item.id}`}
-                  tabIndex={index === cursor ? 0 : -1}
-                  onFocus={() => setCursor(index)}
-                  onClick={(event) => {
-                    if (isSelectingWithin(event.currentTarget)) return;
-                    setOpenId(open ? null : item.id);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setOpenId(open ? null : item.id);
-                      return;
-                    }
-                    onCardKeyDown(event, item);
-                  }}
-                >
-                  <span>
-                    {item.headingLevel !== null ? (
-                      <span
-                        className="hl-heading"
-                        data-level={item.headingLevel}
-                      >
-                        <span className="hl-eyebrow">
-                          {describeHeadingLevel(item.headingLevel)}
-                        </span>
-                        <span className="hl-quote hl-quote--heading">
-                          {item.text}
-                        </span>
-                      </span>
-                    ) : item.text ? (
-                      <span className="hl-quote">{item.text}</span>
-                    ) : null}
-                    {item.note ? (
-                      <span
-                        className={
-                          item.headingLevel !== null
-                            ? "hl-note hl-note--summary"
-                            : "hl-note"
+                    return (
+                      <div
+                        className="hl-chapter"
+                        key={region.key}
+                        role="group"
+                        aria-label={label}
+                        data-loose={
+                          region.path.length === 0 ? "true" : undefined
                         }
                       >
-                        <span className="sr-only">
-                          {item.headingLevel !== null
-                            ? "Section summary: "
-                            : "Note: "}
-                        </span>
-                        {item.note}
-                      </span>
-                    ) : null}
-                    <span className="hl-meta">
-                      {book ? null : (
-                        <span className="subtle">
-                          {`${item.bookTitle} · ${item.authorName ?? UNKNOWN_AUTHOR}`}
-                        </span>
-                      )}
-                      {/* The heading is its own chapter, so its path would only repeat it. */}
-                      {item.chapterPath.length > 0 &&
-                      item.headingLevel === null ? (
-                        <span className="subtle hl-crumb">
-                          <span className="sr-only">Chapter: </span>
-                          {describeChapterPath(item.chapterPath)}
-                        </span>
-                      ) : null}
-                      {excluded ? <Tag tone="excluded">Excluded</Tag> : null}
-                      {/* Tags are shown as the reader spelled them, and name the filter that
-                          would narrow the list to them. */}
-                      {item.tags.length > 0 ? (
-                        <span className="hl-tags">
-                          {item.tags.map((tag) => (
-                            <span
-                              className="hl-tag"
-                              key={tag}
-                              data-active={sameTag(tag, tagFilter)}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </span>
-                      ) : null}
-                    </span>
-                  </span>
-                  <span className="hl-side">
-                    <WeightPips value={weight} />
-                  </span>
-                </div>
-
-                <div className="hl-body" id={`hlb-${item.id}`} hidden={!open}>
-                  <div className="hl-actions">
-                    <span className="seg-label" id={`w-${item.id}`}>
-                      Weight
-                    </span>
-                    <div
-                      className="seg"
-                      role="group"
-                      aria-labelledby={`w-${item.id}`}
-                    >
-                      {[1, 2, 3, 4, 5].map((step) => (
-                        <button
-                          key={step}
-                          type="button"
-                          aria-pressed={weight === step}
-                          onClick={() =>
-                            setWeight.mutate({ id: item.id, weight: step })
-                          }
-                        >
-                          {step}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      className="btn btn--sm"
-                      type="button"
-                      onClick={() =>
-                        toggleHighlight.mutate({ id: item.id, excluded })
-                      }
-                    >
-                      {excluded ? "Include again" : "Exclude highlight"}
-                    </button>
-                    <button
-                      className="btn btn--sm"
-                      type="button"
-                      aria-label="Copy highlight text"
-                      onClick={() => void copyHighlight(item.text)}
-                    >
-                      Copy
-                    </button>
-                    {/* Deleting is not reversible on the server, so it takes two
-                        deliberate steps rather than one stray click. */}
-                    {confirmingId === item.id ? (
-                      <span
-                        className="confirm"
-                        role="group"
-                        aria-label="Confirm delete"
-                      >
-                        <span className="confirm-q">Delete permanently?</span>
-                        <button
-                          className="btn btn--sm btn--danger"
-                          type="button"
-                          disabled={removeHighlight.isPending}
-                          onClick={() => removeHighlight.mutate(item.id)}
-                        >
-                          {removeHighlight.isPending
-                            ? "Deleting…"
-                            : "Yes, delete"}
-                        </button>
-                        <button
-                          className="btn btn--sm btn--ghost"
-                          type="button"
-                          onClick={() => setConfirmingId(null)}
-                        >
-                          Keep
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        className="btn btn--sm btn--danger"
-                        type="button"
-                        onClick={() => setConfirmingId(item.id)}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                  {/* Where and when the source said this was marked. Reference data, so it
-                      closes the card; a value the source never reported keeps its row and says
-                      it is unknown instead of vanishing (FR-006, FR-007). */}
-                  <dl className="hl-provenance">
-                    <div>
-                      <dt>Position</dt>
-                      <dd data-unknown={item.position === null}>
-                        {formatReadingPosition(item.position)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Added</dt>
-                      <dd data-unknown={item.addedOn === null}>
-                        {formatReadingDate(item.addedOn)}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </article>
-            );
-          })}
+                        {region.head ? (
+                          annotationCard(region.head.item, region.head.index, {
+                            ancestors: region.path.slice(0, -1),
+                            chapterHead: true,
+                          })
+                        ) : (
+                          <header className="hl-chapter-head">
+                            <h2 className="hl-chapter-title">{label}</h2>
+                          </header>
+                        )}
+                        {region.stops.map(({ row, index }) =>
+                          rowCard(row, index),
+                        )}
+                      </div>
+                    );
+                  })
+                : rows.map((row, index) => rowCard(row, index))}
+            </div>
+          </AsyncSection>
         </div>
-      </AsyncSection>
+      </div>
     </section>
   );
 }
 
 /**
- * The book's chapter structure as a filterable contents list. Levels nest by indentation
- * rather than nesting lists: the reading order is already linear, and a flat list of
- * buttons keeps the keyboard path obvious.
+ * The book's chapter structure as a filterable contents list: a margin column beside the list on
+ * a wide screen, a strip under the header on a narrow one. Levels nest by indentation rather than
+ * nesting lists: the reading order is already linear, and a flat list of buttons keeps the
+ * keyboard path obvious.
  */
 function TableOfContents({
   chapters,
@@ -1050,9 +1203,7 @@ function TableOfContents({
         <h2 className="toc-title" id="toc-h">
           Contents
         </h2>
-        <span className="subtle">
-          {plural(chapters.length, "chapter")} in this book
-        </span>
+        <span className="subtle">{plural(chapters.length, "chapter")}</span>
       </div>
 
       <ul className="toc-list">

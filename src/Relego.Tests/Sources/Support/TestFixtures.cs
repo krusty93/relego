@@ -12,6 +12,13 @@ internal static class TestFixtures
 
     public static string KindleFixturePath() => Resolve("kindle-highlights.txt");
 
+    /// <summary>
+    /// Clippings that exercise the whole annotation vocabulary (headings, tags, a stitched
+    /// passage). Also imported by the web end-to-end suite, which locates it by relative path.
+    /// </summary>
+    public static string AnnotationVocabularyFixturePath() =>
+        Resolve("annotation-vocabulary.txt");
+
     private static string Resolve(string fileName)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

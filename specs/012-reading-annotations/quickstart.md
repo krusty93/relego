@@ -17,14 +17,23 @@ Run the scenarios in order — each one depends on the state the previous one le
 
 ## Scenario 1 — Markers are understood (Stories 1, 2, 7; FR-005…FR-020, FR-046)
 
-Write `fixture.txt` — one book, one heading, one tagged note, one stitched pair, one note-only
+Write `fixture.txt` — one book, one heading, one tagged passage, one stitched pair, one note-only
 annotation. The Kindle separator is exactly ten `=` characters.
+
+Markers belong in the **note**, which Kindle writes as its own `Your Note` clipping at the passage's
+location: the marker decides what the annotated passage becomes (FR-016, FR-019), so a marker typed
+into the highlight itself would stay ordinary passage text (FR-018).
 
 ```text
 Epigrams on Programming (Alan Perlis)
 - Your Highlight on Location 210-214 | Added on Monday, March 2, 2026 8:41:00 PM
 
-.h1 Foundations
+Foundations
+==========
+Epigrams on Programming (Alan Perlis)
+- Your Note on Location 210 | Added on Monday, March 2, 2026 8:41:30 PM
+
+.h1
 ==========
 Epigrams on Programming (Alan Perlis)
 - Your Highlight on Location 1234-1236 | Added on Monday, March 2, 2026 9:14:00 PM
@@ -42,9 +51,19 @@ Epigrams on Programming (Alan Perlis)
 first fragment
 ==========
 Epigrams on Programming (Alan Perlis)
+- Your Note on Location 1300 | Added on Monday, March 2, 2026 9:31:30 PM
+
+.c1
+==========
+Epigrams on Programming (Alan Perlis)
 - Your Highlight on Location 1303-1305 | Added on Monday, March 2, 2026 9:32:00 PM
 
 second fragment
+==========
+Epigrams on Programming (Alan Perlis)
+- Your Note on Location 1303 | Added on Monday, March 2, 2026 9:32:30 PM
+
+.c2
 ```
 
 Import and inspect:
@@ -56,18 +75,20 @@ curl -s "$RELEGO_URL/highlights?pageSize=100" | jq
 
 **Expected**
 
-- Four stored annotations: the `.h1` title (heading level 1, `text: "Foundations"`), the tagged
-  passage, and the two fragments. The note clipping is **not** a fifth record — it attached to the
-  passage at `Location 1234` (FR-010, R2).
-- The passage has `note: "the whole design principle in one line"`, `tags: ["prob","review"]`, and
-  its `text` is exactly `Simplicity is prerequisite for reliability.` — no `.prob` left in the text
-  (FR-005, FR-046, FR-047).
-- The heading annotation has `headingLevel: 1` and its `chapterId` is `null` for itself.
+- Four stored annotations — the `Foundations` passage titled by its `.h1` note (heading level 1),
+  the tagged passage, and the two fragments. The three note clippings are **not** extra records:
+  each attached to the passage at its own location (FR-010, R2).
+- The tagged passage has `note: "the whole design principle in one line"`, `tags: ["prob","review"]`,
+  and its `text` is exactly `Simplicity is prerequisite for reliability.` — no `.prob` left in the
+  passage and none left in the note (FR-005, FR-046, FR-047).
+- The heading annotation has `headingLevel: 1` and sits in the chapter it titles (`chapterId: 1`,
+  `chapterPath: ["Foundations"]`). Its note contains only the marker, so `note` is `null` (FR-017).
 - `addedOn` equals the clipping's printed date, not the import time (FR-007).
 - Neither `text` nor `note` contains `[my note]` (FR-053, R10).
 
-Then, with the note clipping removed from the file, import again into an empty server: the passage
-must appear with `text: ""` and the note, as a standalone annotation (Story 1 AS-3).
+Then, with the *passage* clipping at `Location 1234-1236` removed from the file, import again into an
+empty server: the note clipping has nothing to attach to, so the passage must appear with
+`text: ""`, the note and its tags, as a standalone annotation (Story 1 AS-3, FR-011).
 
 ## Scenario 2 — Chapters and the unknown chapter (Story 3; FR-018…FR-031)
 
@@ -79,11 +100,12 @@ curl -s "$RELEGO_URL/highlights?bookId=$BOOK&chapterId=unknown" | jq '.total'
 
 **Expected**
 
-- One chapter (`Foundations`, level 1, parent `null`) with `annotationCount: 3` — it includes the
-  descendants and the later fragments.
-- `hasTableOfContents: true`, `unknownChapter.annotationCount: 0`.
-- Filtering by the chapter returns the 3 annotations after the heading; filtering by `unknown`
-  returns the heading plus anything before it. The two totals sum to the book's total (FR-031).
+- One chapter (`Foundations`, level 1, parent `null`) with `annotationCount: 4` — the annotation
+  that titles the chapter counts in it, together with every annotation after it in source order,
+  including the later fragments.
+- `hasTableOfContents: true`, `unknownChapter.annotationCount: 0` — nothing precedes the heading.
+- Filtering by the chapter returns all 4 annotations; filtering by `unknown` returns 0. The two
+  totals sum to the book's total (FR-031).
 - Remove the `.h1` line, re-import into a fresh server, and `hasTableOfContents` becomes `false`
   while the `chapters` array is empty — the book is browsable but has no chapter navigation
   (FR-026). A book whose only markers are `.h2` behaves the same way.
@@ -102,10 +124,12 @@ curl -s "$RELEGO_URL/highlights?bookId=$BOOK" | jq '[.items[] | {id, text, stitc
   (FR-045). The second keeps `stitchedText: null`.
 - With page size 1, the joined text still appears on the group's first fragment — grouping is
   resolved against the whole book, not the page (R9).
-- Edit the fixture to place an unrelated highlight between the fragments; **both** must come out of
-  a fresh import as separate annotations (`stitchGroupId: null`), and the total record count must not
-  change (SC-013). Then restore the fixture and confirm the pair stitches again — stitching must
-  never have to be rebuilt by hand.
+- Place an unrelated highlight between the fragments and re-import: the pair still stitches, joined in
+  reading order with the unrelated annotation left in place between them.
+- Remove the `.c1`/`.c2` notes and re-import: both fragments come out as individual annotations
+  (`stitchGroupId: null`), the total record count does not change and nothing is lost (SC-013).
+  Restore the markers and re-import — the pair stitches again, because stitching is derived and
+  never has to be rebuilt by hand (FR-042, FR-043).
 
 ## Scenario 4 — Tags (Story 7; FR-046…FR-052)
 
