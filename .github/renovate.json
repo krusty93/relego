@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "Europe/Rome",
+  "dependencyDashboard": true,
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "description": "Group routine GitHub Actions updates.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "GitHub Actions",
+      "schedule": ["* 0-8 * * 1"]
+    },
+    {
+      "description": "Group routine NuGet updates.",
+      "matchManagers": ["nuget"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": ".NET dependencies",
+      "schedule": ["* 0-8 * * 1"]
+    },
+    {
+      "description": "Group routine npm updates.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "JavaScript dependencies",
+      "schedule": ["* 0-8 * * 1"]
+    },
+    {
+      "description": "Group routine container image updates.",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Container images",
+      "minimumReleaseAgeBehaviour": "timestamp-optional",
+      "schedule": ["* 0-8 * * 1"]
+    }
+  ]
+}
