@@ -62,6 +62,17 @@ export interface HighlightsResponse {
   items: HighlightItem[];
 }
 
+/** One tag as the filter offers it, with the spelling of its lowest annotation id. */
+export interface TagSummary {
+  name: string;
+  count: number;
+}
+
+/** Every tag in the library; `[]` when the reader has written none. */
+export interface TagsResponse {
+  tags: TagSummary[];
+}
+
 /** One real heading in a book, keyed by the annotation that titles it. */
 export interface ChapterItem {
   /** The titling annotation's id. */

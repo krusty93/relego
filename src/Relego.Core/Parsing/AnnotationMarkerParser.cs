@@ -24,6 +24,7 @@ public static class AnnotationMarkerParser
         var index = 0;
         int? headingLevel = null;
         int? stitchLevel = null;
+        string? stitchMarker = null;
         var tags = new List<string>();
 
         while (index < span.Length)
@@ -71,6 +72,7 @@ public static class AnnotationMarkerParser
                 }
 
                 stitchLevel = level;
+                stitchMarker = token[1..].ToString();
                 continue;
             }
 
@@ -93,6 +95,7 @@ public static class AnnotationMarkerParser
             Note = prose.Length == 0 ? null : prose,
             HeadingLevel = headingLevel,
             StitchLevel = stitchLevel,
+            StitchMarker = stitchMarker,
             Tags = tags,
         };
     }

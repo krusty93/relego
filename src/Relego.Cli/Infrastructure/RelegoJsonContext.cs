@@ -16,6 +16,7 @@ namespace Relego.Cli.Infrastructure;
 [JsonSerializable(typeof(ExclusionsResponse))]
 [JsonSerializable(typeof(HighlightsResponse))]
 [JsonSerializable(typeof(HighlightItemDto))]
+[JsonSerializable(typeof(TagsResponse))]
 [JsonSerializable(typeof(SetWeightRequest))]
 [JsonSerializable(typeof(List<WeightedHighlightDto>))]
 [JsonSerializable(typeof(RenameBookRequest))]

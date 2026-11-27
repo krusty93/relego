@@ -205,15 +205,15 @@ confirm the two marked passages appear as one stitched passage while the third i
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T043 [P] [US6] Add `src/Relego.Tests/Annotations/StitchedPassageBuilderTests.cs`: `.c1` + `.c2` produce one group in reading order joined by `" … "` with no trailing ellipsis on a single member; a `.c2` before any `.c1` is not stitched and surfaces its marker as a tag (Story 6 AS-2); two runs of `.c1` produce exactly two groups (AS-3); removing a marker and re-importing reflects the change without losing a fragment (AS-4); an excluded fragment is omitted from the joined text while the rest still stitch (FR-044); stitching never crosses books (FR-042)
-- [ ] T044 [P] [US6] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `stitchGroupId`/`stitchIndex` are reported on every fragment, `stitchedText` appears on the group's first fragment only, and that holds even when `pageSize = 1`
+- [X] T043 [P] [US6] Add `src/Relego.Tests/Annotations/StitchedPassageBuilderTests.cs`: `.c1` + `.c2` produce one group in reading order joined by `" … "` with no trailing ellipsis on a single member; a `.c2` before any `.c1` is not stitched and surfaces its marker as a tag (Story 6 AS-2); two runs of `.c1` produce exactly two groups (AS-3); removing a marker and re-importing reflects the change without losing a fragment (AS-4); an excluded fragment is omitted from the joined text while the rest still stitch (FR-044); stitching never crosses books (FR-042)
+- [X] T044 [P] [US6] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `stitchGroupId`/`stitchIndex` are reported on every fragment, `stitchedText` appears on the group's first fragment only, and that holds even when `pageSize = 1`
 
 ### Implementation for User Story 6
 
-- [ ] T045 [US6] Implement `StitchedPassageBuilder` in `src/Relego.Core/Annotations/StitchedPassageBuilder.cs` on top of `SourceOrder`, reusing `AnnotationMarkers.StitchLevel`; each fragment keeps its own `text`, `note`, `tags`, `position`, `weight`, `excluded` and `delivery_count`
-- [ ] T046 [US6] Extend `AnnotationContextService` in `src/Relego.Server/Services/AnnotationContextService.cs` to produce stitch groups and map `StitchGroupId`, `StitchIndex` and `StitchedText` through `src/Relego.Server/Data/HighlightRepository.cs` and `src/Relego.Server/Endpoints/HighlightEndpoints.cs`
-- [ ] T047 [US6] Make an orphan `.cN` surface as a tag rather than as commentary in `src/Relego.Core/Parsing/AnnotationMarkerParser.cs` and `src/Relego.Core/Annotations/StitchedPassageBuilder.cs` (Story 6 AS-2)
-- [ ] T048 [US6] Show a stitched passage as one quoted item while keeping its fragments individually readable, each with its own position and note, in `src/relego.web/src/routes/HighlightsPage.tsx`; `impeccable` skill required
+- [X] T045 [US6] Implement `StitchedPassageBuilder` in `src/Relego.Core/Annotations/StitchedPassageBuilder.cs` on top of `SourceOrder`, reusing `AnnotationMarkers.StitchLevel`; each fragment keeps its own `text`, `note`, `tags`, `position`, `weight`, `excluded` and `delivery_count`
+- [X] T046 [US6] Extend `AnnotationContextService` in `src/Relego.Server/Services/AnnotationContextService.cs` to produce stitch groups and map `StitchGroupId`, `StitchIndex` and `StitchedText` through `src/Relego.Server/Data/HighlightRepository.cs` and `src/Relego.Server/Endpoints/HighlightEndpoints.cs`
+- [X] T047 [US6] Make an orphan `.cN` surface as a tag rather than as commentary in `src/Relego.Core/Parsing/AnnotationMarkerParser.cs` and `src/Relego.Core/Annotations/StitchedPassageBuilder.cs` (Story 6 AS-2)
+- [X] T048 [US6] Show a stitched passage as one quoted item while keeping its fragments individually readable, each with its own position and note, in `src/relego.web/src/routes/HighlightsPage.tsx`; `impeccable` skill required
 
 **Checkpoint**: stitched passages work and are inspectable.
 
@@ -232,16 +232,16 @@ its preserved comment.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T049 [P] [US7] Add `src/Relego.Tests/Api/TagEndpointTests.cs`: `GET /tags` groups case-insensitively, reports one representative spelling per tag (from the lowest annotation `id`), counts annotations, and orders by `count desc` then `lower(name)`; an empty library returns `{ "tags": [] }`
-- [ ] T050 [P] [US7] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `tag=PROB` and `tag=prob` return the same set while each item keeps its own spelling; `q` matches a tag name; a tag filter that matches nothing returns `200` with an empty page
+- [X] T049 [P] [US7] Add `src/Relego.Tests/Api/TagEndpointTests.cs`: `GET /tags` groups case-insensitively, reports one representative spelling per tag (from the lowest annotation `id`), counts annotations, and orders by `count desc` then `lower(name)`; an empty library returns `{ "tags": [] }`
+- [X] T050 [P] [US7] Extend `src/Relego.Tests/Api/HighlightEndpointTests.cs`: `tag=PROB` and `tag=prob` return the same set while each item keeps its own spelling; `q` matches a tag name; a tag filter that matches nothing returns `200` with an empty page
 
 ### Implementation for User Story 7
 
-- [ ] T051 [US7] Add `TagsResponse` / `TagSummaryDto` in `src/Relego.Core/Contracts/TagsResponse.cs` per [contracts/annotations-api.md](contracts/annotations-api.md)
-- [ ] T052 [US7] Add `GET /tags` in `src/Relego.Server/Endpoints/TagEndpoints.cs` and register it in `src/Relego.Server/Program.cs`
-- [ ] T053 [US7] Add the case-insensitive `tag` filter to `src/Relego.Server/Data/HighlightRepository.cs` and its parameter binding in `src/Relego.Server/Endpoints/HighlightEndpoints.cs`, matching on a lower-cased form of the space-separated `tags` column
-- [ ] T054 [US7] Include tag names in `q` search in `src/Relego.Server/Data/HighlightRepository.cs` (FR-051) without changing how `q` matches text, title or author
-- [ ] T055 [US7] Add tag chips to each annotation and a tag filter to the list in `src/relego.web/src/routes/HighlightsPage.tsx`, with the call in `src/relego.web/src/lib/api.ts`; offer no tag filter when the library has no tags (Story 7 AS-5); `impeccable` skill required
+- [X] T051 [US7] Add `TagsResponse` / `TagSummaryDto` in `src/Relego.Core/Contracts/TagsResponse.cs` per [contracts/annotations-api.md](contracts/annotations-api.md)
+- [X] T052 [US7] Add `GET /tags` in `src/Relego.Server/Endpoints/TagEndpoints.cs` and register it in `src/Relego.Server/Program.cs`
+- [X] T053 [US7] Add the case-insensitive `tag` filter to `src/Relego.Server/Data/HighlightRepository.cs` and its parameter binding in `src/Relego.Server/Endpoints/HighlightEndpoints.cs`, matching on a lower-cased form of the space-separated `tags` column
+- [X] T054 [US7] Include tag names in `q` search in `src/Relego.Server/Data/HighlightRepository.cs` (FR-051) without changing how `q` matches text, title or author
+- [X] T055 [US7] Add tag chips to each annotation and a tag filter to the list in `src/relego.web/src/routes/HighlightsPage.tsx`, with the call in `src/relego.web/src/lib/api.ts`; offer no tag filter when the library has no tags (Story 7 AS-5); `impeccable` skill required
 
 **Checkpoint**: tags are captured, shown, searchable and filterable.
 

@@ -1068,6 +1068,165 @@ td {
   font-style: italic;
 }
 
+/* A stitched passage is one quoted item: the fragments read as one sentence again, and the
+   ellipses where they meet carry the accent so the seam is visible without a badge saying so. */
+.hl-stitch-sep {
+  color: var(--accent-ink);
+  padding: 0 0.15em;
+}
+
+.hl-stitch-count {
+  color: var(--ink-subtle);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hl-stitch-intro {
+  margin: 0;
+  max-width: 62ch;
+}
+
+/* The fragments stay individually readable: each is a row of the same list, numbered in the
+   reading order it was stitched from, and separated by a hairline rather than a container. */
+.hl-fragments {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: fragment;
+}
+
+.hl-fragment {
+  display: grid;
+  grid-template-columns: var(--sp-5) minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.hl-fragment:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.hl-fragment-mark {
+  color: var(--ink-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+}
+
+.hl-fragment-body {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.hl-fragment-body > .hl-quote {
+  font-size: var(--t-sm);
+}
+
+.hl-fragment-body .hl-note {
+  margin-top: 0;
+}
+
+.hl-fragment-body .hl-provenance,
+.hl-fragment-body .hl-actions {
+  padding-top: var(--sp-2);
+}
+
+/* Tags are the reader's own vocabulary, so they are set as quiet marginalia: present on every
+   card, never louder than the quote they belong to. */
+.hl-tags {
+  display: inline-flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+
+.hl-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
+  font-size: var(--t-micro);
+  font-weight: 550;
+  line-height: 1.7;
+}
+
+.hl-tag[data-active="true"] {
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  color: var(--accent-ink);
+}
+
+/* The tag filter sits under the contents as a second, coarser index into the same list. It is
+   absent entirely when the library has no tags, rather than sitting there empty. */
+.tag-filter {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.tag-filter-chips {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.tag-filter-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-0) var(--sp-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: var(--t-xs);
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+
+.tag-filter-chip:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.tag-filter-chip:focus-visible {
+  outline-offset: 2px;
+}
+
+.tag-filter-chip[aria-pressed="true"] {
+  color: var(--accent-ink);
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  background: var(--accent-wash);
+  font-weight: 550;
+}
+
+.tag-filter-count {
+  color: var(--ink-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-filter-chip[aria-pressed="true"] .tag-filter-count {
+  color: var(--accent-ink);
+}
+
 .confirm {
   display: inline-flex;
   gap: var(--sp-2);

@@ -16,7 +16,8 @@ public static class HighlightEndpoints
             [FromQuery] int pageSize = 50,
             [FromQuery] string? q = null,
             [FromQuery] int? bookId = null,
-            [FromQuery] string? chapterId = null) =>
+            [FromQuery] string? chapterId = null,
+            [FromQuery] string? tag = null) =>
         {
             if (page < 1)
             {
@@ -68,12 +69,12 @@ public static class HighlightEndpoints
             }
 
             var userId = await userRepo.EnsureUserAsync();
-            var result = await highlightRepo.GetHighlightsAsync(userId, page, pageSize, q, bookId, chapterFilterId, unknownChapter);
+            var result = await highlightRepo.GetHighlightsAsync(userId, page, pageSize, q, bookId, chapterFilterId, unknownChapter, tag);
             return Results.Ok(result);
         })
         .WithTags("Highlights")
         .WithSummary("List highlights.")
-        .WithDescription("Returns a paginated, optionally filtered list of highlights. Filter by book with bookId, and narrow it to a chapter with chapterId (a chapter id or the literal unknown).")
+        .WithDescription("Returns a paginated, optionally filtered list of highlights. Filter by book with bookId, narrow it to a chapter with chapterId (a chapter id or the literal unknown), and narrow it by tag with tag, which matches case-insensitively. Free text in q also matches tag names.")
         .Produces<HighlightsResponse>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
