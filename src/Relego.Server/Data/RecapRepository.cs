@@ -168,7 +168,7 @@ public sealed class RecapRepository(IDbConnection connection)
         public long Id { get; set; }
         public string Text { get; set; } = "";
         public string BookTitle { get; set; } = "";
-        public string AuthorName { get; set; } = "";
+        public string? AuthorName { get; set; }
         public long Weight { get; set; }
         public string? LastSeenText { get; set; }
         public string CreatedAtText { get; set; } = "";

@@ -8,15 +8,16 @@ namespace Relego.Server.Data;
 
 public sealed class SyncRepository(IDbConnection connection)
 {
-    /// <summary>Author name stored when a source reports none; shared with provenance writes.</summary>
+    /// <summary>Author name stored when a source reports none: the single author row with no name.</summary>
     /// <param name="author">Author as reported by the source, or <c>null</c>.</param>
-    /// <returns>The author name used by the import path.</returns>
-    public static string ResolveAuthorName(string? author) =>
-        string.IsNullOrWhiteSpace(author) ? "Unknown Author" : author;
+    /// <returns>The author as reported, or <c>null</c> when the source reported none.</returns>
+    public static string? ResolveAuthorName(string? author) =>
+        string.IsNullOrWhiteSpace(author) ? null : author;
 
     public async Task<SyncResponse> ImportAsync(int userId, SyncRequest request)
     {
         var response = new SyncResponse();
+        var importTime = DateTimeOffset.UtcNow.ToString("o");
 
         using var transaction = connection.BeginTransaction();
 
@@ -30,7 +31,7 @@ public sealed class SyncRepository(IDbConnection connection)
             response.NewAuthors += newAuthors;
 
             var authorId = await connection.QuerySingleAsync<int>(
-                "SELECT id FROM authors WHERE name = @Name",
+                "SELECT id FROM authors WHERE name IS @Name",
                 new { Name = authorName }, transaction);
 
             var newBooks = await connection.ExecuteAsync(
@@ -67,7 +68,7 @@ public sealed class SyncRepository(IDbConnection connection)
                     PositionStart = sourcePosition.Start,
                     PositionKind = sourcePosition.Kind,
                     AddedOn = highlight.AddedOn?.ToString("o"),
-                    CreatedAt = (highlight.AddedOn ?? DateTimeOffset.UtcNow).ToString("o")
+                    CreatedAt = importTime
                 };
 
                 var existingId = await connection.QuerySingleOrDefaultAsync<int?>(

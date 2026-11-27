@@ -343,6 +343,17 @@ public sealed class KoboReaderSourceTests : IDisposable
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Read took {stopwatch.Elapsed.TotalSeconds:F2}s, expected < 5s");
     }
 
+    // ── T041 ──────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ReadAsync_Fixture_ReportsNoPosition()
+    {
+        var result = await new KoboReaderSource().ReadAsync(TestFixtures.KoboFixturePath());
+
+        // Kobo reports no reading position, and the source invents none (FR-006).
+        Assert.All(result.Books, book => Assert.All(book.Highlights, h => Assert.Null(h.Position)));
+    }
+
     private static int CountTempKoboCopies()
         => Directory.EnumerateFiles(Path.GetTempPath(), "relego-kobo-*.sqlite").Count();
 

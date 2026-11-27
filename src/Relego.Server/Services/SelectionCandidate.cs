@@ -4,7 +4,7 @@ public sealed record SelectionCandidate(
     int Id,
     string Text,
     string BookTitle,
-    string AuthorName,
+    string? AuthorName,
     int Weight,
     DateTimeOffset? LastSeen,
     DateTimeOffset CreatedAt,

@@ -127,7 +127,7 @@ public sealed class ProvenanceRepository(IDbConnection connection)
                 SELECT b.id
                 FROM books b
                 JOIN authors a ON a.id = b.author_id
-                WHERE b.user_id = @UserId AND b.title = @Title AND a.name = @AuthorName
+                WHERE b.user_id = @UserId AND b.title = @Title AND a.name IS @AuthorName
                 """,
                 new
                 {

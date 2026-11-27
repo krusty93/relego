@@ -7,6 +7,7 @@ public static class HtmlEmailComposer
 {
     private const int PlainTextMaxLength = 2000;
     private const string AccentHex = "#b56b39";
+    private const string UnknownAuthorLabel = "Unknown author";
 
     private static readonly IReadOnlyList<SelectionCandidate> TestHighlights =
     [
@@ -88,7 +89,7 @@ public static class HtmlEmailComposer
                 sb.Append("<tr><td style=\"padding:0 24px;\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\"><tbody><tr><td style=\"border-top:1px solid #dcd6ce;\"></td></tr></tbody></table></td></tr>");
                 sb.Append("<tr><td style=\"padding:16px 24px 8px;\">");
                 sb.Append($"<h2 style=\"margin:0;color:#171311;font-size:18px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(group.Key.BookTitle)}</h2>");
-                sb.Append($"<p style=\"margin:2px 0 0;color:#5b4f47;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(group.Key.AuthorName)}</p>");
+                sb.Append($"<p style=\"margin:2px 0 0;color:#5b4f47;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(group.Key.AuthorName ?? UnknownAuthorLabel)}</p>");
                 sb.Append("</td></tr>");
 
                 foreach (var highlight in group)
@@ -151,7 +152,7 @@ public static class HtmlEmailComposer
         {
             sb.AppendLine(group.Key.BookTitle);
             sb.AppendLine(new string('=', group.Key.BookTitle.Length));
-            sb.AppendLine($"by {group.Key.AuthorName}");
+            sb.AppendLine($"by {group.Key.AuthorName ?? UnknownAuthorLabel}");
             sb.AppendLine();
 
             foreach (var highlight in group)

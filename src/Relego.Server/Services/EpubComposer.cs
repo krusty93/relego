@@ -8,6 +8,7 @@ namespace Relego.Server.Services;
 public static class EpubComposer
 {
     private const string CoverImageResourceName = "Relego.Server.Assets.epub-cover.png";
+    private const string UnknownAuthorLabel = "Unknown author";
     private static readonly byte[] CoverImageBytes = ReadEmbeddedBinary(CoverImageResourceName);
 
     public static byte[] Compose(IReadOnlyList<SelectionCandidate> highlights, DateTimeOffset recapDate, string cadence)
@@ -155,7 +156,7 @@ public static class EpubComposer
             var note = string.IsNullOrWhiteSpace(h.Note)
                 ? string.Empty
                 : $"<p class=\"note\">{EscapeXml(h.Note)}</p>";
-            sb.AppendLine($"<li><blockquote>{EscapeXml(h.Text)}</blockquote>{note}<p><em>{EscapeXml(h.BookTitle)}</em> by {EscapeXml(h.AuthorName)}</p></li>");
+            sb.AppendLine($"<li><blockquote>{EscapeXml(h.Text)}</blockquote>{note}<p><em>{EscapeXml(h.BookTitle)}</em> by {EscapeXml(h.AuthorName ?? UnknownAuthorLabel)}</p></li>");
         }
 
         sb.AppendLine("</ul>");

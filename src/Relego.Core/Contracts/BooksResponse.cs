@@ -32,8 +32,8 @@ public sealed record BookItemDto
     /// <summary>Author identifier.</summary>
     public int AuthorId { get; set; }
 
-    /// <summary>Author display name.</summary>
-    public string AuthorName { get; set; } = string.Empty;
+    /// <summary>Author display name, or <c>null</c> when the source reported none.</summary>
+    public string? AuthorName { get; set; }
 
     /// <summary>Number of highlights stored for the book.</summary>
     public int HighlightCount { get; set; }

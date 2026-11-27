@@ -17,7 +17,8 @@ export interface BookItem {
   id: number;
   title: string;
   authorId: number;
-  authorName: string;
+  /** null when the source reported no author for the book. */
+  authorName: string | null;
   highlightCount: number;
   excludedHighlightCount: number;
   excluded: boolean;
@@ -116,10 +117,11 @@ export interface ExclusionsResponse {
   books: {
     id: number;
     title: string;
-    authorName: string;
+    /** null when the source reported no author for the book. */
+    authorName: string | null;
     highlightCount: number;
   }[];
-  authors: { id: number; name: string; bookCount: number }[];
+  authors: { id: number; name: string | null; bookCount: number }[];
 }
 
 export interface SettingsResponse {
