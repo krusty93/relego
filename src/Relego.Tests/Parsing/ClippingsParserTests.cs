@@ -184,7 +184,7 @@ public class ClippingsParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_NoteEntry_PrependsMyNotePrefix()
+    public async Task ParseAsync_NoteEntry_BecomesANoteWithNoPassage()
     {
         var input = """
             Book (Author)
@@ -198,7 +198,34 @@ public class ClippingsParserTests
         var result = await ClippingsParser.ParseAsync(reader);
 
         var h = result.Books[0].Highlights[0];
-        Assert.Equal("[my note] This is my annotation.", h.Text);
+        Assert.Equal(string.Empty, h.Text);
+        Assert.Equal("This is my annotation.", h.Note);
+    }
+
+    [Fact]
+    public async Task ParseAsync_NoteAtHighlightStart_AttachesToThePassage()
+    {
+        var input = """
+            Book (Author)
+            - Your Highlight on Location 1234-1236 | Added on Thursday, January 1, 2026 12:00:00 AM
+
+            The highlighted passage.
+            ==========
+            Book (Author)
+            - Your Note on Location 1234 | Added on Friday, January 2, 2026 12:00:00 AM
+
+            My remark on that passage.
+            ==========
+            """;
+
+        using var reader = new StringReader(input);
+        var result = await ClippingsParser.ParseAsync(reader);
+
+        var h = Assert.Single(result.Books[0].Highlights);
+        Assert.Equal("The highlighted passage.", h.Text);
+        Assert.Equal("My remark on that passage.", h.Note);
+        Assert.Equal(0, result.DuplicatesRemoved);
+        Assert.Equal(2, result.TotalEntriesProcessed);
     }
 
     [Fact]

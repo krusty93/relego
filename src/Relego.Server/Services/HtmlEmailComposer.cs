@@ -99,6 +99,10 @@ public static class HtmlEmailComposer
                     sb.Append($"<td width=\"3\" style=\"width:3px;background-color:{AccentHex};\"></td>");
                     sb.Append("<td style=\"padding:0 0 0 12px;\">");
                     sb.Append($"<p style=\"margin:0;color:#171311;font-size:15px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(highlight.Text)}</p>");
+                    if (!string.IsNullOrWhiteSpace(highlight.Note))
+                    {
+                        sb.Append($"<p style=\"margin:6px 0 0;color:#5b4f47;font-size:14px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;\">{EscapeHtml(highlight.Note)}</p>");
+                    }
                     sb.Append("</td></tr></tbody></table>");
                     sb.Append("</td></tr>");
                 }
@@ -158,6 +162,11 @@ public static class HtmlEmailComposer
                     text = text[..PlainTextMaxLength] + "[...]";
                 }
                 sb.AppendLine($"> {text}");
+                if (!string.IsNullOrWhiteSpace(highlight.Note))
+                {
+                    sb.AppendLine($"  {highlight.Note}");
+                }
+
                 sb.AppendLine();
             }
         }
@@ -168,8 +177,11 @@ public static class HtmlEmailComposer
         return sb.ToString();
     }
 
-    private static string EscapeHtml(string text)
+    private static string EscapeHtml(string? text)
     {
+        if (text is null)
+            return string.Empty;
+
         return text
             .Replace("&", "&amp;")
             .Replace("<", "&lt;")

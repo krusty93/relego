@@ -87,6 +87,8 @@ public sealed class UploadImportService(ILogger<UploadImportService> logger)
                 {
                     Text = highlight.Text,
                     AddedOn = highlight.AddedOn,
+                    Note = highlight.Note,
+                    Position = highlight.Position,
                 })],
             })],
         };

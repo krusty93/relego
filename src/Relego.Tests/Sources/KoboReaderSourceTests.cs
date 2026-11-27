@@ -176,7 +176,7 @@ public sealed class KoboReaderSourceTests : IDisposable
     // ── T016 ──────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ReadAsync_NoteRow_EmitsMyNotePrefixedAnnotation()
+    public async Task ReadAsync_NoteRow_KeepsPassageAsTextAndAnnotationAsNote()
     {
         var db = Track(KoboTestDatabase.Create(
             books: [new("book-1", "A Book", "Author")],
@@ -185,11 +185,12 @@ public sealed class KoboReaderSourceTests : IDisposable
         var result = await new KoboReaderSource().ReadAsync(db);
 
         var highlight = Assert.Single(result.Books.SelectMany(b => b.Highlights));
-        Assert.Equal("[my note] my thought", highlight.Text);
+        Assert.Equal("anchored passage", highlight.Text);
+        Assert.Equal("my thought", highlight.Note);
     }
 
     [Fact]
-    public async Task ReadAsync_NoteWithEmptyAnnotation_FallsBackToText()
+    public async Task ReadAsync_NoteWithEmptyAnnotation_KeepsThePassage()
     {
         var db = Track(KoboTestDatabase.Create(
             books: [new("book-1", "A Book", "Author")],
@@ -198,7 +199,8 @@ public sealed class KoboReaderSourceTests : IDisposable
         var result = await new KoboReaderSource().ReadAsync(db);
 
         var highlight = Assert.Single(result.Books.SelectMany(b => b.Highlights));
-        Assert.Equal("[my note] anchored passage", highlight.Text);
+        Assert.Equal("anchored passage", highlight.Text);
+        Assert.Null(highlight.Note);
     }
 
     [Fact]
@@ -230,14 +232,17 @@ public sealed class KoboReaderSourceTests : IDisposable
 
         var book = Assert.Single(result.Books);
         Assert.Equal(2, book.Highlights.Count);
-        Assert.Contains(book.Highlights, h => h.Text == "a highlight");
-        Assert.Contains(book.Highlights, h => h.Text == "[my note] a note");
+        Assert.Contains(book.Highlights, h => h.Text == "a highlight" && h.Note is null);
+
+        // The note's anchored passage carries the annotation instead of a "[my note] " prefix.
+        var annotated = Assert.Single(book.Highlights, h => h.Text == "passage");
+        Assert.Equal("a note", annotated.Note);
     }
 
     // ── T018 ──────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ReadAsync_NotePrefix_IsByteIdenticalToKindleParser()
+    public async Task ReadAsync_NoteText_IsByteIdenticalToKindleParser()
     {
         const string noteText = "they are indistinguishable across sources";
 
@@ -250,16 +255,18 @@ public sealed class KoboReaderSourceTests : IDisposable
             "==========\n";
         using var reader = new StringReader(kindleInput);
         var kindleResult = await Relego.Core.Parsing.ClippingsParser.ParseAsync(reader);
-        var kindleNote = kindleResult.Books.SelectMany(b => b.Highlights).Single().Text;
+        var kindleNote = kindleResult.Books.SelectMany(b => b.Highlights).Single();
 
         // Kobo note for equivalent content.
         var db = Track(KoboTestDatabase.Create(
             books: [new("book-1", "A Book", "Author")],
             bookmarks: [new("book-1", Text: null, Annotation: noteText, Type: "note")]));
         var koboResult = await new KoboReaderSource().ReadAsync(db);
-        var koboNote = koboResult.Books.SelectMany(b => b.Highlights).Single().Text;
+        var koboNote = koboResult.Books.SelectMany(b => b.Highlights).Single();
 
-        Assert.Equal(kindleNote, koboNote);
+        Assert.Equal(string.Empty, kindleNote.Text);
+        Assert.Equal(kindleNote.Text, koboNote.Text);
+        Assert.Equal(kindleNote.Note, koboNote.Note);
     }
 
     // ── T019 ──────────────────────────────────────────────────────────────────

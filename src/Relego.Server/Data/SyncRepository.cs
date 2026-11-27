@@ -1,6 +1,8 @@
 ﻿using System.Data;
 using Dapper;
+using Relego.Core.Annotations;
 using Relego.Core.Contracts;
+using Relego.Core.Parsing;
 
 namespace Relego.Server.Data;
 
@@ -42,23 +44,97 @@ public sealed class SyncRepository(IDbConnection connection)
 
             foreach (var highlight in book.Highlights)
             {
-                var inserted = await connection.ExecuteAsync(
+                var text = highlight.Text ?? string.Empty;
+                var position = string.IsNullOrWhiteSpace(highlight.Position) ? null : highlight.Position.Trim();
+                var markers = AnnotationMarkerParser.Parse(highlight.Note);
+
+                // A note that is nothing but markers leaves no prose; on a note-only annotation the
+                // raw note is kept so the row still carries something (a row needs a passage or a note).
+                var note = markers.Note
+                    ?? (text.Length == 0 && !string.IsNullOrWhiteSpace(highlight.Note) ? highlight.Note.Trim() : null);
+
+                var sourcePosition = SourcePosition.Parse(position);
+                var annotation = new
+                {
+                    UserId = userId,
+                    BookId = bookId,
+                    Text = text,
+                    Note = note,
+                    HeadingLevel = markers.HeadingLevel,
+                    StitchLevel = markers.StitchLevel,
+                    Tags = markers.Tags.Count == 0 ? null : string.Join(' ', markers.Tags),
+                    Position = position,
+                    PositionStart = sourcePosition.Start,
+                    PositionKind = sourcePosition.Kind,
+                    AddedOn = highlight.AddedOn?.ToString("o"),
+                    CreatedAt = (highlight.AddedOn ?? DateTimeOffset.UtcNow).ToString("o")
+                };
+
+                var existingId = await connection.QuerySingleOrDefaultAsync<int?>(
                     """
-                    INSERT OR IGNORE INTO highlights (user_id, book_id, text, weight, excluded, delivery_count, created_at)
-                    VALUES (@UserId, @BookId, @Text, 3, 0, 0, @CreatedAt)
+                    SELECT id FROM highlights
+                    WHERE user_id = @UserId
+                      AND book_id = @BookId
+                      AND (
+                            (text <> '' AND text = @Text AND coalesce(source_position, '') = coalesce(@Position, ''))
+                         OR (text = '' AND @Text = '' AND coalesce(note, '') = coalesce(@Note, ''))
+                          )
+                    LIMIT 1
+                    """,
+                    annotation,
+                    transaction);
+
+                if (existingId is null)
+                {
+                    await connection.ExecuteAsync(
+                        """
+                        INSERT INTO highlights (user_id, book_id, text, weight, excluded, delivery_count, created_at,
+                                                note, heading_level, stitch_level, tags, source_position, position_start,
+                                                position_kind, added_on)
+                        VALUES (@UserId, @BookId, @Text, 3, 0, 0, @CreatedAt,
+                                @Note, @HeadingLevel, @StitchLevel, @Tags, @Position, @PositionStart,
+                                @PositionKind, @AddedOn)
+                        """,
+                        annotation,
+                        transaction);
+
+                    response.NewHighlights++;
+                    continue;
+                }
+
+                // Re-importing only refreshes what the source said about the annotation; the reader's
+                // weight, exclusion, delivery count and last-seen date belong to Relego and are kept.
+                await connection.ExecuteAsync(
+                    """
+                    UPDATE highlights
+                    SET note            = coalesce(@Note, note),
+                        heading_level   = coalesce(@HeadingLevel, heading_level),
+                        stitch_level    = coalesce(@StitchLevel, stitch_level),
+                        tags            = coalesce(@Tags, tags),
+                        source_position = coalesce(@Position, source_position),
+                        position_start  = coalesce(@PositionStart, position_start),
+                        position_kind   = coalesce(@PositionKind, position_kind),
+                        added_on        = coalesce(@AddedOn, added_on)
+                    WHERE id = @Id
                     """,
                     new
                     {
-                        UserId = userId,
-                        BookId = bookId,
-                        Text = highlight.Text,
-                        CreatedAt = (highlight.AddedOn ?? DateTimeOffset.UtcNow).ToString("o")
-                    }, transaction);
+                        annotation.UserId,
+                        annotation.BookId,
+                        annotation.Text,
+                        annotation.Note,
+                        annotation.HeadingLevel,
+                        annotation.StitchLevel,
+                        annotation.Tags,
+                        annotation.Position,
+                        annotation.PositionStart,
+                        annotation.PositionKind,
+                        annotation.AddedOn,
+                        Id = existingId.Value
+                    },
+                    transaction);
 
-                if (inserted > 0)
-                    response.NewHighlights++;
-                else
-                    response.DuplicateHighlights++;
+                response.DuplicateHighlights++;
             }
         }
 

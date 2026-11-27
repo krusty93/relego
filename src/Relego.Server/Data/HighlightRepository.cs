@@ -18,23 +18,23 @@ public sealed class HighlightRepository(IDbConnection connection)
               INNER JOIN books b ON b.id = h.book_id
               INNER JOIN authors a ON a.id = b.author_id
               WHERE h.user_id = @UserId
-                AND (h.text LIKE @Filter OR b.title LIKE @Filter OR a.name LIKE @Filter)
+                AND (h.text LIKE @Filter OR h.note LIKE @Filter OR b.title LIKE @Filter OR a.name LIKE @Filter)
               """
             : "SELECT COUNT(*) FROM highlights WHERE user_id = @UserId";
 
         var itemSql = hasFilter
             ? """
-              SELECT h.id AS Id, b.id AS BookId, a.id AS AuthorId, h.text AS Text, b.title AS BookTitle, a.name AS AuthorName
+              SELECT h.id AS Id, b.id AS BookId, a.id AS AuthorId, h.text AS Text, b.title AS BookTitle, a.name AS AuthorName, h.note AS Note, h.source_position AS Position, h.added_on AS AddedOn
               FROM highlights h
               INNER JOIN books b ON b.id = h.book_id
               INNER JOIN authors a ON a.id = b.author_id
               WHERE h.user_id = @UserId
-                AND (h.text LIKE @Filter OR b.title LIKE @Filter OR a.name LIKE @Filter)
+                AND (h.text LIKE @Filter OR h.note LIKE @Filter OR b.title LIKE @Filter OR a.name LIKE @Filter)
               ORDER BY h.id ASC
               LIMIT @PageSize OFFSET @Offset
               """
             : """
-              SELECT h.id AS Id, b.id AS BookId, a.id AS AuthorId, h.text AS Text, b.title AS BookTitle, a.name AS AuthorName
+              SELECT h.id AS Id, b.id AS BookId, a.id AS AuthorId, h.text AS Text, b.title AS BookTitle, a.name AS AuthorName, h.note AS Note, h.source_position AS Position, h.added_on AS AddedOn
               FROM highlights h
               INNER JOIN books b ON b.id = h.book_id
               INNER JOIN authors a ON a.id = b.author_id

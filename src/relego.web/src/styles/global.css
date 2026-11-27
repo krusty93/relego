@@ -799,6 +799,28 @@ td {
   overflow: hidden;
 }
 
+/* The reader's own note is a second voice: sans against the passage's serif, quieter ink,
+   and set off by a hairline rule instead of a container so the card stays one flat surface. */
+.hl-note {
+  display: block;
+  margin-top: var(--sp-3);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--border-strong);
+  color: var(--ink-muted);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  cursor: text;
+  text-wrap: pretty;
+}
+
+.hl[data-open="false"] .hl-note {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .hl-meta {
   display: flex;
   gap: var(--sp-3);

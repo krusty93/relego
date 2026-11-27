@@ -120,7 +120,8 @@ public sealed class RecapRepository(IDbConnection connection)
                 a.name        AS AuthorName,
                 h.weight      AS Weight,
                 h.last_seen   AS LastSeenText,
-                h.created_at  AS CreatedAtText
+                h.created_at  AS CreatedAtText,
+                h.note        AS Note
             FROM highlights h
             JOIN books b   ON b.id = h.book_id
             JOIN authors a ON a.id = b.author_id
@@ -145,7 +146,8 @@ public sealed class RecapRepository(IDbConnection connection)
                 (int)r.Weight,
                 r.LastSeenText is null ? null : DateTimeOffset.Parse(r.LastSeenText),
                 DateTimeOffset.Parse(r.CreatedAtText),
-                Score: 0))
+                Score: 0,
+                r.Note))
             .ToList();
     }
 
@@ -170,6 +172,7 @@ public sealed class RecapRepository(IDbConnection connection)
         public long Weight { get; set; }
         public string? LastSeenText { get; set; }
         public string CreatedAtText { get; set; } = "";
+        public string? Note { get; set; }
     }
 
     // Raw row type for the recap history projection.

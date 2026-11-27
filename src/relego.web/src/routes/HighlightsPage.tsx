@@ -366,11 +366,21 @@ export function HighlightsPage() {
                   }}
                 >
                   <span>
-                    <span className="hl-quote">{item.text}</span>
+                    {item.text ? (
+                      <span className="hl-quote">{item.text}</span>
+                    ) : null}
+                    {item.note ? (
+                      <span className="hl-note">
+                        <span className="sr-only">Note: </span>
+                        {item.note}
+                      </span>
+                    ) : null}
                     <span className="hl-meta">
                       {book ? null : (
                         <span className="subtle">
-                          {item.bookTitle} · {item.authorName}
+                          {item.authorName
+                            ? `${item.bookTitle} · ${item.authorName}`
+                            : item.bookTitle}
                         </span>
                       )}
                       {excluded ? <Tag tone="excluded">Excluded</Tag> : null}
