@@ -1,65 +1,283 @@
 The Pragmatic Programmer (David Thomas;Andrew Hunt)
-- Your Highlight on page 14 | Location 182-184 | Added on Monday, January 10, 2022 9:15:00 AM
+- Your Highlight on Location 45-47 | Added on Monday, January 10, 2022 9:12:00 AM
+
+This book is about the craft of software development. It is not a book about a particular language or framework, and it will not teach you to write code.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 90-92 | Added on Monday, January 10, 2022 9:15:00 AM
+
+A Pragmatic Philosophy
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 90 | Added on Monday, January 10, 2022 9:15:00 AM
+
+.h1
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 101-103 | Added on Monday, January 10, 2022 9:18:00 AM
+
+It's Your Life.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 101 | Added on Monday, January 10, 2022 9:18:00 AM
+
+.h2
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 112-114 | Added on Monday, January 10, 2022 9:21:00 AM
 
 Care About Your Craft. Why spend your life developing software unless you care about doing it well?
 ==========
 The Pragmatic Programmer (David Thomas;Andrew Hunt)
-- Your Highlight on page 36 | Location 472-474 | Added on Tuesday, January 11, 2022 8:40:00 AM
+- Your Note on Location 112 | Added on Monday, January 10, 2022 9:22:00 AM
 
-Provide Options, Don't Make Lame Excuses. Instead of excuses, provide options. Don't say it can't be done; explain what can be done.
+.craft .prob the line I want in every recap
 ==========
 The Pragmatic Programmer (David Thomas;Andrew Hunt)
-- Your Highlight on page 62 | Location 800-802 | Added on Wednesday, January 12, 2022 7:55:00 AM
+- Your Highlight on Location 130-132 | Added on Monday, January 10, 2022 9:26:00 AM
 
-It's Both What You Say and the Way You Say It. There's no point in having great ideas if you don't communicate them effectively.
+Think! About Your Work. Turn off the autopilot and take control. Constantly critique and appraise your work.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 130 | Added on Monday, January 10, 2022 9:27:00 AM
+
+.review
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 150-152 | Added on Monday, January 10, 2022 9:31:00 AM
+
+There is no single right answer. Everything depends on the context, and the context is never quite the same twice
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 150 | Added on Monday, January 10, 2022 9:32:00 AM
+
+.c1
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 160-162 | Added on Monday, January 10, 2022 9:33:00 AM
+
+so the best you can do is keep the decision reversible until the context becomes clear.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 160 | Added on Monday, January 10, 2022 9:34:00 AM
+
+.c2 .arg
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 175-177 | Added on Monday, January 10, 2022 9:40:00 AM
+
+Topic 3: Software Entropy
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 175 | Added on Monday, January 10, 2022 9:40:00 AM
+
+.h2
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 186-188 | Added on Monday, January 10, 2022 9:42:00 AM
+
+Don't Live with Broken Windows. Fix each one as soon as it is discovered.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 199 | Added on Monday, January 10, 2022 9:45:00 AM
+
+Reading this again after ten years. The advice has aged better than the tools it mentions.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Bookmark on Location 210 | Added on Monday, January 10, 2022 9:47:00 AM
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Highlight on Location 215-217 | Added on Monday, January 10, 2022 9:50:00 AM
+
+Good design is easier to change than bad design.
+==========
+The Pragmatic Programmer (David Thomas;Andrew Hunt)
+- Your Note on Location 215 | Added on Monday, January 10, 2022 9:51:00 AM
+
+.h4 I keep forgetting which level is which
 ==========
 Clean Code (Robert C. Martin)
 - Your Highlight on page 11 | Location 121-123 | Added on Friday, February 4, 2022 10:20:00 AM
 
-Clean code is simple and direct. Clean code reads like well-written prose. Clean code never obscures the designer's intent but rather is full of crisp abstractions and straightforward lines of control.
+Clean code is simple and direct. Clean code reads like well-written prose.
+==========
+Clean Code (Robert C. Martin)
+- Your Note on page 11 | Location 121 | Added on Friday, February 4, 2022 10:21:00 AM
+
+.craft .quote
 ==========
 Clean Code (Robert C. Martin)
 - Your Highlight on page 48 | Location 614-616 | Added on Saturday, February 5, 2022 9:05:00 AM
 
-The name of a variable, function, or class, should answer all the big questions. It should tell you why it exists, what it does, and how it is used.
+The name of a variable, function, or class, should answer all the big questions.
 ==========
 Clean Code (Robert C. Martin)
-- Your Highlight on page 76 | Location 987-989 | Added on Sunday, February 6, 2022 11:30:00 AM
+- Your Note on page 48 | Location 614 | Added on Saturday, February 5, 2022 9:06:00 AM
+
+.naming one of the few rules that pays back daily
+I keep catching myself in getUserData again.
+==========
+Clean Code (Robert C. Martin)
+- Your Highlight on page 67 | Location 890-892 | Added on Sunday, February 6, 2022 11:30:00 AM
 
 Functions should do one thing. They should do it well. They should do it only.
+==========
+Clean Code (Robert C. Martin)
+- Your Highlight on page 90 | Location 1150-1152 | Added on Monday, February 7, 2022 8:15:00 AM
+
+Chapter 3: Functions
+==========
+Clean Code (Robert C. Martin)
+- Your Note on page 90 | Location 1150 | Added on Monday, February 7, 2022 8:15:00 AM
+
+.h2
+==========
+Clean Code (Robert C. Martin)
+- Your Bookmark on page 93 | Location 1180 | Added on Monday, February 7, 2022 8:20:00 AM
 ==========
 The Hobbit (J.R.R. Tolkien)
 - Your Highlight on page 1 | Location 3-4 | Added on Thursday, March 3, 2022 8:00:00 PM
 
-In a hole in the ground there lived a hobbit. Not a nasty, dirty, wet hole, filled with the ends of worms and an oozy smell, nor yet a dry, bare, sandy hole with nothing in it to sit down on or to eat.
+In a hole in the ground there lived a hobbit.
 ==========
 The Hobbit (J.R.R. Tolkien)
 - Your Highlight on page 284 | Location 4321-4323 | Added on Sunday, March 6, 2022 9:45:00 PM
 
 Go back? No good at all! Go sideways? Impossible! Go forward? Only thing to do! On we go!
 ==========
-Thinking, Fast and Slow (Daniel Kahneman)
-- Your Highlight on page 20 | Location 257-259 | Added on Monday, April 4, 2022 7:10:00 AM
+The Hobbit (J.R.R. Tolkien)
+- Your Bookmark on page 285 | Location 4330 | Added on Sunday, March 6, 2022 9:46:00 PM
+==========
+The Hobbit (J.R.R. Tolkien)
+- Your Highlight on page 300 | Location 4500-4502 | Added on Monday, March 7, 2022 10:05:00 PM
 
-The confidence that individuals have in their beliefs depends mostly on the quality of the story they can tell about what they see, even if they see little.
+There is nothing like looking, if you want to find something.
 ==========
 Thinking, Fast and Slow (Daniel Kahneman)
-- Your Highlight on page 85 | Location 1092-1094 | Added on Tuesday, April 5, 2022 6:55:00 AM
+- Your Highlight on Location 257-259 | Added on Monday, April 4, 2022 7:10:00 AM
+
+The confidence that individuals have in their beliefs depends mostly on the quality of the story they can tell about what they see.
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Note on Location 257 | Added on Monday, April 4, 2022 7:11:00 AM
+
+.bias .review
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Highlight on Location 1092-1094 | Added on Tuesday, April 5, 2022 6:55:00 AM
 
 Nothing in life is as important as you think it is, while you are thinking about it.
 ==========
 Thinking, Fast and Slow (Daniel Kahneman)
-- Your Highlight on page 217 | Location 2791-2793 | Added on Wednesday, April 6, 2022 7:30:00 AM
+- Your Note on Location 1092 | Added on Tuesday, April 5, 2022 6:56:00 AM
+
+.bias
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Highlight on Location 2791-2793 | Added on Wednesday, April 6, 2022 7:30:00 AM
 
 This is the essence of intuitive heuristics: when faced with a difficult question, we often answer an easier one instead, without noticing the substitution.
 ==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Note on Location 2791 | Added on Wednesday, April 6, 2022 7:31:00 AM
+
+.heuristics to check whether I am substituting a question
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Highlight on Location 3001-3003 | Added on Thursday, April 7, 2022 6:40:00 AM
+
+A reliable way to make people believe in falsehoods is frequent repetition, because familiarity is not easily distinguished from truth.
+==========
+Thinking, Fast and Slow (Daniel Kahneman)
+- Your Note on Location 3001 | Added on Thursday, April 7, 2022 6:41:00 AM
+
+.
+==========
 Foundation (Isaac Asimov)
-- Your Highlight on page 73 | Location 945-947 | Added on Saturday, May 21, 2022 8:30:00 AM
+- Your Highlight on page 60 | Location 780-782 | Added on Saturday, May 21, 2022 8:30:00 AM
 
 Violence is the last refuge of the incompetent.
 ==========
 Foundation (Isaac Asimov)
-- Your Highlight on page 195 | Location 2510-2512 | Added on Sunday, May 22, 2022 9:00:00 AM
+- Your Note on page 60 | Location 780 | Added on Saturday, May 21, 2022 8:31:00 AM
 
-The fall of Empire, gentlemen, is a massive thing, however, and not easily fought. It is dictated by a rising bureaucracy, a receding initiative, a freezing of caste, a damming of curiosity — a hundred other factors.
+.quote .core
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 62 | Location 800-802 | Added on Saturday, May 21, 2022 8:40:00 AM
+
+An individual's failure has no such effect, for the fall of an individual is a personal matter.
+==========
+Foundation (Isaac Asimov)
+- Your Note on page 62 | Location 800 | Added on Saturday, May 21, 2022 8:41:00 AM
+
+.empire the second half of that sentence is the interesting part
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 100 | Location 1300-1302 | Added on Sunday, May 22, 2022 9:00:00 AM
+
+Part II: The Foundation
+==========
+Foundation (Isaac Asimov)
+- Your Note on page 100 | Location 1300 | Added on Sunday, May 22, 2022 9:00:00 AM
+
+.h1
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 120 | Location 1550-1552 | Added on Sunday, May 22, 2022 9:05:00 AM
+
+The fall of Empire, gentlemen, is a massive thing, however, and not easily fought.
+==========
+Foundation (Isaac Asimov)
+- Your Note on page 120 | Location 1550 | Added on Sunday, May 22, 2022 9:06:00 AM
+
+.h3
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 121 | Location 1560-1562 | Added on Sunday, May 22, 2022 9:07:00 AM
+
+It is dictated by a rising bureaucracy
+==========
+Foundation (Isaac Asimov)
+- Your Note on page 121 | Location 1560 | Added on Sunday, May 22, 2022 9:08:00 AM
+
+.c1
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 122 | Location 1570-1572 | Added on Sunday, May 22, 2022 9:09:00 AM
+
+a receding initiative, a freezing of caste
+==========
+Foundation (Isaac Asimov)
+- Your Note on page 122 | Location 1570 | Added on Sunday, May 22, 2022 9:10:00 AM
+
+.c2
+==========
+Foundation (Isaac Asimov)
+- Your Highlight on page 123 | Location 1580-1582 | Added on Sunday, May 22, 2022 9:11:00 AM
+
+a damming of curiosity — a hundred other factors.
+==========
+Foundation (Isaac Asimov)
+- Your Note on page 123 | Location 1580 | Added on Sunday, May 22, 2022 9:12:00 AM
+
+.c3 .arg
+==========
+Foundation (Isaac Asimov)
+- Your Bookmark on page 141 | Location 1810 | Added on Sunday, May 22, 2022 9:40:00 AM
+==========
+Refactoring Improving the Design of Existing Code
+- Your Highlight on page 12 | Location 150-152 | Added on Friday, June 3, 2022 6:30:00 AM
+
+Any fool can write code that a computer can understand. Good programmers write code that humans can understand.
+==========
+Refactoring Improving the Design of Existing Code
+- Your Note on page 12 | Location 150 | Added on Friday, June 3, 2022 6:31:00 AM
+
+.quote .classic
+==========
+Refactoring Improving the Design of Existing Code
+- Your Highlight on page 30 | Location 400-402 | Added on Saturday, June 4, 2022 7:10:00 AM
+
+Refactoring is a controlled technique for improving the design of an existing code base.
 ==========
