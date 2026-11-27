@@ -123,13 +123,21 @@ Verify Docker image origin via GitHub CLI:
 ```sh
 gh attestation verify \
   oci://ghcr.io/krusty93/relego.server:latest \
-  --owner Krusty93
+  --owner krusty93
 ```
 
 ```sh
 gh attestation verify \
   oci://ghcr.io/krusty93/relego.cli:latest \
-  --owner Krusty93
+  --owner krusty93
+```
+
+Verify a published release and every asset it contains via its release attestation:
+
+```sh
+gh release verify \
+  <component>/v<version> \
+  --repo krusty93/relego
 ```
 
 ---

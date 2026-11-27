@@ -248,15 +248,13 @@ jobs:
           name: extension-release-assets
           path: artifacts/*
 
-  create-release:
-    name: Create GitHub Release
-    needs: [metadata, build-cli, prepare-cli-release-assets, build-extension]
-    if: always() && needs.metadata.result == 'success'
+  plan-release:
+    name: Generate release notes
+    needs: metadata
     runs-on: ubuntu-26.04
-    permissions:
-      contents: write
     outputs:
       publish: ${{ steps.notes.outputs.publish }}
+      body: ${{ steps.notes.outputs.body }}
 
     steps:
       - name: Checkout
@@ -269,20 +267,6 @@ jobs:
       - name: Discover Versioned Components
         id: discover
         uses: ./.github/actions/discover-versioned-components
-
-      - name: Download CLI Release Assets
-        if: needs.metadata.outputs.component == 'cli'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: cli-release-assets
-          path: artifacts/
-
-      - name: Download Extension Release Assets
-        if: needs.metadata.outputs.component == 'extension'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: extension-release-assets
-          path: artifacts/
 
       - name: Generate Release Notes
         id: notes
@@ -371,25 +355,59 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
-        if: >-
-          steps.notes.outputs.publish == 'true'
-          && (needs.metadata.outputs.component != 'cli' || needs.prepare-cli-release-assets.result == 'success')
-          && (needs.metadata.outputs.component != 'extension' || needs.build-extension.result == 'success')
+  create-draft-release:
+    name: Create draft release
+    needs: [metadata, plan-release, build-cli, prepare-cli-release-assets, build-extension]
+    if: >-
+      always()
+      && needs.metadata.result == 'success'
+      && needs.plan-release.result == 'success'
+      && needs.plan-release.outputs.publish == 'true'
+      && (needs.metadata.outputs.component != 'cli' || needs.prepare-cli-release-assets.result == 'success')
+      && (needs.metadata.outputs.component != 'extension' || needs.build-extension.result == 'success')
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download CLI Release Assets
+        if: needs.metadata.outputs.component == 'cli'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: cli-release-assets
+          path: artifacts/
+
+      - name: Download Extension Release Assets
+        if: needs.metadata.outputs.component == 'extension'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: extension-release-assets
+          path: artifacts/
+
+      # Every asset must exist before the release is published: a published
+      # immutable release rejects new assets and only attests the assets that
+      # were present when it was published.
+      - name: Create draft release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           tag_name: ${{ needs.metadata.outputs.tag }}
           name: "${{ needs.metadata.outputs.component }}/${{ needs.metadata.outputs.version }}"
-          body: ${{ steps.notes.outputs.body }}
-          draft: false
+          body: ${{ needs.plan-release.outputs.body }}
+          draft: true
           prerelease: false
           files: artifacts/*
           token: ${{ secrets.RELEASE_TOKEN }}
 
   cli-provenance:
     name: Generate CLI SLSA Provenance
-    needs: [metadata, prepare-cli-release-assets, create-release]
-    if: startsWith(needs.metadata.outputs.tag, 'cli/') && needs.create-release.outputs.publish == 'true'
+    needs: [metadata, plan-release, prepare-cli-release-assets, create-draft-release]
+    if: >-
+      always()
+      && startsWith(needs.metadata.outputs.tag, 'cli/')
+      && needs.plan-release.result == 'success'
+      && needs.plan-release.outputs.publish == 'true'
+      && needs.prepare-cli-release-assets.result == 'success'
+      && needs.create-draft-release.result == 'success'
     permissions:
       actions: read
       contents: write
@@ -400,3 +418,57 @@ jobs:
       upload-assets: true
       upload-tag-name: ${{ needs.metadata.outputs.tag }}
       provenance-name: relego-${{ needs.metadata.outputs.version }}.intoto.jsonl
+
+  publish-release:
+    name: Publish release
+    needs: [metadata, plan-release, create-draft-release, cli-provenance]
+    if: >-
+      always()
+      && needs.metadata.result == 'success'
+      && needs.plan-release.result == 'success'
+      && needs.plan-release.outputs.publish == 'true'
+      && needs.create-draft-release.result == 'success'
+      && (needs.metadata.outputs.component != 'cli' || needs.cli-provenance.result == 'success')
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false
+          echo "Published $TAG."
+
+      - name: Verify release attestation
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          IMMUTABLE=$(gh release view "$TAG" --json isImmutable --jq .isImmutable)
+          if [ "$IMMUTABLE" != "true" ]; then
+            {
+              echo "::error::Release $TAG is not immutable, so GitHub generated no release attestation."
+              echo "::error::Enable 'Settings → Releases → Enable release immutability' for this repository (applies to future releases only) and re-cut the release."
+            }
+            exit 1
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            if gh release verify "$TAG"; then
+              echo "Release attestation verified for $TAG."
+              exit 0
+            fi
+            echo "Release attestation not available yet (attempt ${attempt}/5); retrying in 10s."
+            sleep 10
+          done
+
+          echo "::error::No valid release attestation found for $TAG."
+          exit 1
