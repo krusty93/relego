@@ -185,7 +185,7 @@ test("a note and its tags read the way the payload reports them", async ({
   await expect(card.locator(".hl-tag")).toHaveText(annotated.tags);
 });
 
-test("a chapter is drawn as one rail that names itself once", async ({
+test("a chapter is named once, without a box drawn around its highlights", async ({
   page,
 }) => {
   const payload = await annotations(bookId);
@@ -198,55 +198,65 @@ test("a chapter is drawn as one rail that names itself once", async ({
   if (!inChapter) throw new Error("The fixture lost its chaptered highlight");
 
   const card = page.locator(".hl").filter({ hasText: inChapter.text }).first();
-  const region = page.locator(".hl-group").filter({ has: card });
+  const chapter = page.locator(".hl-chapter").filter({ has: card });
 
-  // The chapter is stated at the region head, not repeated on every card: that repetition is
-  // what forced the reader to decode a crumb to see that two highlights belong together.
+  // The chapter is stated at its head, not repeated on every card: that repetition is what
+  // forced the reader to decode a crumb to see that two highlights belong together.
   await expect(card.locator(".hl-crumb")).toHaveCount(0);
-  await expect(region).toHaveAttribute(
+  await expect(chapter).toHaveAttribute(
     "aria-label",
     inChapter.chapterPath.join(" › "),
   );
-  await expect(region).not.toHaveAttribute("data-loose", "true");
+  await expect(chapter).not.toHaveAttribute("data-loose", "true");
 
-  // The connection is drawn: the stop carries its run of the spine.
+  // Nothing is drawn beside or around the row: the chapter above it and a hairline between
+  // rows are the whole connection, so a chapter never reads as a boxed group.
   expect(
     await card.evaluate((el) => getComputedStyle(el, "::before").content),
-  ).not.toBe("none");
+  ).toBe("none");
+  await expect(chapter.locator(".hl-chapter-head")).toHaveCount(0);
 
-  // Highlights outside every chapter are separated without a rail, so the two kinds of
-  // separation cannot be confused for each other.
-  const loose = page.locator('.hl-group[data-loose="true"]');
+  // Highlights outside every chapter get an explicit head instead, so the two kinds of
+  // grouping cannot be confused for each other.
+  const loose = page.locator('.hl-chapter[data-loose="true"]');
   if ((await loose.count()) > 0) {
-    expect(
-      await loose
-        .locator(".hl-group-body > .hl")
-        .first()
-        .evaluate((el) => getComputedStyle(el, "::before").content),
-    ).toBe("none");
+    await expect(loose.locator(".hl-chapter-head").first()).toHaveText(
+      "Unknown chapter",
+    );
   }
 });
 
-test("a stitched passage reads as one item that keeps every fragment", async ({
+test("a linked passage reads as one item that keeps every highlight", async ({
   page,
 }) => {
   const payload = await annotations(bookId);
-  const fragments = payload.filter((item) => item.stitchGroupId !== null);
+  const fragments = payload
+    .filter((item) => item.stitchGroupId !== null)
+    .sort((left, right) => (left.stitchIndex ?? 0) - (right.stitchIndex ?? 0));
   const lead = fragments.find((item) => item.stitchIndex === 0);
-  if (!lead) throw new Error("The fixture lost its stitched passage");
+  if (!lead) throw new Error("The fixture lost its linked passage");
 
+  // The card reads the parts as one sentence: no separator is drawn between the reader's
+  // words. The label says how many highlights it came from, and that it can be opened.
+  const joined = fragments.map((item) => item.text).join(" ");
   const passage = page.locator(".hl--stitch");
   await expect(passage).toHaveCount(1);
-  await expect(passage.locator(".hl-stitch-count")).toHaveText(
-    `${fragments.length} fragments stitched`,
+  await expect(passage.locator(".hl-quote--passage")).toHaveText(joined);
+  await expect(passage.locator(".hl-stitch-count")).toContainText(
+    `Linked from ${fragments.length} highlights`,
   );
-  await expect(passage.locator(".hl-quote--passage")).toContainText(lead.text);
+  await expect(passage.locator(".hl-stitch-toggle")).toHaveText("show them");
 
-  // The passage carries the union of its fragments' tags, once each.
+  // The passage carries the union of its fragments' tags, once each. The label is the only
+  // place the union is shown; inside, each highlight keeps its own tags.
   const tags = [...new Set(fragments.flatMap((item) => item.tags))];
-  await expect(passage.locator(".hl-tag")).toHaveText(tags);
+  await expect(passage.locator(".hl-summary .hl-tag")).toHaveText(tags);
 
   await passage.locator(".hl-summary").click();
+  await expect(passage.locator(".hl-stitch-toggle")).toHaveText("hide them");
+
+  // Which highlights are linked is answered here: one numbered row per highlight, each with
+  // its own words, tags, note and position.
   const cards = passage.locator(".hl-fragment");
   await expect(cards).toHaveCount(fragments.length);
 
@@ -256,6 +266,12 @@ test("a stitched passage reads as one item that keeps every fragment", async ({
     await expect(card.locator(".hl-provenance dd").first()).toHaveText(
       fragment.position ?? "Unknown",
     );
+
+    if (fragment.tags.length > 0) {
+      await expect(card.locator(".hl-tag")).toHaveText(fragment.tags);
+    } else {
+      await expect(card.locator(".hl-tag")).toHaveCount(0);
+    }
 
     if (fragment.note) {
       await expect(card.locator(".hl-note")).toContainText(fragment.note);
@@ -308,6 +324,57 @@ test("the contents list and its filter agree with the chapter payload", async ({
       page.locator(".hl").filter({ hasText: item.text }).first(),
     ).toBeVisible();
   }
+
+  // The contents is a margin column that stays put while the list scrolls: sticky, and still
+  // on screen once the page has scrolled. The viewport is shortened so the page can scroll
+  // past the rail at all.
+  const rail = page.locator(".book-toc");
+  await expect(rail).toHaveCSS("position", "sticky");
+  await page.setViewportSize({ width: 1440, height: 560 });
+  await page.evaluate(() => window.scrollTo(0, 300));
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await expect(rail.locator(".toc")).toBeInViewport();
+  const railBox = (await rail.boundingBox())!;
+  // Pinned just under the header: top bar (66) plus the page's own spacing.
+  expect(railBox.y).toBeGreaterThanOrEqual(84);
+  expect(railBox.y).toBeLessThanOrEqual(96);
+  await page.setViewportSize({ width: 1440, height: 950 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+});
+
+test("the contents becomes a strip that stays on screen on a narrow page", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/app/books/${bookId}`, { waitUntil: "networkidle" });
+
+  const rail = page.locator(".book-toc");
+  await expect(rail).toHaveCSS("position", "sticky");
+  expect(await page.locator(".toc-entry").count()).toBeGreaterThan(1);
+
+  // Always visible: at the end of the list the strip is still pinned under the header.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(rail.locator(".toc")).toBeInViewport();
+  const box = (await rail.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeLessThan(130);
+
+  // And it filters exactly as the margin column does.
+  const toc = await getJson<ChapterList>(`/books/${bookId}/chapters`);
+  const section = toc.chapters.find((chapter) => chapter.level === 2);
+  if (!section) throw new Error("The fixture lost its section");
+
+  await page
+    .locator(".toc-entry")
+    .filter({ hasText: section.title })
+    .first()
+    .click();
+  await expect(
+    page.locator(".toc-entry", { hasText: section.title }).first(),
+  ).toHaveAttribute("aria-current", "true");
+  await expect(page.locator(".hl")).toHaveCount(
+    rowCount(await annotations(bookId, `&chapterId=${section.id}`)),
+  );
 });
 
 test("the tag chips agree with the tag payload and filter to the same annotations", async ({

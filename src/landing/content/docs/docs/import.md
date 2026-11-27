@@ -137,9 +137,11 @@ back to the nearest chapter, or to **Unknown chapter**.
 
 ## Browse by chapter and tag
 
-Open **Highlights** in the web interface: the chapter rail narrows the list to
-one chapter, and the tag chips narrow it to one word, so `.prob` passages are one
-click away. Filtering by chapter and by tag at the same time is allowed.
+Open **Highlights** in the web interface: the contents list beside the highlights
+narrows it to one chapter — on a narrow screen that list becomes a strip pinned
+under the header, so it stays in reach while you scroll — and the tag chips
+narrow it to one word, so `.prob` passages are one click away. Filtering by
+chapter and by tag at the same time is allowed.
 
 From a terminal, the same views:
 

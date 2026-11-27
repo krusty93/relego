@@ -31,20 +31,35 @@ test.describe("highlights", () => {
         await page.goto(url);
         const card = page.locator(".hl").first();
         await expect(card).toBeVisible();
+        // A book with a contents column gives it a margin of its own, so its list is narrower
+        // than the library's table on a wide screen. A book with no chapters keeps the full
+        // width, and so does the library-wide list.
+        const hasContents = (await page.locator(".book-toc").count()) > 0;
 
         for (const expanded of [false, true]) {
           if (expanded) await card.locator(".hl-summary").click();
           const box = await card.boundingBox();
           if (!box) throw new Error("Highlight card has no box");
           expect(box.x).toBeCloseTo(library.x, 0);
-          expect(box.width).toBeCloseTo(library.width, 0);
+          if (hasContents && width > 1160) {
+            expect(box.width).toBeLessThan(library.width);
+          } else {
+            expect(box.width).toBeCloseTo(library.width, 0);
+          }
           const textWidth = await card
             .locator(".hl-quote")
             .evaluate((quote) => ({
               actual: quote.getBoundingClientRect().width,
               available: quote.parentElement!.getBoundingClientRect().width,
             }));
-          expect(textWidth.actual).toBeCloseTo(textWidth.available, 0);
+          // The quote is capped at the reading measure, so it never runs the full width of a
+          // wide column; where there is less room it fills what it is given.
+          expect(textWidth.actual).toBeLessThanOrEqual(
+            textWidth.available + 0.5,
+          );
+          if (width > 1160) {
+            expect(textWidth.actual).toBeLessThan(textWidth.available);
+          }
           expect(
             await page.evaluate(
               () => document.documentElement.scrollWidth <= window.innerWidth,

@@ -84,6 +84,9 @@
   --measure-view: 1180px;
   /* Reading measure for standalone prose, per the 65-75ch rule. */
   --measure-prose: 68ch;
+  /* Height of the sticky top bar. A sticky child has to clear it, and the bar is one
+     row until the shell wraps the search field under the wordmark. */
+  --topbar-h: 66px;
   --z-sticky: 100;
   --z-rail: 200;
   --z-backdrop: 300;
@@ -91,4 +94,10 @@
   --z-toast: 500;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --dur: 180ms;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --topbar-h: 116px;
+  }
 }
