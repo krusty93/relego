@@ -1,6 +1,6 @@
 {
   "name": "Relego",
-	"image": "mcr.microsoft.com/devcontainers/dotnet:2-10.0",
+	"image": "mcr.microsoft.com/devcontainers/dotnet:3-10.0",
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
