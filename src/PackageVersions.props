@@ -3,7 +3,7 @@
   <PropertyGroup>
     <RelegoCoreVersion>0.10.2</RelegoCoreVersion>
     <RelegoCliVersion>0.17.1</RelegoCliVersion>
-    <RelegoServerVersion>0.20.5</RelegoServerVersion>
+    <RelegoServerVersion>0.20.6</RelegoServerVersion>
     <RelegoExtensionVersion>0.1.2</RelegoExtensionVersion>
     <PollyVersion>8.6.6</PollyVersion>
     <MicrosoftDataSqliteVersion>10.0.5</MicrosoftDataSqliteVersion>
